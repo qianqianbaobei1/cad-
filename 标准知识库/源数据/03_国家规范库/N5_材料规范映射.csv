@@ -1,0 +1,143 @@
+﻿material_id,standard_id,relation_type,relevance,use_scene,covered_params,clause_refs,active_flag,notes
+MAT-STE-001,GB 1499.2-2024,product_standard,primary,规格定义/质量验收,"[""牌号"",""直径"",""理论重量"",""力学性能"",""化学成分"",""尺寸偏差"",""重量偏差"",""弯曲性能"",""表面标志""]","[""表1"",""表2"",""表3"",""表4"",""表5"",""表6"",""表7""]",1,直接产品标准;替代2018版
+MAT-STE-001,GB 50010-2010,design_standard,secondary,设计选型,"[""强度设计值"",""抗震要求"",""保护层厚度"",""锚固长度""]",,1,混凝土结构设计规范;P0未录入
+MAT-STE-001,GB 50666-2011,construction_standard,reference,施工指导,,,1,混凝土结构工程施工规范;P2待录入
+MAT-STE-001,GB 50204-2015,acceptance_standard,secondary,质量验收,"[""偏差验收"",""取样规则"",""检验批次""]",,1,混凝土结构工程施工质量验收规范;P2待录入
+MAT-CON-001,GB/T 14902-2012,product_standard,primary,规格定义/质量验收,"[""分类"",""强度等级"",""坍落度"",""扩展度"",""含气量"",""氯离子含量"",""耐久性等级""]","[""表1"",""表2"",""表3"",""表4~7"",""表8"",""表9""]",1,直接产品标准
+MAT-CON-001,GB 50164-2011,acceptance_standard,secondary,质量控制,"[""强度检验"",""拌合物性能检验"",""原材料检验""]",,1,混凝土质量控制标准;P2待录入
+MAT-CON-001,GB 50010-2010,design_standard,secondary,设计选型,"[""强度等级选用"",""耐久性要求"",""保护层""]",,1,混凝土结构设计规范;P0未录入(扫描件)
+MAT-CON-001,GB 50204-2015,acceptance_standard,secondary,验收检验,"[""强度评定"",""尺寸偏差"",""外观质量""]",,1,混凝土结构工程施工质量验收规范;P2待录入
+MAT-STE-007,GB/T 3091-2025,product_standard,primary,规格定义/质量验收,"[""DN"",""外径"",""壁厚"",""焊接方式"",""镀锌要求""]","[""表1"",""表2""]",1,直接产品标准;替代2015版
+MAT-STE-007,GB 50268-2008,construction_standard,reference,施工安装,,,1,给水排水管道工程施工及验收规范;P2待录入
+MAT-STE-002,GB 1499.1-2024,product_standard,primary,规格定义/质量验收,"[""牌号"",""公称直径"",""理论重量"",""力学性能"",""化学成分"",""尺寸偏差"",""重量偏差"",""弯曲性能"",""表面质量""]","[""表1"",""表2"",""表3"",""表4"",""表6""]",1,直接产品标准
+MAT-STE-003,GB/T 11263-2024,product_standard,primary,规格定义/质量验收,"[""牌号"",""截面型号"",""截面高度"",""翼缘宽度"",""腹板厚度"",""翼缘厚度"",""截面面积"",""理论重量"",""力学性能"",""化学成分""]","[""表1"",""表2"",""表3""]",1,替代GB/T11263-2017
+MAT-STE-003,GB/T 706-2016,product_standard,reference,型钢通用标准,"[""截面尺寸"",""重量偏差"",""外形""]",,1,型钢通用标准
+MAT-STE-008,GB/T 1231-2024,product_standard,primary,规格定义/质量验收,"[""性能等级"",""规格"",""抗拉强度"",""规定非比例延伸强度"",""断后伸长率"",""断面收缩率"",""硬度"",""扭矩系数""]","[""表1"",""表2"",""表3"",""表4""]",1,大六角头螺栓连接副
+MAT-STE-008,GB/T 3632-2008,product_standard,secondary,替代规格(扭剪型),"[""性能等级"",""规格"",""抗拉强度"",""紧固轴力""]",,1,扭剪型;用于替代/补充场景
+MAT-MOR-001,GB/T 25181-2019,product_standard,primary,规格定义/质量验收,"[""分类"",""强度等级"",""稠度"",""保水率"",""凝结时间"",""抗压强度"",""拉伸粘结强度"",""抗渗压力""]","[""表1"",""表2"",""表3"",""表4"",""表5""]",1,干混砌筑砂浆
+MAT-MOR-002,GB/T 25181-2019,product_standard,primary,规格定义/质量验收,"[""分类"",""强度等级"",""稠度"",""保水率"",""凝结时间"",""抗压强度"",""拉伸粘结强度""]","[""表1"",""表2"",""表3""]",1,干混抹灰砂浆
+MAT-MOR-003,GB/T 25181-2019,product_standard,primary,规格定义/质量验收,"[""分类"",""强度等级"",""稠度"",""保水率"",""凝结时间"",""抗压强度""]","[""表1"",""表2"",""表3""]",1,干混地面砂浆
+MAT-BRI-002,GB 13544-2011,product_standard,primary,规格定义/质量验收,"[""\u5f3a\u5ea6\u7b49\u7ea7"", ""\u5bc6\u5ea6\u7b49\u7ea7"", ""\u5b54\u6d1e\u7387"", ""\u5c3a\u5bf8\u504f\u5dee"", ""\u5916\u89c2\u8d28\u91cf""]",,1,
+MAT-BLO-002,GB/T 15229-2011,product_standard,primary,规格定义/质量验收,"[""\u5f3a\u5ea6\u7b49\u7ea7"", ""\u5bc6\u5ea6\u7b49\u7ea7"", ""\u5438\u6c34\u7387"", ""\u5c3a\u5bf8\u504f\u5dee"", ""\u6297\u51bb\u6807\u53f7""]",,1,
+MAT-WAP-007,GB 18173.2-2014,product_standard,primary,规格定义/质量验收,"[""\u6b62\u6c34\u5e26\u7c7b\u578b"", ""\u5bbd\u5ea6"", ""\u539a\u5ea6"", ""\u786c\u5ea6"", ""\u62c9\u4f38\u5f3a\u5ea6"", ""\u62c9\u65ad\u4f38\u957f\u7387"", ""\u6495\u88c2\u5f3a\u5ea6""]",,1,
+MAT-WAP-003,GB/T 19250-2013,product_standard,primary,规格定义/质量验收,"[""\u4ea7\u54c1\u7c7b\u578b"", ""\u62c9\u4f38\u5f3a\u5ea6"", ""\u65ad\u88c2\u4f38\u957f\u7387"", ""\u6495\u88c2\u5f3a\u5ea6"", ""\u4e0d\u900f\u6c34\u6027"", ""\u5438\u6c34\u7387"", ""\u7c98\u7ed3\u5f3a\u5ea6""]",,1,
+MAT-FLR-001,GB/T 11982.1-2015,product_standard,primary,非同质PVC地板规格,"[""\u7ed3\u6784\u7c7b\u578b"", ""\u4f7f\u7528\u7b49\u7ea7"", ""\u8010\u78e8\u7b49\u7ea7"", ""\u603b\u539a\u5ea6"", ""\u8010\u78e8\u5c42\u539a\u5ea6""]",,1,
+MAT-FLR-001,GB/T 11982.2-2015,product_standard,secondary,同质PVC地板(备用),"[""\u4f7f\u7528\u7b49\u7ea7"", ""\u8010\u78e8\u7b49\u7ea7"", ""\u603b\u539a\u5ea6""]",,1,
+MAT-PIPE-001,GB/T 8163-2018,product_standard,primary,规格定义/质量验收,"[""DN"",""外径"",""壁厚"",""钢级"",""力学性能"",""液压试验"",""压扁试验""]","[""表1"",""表2"",""表3"",""表4""]",1,无缝钢管流体输送;替代2008版
+MAT-PIPE-005,GB/T 12771-2019,product_standard,primary,规格定义/质量验收,"[""牌号"",""DN"",""外径"",""壁厚"",""焊接方式"",""力学性能"",""耐腐蚀性""]","[""表1"",""表2"",""表3""]",1,不锈钢焊接钢管;替代2008版
+MAT-VALV-002,GB/T 12238-2008,product_standard,primary,规格定义/质量验收,"[""DN"",""PN"",""连接方式"",""阀体材料"",""密封材料"",""操作方式""]","[""表2"",""表3""]",1,蝶阀;替代1989版;安装工程
+MAT-STE-006,GB/T 709-2019,product_standard,primary,规格定义/质量验收,"[""厚度"",""宽度"",""长度"",""厚度允许偏差"",""不平度""]","[""表1"",""表2"",""表3"",""表4""]",1,热轧钢板尺寸标准;替代2006版
+MAT-FRM-001,GB/T 11981-2024,product_standard,primary,规格定义,"[""类型"",""厚度"",""宽度"",""长度""]",,1,轻钢龙骨;吊顶用
+MAT-VALV-001,GB/T 12232-2025,product_standard,primary,规格定义/压力试验,"[""DN"",""PN"",""阀体材料"",""密封面材料""]",,1,闸阀;安装工程
+MAT-VALV-003,GB/T 12235-2025,product_standard,primary,规格定义,"[""DN"",""PN"",""阀体材料"",""密封面材料"",""操作方式""]",,1,截止阀;安装工程
+MAT-VALV-004,GB/T 12236-2025,product_standard,primary,规格定义,"[""DN"",""PN"",""阀体材料"",""密封面材料""]",,1,旋启式止回阀;安装工程
+MAT-VALV-005,GB/T 12237-2021,product_standard,primary,规格定义,"[""DN"",""PN"",""阀体材料"",""密封面材料"",""操作方式""]",,1,球阀;安装工程
+MAT-VALV-008,GB/T 12244-2025,product_standard,primary,性能定义,"[""DN"",""PN"",""进口压力"",""出口压力"",""调压精度""]",,1,减压阀;安装工程
+MAT-CABL-001,GB/T 12706.3-2020,product_standard,primary,规格定义,"[""电压等级"",""芯数"",""截面"",""绝缘类型""]",,1,电力电缆;安装工程
+MAT-SEA-001,GB/T 14683-2017,product_standard,primary,性能定义,"[""类型"",""级别"",""位移能力"",""下垂度""]",,1,硅酮密封胶;门窗幕墙
+MAT-EAR-002,GB/T 14685-2022,product_standard,primary,规格定义,"[""粒径"",""类别"",""含泥量"",""压碎指标""]",,1,碎石/卵石;混凝土骨料
+MAT-WAP-001,GB/T 18242-2025,product_standard,primary,规格定义/性能,"[""类型"",""胎基"",""厚度"",""低温柔性"",""耐热性""]",,1,SBS防水卷材;弹性体
+MAT-STO-002,GB/T 18601-2024,product_standard,primary,规格定义,"[""厚度"",""表面处理"",""弯曲强度"",""吸水率""]",,1,花岗岩板材
+MAT-CABL-007,GB/T 19666-2019,product_standard,primary,阻燃分级,"[""阻燃类别"",""耐火级别"",""电缆型号""]",,1,阻燃电缆;安装工程
+MAT-DOO-001,GB/T 20909-2017,product_standard,primary,性能定义,"[""类型"",""气密性"",""水密性"",""抗风压"",""保温性能""]",,1,钢门窗
+MAT-WAP-005,GB/T 23445-2025,product_standard,primary,性能定义,"[""类型"",""拉伸强度"",""断裂伸长率"",""低温柔性"",""不透水性""]",,1,JS防水涂料
+MAT-WAP-006,GB/T 23457-2025,product_standard,primary,性能定义,"[""类型"",""拉力"",""延伸率"",""撕裂强度"",""抗窜水性""]",,1,预铺防水卷材
+MAT-INS-003,GB/T 25975-2018,product_standard,primary,性能定义,"[""密度"",""导热系数"",""燃烧性能"",""憎水率"",""抗拉强度""]",,1,岩棉保温板;外墙外保温
+MAT-INS-005,GB/T 25998-2020,product_standard,primary,性能定义,"[""尺寸"",""厚度"",""密度"",""吸声系数"",""抗折强度""]",,1,矿物棉吸声板;吊顶
+MAT-DOO-005,GB/T 29498-2024,product_standard,primary,性能定义,"[""类型"",""气密性"",""水密性"",""抗风压"",""保温性能""]",,1,木门窗
+MAT-HDW-001,GB/T 32223-2025,product_standard,primary,耐久性,"[""五金类别"",""承载力"",""耐久性"",""耐腐蚀性""]",,1,门窗五金件
+MAT-VALV-004,GB/T 12235-2025,product_standard,secondary,升降式止回阀,"[""DN"",""PN""]",,1,截止阀标准同时涵盖升降式止回阀
+MAT-CABL-002,GB/T 12706.3-2020,product_standard,secondary,铠装电缆,"[""铠装类型""]",,1,YJV22等铠装电缆
+MAT-CABL-008,GB/T 19666-2019,product_standard,secondary,耐火分级,"[""耐火级别""]",,1,耐火电缆
+MAT-STE-007,GB/T 8349-2000,product_standard,secondary,镀锌层质量等级判定,"[""镀锌层附着量等级"",""镀锌层外观"",""镀锌层附着力""]","[""表1"",""表2"",""5.1"",""5.3""]",1,热浸镀锌钢管镀锌层质量依据;替代GB/T 13912
+MAT-FRM-001,GB/T 8349-2000,product_standard,secondary,镀锌量下限校验,"[""镀锌层附着量等级""]","[""表1""]",1,轻钢龙骨镀锌量≥120g/m²对应GB/T 8349-2000 D级最低要求
+MAT-CON-002,GB/T 14902-2012,product_standard,primary,规格定义/质量验收,[],[],1,由T3标准代号自动补充; 房建; 待补N3/N4/N6参数
+MAT-CON-003,GB/T 14902-2012,product_standard,primary,规格定义/质量验收,[],[],1,由T3标准代号自动补充; 房建; 待补N3/N4/N6参数
+MAT-CON-005,GB/T 14902-2012,product_standard,primary,规格定义/质量验收,[],[],1,由T3标准代号自动补充; 房建; 待补N3/N4/N6参数
+MAT-BRI-001,GB/T 5101-2017,product_standard,primary,规格定义/质量验收,[],[],1,由T3标准代号自动补充; 房建; 待补N3/N4/N6参数
+MAT-BLO-001,GB/T 11968-2020,product_standard,primary,规格定义/质量验收,[],[],1,由T3标准代号自动补充; 房建; 待补N3/N4/N6参数
+MAT-TIL-001,GB/T 4100-2015,product_standard,primary,规格定义/质量验收,[],[],1,由T3标准代号自动补充; 房建; 待补N3/N4/N6参数
+MAT-TIL-003,GB/T 4100-2015,product_standard,primary,规格定义/质量验收,[],[],1,由T3标准代号自动补充; 房建; 待补N3/N4/N6参数
+MAT-TIL-005,GB/T 4100-2015,product_standard,primary,规格定义/质量验收,[],[],1,由T3标准代号自动补充; 房建; 待补N3/N4/N6参数
+MAT-BRD-001,GB/T 9775-2025,product_standard,primary,纸面石膏板规格定义/质量验收,[],[],1,治理种子映射; 房建P0; 待抽取N3/N4/N6
+MAT-BRD-004,GB/T 25998-2020,product_standard,primary,矿物棉装饰吸声板规格定义/质量验收,[],[],1,治理种子映射; 房建P1; 待抽取N3/N4/N6
+MAT-FRM-002,GB/T 11981-2024,product_standard,primary,轻钢龙骨规格定义/质量验收,[],[],1,治理种子映射; 房建P1; 待抽取N3/N4/N6
+MAT-DOO-002,GB 12955-2024,product_standard,primary,防火门规格定义/质量验收,[],[],1,治理种子映射; 房建P0; 待抽取N3/N4/N6
+MAT-DOO-003,GB/T 8478-2020,product_standard,primary,铝合金窗规格定义/质量验收,[],[],1,治理种子映射; 房建P0; 待抽取N3/N4/N6
+MAT-DOO-004,GB/T 8478-2020,product_standard,primary,铝合金门规格定义/质量验收,[],[],1,治理种子映射; 房建P0; 待抽取N3/N4/N6
+MAT-DOO-010,GB 16809-2024,product_standard,primary,防火窗规格定义/质量验收,[],[],1,治理种子映射; 房建P0; 待抽取N3/N4/N6
+MAT-HDW-002,GB/T 32223-2025,product_standard,primary,建筑门窗五金件规格定义/质量验收,[],[],1,治理种子映射; 房建P1; 待抽取N3/N4/N6
+MAT-INS-001,GB/T 10801.2-2025,product_standard,primary,XPS保温板规格定义/质量验收,[],[],1,治理种子映射; 房建P0; 待抽取N3/N4/N6
+MAT-INS-002,GB/T 10801.1-2025,product_standard,primary,EPS保温板规格定义/质量验收,[],[],1,治理种子映射; 房建P0; 待抽取N3/N4/N6
+MAT-TIL-004,GB/T 4100-2015,product_standard,primary,陶瓷砖规格定义/质量验收,[],[],1,治理种子映射; 房建P1; 待抽取N3/N4/N6
+MAT-TIL-006,GB/T 4100-2015,product_standard,primary,陶瓷砖规格定义/质量验收,[],[],1,治理种子映射; 房建P1; 待抽取N3/N4/N6
+MAT-CON-004,GB/T 14902-2012,product_standard,primary,预拌混凝土规格定义/质量验收,[],[],1,治理种子映射; 房建P0; 待抽取N3/N4/N6
+MAT-CON-006,GB/T 14902-2012,product_standard,primary,混凝土规格定义/质量验收,[],[],1,治理种子映射; 房建P1; 待抽取N3/N4/N6
+MAT-CON-007,GB/T 14902-2012,product_standard,primary,混凝土规格定义/质量验收,[],[],1,治理种子映射; 房建P1; 待抽取N3/N4/N6
+MAT-CON-008,GB/T 14902-2012,product_standard,primary,防水混凝土规格定义/质量验收,[],[],1,治理种子映射; 房建P0; 待抽取N3/N4/N6
+MAT-CON-008,GB 50108-2008,technical_standard,secondary,地下工程防水技术要求,[],[],1,治理种子映射; 房建P0; 待抽取N3/N4/N6
+MAT-STE-004,GB/T 706-2016,product_standard,primary,热轧槽钢规格定义/质量验收,[],[],1,治理种子映射; 房建P1; 待抽取N3/N4/N6
+MAT-STE-010,GB/T 8163-2018,product_standard,primary,无缝钢管规格定义/质量验收,[],[],1,治理种子映射; 房建P1; 待抽取N3/N4/N6
+MAT-STE-011,GB/T 706-2016,product_standard,primary,热轧角钢规格定义/质量验收,[],[],1,治理种子映射; 房建P1; 待抽取N3/N4/N6
+MAT-STE-013,GB/T 12771-2019,product_standard,primary,不锈钢焊接钢管规格定义/质量验收,[],[],1,治理种子映射; 房建P1; 待抽取N3/N4/N6
+MAT-PIPE-002,GB/T 3091-2025,product_standard,primary,镀锌焊接钢管规格定义/质量验收,[],[],1,治理种子映射; 安装P0; 待抽取N3/N4/N6
+MAT-CABL-003,GB/T 9330-2020,product_standard,primary,控制电缆规格定义/质量验收,[],[],1,治理种子映射; 安装P0; 待抽取N3/N4/N6
+MAT-CABL-004,GB/T 5023-2008,product_standard,primary,BV电线规格定义/质量验收,[],[],1,治理种子映射; 安装P0; 待抽取N3/N4/N6
+MAT-CABL-005,GB/T 5023-2008,product_standard,primary,BV电线规格定义/质量验收,[],[],1,治理种子映射; 安装P0; 待抽取N3/N4/N6
+MAT-CABL-005,GB/T 19666-2019,product_standard,secondary,耐火电线电缆通用要求,[],[],1,治理种子映射; 安装P0; 待抽取N3/N4/N6
+MAT-INSU-001,GB/T 11835-2016,product_standard,primary,岩棉绝热制品规格定义/质量验收,[],[],1,治理种子映射; 安装P1; 待抽取N3/N4/N6
+MAT-INSU-003,GB/T 11835-2016,product_standard,primary,矿物棉绝热制品规格定义/质量验收,[],[],1,治理种子映射; 安装P1; 待抽取N3/N4/N6
+MAT-PAI-001,GB/T 9755-2014,product_standard,,,[],[],1,内墙乳胶漆;另有GB/T 9756内墙涂料;待补N3/N4/N6
+MAT-PAI-001,GB 18582-2020,product_standard,,,[],[],1,涂料有害物质限量强制性标准
+MAT-PUT-001,JG/T 298-2010,product_standard,,,[],[],1,建筑室内用腻子;待补N3/N4/N6
+MAT-PNT-001,HG/T 3668-2009,product_standard,,,[],[],1,环氧富锌底漆(房3+安3=6次);待补N3/N4/N6
+MAT-ADH-001,JC/T 547-2017,product_standard,,,[],[],1,瓷砖胶粘剂(4次);待补N3/N4/N6
+MAT-FPC-001,GB 14907-2018,product_standard,,,[],[],1,膨胀型钢结构防火涂料;待补N3/N4/N6
+MAT-PAI-003,JG/T 24-2018,product_standard,,,[],[],1,真石漆(砂壁状涂料);待补N3/N4/N6
+MAT-STEL-001,GB/T 706-2016,product_standard,,,[],[],1,等边角钢Q235B(8次安装);N1已extracted
+MAT-FITT-001,GB/T 12459-2025,product_standard,,,[],[],1,钢制对焊管件; 已更新为2025版; 新PDF已提取
+MAT-FITT-003,GB/T 9115-2010,product_standard,,,[],[],1,碳钢法兰(7次安装);待补N3/N4/N6
+MAT-AUXI-002,GB/T 799-2020,product_standard,,,[],[],1,地脚螺栓(19次!);待补N3/N4/N6
+MAT-AUXI-001,GB/T 50448-2015,technical_standard,,,[],[],1,高强灌浆料(13次);应用技术规范;待补N3/N4/N6
+MAT-AUXI-001,JC/T 986-2018,product_standard,,,[],[],1,高强灌浆料(13次);产品标准;待补N3/N4/N6
+MAT-AUXI-019,GB/T 3091-2015,product_standard,,,[],[],1,配管镀锌钢管(10次);待补N3/N4/N6
+MAT-CABL-009,YD/T 901-2018,product_standard,,,[],[],1,通信光缆(9次);待补N3/N4/N6
+MAT-COAT-001,HG/T 3668-2009,product_standard,,,[],[],1,环氧富锌底漆(安装3次);与MAT-PNT-001同标准
+MAT-TRN-001,GB/T 17656-2018,product_standard,,,[],[],1,木胶合板模板1830×915×15mm(5次);混凝土模板用胶合板
+MAT-AUXI-004,GB/T 5117-2012,product_standard,,,[],[],1,电焊条J422(5次);碳钢焊条
+MAT-AUXI-004,GB/T 5118-2012,product_standard,,,[],[],1,电焊条J507(5次);低合金钢焊条
+MAT-COAT-005,GB/T 8488-2008,product_standard,,,[],[],1,耐酸砖/板衬里(5次)
+MAT-AUXI-008,GB/T 50065-2011,technical_standard,,,[],[],1,接地材料/镀锌扁钢/铜排(4次);接地设计规范
+MAT-AUXI-008,GB/T 13912-2020,product_standard,,,[],[],1,接地材料热镀锌(4次);热浸镀锌层规范
+MAT-WOO-001,GB/T 153-2019,product_standard,,,[],[],1,"规格材(工程用材,3次);针叶树锯材"
+MAT-WOO-001,GB/T 4817-2019,product_standard,,,[],[],1,"方木(屋架用,3次);阔叶树锯材"
+MAT-AUXI-012,GB/T 14905-2020,product_standard,,,[],[],1,软接头/橡胶接头(1次)
+MAT-INS-003,GB/T 11835-2016,product_standard,,,[],[],1,岩棉制品产品标准(补充);主标准原为GB/T 25975
+MAT-DOO-001,GB 17565-2022,product_standard,,,[],[],1,防盗安全门通用技术条件(补充钢门窗标准)
+MAT-PAI-001,GB/T 9755-2024,product_standard,,,[],[],1,合成树脂乳液外墙涂料(2024新版);替代GB/T 9755-2014
+MAT-BLO-001,GB 50003-2011,design_standard,,,[],[],1,砌体结构设计规范;引用型标准
+MAT-CON-006,GB 50212-2014,construction_standard,,,[],[],1,建筑防腐蚀工程施工规范
+MAT-VALV-001,GB/T 12220-2015,product_standard,,,[],[],1,工业阀门标志;补充阀门族
+MAT-FIRE-002,GB 4351-2023,product,direct,,,,1,
+MAT-FIRE-003,GB 4715-2024,product,direct,,,,1,
+MAT-FIRE-004,GB 4716-2024,product,direct,,,,1,
+MAT-FIRE-005,GB 4717-2024,product,direct,,,,1,
+MAT-FIRE-006,GB 5135.2-2025,product,direct,,,,1,
+MAT-FIRE-007,GB 5135.3-2025,product,direct,,,,1,
+MAT-FIRE-006,GB 5135.4-2025,product,direct,,,,1,
+MAT-FIRE-008,GB 5135.11-2025,product,direct,,,,1,
+MAT-FIRE-008,GB 5135.21-2025,product,direct,,,,1,
+MAT-VALV-006,GB 5135.23-2026,product,direct,,,,1,
+MAT-FIRE-001,GB 6246-2026,product,direct,,,,1,
+MAT-FIRE-008,GB/T 14561-2019,product,direct,,,,1,
+MAT-FIRE-008,GB/T 10228-2023,product,direct,,,,1,
+MAT-FIRE-003,GB 25972-2024,product,direct,,,,1,
+MAT-FIRE-008,GB/T 14294-2026,product,direct,,,,1,
+MAT-ELEQ-005,GB 50057-2010,product,direct,,,,1,
+MAT-ELEC-002,GB/T 7251.8-2020,product,direct,,,,1,
+MAT-ELEC-004,GB/T 2099.10-2026,product,direct,,,,1,
+MAT-PLUM-004,GB 18145-2014,product,direct,,,,1,
+MAT-PLUM-001,GB/T 6952-2015,product,direct,,,,1,
+MAT-PLUM-003,GB/T 23447-2023,product,direct,,,,1,
+MAT-PLUM-005,GB/T 27710-2020,product,direct,,,,1,
+MAT-HVAC-003,GB 50243-2016,product,direct,,,,1,

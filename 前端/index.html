@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>材料清单助手</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app">
+  <!-- ════════════ SIDEBAR ════════════ -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <!-- ════════════ MAIN ════════════ -->
+  <main class="main" id="main-content"></main>
+</div>
+<div class="toast-container" id="toasts"></div>
+
+<script>
+/* ════════════ SVG ICONS ════════════ */
+var S=function(w,h,d){return'<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" fill="none" xmlns="http://www.w3.org/2000/svg">'+d+'</svg>'};
+var ICONS={
+  brandLogo:S(26,26,'<rect x="2" y="4" width="22" height="20" rx="2.5" fill="#0d9488"/><rect x="5" y="7" width="16" height="14" rx="1.5" fill="#f0fdfa"/><rect x="8" y="11" width="4" height="1.5" rx=".75" fill="#ccfbf1"/><rect x="14" y="11" width="7" height="1.5" rx=".75" fill="#ccfbf1"/><rect x="8" y="15" width="6" height="1.5" rx=".75" fill="#ccfbf1"/><rect x="16" y="15" width="5" height="1.5" rx=".75" fill="#ccfbf1"/><circle cx="20" cy="20" r="4.5" fill="#14b8a6"/><path d="M17.5 20l1.6 1.6 2.6-3" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>'),
+  dashboard:S(16,16,'<rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2" stroke="currentColor" stroke-width="1.3"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2" stroke="currentColor" stroke-width="1.3"/>'),
+  history:S(16,16,'<circle cx="8" cy="8" r="5.8" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.5V8.5l2.5 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.5 3l.8.8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><path d="M11.5 3l-.8.8" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'),
+  projects:S(16,16,'<path d="M1.5 4.5a1 1 0 011-1h3.3l1.2 1.2h5.5a1 1 0 011 1V12a1 1 0 01-1 1H2.5a1 1 0 01-1-1V4.5z" stroke="currentColor" stroke-width="1.3"/><path d="M5 8.5h6M5 10.5h4" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>'),
+  settings:S(16,16,'<rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="currentColor" stroke-width="1.3"/><path d="M5 6h6M5 8.5h4" stroke="currentColor" stroke-width="1" stroke-linecap="round"/><circle cx="12" cy="7.5" r="1.5" fill="currentColor"/>'),
+  plus:S(16,16,'<circle cx="8" cy="8" r="5.5" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.5v7M4.5 8h7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'),
+  check:S(16,16,'<circle cx="8" cy="8" r="5.8" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 8.5l2 2 3.5-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'),
+  alert:S(16,16,'<path d="M8 1.8L1.5 13.5h13L8 1.8z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 6v2.8M8 11.2v.3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'),
+  clock:S(16,16,'<circle cx="8" cy="8" r="5.8" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.2v4.5l3 1.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 3l2-1.5v3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>'),
+  doc:S(16,16,'<rect x="2" y="1" width="12" height="14" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M5.5 5.5h5M5.5 8h5M5.5 10.5h3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>'),
+  ai:S(16,16,'<path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="8" r="4.5" stroke="currentColor" stroke-width="1.3"/><circle cx="8" cy="8" r="2" fill="currentColor" opacity="0.3"/>'),
+  search:S(15,15,'<circle cx="6.8" cy="6.8" r="4.8" stroke="currentColor" stroke-width="1.3"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>'),
+  export:S(16,16,'<path d="M14 14H2M8 2v9M5 8l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>'),
+  trash:S(16,16,'<path d="M3 5h10M5 5V3a1 1 0 011-1h4a1 1 0 011 1v2M6 8v5a1 1 0 001 1h2a1 1 0 001-1V8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>'),
+  edit:S(16,16,'<path d="M11.5 2.5a1.4 1.4 0 012 2L6 12l-3 .5L3.5 9.5 11.5 2.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>'),
+  refresh:S(16,16,'<path d="M1 4v6h6M15 12v-6H9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M20.5 8A9 9 0 005.6 5.6L1 9.5m14 9.9A9 9 0 0018.4 6.4" stroke="currentColor" stroke-width="1.3"/>')
+};
+
+/* ════════════ HELPERS ════════════ */
+var $=function(s,d){return(d||document).querySelector(s)};
+var esc=function(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')};
+var currentRoute='dashboard';
+var globalData={};
+var api={get:function(u){return fetch(u).then(function(r){return r.json()})},post:function(u,d){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)}).then(function(r){return r.json()})}};
+function toast(msg,type){type=type||'info';var t=document.createElement('div');t.className='toast'+(type==='success'?' success':type==='error'?' error':'');t.textContent=msg;$('#toasts').appendChild(t);setTimeout(function(){t.style.opacity='0';t.style.transform='translateY(8px)';setTimeout(function(){t.remove()},200)},2500)}
+function loadingHTML(t){return'<div class="loading-wrap"><div class="spinner"></div>'+(t||'加载中...')+'</div>'}
+function emptyHTML(icon,text,btn){return'<div class="empty-state"><div class="empty-state-icon">'+icon+'</div><div class="empty-state-text">'+esc(text)+'</div>'+(btn||'')+'</div>'}
+
+/* ════════════ NAV ITEMS ════════════ */
+var NAV=[
+  {key:'dashboard',icon:ICONS.dashboard,label:'个人工作台'},
+  {key:'decompose',icon:ICONS.doc,label:'AI 拆解',create:true},
+  {key:'history',icon:ICONS.history,label:'历史清单数据'},
+  {key:'projects',icon:ICONS.projects,label:'项目信息管理'},
+  {key:'settings',icon:ICONS.settings,label:'企业自定义设置'}
+];
+function renderSidebar(){
+  var h='<div class="sidebar-brand" onclick="navigate(\'dashboard\')"><div class="sb-logo"><div class="sb-logo-icon">'+ICONS.brandLogo+'</div><span class="sb-logo-text">材料清单助手</span></div><div class="sb-subtitle">智能招采 · 工作台</div></div><nav class="sidebar-nav"><div class="nav-section">';
+  NAV.forEach(function(it){
+    var cls='nav-item'+(it.key===currentRoute?' active':'')+(it.create?' create-new':'');
+    h+='<div class="'+cls+'" data-route="'+it.key+'" onclick="navigate(\''+it.key+'\')"><span class="nav-icon">'+it.icon+'</span>'+it.label+'</div>';
+  });
+  h+='<div class="sidebar-divider"></div></div></nav><div class="sidebar-footer"><div class="user-avatar">张</div><span class="user-name">张经理</span></div>';
+  $('#sidebar').innerHTML=h;
+}
+
+function navigate(route){
+  if(!ROUTES[route])route='dashboard';currentRoute=route;
+  document.querySelectorAll('.nav-item').forEach(function(el){el.classList.toggle('active',el.dataset.route===route)});
+  ROUTES[route].render($('#main-content'));
+}
+
+/* ════════════ DASHBOARD PAGE ════════════ */
+var ROUTES={};
+ROUTES.dashboard={render:function(el){
+  var s=globalData.stats||{};
+  el.innerHTML=
+    '<div class="topbar"><div style="flex:1"></div><div class="search-wrap"><span class="search-icon">'+ICONS.search+'</span><input type="text" id="dashSearch" placeholder="搜索文件名称..." oninput="dashSearch()"><span class="search-shortcut">⌘K</span></div></div>'+
+    '<div class="page-title-row"><h2>个人工作台</h2><span class="today" id="todayDate"></span></div>'+
+    '<div class="cards-row">'+
+      '<div class="overview-card card-material"><div class="card-icon-row"><div class="card-icon blue">'+ICONS.doc+'</div><span class="card-trend up">可用</span></div><div class="card-value">'+(s.t3_materials||'-')+'</div><div class="card-label">T3标准物料</div></div>'+
+      '<div class="overview-card card-completed"><div class="card-icon-row"><div class="card-icon green">'+ICONS.check+'</div></div><div class="card-value">'+(s.q1_quota_items||0).toLocaleString()+'</div><div class="card-label">定额子目</div></div>'+
+      '<div class="overview-card card-processing"><div class="card-icon-row"><div class="card-icon purple">'+ICONS.ai+'</div></div><div class="card-value">'+(s.q2_consumption_rows||0).toLocaleString()+'</div><div class="card-label">材料消耗记录</div></div>'+
+      '<div class="overview-card card-brand"><div class="card-icon-row"><div class="card-icon teal">'+ICONS.clock+'</div></div><div class="card-value">'+(s.n1_standards||'-')+'</div><div class="card-label">入库国标规范</div></div>'+
+      '<div class="overview-card card-material"><div class="card-icon-row"><div class="card-icon blue">'+ICONS.projects+'</div></div><div class="card-value">'+(s.category_leaves||'-')+'</div><div class="card-label">品类树叶子节点</div></div>'+
+    '</div>'+
+    '<div class="task-section">'+
+      '<div class="tabbar"><div class="tab active" onclick="dashTab(\'all\')">快捷操作</div><div class="tab" onclick="dashTab(\'recent\')">最近使用</div></div>'+
+      '<div style="padding:20px;display:flex;gap:10px;flex-wrap:wrap" id="dash-actions">'+
+        '<button class="btn btn-ai btn-lg" onclick="navigate(\'decompose\')">'+ICONS.ai+' 新建AI拆解</button>'+
+        '<button class="btn btn-outline btn-lg" onclick="navigate(\'history\')">'+ICONS.history+' 历史清单数据</button>'+
+        '<button class="btn btn-outline btn-lg" onclick="navigate(\'projects\')">'+ICONS.plus+' 管理项目</button>'+
+        '<button class="btn btn-outline btn-lg" onclick="navigate(\'settings\')">'+ICONS.settings+' 企业设置</button>'+
+      '</div>'+
+    '</div>';
+  document.getElementById('todayDate').textContent=new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+}};
+function dashSearch(){var q=$('#dashSearch').value.trim().toLowerCase();console.log('Search:',q)}
+
+/* ════════════ AI DECOMPOSE PAGE ════════════ */
+ROUTES.decompose={render:function(el){
+  el.innerHTML=
+    '<div class="topbar"><div class="tb-left"><div class="tb-brand" onclick="navigate(\'dashboard\')"><div class="tb-brand-icon">材</div>材料清单助手</div><div class="tb-sep"></div><div class="tb-breadcrumb"><span class="current">AI 拆解</span></div></div><div class="tb-nav"><a class="active">AI拆解</a><a onclick="navInner(\'procurement\')">采购清单</a></div><div class="tb-right"><span class="tb-stats" id="decompose-file-name"></span><button class="tb-btn tb-btn-primary" onclick="doDecompose()">开始拆解</button></div></div>'+
+    '<div class="tabbar"><div class="tab active">AI 拆解</div><div class="tab" onclick="navInner(\'procurement\')">完整采购清单</div><div class="tab-spacer"></div><div class="tab-info"><span class="text-muted text-xs" id="decompose-file-info"></span></div></div>'+
+    '<div class="decompose-body">'+
+      '<div class="panel-tree"><div class="tree-hd"><div class="tree-title">工程结构树</div><div class="tree-search">'+ICONS.search+'<input type="text" placeholder="搜索..." oninput="filterTree(this.value)"></div></div><div class="tree-body" id="tree-body"><div class="empty-state"><div class="empty-state-icon" style="font-size:24px">📂</div><div class="empty-state-text">输入清单后自动拆解</div></div></div></div>'+
+      '<div class="panel-work">'+
+        '<div class="input-card"><div class="input-hd">📥 输入工程量清单</div><textarea class="form-textarea" id="decompose-input" placeholder="010502001 矩形柱 C30 48.6m³" style="min-height:100px;margin-bottom:10px"></textarea><div class="flex gap-8"><button class="btn btn-ai" onclick="doDecompose()">'+ICONS.ai+' AI拆解</button><button class="btn btn-outline" onclick="$(\'#decompose-input\').value=\'\'">清空</button></div><div id="decompose-loading" class="loading-wrap" style="display:none"></div></div>'+
+        '<div class="panel-divider"></div>'+
+        '<div class="panel-list"><div id="decompose-result">'+emptyHTML('🤖','输入清单后点击"AI拆解"开始智能拆解','<div style="font-size:var(--text-xs);color:var(--text-4);margin-top:4px">支持中文描述或定额编码</div>')+'</div></div>'+
+      '</div>'+
+    '</div>';
+}};
+function navInner(page){if(page==='procurement')navigate('procurement')}
+function filterTree(q){
+  document.querySelectorAll('.tree-node').forEach(function(n){
+    n.style.display=q?((n.textContent||'').toLowerCase().includes(q.toLowerCase())?'flex':'none'):'flex';
+  });
+}
+
+/* ════════════ DECOMPOSE LOGIC ════════════ */
+async function doDecompose(){
+  var txt=$('#decompose-input').value.trim();
+  if(!txt){toast('请先输入清单内容','error');return}
+  $('#decompose-loading').style.display='flex';$('#decompose-loading').innerHTML='<div class="spinner"></div> AI推理中（预计10-30秒）...';
+  try{
+    var r=await api.post('/api/breakdown',{content:txt});
+    $('#decompose-loading').style.display='none';
+    if(!r.ok){toast(r.error||'拆解失败','error');return}
+    globalData.currentRun=r;globalData.confirmedItems=[];renderResult(r);
+  }catch(e){$('#decompose-loading').style.display='none';toast('错误:'+e.message,'error')}
+}
+function renderResult(r){
+  var el=$('#decompose-result');
+  // Tree
+  var tree=$('#tree-body');
+  if(r.ai_processes&&r.ai_processes.length){
+    var th='<div class="tree-node l0 selected">'+ICONS.projects+' '+esc(r.t1_code_prefix||r.t1_route||'工程')+'<span class="tree-count">'+(r.ai_processes||[]).length+'</span></div>';
+    r.ai_processes.forEach(function(p,i){th+='<div class="tree-node l1"><span class="status-dot '+(p.is_main?'dot-high':'dot-medium')+'"></span>'+(p.step||'')+'. '+esc(p.name||'')+'</div>'});
+    tree.innerHTML=th;
+  }
+  // Table
+  if(!r.items||!r.items.length){el.innerHTML=emptyHTML('📭','未匹配到材料');return}
+  var h='<div class="list-hd"><div class="list-title">📦 采购材料清单 <span class="count">'+r.items.length+' 项</span></div><div class="list-actions"><button class="btn btn-sm btn-success" onclick="batchConfirm()">'+ICONS.check+' 全部确认</button><button class="btn btn-sm btn-outline" onclick="exportCSV()">'+ICONS.export+' 导出</button></div></div><div class="list-table-wrap"><table><thead><tr><th>材料名称</th><th>规格</th><th>T3标准名</th><th>采购量</th><th>单位</th><th>损耗</th><th>供应</th><th>来源</th><th>可信度</th><th>操作</th></tr></thead><tbody>';
+  r.items.forEach(function(item,i){
+    var bc=item.confidence==='high'?'status-done':item.confidence==='medium'?'status-pending':'status-failed';
+    var cl=item.confidence==='high'?'高':item.confidence==='medium'?'中':'低';
+    var dot=item.confidence==='high'?'dot-done':item.confidence==='medium'?'dot-pending':'dot-failed';
+    var rc='';if(item.confirmed)rc=' row-confirmed';else if(item.rejected)rc=' row-rejected';else if(item.modified)rc=' row-modified';
+    var src=item.verification==='VERIFIED'?'<span class="status-badge status-done"><span class="status-dot dot-done"></span>已验证</span>':item.has_standard?'<span class="status-badge status-processing">有规范</span>':item.map_code?'<span class="status-badge status-pending">T2规则</span>':'<span class="status-badge status-pending">AI推导</span>';
+    h+='<tr class="'+rc+'" id="row-'+i+'"><td>'+esc(item.material_name)+(item.name_before_spec_split?'<br><span style="font-size:10px;color:var(--text-4)">原名:'+esc(item.name_before_spec_split)+'</span>':'')+'</td>'+
+      '<td style="max-width:140px">'+(item.spec_hint?'<span style="font-size:12px;font-weight:500">'+esc(item.spec_hint)+'</span>':(item.missing_required_specs&&item.missing_required_specs.length?'<span style="color:var(--danger);font-size:11px">⚠缺</span>':'<span style="color:var(--text-4)">—</span>'))+'</td>'+
+      '<td>'+esc(item.t3_name||'—')+'<br><span style="font-size:10px;color:var(--text-4)">'+esc(item.category_path||'')+'</span></td>'+
+      '<td><strong>'+(item.suggested_quantity||'—')+'</strong></td><td>'+esc(item.unit)+'</td><td><span class="code">'+(item.waste_rate*100).toFixed(1)+'%</span></td>'+
+      '<td>'+esc(item.supply||'乙供')+'</td><td>'+src+'</td>'+
+      '<td><span class="status-badge '+bc+'"><span class="status-dot '+dot+'"></span>'+cl+'</span></td>'+
+      '<td class="col-actions">'+(item.confirmed?'<span class="status-badge status-done"><span class="status-dot dot-done"></span>已确认</span>':
+        '<button class="btn btn-sm btn-success" onclick="confirmItem('+i+')" title="确认">'+ICONS.check+'</button> '+
+        '<button class="btn btn-sm btn-outline" onclick="modifyItem('+i+')" title="修改">'+ICONS.edit+'</button> '+
+        '<button class="btn btn-sm btn-danger" onclick="rejectItem('+i+')" title="否决">'+ICONS.trash+'</button>')+'</td></tr>';
+  });h+='</tbody></table></div>';
+  if(r.ai_review&&Object.keys(r.ai_review).length){
+    h+='<div class="ai-review"><div class="ai-review-title">AI审核评估'+(r.ai_review.overall_quality?' — '+esc(r.ai_review.overall_quality):'')+'</div>';
+    if(r.ai_review.notes)h+='<div style="font-size:var(--text-xs);color:var(--text-2);line-height:1.6">💡 '+esc(r.ai_review.notes)+'</div>';
+    h+='</div>';
+  }
+  el.innerHTML=h;
+}
+function confirmItem(i){var it=globalData.currentRun.items[i];it.confirmed=true;toast('已确认:'+it.material_name,'success');var row=$('#row-'+i);if(row){row.className='row-confirmed';updateAct(i,'<span class="status-badge status-done"><span class="status-dot dot-done"></span>已确认</span>')}}
+function rejectItem(i){var it=globalData.currentRun.items[i];it.rejected=true;toast('已否决:'+it.material_name,'error');var row=$('#row-'+i);if(row)row.className='row-rejected'}
+function modifyItem(i){var it=globalData.currentRun.items[i];it.confirmed=true;it.modified=true;toast('已修改:'+it.material_name);var row=$('#row-'+i);if(row){row.className='row-modified';updateAct(i,'<span class="status-badge status-pending"><span class="status-dot dot-pending"></span>已修改</span>')}}
+function updateAct(i,html){var c=document.querySelectorAll('#row-'+i+' td');if(c.length)c[c.length-1].innerHTML=html}
+function batchConfirm(){globalData.currentRun.items.forEach(function(it,i){if(!it.rejected){it.confirmed=true;var row=$('#row-'+i);if(row){row.className='row-confirmed';updateAct(i,'<span class="status-badge status-done"><span class="status-dot dot-done"></span>已确认</span>')}}});globalData.confirmedItems=globalData.currentRun.items.filter(function(it){return it.confirmed});toast('已确认 '+globalData.confirmedItems.length+' 项','success')}
+function exportCSV(){
+  var items=globalData.confirmedItems&&globalData.confirmedItems.length?globalData.confirmedItems:globalData.currentRun.items.filter(function(it){return it.confirmed});
+  if(!items.length){toast('请先确认材料','error');return}
+  var csv='材料名称,规格型号,T3标准名,品类路径,角色,单位,损耗率,供应方式\n';
+  items.forEach(function(i){csv+='"'+i.material_name+'","'+(i.spec_hint||'')+'","'+(i.t3_name||'')+'","'+(i.category_path||'')+'","'+i.role+'","'+i.unit+'","'+(i.waste_rate*100).toFixed(1)+'%","'+(i.supply||'乙供')+'"\n'});
+  var b=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='采购物料清单.csv';a.click();toast('导出成功','success');
+}
+
+/* ════════════ HISTORY PAGE ════════════ */
+ROUTES.history={render:function(el){
+  var items=globalData.historyItems||[];
+  el.innerHTML='<div class="topbar"><div style="flex:1"></div><div class="search-wrap"><span class="search-icon">'+ICONS.search+'</span><input type="text" placeholder="搜索历史记录..."><span class="search-shortcut">⌘K</span></div></div><div class="page-title-row"><h2>历史清单数据</h2></div><div class="task-section" style="margin-top:0"><div class="table-wrap">';
+  if(!items.length){el.innerHTML+='<div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">暂无历史清单数据</div><button class="btn btn-primary mt-8" onclick="navigate(\'decompose\')">'+ICONS.plus+' 新建AI拆解</button></div></div></div>';return}
+  el.innerHTML+='<table><thead><tr><th>文件名称</th><th>所属项目</th><th>创建时间</th><th>材料数</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+  items.forEach(function(it){el.innerHTML+='<tr><td style="font-weight:600;color:var(--text)">'+esc(it.name||it.file_name||'')+'</td><td>'+esc(it.project||'—')+'</td><td class="cell-mono">'+esc((it.created_at||'').substring(0,10))+'</td><td>'+esc(it.item_count||'—')+'</td><td><span class="status-badge status-done"><span class="status-dot dot-done"></span>已完成</span></td><td><button class="btn btn-sm btn-outline" onclick="toast(\'查看详情\')">查看</button></td></tr>'});
+  el.innerHTML+='</tbody></table></div></div>';
+}};
+
+/* ════════════ PROJECTS PAGE ════════════ */
+ROUTES.projects={render:function(el){
+  el.innerHTML='<div class="topbar"><div style="flex:1"></div><div class="search-wrap"><span class="search-icon">'+ICONS.search+'</span><input type="text" placeholder="搜索项目..."><span class="search-shortcut">⌘K</span></div></div><div class="page-title-row"><h2>项目信息管理</h2><button class="btn btn-primary" onclick="createProject()">'+ICONS.plus+' 新建项目</button></div><div class="task-section" style="margin-top:0"><div class="table-wrap"><div id="projects-list">'+loadingHTML()+'</div></div></div>';
+  loadProjects();
+}};
+
+/* ════════════ PROCUREMENT LIST PAGE ════════════ */
+ROUTES.procurement={render:function(el){
+  var items=globalData.confirmedItems||[];
+  el.innerHTML='<div class="topbar"><div class="tb-left"><div class="tb-brand" onclick="navigate(\'dashboard\')"><div class="tb-brand-icon">材</div>材料清单助手</div><div class="tb-sep"></div><div class="tb-breadcrumb"><span class="current">采购清单</span></div></div><div class="tb-nav"><a onclick="navInner(\'decompose\')">AI拆解</a><a class="active">采购清单</a></div></div><div class="page-title-row"><h2>完整采购清单</h2><span class="today">已确认 '+items.length+' 项</span></div><div class="task-section" style="margin-top:0">';
+  if(!items.length){el.innerHTML+='<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">暂无已确认的采购物料</div><button class="btn btn-primary mt-8" onclick="navigate(\'decompose\')">前往AI拆解</button></div></div></div>';return}
+  var groups={};items.forEach(function(i){var g=i.category_path?i.category_path.split('>')[0].trim():'其他';(groups[g]=groups[g]||[]).push(i)});
+  el.innerHTML+='<div class="table-wrap"><table><thead><tr><th>材料名称</th><th>规格型号</th><th>T3标准名</th><th>单位</th><th>损耗率</th><th>供应</th></tr></thead><tbody>';
+  Object.keys(groups).forEach(function(g){el.innerHTML+='<tr><td colspan="6" style="font-weight:600;color:var(--text);background:var(--surface-2);padding:8px 10px">📦 '+esc(g)+' <span class="text-muted text-xs">'+groups[g].length+'项</span></td></tr>';groups[g].forEach(function(i){el.innerHTML+='<tr><td style="font-weight:600;color:var(--text)">'+esc(i.material_name)+'</td><td>'+esc(i.spec_hint||'—')+'</td><td>'+esc(i.t3_name||'—')+'</td><td>'+esc(i.unit)+'</td><td class="code">'+(i.waste_rate*100).toFixed(1)+'%</td><td>'+esc(i.supply||'乙供')+'</td></tr>'})});
+  el.innerHTML+='</tbody></table></div></div></div>';
+}};
+
+/* ════════════ SETTINGS PAGE ════════════ */
+ROUTES.settings={render:function(el){
+  el.innerHTML='<div class="topbar"><div style="flex:1"></div></div><div class="page-title-row"><h2>企业自定义设置</h2><span class="today text-muted">配置默认拆解策略与采购规则</span></div><div style="flex:1;overflow-y:auto;padding:16px"><div class="card">'+loadingHTML()+'</div></div>';
+  api.get('/api/rules').then(function(rules){
+    var h='<div class="card"><div class="card-header">甲供/乙供默认规则</div><div class="cards-row" style="padding:0;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">';
+    Object.keys(rules.supply_defaults||{}).forEach(function(k){h+='<div style="padding:8px 12px;background:var(--surface-2);border-radius:var(--r);display:flex;align-items:center;justify-content:space-between"><span style="font-weight:500;font-size:var(--text-sm)">'+esc(k)+'</span><select class="form-select" style="width:80px" onchange="updateSupplyRule(\''+k+'\',this.value)"><option'+(rules.supply_defaults[k]==='甲供'?' selected':'')+'>甲供</option><option'+(rules.supply_defaults[k]==='乙供'?' selected':'')+'>乙供</option></select></div>'});
+    h+='</div></div><div class="card"><div class="card-header">采购分组</div><div class="flex gap-8 flex-wrap">';(rules.procurement_groups||[]).forEach(function(g){h+='<span class="status-badge status-processing">'+esc(g)+'</span>'});h+='</div></div><button class="btn btn-outline mt-12" onclick="resetRules()">'+ICONS.refresh+' 恢复默认</button>';
+    el.querySelector('[style*="flex:1"]').innerHTML=h;
+  }).catch(function(e){el.querySelector('.card').innerHTML=emptyHTML('❌','加载失败')});
+}};
+
+/* ════════════ PROJECTS LOGIC ════════════ */
+async function loadProjects(){
+  try{var projects=await api.get('/api/projects'),el=$('#projects-list');if(!el)return;
+    if(!projects.length){el.innerHTML=emptyHTML('📁','暂无项目','<button class="btn btn-primary mt-8" onclick="createProject()">'+ICONS.plus+' 新建项目</button>');return}
+    var h='<table><thead><tr><th>项目名称</th><th>客户</th><th>创建时间</th><th>拆解记录</th><th>操作</th></tr></thead><tbody>';
+    projects.forEach(function(p){h+='<tr><td style="font-weight:600;color:var(--text)">'+esc(p.name)+'</td><td>'+esc(p.client||'—')+'</td><td class="cell-mono">'+(p.created_at||'').substring(0,10)+'</td><td>'+(p.history||[]).length+' 次</td><td><button class="btn btn-sm btn-danger" onclick="deleteProject(\''+p.id+'\')">'+ICONS.trash+' 删除</button></td></tr>'});
+    h+='</tbody></table>';el.innerHTML=h;
+  }catch(e){var el2=$('#projects-list');if(el2)el2.innerHTML=emptyHTML('❌','加载失败')}
+}
+async function createProject(){var name=prompt('项目名称：');if(!name)return;await api.post('/api/projects',{name:name});toast('创建成功','success');loadProjects()}
+async function deleteProject(id){if(!confirm('确认删除？'))return;await fetch('/api/projects/'+id,{method:'DELETE'});toast('已删除','success');loadProjects()}
+async function updateSupplyRule(cat,val){var r=await api.get('/api/rules');r.supply_defaults[cat]=val;await fetch('/api/rules',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(r)});toast(cat+' → '+val,'success')}
+async function resetRules(){await api.post('/api/rules/reset',{});toast('已重置','success');navigate('settings')}
+
+/* ════════════ INIT ════════════ */
+async function init(){
+  renderSidebar();
+  try{globalData.stats=await api.get('/api/stats');globalData.historyItems=await api.get('/api/history').catch(function(){return[]})}catch(e){}
+  navigate('dashboard');
+}
+init();
+</script>
+</body>
+</html>

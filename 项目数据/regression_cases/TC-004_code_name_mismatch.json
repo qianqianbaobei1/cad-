@@ -1,0 +1,13 @@
+{
+  "case_id": "TC-004",
+  "name": "编码冲突：水泥砂浆楼地面编码 + 块料特征",
+  "description": "编码是水泥砂浆楼地面但特征描述块料，应检测到编码-名称不一致+排除块料材料",
+  "boq_input": "项目编码:011101001\n项目名称:水泥砂浆楼地面\n项目特征:\n  1.800×800抛光砖\n  2.C30\n工程量:100\n计量单位:m²",
+  "province": "SN",
+  "expected_output": {
+    "process_count": 4,
+    "excluded_materials": ["自流平砂浆", "瓷砖/块料/地砖(各类面砖)"]
+  },
+  "check_fields": ["process_count", "excluded_materials"],
+  "tolerance": {}
+}

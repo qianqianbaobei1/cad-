@@ -1,0 +1,14 @@
+{
+  "case_id": "TC-003",
+  "name": "块料楼地面 含见图纸",
+  "description": "块料楼地面含'详见图纸'标记，应检测为外部依赖",
+  "boq_input": "项目编码:011102003\n项目名称:块料楼地面\n项目特征:\n  1.20mm厚1:3干硬性水泥砂浆结合层\n  2.800×800抛光砖（颜色及防滑等级详见图纸）\n工程量:200\n计量单位:m²",
+  "province": "SN",
+  "expected_output": {
+    "has_external_ref": true,
+    "pre_check_quality": "good",
+    "process_count": 5
+  },
+  "check_fields": ["has_external_ref", "pre_check_quality", "process_count"],
+  "tolerance": {}
+}

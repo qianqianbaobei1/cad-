@@ -1,0 +1,37 @@
+﻿省份编码,分部编码,物料ID,规则类型,调整系数,调整原因
+GD,031005,,EXCLUDE,,广东夏热冬暖，无集中供暖
+GD,031004,,EXCLUDE,,广东无需供暖器具
+GD,031001,MAT-HEAT-001,EXCLUDE,,散热器在广东不适用
+GD,031001,MAT-HEAT-002,EXCLUDE,,暖风机在广东不适用
+GD,031001,MAT-HEAT-003,EXCLUDE,,分集水器在广东不适用
+GD,031001,MAT-HEAT-004,EXCLUDE,,膨胀水箱在广东不适用
+GD,,MAT-INSUL-001,CONSUMPTION_ADJUST,0.6,广东保温仅防结露，用量约寒冷区60%
+GD,,MAT-INSUL-002,CONSUMPTION_ADJUST,0.6,玻璃棉保温用量降低
+GD,,MAT-INSUL-003,CONSUMPTION_ADJUST,0.55,橡塑海绵保温用量降低
+GD,,MAT-COAT-001,CONSUMPTION_ADJUST,1.3,沿海高盐雾，环氧富锌底漆增厚
+GD,,MAT-COAT-002,CONSUMPTION_ADJUST,1.3,沿海环氧云铁中间漆增加
+GD,,MAT-COAT-003,CONSUMPTION_ADJUST,1.2,沿海聚氨酯面漆耐候增强
+GD,,MAT-PIPE-003,REQUIRE_HIGHER_SPEC,,高湿度，塑料管注意防潮等级
+GD,,MAT-FITT-003,REQUIRE_HIGHER_SPEC,,沿海法兰需注意防腐等级
+BJ,,MAT-INSUL-001,CONSUMPTION_ADJUST,1.0,北京寒冷区，保温标准用量（与陕西同为寒冷区，不做扣除）
+BJ,,MAT-INSUL-002,CONSUMPTION_ADJUST,1.0,寒冷区EPS/XPS保温标准用量
+BJ,,MAT-INSUL-004,CONSUMPTION_ADJUST,1.0,寒冷区岩棉保温标准用量
+BJ,,MAT-MOR-001,SPEC_ADJUST,,北京概算定额默认DM7.5砌筑砂浆（陕西M10），但主材选择不受影响
+BJ,011001,,INCLUDE_SUBCHAPTER,,北京第九章第四节含屋面超低能耗保温子目(4-118~4-120)，区别于陕西
+BJ,,,INCLUDE_HEATING,,北京寒冷区，含完整供暖系统（与陕西同），无需排除采暖项
+BJ,010902,MAT-WAT-001,COEFF_OVERRIDE,1.2446,"北京子目9-64 SBS改性沥青防水卷材3mm热熔(标准无附加层)消耗量1.2446m²/m²,含24.46%搭接损耗。修正原ESTIMATED值1.08→1.2446"
+BJ,010902,MAT-WAT-003,COEFF_OVERRIDE,3.0837,"北京子目9-71 聚氨酯防水涂料2mm刮涂法消耗量3.0837kg/m²,含0.1465kg/0.1mm增减。按重量(kg/m²)计量(非厚度)"
+BJ,010902,MAT-WAT-005,COEFF_OVERRIDE,3.6793,"北京子目9-82 聚合物水泥基(JS)防水涂料消耗量3.6793kg/m²,较陕西典型值低约12%"
+BJ,010902,MAT-WAT-006,COEFF_OVERRIDE,1.2323,"北京子目9-67 聚氯乙烯防水卷材(PVC)1.5mm消耗量1.2323m²/m²,含搭接23.23%"
+BJ,011001,MAT-INSUL-001,COEFF_OVERRIDE,1.006,"【修正】北京子目9-105 挤塑聚苯板100mm消耗0.1006m³/m²→1.006m²/m²,损耗0.6%。原ESTIMATED值1.03偏高→修正为EXTRACTED"
+BJ,011001,MAT-INSUL-004,COEFF_OVERRIDE,1.006,"北京子目9-100 岩棉保温板100mm消耗0.1006m³/m²→1.006m²/m²,损耗0.6%与XPS一致"
+BJ,011001,MAT-INSUL-005,COEFF_OVERRIDE,1.006,"北京子目9-117 硬泡聚氨酯板80mm消耗0.0805m³/m²→1.006m²/m²,与XPS/岩棉损耗率一致"
+BJ,030411,MAT-PIPE-001,COEFF_OVERRIDE,1.03,"北京电气配管 镀锌钢管1.030m/m(3%切截/弯曲损耗), 高于给排水管道1.015m/m(1.5%), 因电气配管弯头/接线盒多"
+BJ,031001,MAT-PIPE-002,COEFF_OVERRIDE,1.015,"北京给排水管道 钢塑复合管(1.0150)m/m, 含1.5%管件/切截损耗"
+BJ,030403,MAT-BUS-001,COEFF_OVERRIDE,1.013,"北京铝母线(1.0130)m/m, 含1.3%连接/煨弯损耗, 低于钢母线4%因铝材较软易加工"
+BJ,030403,MAT-BUS-002,COEFF_OVERRIDE,1.04,"北京钢母线(1.0400)m/m, 含4%连接/煨弯损耗, 钢较铝硬加工难度大"
+BJ,030408,MAT-CAB-001,COEFF_OVERRIDE,1.02,北京电力电缆 含2%波形/弯曲/预留损耗(1kV室内敷设)
+BJ,030701,MAT-DUCT-001,COEFF_OVERRIDE,1.15,北京镀锌钢板矩形风管 含~15%咬口/法兰/加强筋/损耗(板材展开面积÷风管投影面积)
+BJ,030701,MAT-DUCT-005,COEFF_OVERRIDE,1.05,"北京橡塑海绵风管保温 含5%接缝/搭接损耗(较玻璃棉8%低, 因橡塑柔韧性好)"
+BJ,030901,MAT-PIPE-003,COEFF_OVERRIDE,0.995,"北京消防钢管(焊接)(0.9950)m/m, 0.5%切截损耗(焊接余量极低)。沟槽连接(1.0200)m/m, 2%损耗"
+BJ,030901,MAT-FIRE-001,COEFF_OVERRIDE,1.02,"北京消防钢管(沟槽)(1.0200)m/m, 含2%沟槽加工损耗+沟槽直接头0.1667套/m"

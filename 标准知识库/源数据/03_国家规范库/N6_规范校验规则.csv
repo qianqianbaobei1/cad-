@@ -1,0 +1,414 @@
+﻿rule_id,material_id,rule_type,input_params,condition,check_target,allowed_values,error_level,error_message,standard_id,clause_id,constraint_level
+CHECK-STE-001-001,MAT-STE-001,enum_check,"[""steel_grade""]",,steel_grade,"[""HRB400"",""HRB400E"",""HRB500"",""HRB500E"",""HRB600"",""HRBF400"",""HRBF400E"",""HRBF500"",""HRBF500E""]",block,牌号不在GB 1499.2-2024允许范围内,GB 1499.2-2024,GB1499.2-2024-4.1-表1,mandatory
+CHECK-STE-001-002,MAT-STE-001,enum_check,"[""nominal_diameter""]",,nominal_diameter,"[""6"",""8"",""10"",""12"",""14"",""16"",""18"",""20"",""22"",""25"",""28"",""32"",""36"",""40"",""50""]",block,直径不在GB 1499.2-2024第5.1条允许的公称直径范围内,GB 1499.2-2024,GB1499.2-2024-5.2-表2,mandatory
+CHECK-STE-001-003,MAT-STE-001,dependency_check,"[""steel_grade"", ""nominal_diameter""]","牌号含""""E""""",total_elongation(最大力总延伸率),,block,牌号含E的钢筋必须满足最大力总延伸率≥9.0%,GB 1499.2-2024,GB1499.2-2024-6.3-表6,mandatory
+CHECK-STE-001-004,MAT-STE-001,dependency_check,"[""steel_grade"", ""nominal_diameter""]","牌号含""""E""""",strength_ratio(强屈比),,block,牌号含E的钢筋必须满足强屈比≥1.25,GB 1499.2-2024,GB1499.2-2024-6.3-表6,mandatory
+CHECK-STE-001-005,MAT-STE-001,tolerance_check,"[""nominal_diameter""]",直径 in [6,8,10,12],±5.5%,GB 1499.2-2024,warning,重量允许偏差应为±5.5%(6~12mm范围)
+CHECK-STE-001-006,MAT-STE-001,tolerance_check,"[""nominal_diameter""]",直径 in [14,16,18,20],±4.5%,GB 1499.2-2024,warning,重量允许偏差应为±4.5%(14~20mm范围)
+CHECK-STE-001-007,MAT-STE-001,tolerance_check,"[""nominal_diameter""]",直径 in [22,25,28,32,40,GB 1499.2-2024,50],weight_deviation(重量允许偏差)
+DERIVE-STE-001-001,MAT-STE-001,derive,"[""nominal_diameter""]",,theoretical_weight(理论重量),,,理论重量由直径按GB 1499.2-2024表2确定；规则值：由N4查询,GB 1499.2-2024,GB1499.2-2024-5.2-表2,mandatory
+DERIVE-STE-001-002,MAT-STE-001,derive,"[""steel_grade""]","牌号含""""E""""",reverse_bending,,,牌号含E的钢筋必须做反向弯曲试验；规则值：需要,GB 1499.2-2024,GB1499.2-2024-6.4.2-反向弯曲,mandatory
+CHECK-STE-007-001,MAT-STE-007,enum_check,"[""dn""]",,dn,"[""15"",""20"",""25"",""32"",""40"",""50"",""65"",""80"",""100"",""125"",""150"",""200""]",block,DN不在GB/T 3091-2025允许范围内,GB/T 3091-2025,GB3091-2025-6-表1,mandatory
+CHECK-STE-007-002,MAT-STE-007,dependency_check,"[""dn"", ""od_series""]",DN已指定,outer_diameter,,block,外径必须与DN匹配；规则值：由DN和外径系列查表确定,GB/T 3091-2025,GB3091-2025-6-表1,mandatory
+CHECK-STE-007-003,MAT-STE-007,dependency_check,"[""dn""]",DN已指定,wall_thickness,,block,壁厚必须不小于DN对应的最小壁厚；规则值：由DN查表确定,GB/T 3091-2025,GB3091-2025-6-表1,mandatory
+DERIVE-STE-007-001,MAT-STE-007,derive,"[""dn"", ""od_series""]","DN=50 AND 外径系列=""""系列1""""",outer_diameter,,,DN50系列1对应外径60.3mm；规则值：60.3mm,GB/T 3091-2025,GB3091-2025-6-表1,mandatory
+DERIVE-STE-007-002,MAT-STE-007,derive,"[""dn""]",DN=50,wall_thickness,,,DN50最小壁厚3.2mm；规则值：3.2mm,GB/T 3091-2025,GB3091-2025-6-表1,mandatory
+CHECK-STE-002-001,MAT-STE-002,enum_check,"[""nominal_diameter""]",,nominal_diameter,"[""6"",""8"",""10"",""12"",""14"",""16"",""18"",""20"",""22"",""25""]",block,直径不在GB 1499.1-2024允许范围内(6~25mm),GB 1499.1-2024,GB1499.1-2024-5.1-表2,mandatory
+CHECK-STE-002-002,MAT-STE-002,enum_check,"[""steel_grade""]",,steel_grade,"[""HPB300""]",block,牌号不在GB 1499.1-2024允许范围内(仅HPB300),GB 1499.1-2024,GB1499.1-2024-4-表1,mandatory
+DERIVE-STE-002-001,MAT-STE-002,derive,"[""nominal_diameter""]",,theoretical_weight(理论重量),,,理论重量由直径按GB 1499.1-2024表2确定,GB 1499.1-2024,GB1499.1-2024-5.2-表2,mandatory
+CHECK-STE-008-001,MAT-STE-008,enum_check,"[""performance_grade""]",,performance_grade,"[""8.8S"",""10.9S""]",block,性能等级不在GB/T 1231-2024允许范围内,GB/T 1231-2024,GB1231-2024-4-等级,mandatory
+CHECK-STE-008-002,MAT-STE-008,enum_check,"[""bolt_size""]",,bolt_size,"[""M12"",""M16"",""M20"",""M22"",""M24"",""M27"",""M30""]",block,螺栓规格不在GB/T 1231-2024允许范围内,GB/T 1231-2024,GB1231-2024-5-规格,mandatory
+DERIVE-STE-008-001,MAT-STE-008,derive,"[""performance_grade""]",,tensile_strength(抗拉强度),,,"抗拉强度由性能等级确定(8.8S:≥830MPa, 10.9S:≥1040MPa)",GB/T 1231-2024,GB1231-2024-6.2-力学性能,mandatory
+CHECK-MOR-001-001,MAT-MOR-001,enum_check,"[""strength_grade""]",,strength_grade,"[""M5"",""M7.5"",""M10"",""M15"",""M20"",""M25"",""M30""]",block,强度等级不在GB/T 25181-2019允许范围内,GB/T 25181-2019,GB25181-2019-4-分类,mandatory
+DERIVE-MOR-001-001,MAT-MOR-001,derive,"[""strength_grade""]",,compressive_strength,,,28d抗压强度由强度等级确定,GB/T 25181-2019,GB25181-2019-5-表4,mandatory
+R-MOR002-001,MAT-MOR-002,enum_check,"[""strength_grade""]",,strength_grade,"[""M5"", ""M7.5"", ""M10"", ""M15"", ""M20""]",block,强度等级不在GB/T 25181-2019允许范围内,GB/T 25181-2019,GB25181-2019-4-分类,
+R-MOR002-002,MAT-MOR-002,derive,"[""strength_grade""]",,compressive_strength,,info,28d抗压强度由强度等级确定,GB/T 25181-2019,GB25181-2019-5-表4,
+R-MOR002-003,MAT-MOR-002,derive,"[""strength_grade""]",,tensile_bond,,info,拉伸粘结强度由强度等级确定,GB/T 25181-2019,GB25181-2019-5-表4,
+R-MOR003-001,MAT-MOR-003,enum_check,"[""strength_grade""]",,strength_grade,"[""M15"", ""M20"", ""M25""]",block,强度等级不在GB/T 25181-2019允许范围内,GB/T 25181-2019,GB25181-2019-4-分类,
+R-MOR003-002,MAT-MOR-003,derive,"[""strength_grade""]",,compressive_strength,,info,28d抗压强度由强度等级确定,GB/T 25181-2019,GB25181-2019-5-表4,
+R-HBEAM-001,MAT-STE-003,enum_check,"[""steel_grade""]",,steel_grade,"[""Q235B"", ""Q355B"", ""Q390"", ""Q420""]",block,牌号不在GB/T 11263-2024允许范围内(Q235B/Q355B/Q390/Q420),GB/T 11263-2024,GB11263-2024-5-牌号,mandatory
+R-HBEAM-002,MAT-STE-003,enum_check,"[""section_type""]",,section_type,"[""HW"", ""HM"", ""HN"", ""HT"", ""TW"", ""TM"", ""TN""]",block,截面型号不在GB/T 11263-2024分类范围内(HW/HM/HN/HT/TW/TM/TN),GB/T 11263-2024,GB11263-2024-4-分类,mandatory
+R-HBEAM-003,MAT-STE-003,derive,"[""section_height""]",,theoretical_weight,,info,理论重量由截面高度确定(按GB/T 11263-2024表1),GB/T 11263-2024,GB11263-2024-6-表1,mandatory
+R-HBEAM-004,MAT-STE-003,derive,"[""section_height""]",,flange_width,,info,翼缘宽度由截面高度确定(按GB/T 11263-2024表1),GB/T 11263-2024,GB11263-2024-6-表1,mandatory
+R-HBEAM-005,MAT-STE-003,derive,"[""section_height""]",,web_thickness,,info,腹板厚度由截面高度确定(按GB/T 11263-2024表1),GB/T 11263-2024,GB11263-2024-6-表1,mandatory
+R-HBEAM-006,MAT-STE-003,derive,"[""section_height""]",,flange_thickness,,info,翼缘厚度由截面高度确定(按GB/T 11263-2024表1),GB/T 11263-2024,GB11263-2024-6-表1,mandatory
+R-HBEAM-007,MAT-STE-003,derive,"[""steel_grade""]",,yield_strength,,info,"下屈服强度由牌号确定(Q235B:≥235MPa, Q355B:≥355MPa), GB/T 11263-2024表6",GB/T 11263-2024,GB11263-2024-7-力学性能,mandatory
+R-BRI002-001,MAT-BRI-002,enum_check,"[""strength_grade""]",,strength_grade,"[""MU10"", ""MU15"", ""MU20"", ""MU25"", ""MU30""]",block,强度等级不在GB 13544-2011允许范围内(MU10~MU30),GB 13544-2011,GB13544-2011-表4,mandatory
+R-BRI002-002,MAT-BRI-002,enum_check,"[""density_grade""]",,density_grade,"[""900"", ""1000"", ""1100"", ""1200"", ""1300""]",block,密度等级不在GB 13544-2011允许范围内(900~1300),GB 13544-2011,GB13544-2011-表3,mandatory
+R-BRI002-003,MAT-BRI-002,enum_check,"[""product_type""]",,product_type,"[""\u7c98\u571f"", ""\u7c89\u7164\u7070"", ""\u9875\u5ca9"", ""\u7164\u77f8\u77f3""]",block,品种不在GB 13544-2011允许范围内,GB 13544-2011,GB13544-2011-4.1,mandatory
+R-BRI002-004,MAT-BRI-002,derive,"[""strength_grade""]",,compressive_strength_avg,,info,抗压强度平均值由强度等级确定(GB 13544-2011表4),GB 13544-2011,GB13544-2011-表4,mandatory
+R-BLO002-001,MAT-BLO-002,enum_check,"[""strength_grade""]",,strength_grade,"[""MU2.5"", ""MU3.5"", ""MU5.0"", ""MU7.5""]",block,强度等级不在GB/T 15229-2011允许范围内(MU2.5~MU7.5),GB/T 15229-2011,GB15229-2011-表3,mandatory
+R-BLO002-002,MAT-BLO-002,enum_check,"[""density_grade""]",,density_grade,"[""700"", ""800"", ""900"", ""1000"", ""1100"", ""1200"", ""1300"", ""1400""]",block,密度等级不在GB/T 15229-2011允许范围内(700~1400),GB/T 15229-2011,GB15229-2011-表2,mandatory
+R-BLO002-003,MAT-BLO-002,enum_check,"[""freeze_thaw_grade""]",,freeze_thaw_grade,"[""D15"", ""D25"", ""D35"", ""D50""]",block,抗冻标号不在GB/T 15229-2011允许范围内(D15~D50),GB/T 15229-2011,GB15229-2011-表5,mandatory
+R-BLO002-004,MAT-BLO-002,derive,"[""strength_grade""]",,compressive_strength_avg,,info,抗压强度平均值由强度等级确定(GB/T 15229-2011表3),GB/T 15229-2011,GB15229-2011-表3,mandatory
+R-WAP003-001,MAT-WAP-003,enum_check,"[""product_type""]",,product_type,"[""I"", ""II"", ""III""]",block,产品类型不在GB/T 19250-2013分类范围内(I/II/III型),GB/T 19250-2013,GB19250-2013-4.1,mandatory
+R-WAP003-002,MAT-WAP-003,enum_check,"[""env_class""]",,env_class,"[""A\u7c7b"", ""B\u7c7b""]",block,环保等级不在GB/T 19250-2013分类范围内(A/B类),GB/T 19250-2013,GB19250-2013-表3,optional
+R-WAP003-003,MAT-WAP-003,derive,"[""product_type""]",,tensile_strength,,info,拉伸强度由产品类型确定 I≥2.0 II≥6.0 III≥12.0(MPa),GB/T 19250-2013,GB19250-2013-表1,mandatory
+R-WAP003-004,MAT-WAP-003,derive,"[""product_type""]",,elongation,,info,断裂伸长率由产品类型确定 I≥500% II≥450% III≥250%,GB/T 19250-2013,GB19250-2013-表1,mandatory
+CHECK-VALV002-001,MAT-VALV-002,enum_check,"[""dn""]",,dn,"[""50"", ""65"", ""80"", ""100"", ""125"", ""150"", ""200"", ""250"", ""300"", ""350"", ""400"", ""450"", ""500"", ""600"", ""700"", ""800"", ""900"", ""1000"", ""1200"", ""1400"", ""1600"", ""1800"", ""2000""]",block,"DN不在GB/T 12238-2008允许范围(DN50~DN2000法兰,DN50~DN1200对夹)",GB/T 12238-2008,GB12238-2008-4.1,mandatory
+CHECK-VALV002-002,MAT-VALV-002,enum_check,"[""pn""]",,pn,"[""PN2.5"", ""PN6"", ""PN10"", ""PN16"", ""PN25""]",block,PN不在GB/T 12238-2008允许范围(PN2.5~PN25),GB/T 12238-2008,GB12238-2008-4.1,mandatory
+CHECK-VALV002-003,MAT-VALV-002,enum_check,"[""connection_type""]",,connection_type,"[""法兰"", ""对夹"", ""单法兰"", ""U型法兰""]",block,连接方式不在GB/T 12238-2008允许范围内,GB/T 12238-2008,GB12238-2008-3,mandatory
+CHECK-VALV002-004,MAT-VALV-002,enum_check,"[""body_material""]",,body_material,"[""HT200"", ""QT400-15"", ""WCB"", ""CF8""]",block,阀体材料不在GB/T 12238-2008允许范围,GB/T 12238-2008,GB12238-2008-5.2,mandatory
+CHECK-VALV002-005,MAT-VALV-002,enum_check,"[""seat_material""]",,seat_material,"[""铜合金"", ""不锈钢""]",block,密封面材料不在GB/T 12238-2008允许范围,GB/T 12238-2008,GB12238-2008-5.4,mandatory
+DERIVE-VALV002-001,MAT-VALV-002,derive,"[""dn""]",,min_seat_dia,,info,阀座流道最小直径由DN查表2确定；规则值：由DN查表确定,GB/T 12238-2008,GB12238-2008-4.8-表2,mandatory
+DEP-VALV002-001,MAT-VALV-002,dependency_check,"[""dn"", ""pn""]",,DN+PN已指定,,由DN和PN查表3确定,阀体最小壁厚必须满足DN和PN要求,GB/T 12238-2008,GB/T 12238-2008,GB12238-2008-4.9-表3
+CHECK-STE007-004,MAT-STE-007,enum_check,"[""steel_grade""]",,steel_grade,"[""Q195"", ""Q215A"", ""Q215B"", ""Q235A"", ""Q235B"", ""Q275A"", ""Q275B"", ""Q355B""]",block,牌号不在GB/T 3091-2025允许范围内(Q195~Q355B),GB/T 3091-2025,GB3091-2025-6.1-表6,mandatory
+CHECK-STE007-005,MAT-STE-007,enum_check,"[""galv_coating""]",,galv_coating,"[""300"", ""500""]",warn,镀锌层重量应为300或500g/m²,GB/T 3091-2025,GB3091-2025-6.10.2,mandatory
+DERIVE-STE007-003,MAT-STE-007,derive,"[""steel_grade""]",,tensile_strength,,info,抗拉强度由牌号查表6确定；规则值：由牌号推导,GB/T 3091-2025,GB3091-2025-6.5-表6,mandatory
+CHECK-SEA-001,MAT-SEA-001,enum_check,"[""type""]",,type,"[""SR"", ""MS""]",block,类型不在GB/T 14683-2017允许范围(SR硅酮/MS改性硅酮),GB/T 14683-2017,GB14683-2017-4,mandatory
+CHECK-SEA-002,MAT-SEA-001,enum_check,"[""displacement_class""]",,displacement_class,"[""20"", ""25"", ""35""]",block,位移能力级别不在GB/T 14683-2017允许范围(20/25/35级),GB/T 14683-2017,GB14683-2017-4-表1,mandatory
+DERIVE-SEA-001,MAT-SEA-001,derive,"[""displacement_class""]",,tensile_strength,,info,"拉伸强度由位移能力级别确定(20:≥0.4,25:≥0.5,35:≥0.6MPa)；规则值：由级别查表1确定",GB/T 14683-2017,GB14683-2017-4-表1,mandatory
+DERIVE-SEA-002,MAT-SEA-001,derive,"[""displacement_class""]",,elongation,,info,"断裂伸长率由位移能力级别确定(20:≥200%,25:≥300%,35:≥400%)；规则值：由级别查表1确定",GB/T 14683-2017,GB14683-2017-4-表1,mandatory
+DERIVE-SEA-003,MAT-SEA-001,derive,"[""type""]",,sag,,info,下垂度≤3mm(垂直放置)；规则值：≤3mm,GB/T 14683-2017,GB14683-2017-5-表1,mandatory
+DERIVE-SEA-004,MAT-SEA-001,derive,"[""type""]",,curing_time,,info,表干时间≤3h；规则值：≤3h,GB/T 14683-2017,GB14683-2017-5,mandatory
+CHECK-WAP1-001,MAT-WAP-001,enum_check,"[""type""]",,type,"[""SBS"", ""APP""]",block,类型不在GB/T 18242-2025允许范围(SBS弹性体/APP塑性体),GB/T 18242-2025,GB18242-2025-4,mandatory
+CHECK-WAP1-002,MAT-WAP-001,enum_check,"[""substrate""]",,substrate,"[""PY"", ""G""]",block,胎基不在GB/T 18242-2025允许范围(PY聚酯毡/G玻纤毡),GB/T 18242-2025,GB18242-2025-4-表1,mandatory
+CHECK-WAP1-003,MAT-WAP-001,enum_check,"[""surface""]",,surface,"[""PE膜"", ""砂面"", ""矿物粒料""]",block,表面材料不在GB/T 18242-2025允许范围(PE膜/砂面/矿物粒料),GB/T 18242-2025,GB18242-2025-4-表2,mandatory
+CHECK-WAP1-004,MAT-WAP-001,enum_check,"[""thickness""]",,thickness,"[3, 4, 5]",block,厚度不在GB/T 18242-2025允许范围(3/4/5mm),GB/T 18242-2025,GB18242-2025-5-表3,mandatory
+CHECK-WAP1-005,MAT-WAP-001,enum_check,"[""low_temp_flex""]",,low_temp_flex,"[-20, -25]",block,低温柔性不在GB/T 18242-2025允许范围(-20/-25℃),GB/T 18242-2025,GB18242-2025-5-表4,mandatory
+CHECK-WAP1-006,MAT-WAP-001,enum_check,"[""heat_resistance""]",,heat_resistance,"[90, 105]",block,耐热性不在GB/T 18242-2025允许范围(90/105℃),GB/T 18242-2025,GB18242-2025-5-表4,mandatory
+DERIVE-WAP1-001,MAT-WAP-001,derive,"[""substrate""]",,tensile_force,,info,"拉力由胎基确定(PY:≥800N/50mm, G:≥500N/50mm)；规则值：由胎基确定",GB/T 18242-2025,GB18242-2025-5-表4,mandatory
+DERIVE-WAP1-002,MAT-WAP-001,derive,"[""substrate""]",,elongation_max,,info,"最大延伸率由胎基确定(PY:≥40%, G:≥5%)；规则值：由胎基确定",GB/T 18242-2025,GB18242-2025-5-表4,mandatory
+CHECK-WAP5-001,MAT-WAP-005,enum_check,"[""type""]",,type,"[""I型"", ""II型"", ""III型""]",block,类型不在GB/T 23445-2025允许范围(I/II/III型),GB/T 23445-2025,GB23445-2025-4,mandatory
+DERIVE-WAP5-001,MAT-WAP-005,derive,"[""type""]",,tensile_strength,,info,"拉伸强度由类型确定(I≥1.2,II≥1.8,III≥2.0MPa)；规则值：由类型确定",GB/T 23445-2025,GB23445-2025-5-表1,mandatory
+DERIVE-WAP5-002,MAT-WAP-005,derive,"[""type""]",,elongation_break,,info,"断裂伸长率由类型确定(I≥200%,II≥80%,III≥30%)；规则值：由类型确定",GB/T 23445-2025,GB23445-2025-5-表1,mandatory
+DEP-WAP5-001,MAT-WAP-005,dependency_check,"[""type"", ""waterproof_0.3""]",,waterproof_0.3,,block,所有类型必须满足0.3MPa 30min不透水,GB/T 23445-2025,GB/T 23445-2025,GB23445-2025-5-表1
+CHECK-WAP6-001,MAT-WAP-006,enum_check,"[""type""]",,type,"[""P"", ""H"", ""R"", ""ER""]",block,类型不在GB/T 23457-2025允许范围(P/H/R/ER型),GB/T 23457-2025,GB23457-2025-4,mandatory
+CHECK-WAP6-002,MAT-WAP-006,enum_check,"[""thickness""]",,thickness,"[0.7, 1.2, 1.5, 2.0]",block,厚度不在GB/T 23457-2025允许范围(0.7~2.0mm),GB/T 23457-2025,GB23457-2025-5,mandatory
+CHECK-WAP6-003,MAT-WAP-006,range_check,"[""tensile_force""]",,tensile_force,"[""≥400N/50mm""]",block,拉力必须≥400N/50mm,GB/T 23457-2025,GB/T 23457-2025,GB23457-2025-5-表1
+CHECK-WAP6-004,MAT-WAP-006,range_check,"[""elongation_max""]",,elongation_max,"[""≥400%""]",warn,最大延伸率必须≥400%,GB/T 23457-2025,GB/T 23457-2025,GB23457-2025-5-表1
+CHECK-INS3-001,MAT-INS-003,enum_check,"[""fire_class""]",,fire_class,"[""A1"", ""A2""]",block,燃烧性能不在GB/T 25975-2018允许范围(A1/A2不燃),GB/T 25975-2018,GB25975-2018-5-表1,mandatory
+CHECK-INS3-002,MAT-INS-003,enum_check,"[""tensile_strength_perp""]",,tensile_strength_perp,"[""TR7.5"", ""TR10"", ""TR15""]",warn,抗拉强度等级应为TR7.5/TR10/TR15,GB/T 25975-2018,GB25975-2018-5-表1,mandatory
+CHECK-INS3-003,MAT-INS-003,range_check,"[""density""]",,density,"[""80~200kg/m³""]",block,密度超出GB/T 25975-2018范围(80~200kg/m³),GB/T 25975-2018,GB/T 25975-2018,GB25975-2018-5
+CHECK-INS3-004,MAT-INS-003,range_check,"[""thermal_cond""]",,thermal_cond,"[""≤0.040W/(m·K)""]",block,导热系数必须≤0.040W/(m·K),GB/T 25975-2018,GB/T 25975-2018,GB25975-2018-5-表1
+CHECK-INS3-005,MAT-INS-003,range_check,"[""water_repellent""]",,water_repellent,"[""≥98%""]",warn,憎水率必须≥98%,GB/T 25975-2018,GB/T 25975-2018,GB25975-2018-5-表1
+CHECK-STO-001,MAT-STO-002,enum_check,"[""surface_finish""]",,surface_finish,"[""镜面"", ""火烧"", ""荔枝面"", ""机切""]",block,表面处理方式不在GB/T 18601-2024允许范围(镜面/火烧/荔枝面/机切),GB/T 18601-2024,GB18601-2024-4,mandatory
+CHECK-STO-002,MAT-STO-002,range_check,"[""thickness""]",,thickness,"[""10~50mm""]",warn,厚度应在10~50mm范围内,GB/T 18601-2024,GB/T 18601-2024,GB18601-2024-5
+CHECK-STO-003,MAT-STO-002,range_check,"[""bending_strength""]",,bending_strength,"[""≥8.0MPa""]",block,弯曲强度必须≥8.0MPa,GB/T 18601-2024,GB/T 18601-2024,GB18601-2024-5-表4
+DERIVE-STO-001,MAT-STO-002,derive,"[""surface_finish""]",,water_absorption,,info,吸水率≤0.6%(天然花岗石)；规则值：≤0.6%,GB/T 18601-2024,GB18601-2024-5-表4,mandatory
+DERIVE-STO-002,MAT-STO-002,derive,"[""surface_finish""]",,density,,info,体积密度≥2.56g/cm³；规则值：≥2.56g/cm³,GB/T 18601-2024,GB18601-2024-5-表4,mandatory
+CHECK-EAR-001,MAT-EAR-002,enum_check,"[""size_range""]",,size_range,"[""5~10"", ""5~20"", ""5~31.5"", ""20~40"", ""40~80""]",block,粒径不在GB/T 14685-2022允许范围(5~80mm连续级配),GB/T 14685-2022,GB14685-2022-5,mandatory
+CHECK-EAR-002,MAT-EAR-002,enum_check,"[""class""]",,class,"[""I类"", ""II类"", ""III类""]",block,类别不在GB/T 14685-2022允许范围(I/II/III类),GB/T 14685-2022,GB14685-2022-4,mandatory
+DERIVE-EAR-001,MAT-EAR-002,derive,"[""class""]",,mud_content,,info,"含泥量由类别确定(I≤0.5%,II≤1.0%,III≤1.5%)；规则值：由类别确定",GB/T 14685-2022,GB14685-2022-6-表2,mandatory
+DERIVE-EAR-002,MAT-EAR-002,derive,"[""class""]",,needle_flake,,info,"针片状含量由类别确定(I≤5%,II≤10%,III≤15%)；规则值：由类别确定",GB/T 14685-2022,GB14685-2022-6-表2,mandatory
+CHECK-EAR-003,MAT-EAR-002,range_check,"[""crushing_index""]",,crushing_index,"[""见标准表3""]",block,"压碎指标由类别确定(I≤10%,II≤20%,III≤30%)",GB/T 14685-2022,GB/T 14685-2022,GB14685-2022-6-表3
+CHECK-DOO1-001,MAT-DOO-001,enum_check,"[""type""]",,type,"[""外门"", ""外窗"", ""内门"", ""内窗"", ""隔断""]",block,类型不在GB/T 20909-2017分类范围(外门/外窗/内门/内窗/隔断),GB/T 20909-2017,GB20909-2017-4,mandatory
+CHECK-DOO1-002,MAT-DOO-001,range_check,"[""air_permeability""]",,air_permeability,"[""1~8级""]",block,气密性应在1~8级范围内,GB/T 20909-2017,GB/T 20909-2017,GB20909-2017-5-表2
+CHECK-DOO1-003,MAT-DOO-001,range_check,"[""water_tightness""]",,water_tightness,"[""100~700Pa(1~6级)""]",block,水密性应在1~6级范围内,GB/T 20909-2017,GB/T 20909-2017,GB20909-2017-5-表3
+CHECK-DOO1-004,MAT-DOO-001,range_check,"[""wind_resistance""]",,wind_resistance,"[""1.0~5.0kPa(1~9级)""]",block,抗风压性能应在1~9级范围内,GB/T 20909-2017,GB/T 20909-2017,GB20909-2017-5-表4
+DERIVE-DOO1-001,MAT-DOO-001,derive,"[""type"", ""air_permeability""]",,thermal_trans,,info,传热系数K按GB/T 20909-2017表5分级(1~10级)；规则值：由类型和窗型确定,GB/T 20909-2017,GB20909-2017-5-表5,mandatory
+CHECK-DOO5-001,MAT-DOO-005,enum_check,"[""type""]",,type,"[""实木"", ""实木复合"", ""木塑""]",block,类型不在GB/T 29498-2024允许范围(实木/实木复合/木塑),GB/T 29498-2024,GB29498-2024-4,mandatory
+CHECK-DOO5-002,MAT-DOO-005,enum_check,"[""style""]",,style,"[""平开"", ""推拉"", ""折叠""]",warn,开启方式不在GB/T 29498-2024允许范围(平开/推拉/折叠),GB/T 29498-2024,GB29498-2024-4,mandatory
+CHECK-DOO5-003,MAT-DOO-005,range_check,"[""air_permeability""]",,air_permeability,"[""1~8级""]",block,气密性应在1~8级范围内,GB/T 29498-2024,GB/T 29498-2024,GB29498-2024-5
+CHECK-DOO5-004,MAT-DOO-005,range_check,"[""water_tightness""]",,water_tightness,"[""1~6级""]",block,水密性应在1~6级范围内,GB/T 29498-2024,GB/T 29498-2024,GB29498-2024-5
+CHECK-DOO5-005,MAT-DOO-005,range_check,"[""acoustic_insulation""]",,acoustic_insulation,"[""Rw≥30dB""]",warn,隔声性能建议Rw≥30dB,GB/T 29498-2024,GB/T 29498-2024,GB29498-2024-5
+CHECK-HDW-001,MAT-HDW-001,enum_check,"[""type""]",,type,"[""执手"", ""合页"", ""传动锁闭器"", ""撑挡"", ""滑轮""]",block,五金类别不在GB/T 32223-2025分类范围内,GB/T 32223-2025,GB32223-2025-5,mandatory
+CHECK-HDW-002,MAT-HDW-001,enum_check,"[""durability""]",,durability,"[25000, 50000]",block,耐久性应≥25000次(窗用)或50000次(门用),GB/T 32223-2025,GB32223-2025-5-表1,mandatory
+DERIVE-HDW-001,MAT-HDW-001,derive,"[""type""]",,load_capacity,,info,承载力由五金类别确定(见GB/T 32223-2025表2)；规则值：由五金类别确定,GB/T 32223-2025,GB32223-2025-5-表2,mandatory
+CHECK-HDW-003,MAT-HDW-001,range_check,"[""corrosion_resist""]",,corrosion_resist,"[""CASS 48h≥9级""]",warn,耐腐蚀性应满足CASS 48h≥9级,GB/T 32223-2025,GB/T 32223-2025,GB32223-2025-5
+CHECK-VAL1-001,MAT-VALV-001,enum_check,"[""dn""]",,dn,"[""15"", ""20"", ""25"", ""32"", ""40"", ""50"", ""65"", ""80"", ""100"", ""125"", ""150"", ""200"", ""250"", ""300""]",block,DN不在GB/T 12232-2025允许范围(DN15~DN1800),GB/T 12232-2025,GB12232-2025-4,mandatory
+CHECK-VAL1-002,MAT-VALV-001,enum_check,"[""pn""]",,pn,"[""PN2.5"", ""PN6"", ""PN10"", ""PN16"", ""PN25"", ""PN40""]",block,PN不在GB/T 12232-2025允许范围(PN2.5~PN40),GB/T 12232-2025,GB12232-2025-4,mandatory
+CHECK-VAL1-003,MAT-VALV-001,enum_check,"[""body_material""]",,body_material,"[""HT200"", ""QT400-18"", ""WCB""]",block,阀体材料不在GB/T 12232-2025允许范围(HT200/QT400-18/WCB),GB/T 12232-2025,GB12232-2025-5,mandatory
+CHECK-VAL1-004,MAT-VALV-001,enum_check,"[""connection""]",,connection,"[""法兰""]",block,闸阀连接方式为法兰连接,GB/T 12232-2025,GB12232-2025-4,mandatory
+CHECK-VAL3-001,MAT-VALV-003,enum_check,"[""dn""]",,dn,"[""15"", ""20"", ""25"", ""32"", ""40"", ""50"", ""65"", ""80"", ""100"", ""150"", ""200""]",block,DN不在GB/T 12235-2025允许范围(DN15~DN400),GB/T 12235-2025,GB12235-2025-4,mandatory
+CHECK-VAL3-002,MAT-VALV-003,enum_check,"[""pn""]",,pn,"[""PN16"", ""PN25"", ""PN40"", ""PN63"", ""PN100""]",block,PN不在GB/T 12235-2025允许范围(PN16~PN420),GB/T 12235-2025,GB12235-2025-4,mandatory
+CHECK-VAL3-003,MAT-VALV-003,enum_check,"[""body_material""]",,body_material,"[""WCB"", ""CF8"", ""CF8M""]",block,阀体材料不在GB/T 12235-2025允许范围(WCB/CF8/CF8M),GB/T 12235-2025,GB12235-2025-5,mandatory
+CHECK-VAL3-004,MAT-VALV-003,enum_check,"[""disc_seat_material""]",,disc_seat_material,"[""13Cr"", ""STL"", ""PTFE""]",block,密封面材料不在GB/T 12235-2025允许范围(13Cr/STL/PTFE),GB/T 12235-2025,GB12235-2025-5,mandatory
+CHECK-VAL4-001,MAT-VALV-004,enum_check,"[""dn""]",,dn,"[""50"", ""65"", ""80"", ""100"", ""150"", ""200"", ""250"", ""300"", ""400"", ""500"", ""600""]",block,DN不在GB/T 12236-2025允许范围(DN50~DN600),GB/T 12236-2025,GB12236-2025-4,mandatory
+CHECK-VAL4-002,MAT-VALV-004,enum_check,"[""pn""]",,pn,"[""PN16"", ""PN25"", ""PN40"", ""PN63"", ""PN100"", ""PN160"", ""PN250""]",block,PN不在GB/T 12236-2025允许范围(PN16~PN250),GB/T 12236-2025,GB12236-2025-4,mandatory
+CHECK-VAL4-003,MAT-VALV-004,enum_check,"[""body_material""]",,body_material,"[""WCB"", ""CF8"", ""CF8M""]",block,阀体材料不在GB/T 12236-2025允许范围(WCB/CF8/CF8M),GB/T 12236-2025,GB12236-2025-5,mandatory
+CHECK-VAL4-004,MAT-VALV-004,enum_check,"[""type""]",,type,"[""旋启式""]",block,止回结构应为旋启式(标准限定),GB/T 12236-2025,GB12236-2025-3,mandatory
+CHECK-VAL5-001,MAT-VALV-005,enum_check,"[""dn""]",,dn,"[""15"", ""20"", ""25"", ""32"", ""40"", ""50"", ""65"", ""80"", ""100"", ""150"", ""200"", ""300""]",block,DN不在GB/T 12237-2021允许范围(DN15~DN600),GB/T 12237-2021,GB12237-2021-4,mandatory
+CHECK-VAL5-002,MAT-VALV-005,enum_check,"[""pn""]",,pn,"[""PN16"", ""PN25"", ""PN40"", ""PN63"", ""PN100""]",block,PN不在GB/T 12237-2021允许范围(PN16~PN250),GB/T 12237-2021,GB12237-2021-4,mandatory
+CHECK-VAL5-003,MAT-VALV-005,enum_check,"[""body_material""]",,body_material,"[""WCB"", ""CF8"", ""CF8M""]",block,阀体材料不在GB/T 12237-2021允许范围(WCB/CF8/CF8M),GB/T 12237-2021,GB12237-2021-5,mandatory
+CHECK-VAL5-004,MAT-VALV-005,enum_check,"[""ball_type""]",,ball_type,"[""浮动球"", ""固定球""]",warn,球体结构应为浮动球或固定球,GB/T 12237-2021,GB12237-2021-3,mandatory
+CHECK-VAL5-005,MAT-VALV-005,enum_check,"[""seat_material""]",,seat_material,"[""PTFE"", ""RPTFE"", ""PPL""]",block,密封面材料不在GB/T 12237-2021允许范围(PTFE/RPTFE/PPL),GB/T 12237-2021,GB12237-2021-5,mandatory
+CHECK-HDW2-001,MAT-HDW-002,enum_check,"[""type""]",,type,"[""摩擦铰链"", ""合页""]",block,五金类别不在GB/T 32223-2025分类范围(摩擦铰链/合页),GB/T 32223-2025,GB32223-2025-5,mandatory
+CHECK-HDW2-002,MAT-HDW-002,range_check,"[""load_capacity""]",,load_capacity,"[""≤80kg(窗用铰链)""]",block,窗用铰链承载力应≤80kg,GB/T 32223-2025,GB/T 32223-2025,GB32223-2025-5-表2
+CHECK-HDW2-003,MAT-HDW-002,range_check,"[""durability""]",,durability,"[""≥25000次""]",block,耐久性必须≥25000次,GB/T 32223-2025,GB/T 32223-2025,GB32223-2025-5-表1
+,MAT-TIL-001,enum_check,"[""wa_group""]",,wa_group,"[""BIa"", ""BIb"", ""BIIa"", ""BIIb"", ""BIII""]",error,吸水率分组应在BIa~BIII范围内,GB/T 4100-2015,第4条/表1,mandatory
+,MAT-TIL-001,threshold_check,"[""breaking_strength""]",,breaking_strength,"["">=1300""]",error,全瓷抛光砖破坏强度不应低于1300N,GB/T 4100-2015,表7,mandatory
+,MAT-TIL-001,threshold_check,"[""modulus_of_rupture""]",,modulus_of_rupture,"["">=35""]",error,全瓷抛光砖断裂模数不应低于35MPa,GB/T 4100-2015,表7,mandatory
+,MAT-TIL-001,enum_check,"[""surface_quality""]",,surface_quality,"[""优等品"", ""一级品"", ""合格品""]",warning,表面质量等级应在规定范围内,GB/T 4100-2015,第5.1.3条,mandatory
+,MAT-TIL-003,enum_check,"[""wa_group""]",,wa_group,"[""BIa"", ""BIb"", ""BIIa"", ""BIIb"", ""BIII""]",error,吸水率分组应在BIa~BIII范围内,GB/T 4100-2015,第4条/表1,mandatory
+,MAT-TIL-003,threshold_check,"[""breaking_strength""]",,breaking_strength,"["">=600""]",error,釉面内墙砖破坏强度不应低于600N,GB/T 4100-2015,表7,mandatory
+,MAT-TIL-003,threshold_check,"[""modulus_of_rupture""]",,modulus_of_rupture,"["">=15""]",error,釉面内墙砖断裂模数不应低于15MPa,GB/T 4100-2015,表7,mandatory
+,MAT-TIL-003,enum_check,"[""surface_quality""]",,surface_quality,"[""优等品"", ""一级品"", ""合格品""]",warning,表面质量等级应在规定范围内,GB/T 4100-2015,第5.1.3条,mandatory
+,MAT-TIL-004,enum_check,"[""wa_group""]",,wa_group,"[""BIa"", ""BIb"", ""BIIa"", ""BIIb"", ""BIII""]",error,吸水率分组应在BIa~BIII范围内,GB/T 4100-2015,第4条/表1,mandatory
+,MAT-TIL-004,threshold_check,"[""breaking_strength""]",,breaking_strength,"["">=800""]",error,墙面砖破坏强度不应低于800N,GB/T 4100-2015,表7,mandatory
+,MAT-TIL-004,threshold_check,"[""modulus_of_rupture""]",,modulus_of_rupture,"["">=18""]",error,墙面砖断裂模数不应低于18MPa,GB/T 4100-2015,表7,mandatory
+,MAT-TIL-004,enum_check,"[""surface_quality""]",,surface_quality,"[""优等品"", ""一级品"", ""合格品""]",warning,表面质量等级应在规定范围内,GB/T 4100-2015,第5.1.3条,mandatory
+,MAT-TIL-005,enum_check,"[""wa_group""]",,wa_group,"[""BIa"", ""BIb"", ""BIIa"", ""BIIb"", ""BIII""]",error,吸水率分组应在BIa~BIII范围内,GB/T 4100-2015,第4条/表1,mandatory
+,MAT-TIL-005,threshold_check,"[""breaking_strength""]",,breaking_strength,"["">=1300""]",error,耐酸砖破坏强度不应低于1300N,GB/T 4100-2015,表7,mandatory
+,MAT-TIL-005,threshold_check,"[""modulus_of_rupture""]",,modulus_of_rupture,"["">=35""]",error,耐酸砖断裂模数不应低于35MPa,GB/T 4100-2015,表7,mandatory
+,MAT-TIL-005,enum_check,"[""surface_quality""]",,surface_quality,"[""优等品"", ""一级品"", ""合格品""]",warning,表面质量等级应在规定范围内,GB/T 4100-2015,第5.1.3条,mandatory
+,MAT-TIL-006,enum_check,"[""wa_group""]",,wa_group,"[""BIa"", ""BIb"", ""BIIa"", ""BIIb"", ""BIII""]",error,吸水率分组应在BIa~BIII范围内,GB/T 4100-2015,第4条/表1,mandatory
+,MAT-TIL-006,threshold_check,"[""breaking_strength""]",,breaking_strength,"["">=1100""]",error,防滑地砖破坏强度不应低于1100N,GB/T 4100-2015,表7,mandatory
+,MAT-TIL-006,threshold_check,"[""modulus_of_rupture""]",,modulus_of_rupture,"["">=30""]",error,防滑地砖断裂模数不应低于30MPa,GB/T 4100-2015,表7,mandatory
+,MAT-TIL-006,enum_check,"[""surface_quality""]",,surface_quality,"[""优等品"", ""一级品"", ""合格品""]",warning,表面质量等级应在规定范围内,GB/T 4100-2015,第5.1.3条,mandatory
+,MAT-INSU-001,enum_check,"[""product_form""]",,product_form,"[""板"", ""管壳"", ""毡"", ""带""]",error,制品形态应在板/管壳/毡/带范围内,GB/T 11835-2016,第4条,mandatory
+,MAT-INSU-001,threshold_check,"[""thermal_cond_25""]",,thermal_cond_25,"[""<=0.040""]",error,岩棉导热系数不应大于0.040W/(m·K),GB/T 11835-2016,表2,mandatory
+,MAT-INSU-001,threshold_check,"[""compressive_strength""]",,compressive_strength,"["">=40""]",error,岩棉压缩强度不应低于40kPa,GB/T 11835-2016,第5.2条,mandatory
+,MAT-INSU-001,threshold_check,"[""tensile_strength_perp""]",,tensile_strength_perp,"["">=5""]",warning,垂直表面抗拉强度不宜低于5kPa,GB/T 11835-2016,第5.3条,mandatory
+,MAT-INSU-001,threshold_check,"[""shot_content""]",,shot_content,"[""<=12""]",warning,渣球含量不宜超过12%,GB/T 11835-2016,第5.6条,mandatory
+,MAT-INSU-003,enum_check,"[""product_form""]",,product_form,"[""板"", ""管壳"", ""毡"", ""带""]",error,制品形态应在板/管壳/毡/带范围内,GB/T 11835-2016,第4条,mandatory
+,MAT-INSU-003,threshold_check,"[""thermal_cond_25""]",,thermal_cond_25,"[""<=0.042""]",error,玻璃棉导热系数不应大于0.042W/(m·K),GB/T 11835-2016,表2,mandatory
+,MAT-INSU-003,threshold_check,"[""compressive_strength""]",,compressive_strength,"["">=20""]",error,玻璃棉压缩强度不应低于20kPa,GB/T 11835-2016,第5.2条,mandatory
+,MAT-INSU-003,threshold_check,"[""tensile_strength_perp""]",,tensile_strength_perp,"["">=5""]",warning,垂直表面抗拉强度不宜低于5kPa,GB/T 11835-2016,第5.3条,mandatory
+,MAT-INSU-003,threshold_check,"[""shot_content""]",,shot_content,"[""<=12""]",warning,渣球含量不宜超过12%,GB/T 11835-2016,第5.6条,mandatory
+,MAT-STE-004,enum_check,"[""steel_grade""]",,steel_grade,"[""Q235B"", ""Q345B"", ""Q390B"", ""Q420B"", ""Q460""]",error,钢牌号应在Q235B~Q460范围内,GB/T 706-2016,表1,mandatory
+,MAT-STE-004,range_check,"[""height_h""]",,height_h,"[""50-400""]",error,槽钢高度应在50~400mm,GB/T 706-2016,表A.1,mandatory
+,MAT-STE-004,range_check,"[""leg_width_b""]",,leg_width_b,"[""37-104""]",error,槽钢腿宽应在37~104mm,GB/T 706-2016,表A.1,mandatory
+,MAT-STE-011,enum_check,"[""steel_grade""]",,steel_grade,"[""Q235B"", ""Q345B"", ""Q390B"", ""Q420B"", ""Q460""]",error,钢牌号应在Q235B~Q460范围内,GB/T 706-2016,表1,mandatory
+,MAT-STE-011,range_check,"[""leg_width_b""]",,leg_width_b,"[""20-200""]",error,角钢边宽应在20~200mm,GB/T 706-2016,表A.2,mandatory
+,MAT-STE-011,range_check,"[""leg_thick_d""]",,leg_thick_d,"[""3-24""]",error,角钢边厚应在3~24mm,GB/T 706-2016,表A.2,mandatory
+,MAT-STEL-001,enum_check,"[""steel_grade""]",,steel_grade,"[""Q235B"", ""Q345B"", ""Q390B"", ""Q420B"", ""Q460""]",error,钢牌号应在Q235B~Q460范围内,GB/T 706-2016,表1,mandatory
+,MAT-STEL-001,range_check,"[""leg_width_b""]",,leg_width_b,"[""20-200""]",error,角钢边宽应在20~200mm,GB/T 706-2016,表A.2,mandatory
+,MAT-STEL-001,range_check,"[""leg_thick_d""]",,leg_thick_d,"[""3-24""]",error,角钢边厚应在3~24mm,GB/T 706-2016,表A.2,mandatory
+,MAT-CABL-002,enum_check,"[""rated_voltage_uo_u""]",,rated_voltage_uo_u,"[""3.6/6"", ""6/6"", ""6/10"", ""8.7/10"", ""8.7/15"", ""12/20"", ""18/30"", ""21/35"", ""26/35""]",error,额定电压U₀/U应在标准范围内,GB/T 12706.3-2020,第4条/表1,mandatory
+,MAT-CABL-002,enum_check,"[""conductor_material""]",,conductor_material,"[""铜"", ""铝""]",error,导体材质应为铜或铝,GB/T 12706.3-2020,第5.1条,mandatory
+,MAT-CABL-002,range_check,"[""conductor_cross_section""]",,conductor_cross_section,"[""1.5-630""]",error,导体截面应在1.5~630mm²,GB/T 12706.3-2020,第5.2条/表2,mandatory
+,MAT-CABL-002,enum_check,"[""insulation_type""]",,insulation_type,"[""PVC"", ""XLPE"", ""EPR""]",error,绝缘类型应在PVC/XLPE/EPR范围内,GB/T 12706.3-2020,第6条/表3,mandatory
+,MAT-CABL-002,enum_check,"[""sheath_material""]",,sheath_material,"[""PVC"", ""PE"", ""低烟无卤""]",warning,外护套材料应在标准范围内,GB/T 12706.3-2020,第7.2条/表5,mandatory
+,MAT-CABL-008,enum_check,"[""flame_retardant_class""]",,flame_retardant_class,"[""ZA"", ""ZB"", ""ZC"", ""ZD""]",error,阻燃等级应在ZA~ZD范围内,GB/T 19666-2019,第4.1条/表1,mandatory
+,MAT-CABL-008,enum_check,"[""fire_resistance_class""]",,fire_resistance_class,"[""N"", ""NJ"", ""NS""]",error,耐火等级应在N/NJ/NS范围内,GB/T 19666-2019,第4.2条/表2,mandatory
+,MAT-CABL-008,cross_param,"[""low_smoke"",""halogen_free""]",,"low_smoke==""是"" and halogen_free==""是""",,error,低烟无卤应同时满足,GB/T 19666-2019,第4.3条/第4.4条,mandatory
+,MAT-BRD-004,threshold_check,"[""density_max""]",,density_max,"[""<=500""]",error,矿棉吸声板密度不应大于500kg/m³,GB/T 25998-2020,第5.1条/表2,mandatory
+,MAT-BRD-004,threshold_check,"[""nrc""]",,nrc,"["">=0.45""]",error,降噪系数NRC不应低于0.45,GB/T 25998-2020,第5.2条/表2,mandatory
+,MAT-BRD-004,threshold_check,"[""thermal_conductivity""]",,thermal_conductivity,"[""<=0.055""]",warning,导热系数不宜大于0.055W/(m·K),GB/T 25998-2020,第5.6条/表2,mandatory
+,MAT-BRD-004,enum_check,"[""fire_class""]",,fire_class,"[""A1"", ""A2"", ""B1""]",error,防火等级应在A1/A2/B1范围内,GB/T 25998-2020,第5.3条/表2,mandatory
+,MAT-BRD-004,enum_check,"[""formaldehyde_class""]",,formaldehyde_class,"[""E0"", ""E1""]",error,甲醛释放等级应为E0或E1,GB/T 25998-2020,第5.5条/表2,mandatory
+,MAT-VALV-008,enum_check,"[""connection_type""]",,connection_type,"[""法兰"", ""螺纹"", ""焊接""]",error,连接方式应在法兰/螺纹/焊接范围内,GB/T 12244-2025,第6.1条,mandatory
+,MAT-VALV-008,cross_param,"[""inlet_pressure_range"",""outlet_pressure_range""]",,outlet_pressure_max < inlet_pressure_min,,error,出口压力上限应小于进口压力下限,GB/T 12244-2025,第4.6条,mandatory
+,MAT-VALV-008,threshold_check,"[""min_pressure_diff""]",,min_pressure_diff,"["">=0.05""]",error,最小压差不应小于0.05MPa,GB/T 12244-2025,第4.6条,mandatory
+,MAT-PAI-001,threshold_check,"[""contrast_ratio""]",,contrast_ratio,"["">=0.90""]",error,对比率不应低于0.90,GB/T 9755-2024,第5.1条/表2,mandatory
+,MAT-PAI-001,threshold_check,"[""scrub_resistance""]",,scrub_resistance,"["">=2000""]",error,耐洗刷性不应低于2000次,GB/T 9755-2024,第5.2条/表2,mandatory
+,MAT-PAI-001,threshold_check,"[""alkali_resistance""]",,alkali_resistance,"["">=48""]",error,耐碱性不应低于48h,GB/T 9755-2024,第5.3条/表2,mandatory
+,MAT-PAI-001,threshold_check,"[""water_resistance""]",,water_resistance,"["">=96""]",error,耐水性不应低于96h,GB/T 9755-2024,第5.8条/表2,mandatory
+,MAT-PAI-001,threshold_check,"[""voc_content""]",,voc_content,"[""<=80""]",error,VOC含量不应大于80g/L,GB 18582-2020,第4.1条/表1,mandatory
+,MAT-PAI-001,threshold_check,"[""formaldehyde_content""]",,formaldehyde_content,"[""<=50""]",error,甲醛含量不应大于50mg/kg,GB 18582-2020,第4.2条/表1,mandatory
+,MAT-FPC-001,enum_check,"[""coating_type""]",,coating_type,"[""厚型(H)"", ""薄型(B)"", ""超薄型(CB)""]",error,防火涂料类型应在厚型/薄型/超薄型范围内,GB 14907-2018,第4条/表1,mandatory
+,MAT-FPC-001,enum_check,"[""use_location""]",,use_location,"[""室内"", ""室外""]",error,使用场所应为室内或室外,GB 14907-2018,第4条/表1,mandatory
+,MAT-FPC-001,threshold_check,"[""bond_strength""]",,bond_strength,"["">=0.15""]",error,粘结强度不应低于0.15MPa,GB 14907-2018,第5.3条/表2,mandatory
+,MAT-FPC-001,threshold_check,"[""water_resistance""]",,water_resistance,"["">=24""]",error,耐水性不应低于24h,GB 14907-2018,第5.5条/表2,mandatory
+,MAT-STE-007,enum_check,"[""galvanizing_coating_grade""]",,galvanizing_coating_grade,"[""A"", ""B"", ""C""]",error,镀锌层等级应在A/B/C范围内,GB/T 8349-2000,第3条/表1,mandatory
+,MAT-STE-007,enum_check,"[""coating_adhesion""]",,coating_adhesion,"[""合格"", ""不合格""]",error,镀锌层附着力应合格,GB/T 8349-2000,第4条,mandatory
+,MAT-FRM-001,enum_check,"[""galvanizing_coating_grade""]",,galvanizing_coating_grade,"[""A"", ""B"", ""C""]",error,镀锌层等级应在A/B/C范围内,GB/T 8349-2000,第3条/表1,mandatory
+,MAT-FRM-001,enum_check,"[""coating_adhesion""]",,coating_adhesion,"[""合格"", ""不合格""]",error,镀锌层附着力应合格,GB/T 8349-2000,第4条,mandatory
+,MAT-CON-002,enum_check,"[""strength_grade""]",,strength_grade,"[""C10"", ""C15"", ""C20"", ""C25"", ""C30"", ""C35"", ""C40"", ""C45"", ""C50"", ""C55"", ""C60""]",error,混凝土强度等级应在C10~C60范围内,GB/T 14902-2012,第5.1条/表1,mandatory
+,MAT-CON-002,range_check,"[""slump""]",,slump,"[""10-220""]",warning,坍落度应在10~220mm范围内,GB/T 14902-2012,第5.2条/表2,mandatory
+,MAT-CON-003,enum_check,"[""strength_grade""]",,strength_grade,"[""C10"", ""C15"", ""C20"", ""C25"", ""C30"", ""C35"", ""C40"", ""C45"", ""C50"", ""C55"", ""C60""]",error,混凝土强度等级应在C10~C60范围内,GB/T 14902-2012,第5.1条/表1,mandatory
+,MAT-CON-003,range_check,"[""slump""]",,slump,"[""10-220""]",warning,坍落度应在10~220mm范围内,GB/T 14902-2012,第5.2条/表2,mandatory
+,MAT-CON-004,enum_check,"[""strength_grade""]",,strength_grade,"[""C10"", ""C15"", ""C20"", ""C25"", ""C30"", ""C35"", ""C40"", ""C45"", ""C50"", ""C55"", ""C60""]",error,混凝土强度等级应在C10~C60范围内,GB/T 14902-2012,第5.1条/表1,mandatory
+,MAT-CON-004,range_check,"[""slump""]",,slump,"[""10-220""]",warning,坍落度应在10~220mm范围内,GB/T 14902-2012,第5.2条/表2,mandatory
+,MAT-CON-005,enum_check,"[""strength_grade""]",,strength_grade,"[""C10"", ""C15"", ""C20"", ""C25"", ""C30"", ""C35"", ""C40"", ""C45"", ""C50"", ""C55"", ""C60""]",error,混凝土强度等级应在C10~C60范围内,GB/T 14902-2012,第5.1条/表1,mandatory
+,MAT-CON-005,range_check,"[""slump""]",,slump,"[""10-220""]",warning,坍落度应在10~220mm范围内,GB/T 14902-2012,第5.2条/表2,mandatory
+,MAT-CON-006,enum_check,"[""strength_grade""]",,strength_grade,"[""C10"", ""C15"", ""C20"", ""C25"", ""C30"", ""C35"", ""C40"", ""C45"", ""C50"", ""C55"", ""C60""]",error,混凝土强度等级应在C10~C60范围内,GB/T 14902-2012,第5.1条/表1,mandatory
+,MAT-CON-006,range_check,"[""slump""]",,slump,"[""10-220""]",warning,坍落度应在10~220mm范围内,GB/T 14902-2012,第5.2条/表2,mandatory
+,MAT-CON-007,enum_check,"[""strength_grade""]",,strength_grade,"[""C10"", ""C15"", ""C20"", ""C25"", ""C30"", ""C35"", ""C40"", ""C45"", ""C50"", ""C55"", ""C60""]",error,混凝土强度等级应在C10~C60范围内,GB/T 14902-2012,第5.1条/表1,mandatory
+,MAT-CON-007,range_check,"[""slump""]",,slump,"[""10-220""]",warning,坍落度应在10~220mm范围内,GB/T 14902-2012,第5.2条/表2,mandatory
+,MAT-CON-008,enum_check,"[""strength_grade""]",,strength_grade,"[""C10"", ""C15"", ""C20"", ""C25"", ""C30"", ""C35"", ""C40"", ""C45"", ""C50"", ""C55"", ""C60""]",error,混凝土强度等级应在C10~C60范围内,GB/T 14902-2012,第5.1条/表1,mandatory
+,MAT-CON-008,range_check,"[""slump""]",,slump,"[""10-220""]",warning,坍落度应在10~220mm范围内,GB/T 14902-2012,第5.2条/表2,mandatory
+,MAT-FRM-002,enum_check,"[""keel_type""]",,keel_type,"[""天地龙骨"", ""竖龙骨"", ""通贯龙骨"", ""吊顶主龙骨"", ""吊顶副龙骨""]",error,龙骨类型应在标准范围内,GB/T 11981-2024,第4条/表1,mandatory
+,MAT-FRM-002,enum_check,"[""surface_treatment""]",,surface_treatment,"[""镀锌"", ""镀铝锌"", ""彩涂""]",warning,表面处理应在标准范围内,GB/T 11981-2024,第5.2条,mandatory
+,MAT-FRM-002,threshold_check,"[""zinc_coating_mass""]",,zinc_coating_mass,"["">=100""]",warning,镀锌层重量不宜低于100g/m²,GB/T 11981-2024,第5.2条/表3,mandatory
+,MAT-FRM-002,threshold_check,"[""straightness""]",,straightness,"[""<=2.0""]",error,弯曲度不应超过2.0mm/m,GB/T 11981-2024,第6.2条,mandatory
+,MAT-STE-010,enum_check,"[""steel_grade""]",,steel_grade,"[""10"", ""20"", ""Q345B"", ""Q390B"", ""Q420B"", ""Q460C""]",error,钢牌号应在标准范围内,GB/T 8163-2018,第5.1条/表1,mandatory
+,MAT-STE-010,threshold_check,"[""tensile_strength_rm""]",,tensile_strength_rm,"["">=335""]",error,抗拉强度不应低于335MPa,GB/T 8163-2018,第6.1条/表3,mandatory
+,MAT-STE-010,threshold_check,"[""yield_strength_rel""]",,yield_strength_rel,"["">=205""]",error,屈服强度不应低于205MPa,GB/T 8163-2018,第6.1条/表3,mandatory
+,MAT-DOO-003,threshold_check,"[""profile_wall_thickness""]",,profile_wall_thickness,"["">=1.8""]",error,铝合金门主型材壁厚不应小于1.8mm,GB/T 8478-2020,第5.1条/表2,mandatory
+,MAT-DOO-003,threshold_check,"[""wind_resistance""]",,wind_resistance,"["">=1.0""]",error,抗风压性能不应低于1.0kPa,GB/T 8478-2020,第6.4条/表6,mandatory
+,MAT-DOO-004,threshold_check,"[""profile_wall_thickness""]",,profile_wall_thickness,"["">=1.4""]",error,铝合金窗主型材壁厚不应小于1.4mm,GB/T 8478-2020,第5.1条/表2,mandatory
+,MAT-DOO-004,threshold_check,"[""wind_resistance""]",,wind_resistance,"["">=1.0""]",error,抗风压性能不应低于1.0kPa,GB/T 8478-2020,第6.4条/表6,mandatory
+,MAT-STE-013,enum_check,"[""steel_grade""]",,steel_grade,"[""06Cr19Ni10"", ""022Cr19Ni10"", ""06Cr17Ni12Mo2"", ""022Cr17Ni12Mo2"", ""06Cr18Ni11Ti"", ""019Cr19Mo2NbTi""]",error,不锈钢牌号应在标准范围内,GB/T 12771-2019,第5.1条/表1,mandatory
+,MAT-STE-013,threshold_check,"[""tensile_strength""]",,tensile_strength,"["">=485""]",error,抗拉强度不应低于485MPa,GB/T 12771-2019,第6.1条/表4,mandatory
+,MAT-CABL-004,range_check,"[""cross_section""]",,cross_section,"[""0.5-400""]",error,导线截面应在0.5~400mm²范围内,GB/T 5023-2008,第5条/表1,mandatory
+,MAT-CABL-005,range_check,"[""cross_section""]",,cross_section,"[""0.5-400""]",error,导线截面应在0.5~400mm²范围内,GB/T 5023-2008,第5条/表1,mandatory
+,MAT-CON-001,enum_check,"[""concrete_grade""]",,concrete_grade,"[""C15"", ""C20"", ""C25"", ""C30"", ""C35"", ""C40"", ""C45"", ""C50"", ""C55"", ""C60"", ""C65"", ""C70"", ""C75"", ""C80""]",error,混凝土强度等级应在C15~C80范围内,GB 50010-2010,第4.1条/表4.1.3,mandatory
+,MAT-CON-001,threshold_check,"[""min_cover""]",,min_cover,"["">=15""]",error,最小保护层厚度不应小于15mm,GB 50010-2010,第8.2条/表8.2.1,mandatory
+,MAT-CON-001,threshold_check,"[""water_cement_ratio""]",,water_cement_ratio,"[""<=0.60""]",error,水胶比不应大于0.60,GB 50164-2011,第3.2条/表3.2.2,mandatory
+,MAT-CON-001,threshold_check,"[""chloride_content""]",,chloride_content,"[""<=0.30""]",error,氯离子含量不应大于0.30%,GB 50164-2011,第3.3条/表3.3.1,mandatory
+,MAT-BRD-001,enum_check,"[""board_type""]",,board_type,"[""普通"", ""耐水"", ""耐火"", ""耐潮""]",error,石膏板类型应在标准范围内,GB/T 9775-2025,第4条/表1,mandatory
+,MAT-DOO-002,enum_check,"[""fire_rating_door""]",,fire_rating_door,"[""甲级(A1.5h)"", ""乙级(A1.0h)"", ""丙级(A0.5h)""]",error,防火门等级应在甲/乙/丙级范围内,GB 12955-2024,第4条/表1,mandatory
+,MAT-DOO-001,enum_check,"[""security_grade""]",,security_grade,"[""1级"", ""2级"", ""3级"", ""4级""]",error,防盗安全等级应在1~4级范围内,GB 17565-2022,第4条/表1,mandatory
+,MAT-PIPE-002,enum_check,"[""steel_grade""]",,steel_grade,"[""Q195"", ""Q215"", ""Q235B"", ""Q345B""]",error,钢牌号应在标准范围内,GB/T 3091-2015,第5条/表1,mandatory
+,MAT-STE-006,range_check,"[""steel_plate_thickness_param""]",,steel_plate_thickness_param,"[""1.2-400""]",error,钢板厚度应在1.2~400mm范围内,GB/T 709-2019,第4条/表1,mandatory
+,MAT-BRI-001,enum_check,"[""strength_grade_brick""]",,strength_grade_brick,"[""MU10"", ""MU15"", ""MU20"", ""MU25"", ""MU30""]",error,烧结普通砖强度等级应在MU10~MU30范围内,GB/T 5101-2017,第5条/表1,mandatory
+,MAT-BLO-001,enum_check,"[""strength_grade_aac""]",,strength_grade_aac,"[""A1.0"", ""A2.0"", ""A2.5"", ""A3.5"", ""A5.0"", ""A7.5""]",error,加气砌块强度等级应在A1.0~A7.5范围内,GB/T 11968-2020,第4条/表1,mandatory
+,MAT-BLO-001,threshold_check,"[""dry_thermal_cond""]",,dry_thermal_cond,"[""<=0.20""]",warning,干态导热系数不宜大于0.20W/(m·K),GB/T 11968-2020,第6条/表3,mandatory
+,MAT-INS-001,threshold_check,"[""thermal_cond_eps""]",,thermal_cond_eps,"[""<=0.041""]",error,EPS导热系数不应大于0.041W/(m·K),GB/T 10801.1-2025,第5条/表2,mandatory
+,MAT-INS-001,threshold_check,"[""compressive_strength_eps""]",,compressive_strength_eps,"["">=60""]",error,EPS压缩强度不应低于60kPa,GB/T 10801.1-2025,第5条/表2,mandatory
+,MAT-INS-002,threshold_check,"[""thermal_cond_xps""]",,thermal_cond_xps,"[""<=0.032""]",error,XPS导热系数不应大于0.032W/(m·K),GB/T 10801.2-2025,第5条/表2,mandatory
+,MAT-INS-002,threshold_check,"[""compressive_strength_xps""]",,compressive_strength_xps,"["">=150""]",error,XPS压缩强度不应低于150kPa,GB/T 10801.2-2025,第5条/表2,mandatory
+,MAT-INS-002,threshold_check,"[""dimensional_stability""]",,dimensional_stability,"[""<=2.0""]",error,80℃尺寸变化率不应大于2.0%,GB/T 10801.2-2025,第7条/表4,mandatory
+,MAT-CABL-003,range_check,"[""num_cores_ctrl""]",,num_cores_ctrl,"[""2-61""]",error,控制电缆芯数应在2~61芯范围内,GB/T 9330-2020,第5条/表2,mandatory
+,MAT-CABL-003,range_check,"[""cross_section_ctrl""]",,cross_section_ctrl,"[""0.5-10""]",error,控制电缆截面应在0.5~10mm²范围内,GB/T 9330-2020,第5条/表2,mandatory
+,MAT-DOO-010,enum_check,"[""fire_rating_window""]",,fire_rating_window,"[""甲级(A1.5h)"", ""乙级(A1.0h)"", ""丙级(A0.5h)""]",error,防火窗等级应在甲/乙/丙级,GB 16809-2024,第4条/表1,mandatory
+,MAT-FLR-001,threshold_check,"[""residual_indentation""]",,residual_indentation,"[""<=0.20""]",error,残余凹陷度不应大于0.20mm,GB/T 11982.1-2015,第6条/表3,mandatory
+,MAT-WAP-007,threshold_check,"[""tensile_strength_mb""]",,tensile_strength_mb,"["">=5.0""]",error,拉伸强度不应低于5.0MPa,GB 18173.2-2014,第5条/表2,mandatory
+,MAT-WAP-007,threshold_check,"[""elongation_mb""]",,elongation_mb,"["">=200""]",error,断裂伸长率不应低于200%,GB 18173.2-2014,第5条/表2,mandatory
+,MAT-ELEQ-005,enum_check,"[""protection_level""]",,protection_level,"[""一类"", ""二类"", ""三类""]",error,防雷等级应在标准范围内,GB 50057-2010,第4.2条,mandatory
+,MAT-ELEQ-005,enum_check,"[""lightning_arrester_type""]",,lightning_arrester_type,"[""接闪杆"", ""接闪带"", ""接闪网""]",error,接闪器类型应在标准范围内,GB 50057-2010,第5.1条,mandatory
+,MAT-ELEQ-005,threshold_check,"[""ground_resistance""]",,ground_resistance,"[""<=10""]",error,接地电阻应满足<=10要求,GB 50057-2010,第5.4条,mandatory
+,MAT-PLUM-004,enum_check,"[""faucet_type""]",,faucet_type,"[""单柄单控"", ""单柄双控"", ""双柄双控""]",error,水嘴类型应在标准范围内,GB 18145-2014,第4条,mandatory
+,MAT-PLUM-004,enum_check,"[""surface_quality_fn""]",,surface_quality_fn,"[""优等品"", ""一级品"", ""合格品""]",error,表面质量应在标准范围内,GB 18145-2014,第7条,mandatory
+,MAT-FIRE-003,enum_check,"[""extinguishing_agent""]",,extinguishing_agent,"[""七氟丙烷"", ""IG541"", ""IG100"", ""CO2""]",error,灭火剂类型应在标准范围内,GB 25972-2024,第4条,mandatory
+,MAT-FIRE-003,threshold_check,"[""discharge_time""]",,discharge_time,"[""<=60""]",error,喷放时间应满足<=60要求,GB 25972-2024,第5条,mandatory
+,MAT-FIRE-005,enum_check,"[""controller_type""]",,controller_type,"[""区域"", ""集中"", ""控制中心""]",error,控制器类型应在标准范围内,GB 4717-2024,第4条,mandatory
+,MAT-FIRE-005,threshold_check,"[""power_backup""]",,power_backup,"["">=8""]",error,备电时间应满足>=8要求,GB 4717-2024,第6条,mandatory
+,MAT-FIRE-001,enum_check,"[""hose_diameter""]",,hose_diameter,"[""25"", ""40"", ""50"", ""65"", ""80"", ""100""]",error,公称内径应在标准范围内,GB 6246-2026,第4条/表1,mandatory
+,MAT-FIRE-001,enum_check,"[""coupling_type""]",,coupling_type,"[""内扣式"", ""卡式"", ""螺纹式""]",error,接口类型应在标准范围内,GB 6246-2026,第7条,mandatory
+,MAT-ELEC-004,enum_check,"[""socket_type""]",,socket_type,"[""单相二极"", ""单相三极"", ""三相四极""]",error,插座类型应在标准范围内,GB/T 2099.10-2026,第4条,mandatory
+,MAT-ELEC-004,enum_check,"[""protection_degree""]",,protection_degree,"[""IP20"", ""IP44"", ""IP54"", ""IP66""]",error,防护等级应在标准范围内,GB/T 2099.10-2026,第5条,mandatory
+,MAT-FIRE-008,enum_check,"[""cabinet_type""]",,cabinet_type,"[""琴台柜"", ""立柜"", ""壁挂""]",error,机柜类型应在标准范围内,GB/T 14561-2019,第4条,mandatory
+,MAT-FIRE-008,enum_check,"[""communication_protocol""]",,communication_protocol,"[""CAN"", ""RS485"", ""以太网"", ""无线""]",error,通信协议应在标准范围内,GB/T 14561-2019,第6条,mandatory
+,MAT-FIRE-008,enum_check,"[""cooling_method""]",,cooling_method,"[""AN"", ""AF""]",error,冷却方式应在标准范围内,GB/T 10228-2023,第5条,mandatory
+,MAT-FIRE-008,enum_check,"[""insulation_class""]",,insulation_class,"[""F级"", ""H级""]",error,绝缘等级应在标准范围内,GB/T 10228-2023,第6条,mandatory
+,MAT-FIRE-008,enum_check,"[""filter_grade""]",,filter_grade,"[""G3"", ""G4"", ""F5"", ""F6"", ""F7"", ""F8"", ""F9""]",error,过滤等级应在标准范围内,GB/T 14294-2026,第7条,mandatory
+,MAT-FLR-001,enum_check,"[""floor_grade_pvc""]",,floor_grade_pvc,"[""21"", ""23"", ""31"", ""33"", ""42""]",error,使用等级应在标准范围内,GB/T 11982.2-2015,第4条,mandatory
+,MAT-FIRE-006,enum_check,"[""nominal_diameter_sv""]",,nominal_diameter_sv,"[""50"", ""65"", ""80"", ""100"", ""150"", ""200"", ""250""]",error,公称通径应在标准范围内,GB 5135.2-2025,第4条/表1,mandatory
+,MAT-FIRE-006,enum_check,"[""body_material_sv""]",,body_material_sv,"[""球墨铸铁"", ""铸钢"", ""不锈钢""]",error,阀体材质应在标准范围内,GB 5135.2-2025,第7条,mandatory
+,MAT-FIRE-007,enum_check,"[""actuation_method""]",,actuation_method,"[""湿式先导"", ""干式先导"", ""电控"", ""手动""]",error,启动方式应在标准范围内,GB 5135.3-2025,第5条,mandatory
+,MAT-FIRE-006,enum_check,"[""acceleration_device""]",,acceleration_device,"[""有"", ""无""]",error,加速器应在标准范围内,GB 5135.4-2025,第6条,mandatory
+,MAT-FIRE-008,enum_check,"[""gasket_material""]",,gasket_material,"[""EPDM"", ""丁腈"", ""硅橡胶""]",error,密封圈材质应在标准范围内,GB 5135.11-2025,第5条,mandatory
+,MAT-FIRE-008,enum_check,"[""housing_material""]",,housing_material,"[""球墨铸铁"", ""锻钢""]",error,卡箍壳体材质应在标准范围内,GB 5135.11-2025,第6条,mandatory
+,MAT-FIRE-008,enum_check,"[""coverage_pattern""]",,coverage_pattern,"[""标准覆盖"", ""扩大覆盖""]",error,布水方式应在标准范围内,GB 5135.21-2025,第7条,mandatory
+,MAT-VALV-006,enum_check,"[""response_type""]",,response_type,"[""标准响应"", ""快速响应""]",error,响应类型应在标准范围内,GB 5135.23-2026,第6条,mandatory
+,MAT-VALV-006,enum_check,"[""application_type""]",,application_type,"[""仓储"", ""高架"", ""中庭"", ""隧道""]",error,应用类型应在标准范围内,GB 5135.23-2026,第7条,mandatory
+,MAT-PLUM-001,enum_check,"[""product_type_toilet""]",,product_type_toilet,"[""坐便器"", ""蹲便器"", ""小便器"", ""洗面器""]",error,产品类型应在标准范围内,GB/T 6952-2015,第4条,mandatory
+,MAT-PLUM-001,enum_check,"[""flush_method""]",,flush_method,"[""冲落式"", ""虹吸式"", ""喷射虹吸""]",error,冲洗方式应在标准范围内,GB/T 6952-2015,第5条,mandatory
+,MAT-PLUM-003,enum_check,"[""shower_set_type""]",,shower_set_type,"[""顶喷花洒"", ""手持花洒"", ""侧喷花洒""]",error,花洒类型应在标准范围内,GB/T 23447-2023,第4条,mandatory
+,MAT-PLUM-005,enum_check,"[""valve_type_fire""]",,valve_type_fire,"[""防火阀"", ""排烟防火阀"", ""排烟阀""]",error,阀门类型应在标准范围内,GB/T 27710-2020,第4条,mandatory
+,MAT-ELEC-002,enum_check,"[""protection_degree_pdb""]",,protection_degree_pdb,"[""IP44"", ""IP54"", ""IP65""]",error,防护等级应在标准范围内,GB/T 7251.8-2020,第5条,mandatory
+,MAT-ELEC-002,enum_check,"[""enclosure_material""]",,enclosure_material,"[""钢板"", ""不锈钢"", ""绝缘材料""]",error,箱体材质应在标准范围内,GB/T 7251.8-2020,第6条,mandatory
+,MAT-CABL-001,enum_check,"[""voltage""]",,voltage,"[""0.6/1"", ""1.8/3"", ""3.6/6"", ""6/10"", ""8.7/15"", ""12/20"", ""18/30"", ""21/35"", ""26/35""]",error,额定电压应在0.6/1~26/35kV范围内,GB/T 12706.3-2020,第4条/表1,mandatory
+,MAT-CABL-001,range_check,"[""cross_section""]",,cross_section,"[""1.5-630""]",error,标称截面应在1.5~630mm²范围内,GB/T 12706.3-2020,第5.2条/表2,mandatory
+,MAT-CABL-001,enum_check,"[""insulation""]",,insulation,"[""PVC"", ""XLPE"", ""EPR""]",error,绝缘类型应在PVC/XLPE/EPR范围内,GB/T 12706.3-2020,第6条/表3,mandatory
+,MAT-CABL-007,enum_check,"[""flame_class""]",,flame_class,"[""ZA"", ""ZB"", ""ZC"", ""ZD""]",error,阻燃类别应在ZA~ZD范围内,GB/T 19666-2019,第4.1条/表1,mandatory
+,MAT-CABL-007,enum_check,"[""fire_resist""]",,fire_resist,"[""N"", ""NJ"", ""NS""]",error,耐火级别应在N/NJ/NS范围内,GB/T 19666-2019,第4.2条/表2,mandatory
+,MAT-INS-005,threshold_check,"[""nrc""]",,nrc,"["">=0.45""]",error,吸声系数NRC不应低于0.45,GB/T 25998-2020,第5.2条/表2,mandatory
+,MAT-INS-005,enum_check,"[""fire_class""]",,fire_class,"[""A2"", ""B1""]",error,燃烧性能应在A2/B1范围内,GB/T 25998-2020,第5.3条/表2,mandatory
+,MAT-PAI-003,threshold_check,"[""contrast_ratio""]",,contrast_ratio,"["">=0.90""]",error,对比率不应低于0.90,GB/T 25251-2010,第5条/表1,mandatory
+,MAT-PAI-003,threshold_check,"[""scrub_resistance""]",,scrub_resistance,"["">=300""]",error,耐洗刷性不应低于300次,GB/T 25251-2010,第5条/表1,mandatory
+,MAT-PIPE-001,enum_check,"[""steel_grade_sp""]",,steel_grade_sp,"[""Q195"", ""Q215"", ""Q235B""]",error,钢管牌号应在Q195~Q235B范围内,GB/T 32321-2015,第5.1条/表3,mandatory
+,MAT-PIPE-001,threshold_check,"[""bonding_strength""]",,bonding_strength,"["">=0.3""]",error,钢塑结合强度不应低于0.3MPa,GB/T 32321-2015,第6条/表5,mandatory
+,MAT-PIPE-005,enum_check,"[""steel_grade_sp""]",,steel_grade_sp,"[""Q195"", ""Q215"", ""Q235B""]",error,钢管牌号应在Q195~Q235B范围内,GB/T 32321-2015,第5.1条/表3,mandatory
+,MAT-PIPE-005,threshold_check,"[""bonding_strength""]",,bonding_strength,"["">=0.3""]",error,钢塑结合强度不应低于0.3MPa,GB/T 32321-2015,第6条/表5,mandatory
+,MAT-COAT-001,enum_check,"[""substrate_treatment""]",,substrate_treatment,"[""St2"", ""St3"", ""Sa2"", ""Sa2.5"", ""Sa3""]",error,基层处理等级应在St2~Sa3范围内,GB 50212-2014,第5.2条/表5.2.4,mandatory
+,MAT-COAT-001,threshold_check,"[""coating_thickness_ac""]",,coating_thickness_ac,"["">=200""]",error,防腐涂层厚度不应低于200μm,GB 50212-2014,第6章/表6.1.4,mandatory
+,MAT-COAT-005,enum_check,"[""substrate_treatment""]",,substrate_treatment,"[""St2"", ""St3"", ""Sa2"", ""Sa2.5"", ""Sa3""]",error,基层处理等级应在St2~Sa3范围内,GB 50212-2014,第5.2条/表5.2.4,mandatory
+,MAT-COAT-005,threshold_check,"[""coating_thickness_ac""]",,coating_thickness_ac,"["">=200""]",error,防腐涂层厚度不应低于200μm,GB 50212-2014,第6章/表6.1.4,mandatory
+,MAT-PAI-003,threshold_check,"[""cross_cut_grade""]",,cross_cut_grade,"[""<=1""]",error,划格试验等级不应大于1级(一般要求),GB/T 9286-2021,第7条/表1,mandatory
+,MAT-PUT-001,threshold_check,"[""cross_cut_grade""]",,cross_cut_grade,"[""<=1""]",error,划格试验等级不应大于1级(一般要求),GB/T 9286-2021,第7条/表1,mandatory
+,MAT-AUXI-019,enum_check,"[""steel_grade_conduit""]",,steel_grade_conduit,"[""Q195"", ""Q215"", ""Q235B""]",error,穿线管钢牌号应在Q195~Q235B范围内,GB/T 3091-2015,第5条/表1,mandatory
+,MAT-AUXI-019,enum_check,"[""galvanizing_type_conduit""]",,galvanizing_type_conduit,"[""热浸镀锌"", ""电镀锌""]",error,穿线管镀锌方式应为热浸镀锌或电镀锌,GB/T 3091-2015,第6条/表2,mandatory
+,MAT-AUXI-019,threshold_check,"[""tensile_strength_conduit""]",,tensile_strength_conduit,>=375,warning,穿线管抗拉强度建议不低于375MPa,GB/T 3091-2015,第7条/表3,mandatory
+,MAT-AUXI-019,threshold_check,"[""yield_strength_conduit""]",,yield_strength_conduit,>=235,warning,穿线管屈服强度建议不低于235MPa(Q235B),GB/T 3091-2015,第7条/表3,mandatory
+,MAT-AUXI-019,threshold_check,"[""elongation_conduit""]",,elongation_conduit,>=26,warning,穿线管断后伸长率建议不小于26%,GB/T 3091-2015,第7条/表3,mandatory
+,MAT-AUXI-019,enum_check,"[""surface_quality_conduit""]",,surface_quality_conduit,"[""光滑无毛刺""]",warning,"穿线管表面应光滑无毛刺,避免损伤导线绝缘层",GB/T 3091-2015,第10条,mandatory
+,MAT-AUXI-002,enum_check,"[""bolt_type""]",,bolt_type,"[""A型"", ""B型"", ""C型""]",error,地脚螺栓型式应在A/B/C型范围内,GB/T 799-2020,第3条,mandatory
+,MAT-AUXI-002,enum_check,"[""performance_grade""]",,performance_grade,"[""4.6"", ""5.6""]",error,地脚螺栓性能等级应为4.6或5.6级,GB/T 799-2020,第4条,mandatory
+,MAT-AUXI-002,enum_check,"[""bolt_size""]",,bolt_size,"[""M8"", ""M10"", ""M12"", ""M16"", ""M20"", ""M24"", ""M30"", ""M36"", ""M42"", ""M48"", ""M56"", ""M64"", ""M72""]",error,地脚螺栓规格应在M8~M72范围内,GB/T 799-2020,第4条/表1,mandatory
+,MAT-FITT-001,enum_check,"[""fitting_type""]",,fitting_type,"[""90°长半径弯头"", ""90°短半径弯头"", ""45°长半径弯头"", ""180°长半径弯头"", ""180°短半径弯头"", ""等径三通"", ""异径三通"", ""等径四通"", ""异径四通"", ""同心异径管"", ""偏心异径管"", ""管帽"", ""翻边短节""]",error,管件类型应在标准范围内,GB/T 12459-2025,第4条/表1,mandatory
+,MAT-FITT-001,enum_check,"[""wall_thickness_sch""]",,wall_thickness_sch,"[""SCH5S"", ""SCH10S"", ""SCH20"", ""SCH30"", ""SCH40S"", ""SCH40"", ""STD"", ""SCH60"", ""SCH80S"", ""SCH80"", ""XS"", ""SCH100"", ""SCH120"", ""SCH140"", ""SCH160"", ""XXS""]",error,壁厚系列应在标准SCH范围内,GB/T 12459-2025,第6条/表2,mandatory
+,MAT-FITT-001,enum_check,"[""material_group_fit""]",,material_group_fit,"[""碳钢"", ""合金钢(低合金)"", ""奥氏体不锈钢"", ""双相不锈钢"", ""镍基合金""]",error,管件材料类别应在标准范围内,GB/T 12459-2025,第9条/附录A,mandatory
+,MAT-TRN-001,enum_check,"[""board_type_trn""]",,board_type_trn,"[""普通型"", ""覆膜型"", ""涂膜型""]",error,模板胶合板类型应在普通型/覆膜型/涂膜型范围内,GB/T 17656-2018,第4条,mandatory
+,MAT-TRN-001,threshold_check,"[""bending_strength_parallel""]",,bending_strength_parallel,>=35,error,模板胶合板顺纹静曲强度不应低于35MPa(最差档),GB/T 17656-2018,第5.5条/表3,mandatory
+,MAT-TRN-001,threshold_check,"[""bond_strength_trn""]",,bond_strength_trn,>=0.70,error,模板胶合板胶合强度不应低于0.70MPa,GB/T 17656-2018,第5.6条/表6,mandatory
+,MAT-TRN-001,range_check,"[""moisture_content""]",,moisture_content,"[5,14]",warning,模板胶合板含水率建议在5%~14%范围内,GB/T 17656-2018,第5.6条/表6,mandatory
+,MAT-ADH-001,enum_check,"[""adhesive_type""]",,adhesive_type,"[""C1(普通型水泥基)"", ""C2(增强型水泥基)"", ""D1(普通型膏状乳液)"", ""D2(增强型膏状乳液)"", ""R1(普通型反应树脂)"", ""R2(增强型反应树脂)""]",error,陶瓷砖胶粘剂类型应在C1~R2范围内,JC/T 547-2017,第4条/表1,mandatory
+,MAT-ADH-001,threshold_check,"[""tensile_adhesion_std""]",,tensile_adhesion_std,>=0.5,error,陶瓷砖胶粘剂标准拉伸粘接强度不应低于0.5MPa,JC/T 547-2017,第5条/表2,mandatory
+,MAT-ADH-001,threshold_check,"[""slip_resistance""]",,slip_resistance,<=0.5,error,陶瓷砖胶粘剂抗滑移不应大于0.5mm,JC/T 547-2017,第5条/表2,mandatory
+CHECK-MAT-PIPE-001-321,MAT-PIPE-001,enum_check,"[""外径""]",,外径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100"", ""DN125"", ""DN150"", ""DN200"", ""DN250"", ""DN300"", ""DN350"", ""DN400""]",block,外径不在GB/T 8163-2018允许范围内,GB/T 8163-2018,GB8163-表1,mandatory
+CHECK-MAT-PIPE-001-322,MAT-PIPE-001,enum_check,"[""壁厚""]",,壁厚,"[""2.5"", ""3.0"", ""3.5"", ""4.0"", ""4.5"", ""5.0"", ""5.5"", ""6.0"", ""6.5"", ""7.0"", ""8.0"", ""10.0"", ""12.0""]",block,壁厚不在GB/T 8163-2018允许范围内,GB/T 8163-2018,GB8163-表1,mandatory
+CHECK-MAT-PIPE-001-323,MAT-PIPE-001,enum_check,"[""材质""]",,材质,"[""10"", ""20"", ""Q345B"", ""Q345C"", ""Q345D"", ""Q345E"", ""16Mn"", ""20#""]",block,材质不在GB/T 8163-2018允许范围内,GB/T 8163-2018,GB8163-4.1,mandatory
+CHECK-MAT-PIPE-002-324,MAT-PIPE-002,enum_check,"[""公称直径""]",,公称直径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100"", ""DN125"", ""DN150"", ""DN200""]",block,公称直径不在GB/T 3091-2025允许范围内,GB/T 3091-2025,GB3091-4.1,mandatory
+CHECK-MAT-PIPE-002-325,MAT-PIPE-002,enum_check,"[""壁厚""]",,壁厚,"[""2.8"", ""3.2"", ""3.5"", ""3.8"", ""4.0"", ""4.5"", ""5.0"", ""6.0""]",block,壁厚不在GB/T 3091-2025允许范围内,GB/T 3091-2025,GB3091-表1,mandatory
+CHECK-MAT-PIPE-002-326,MAT-PIPE-002,enum_check,"[""镀锌方式""]",,镀锌方式,"[""热浸镀锌"", ""冷镀锌"", ""预镀锌""]",block,镀锌方式不在GB/T 3091-2025允许范围内,GB/T 3091-2025,GB3091-5.2,mandatory
+CHECK-MAT-PIPE-002-327,MAT-PIPE-002,enum_check,"[""连接方式""]",,连接方式,"[""螺纹连接"", ""沟槽连接"", ""法兰连接"", ""焊接""]",block,连接方式不在GB/T 3091-2025允许范围内,GB/T 3091-2025,,mandatory
+CHECK-MAT-PIPE-005-328,MAT-PIPE-005,enum_check,"[""材质牌号""]",,材质牌号,"[""304(06Cr19Ni10)"", ""304L"", ""316(06Cr17Ni12Mo2)"", ""316L"", ""321"", ""310S"", ""2205"", ""904L""]",block,材质牌号不在GB/T 12771-2019允许范围内,GB/T 12771-2019,GB12771-4.1,mandatory
+CHECK-MAT-PIPE-005-329,MAT-PIPE-005,enum_check,"[""外径""]",,外径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100""]",block,外径不在GB/T 12771-2019允许范围内,GB/T 12771-2019,GB12771-表1,mandatory
+CHECK-MAT-PIPE-005-330,MAT-PIPE-005,enum_check,"[""壁厚""]",,壁厚,"[""1.0"", ""1.5"", ""2.0"", ""2.5"", ""3.0"", ""3.5"", ""4.0"", ""5.0""]",block,壁厚不在GB/T 12771-2019允许范围内,GB/T 12771-2019,GB12771-表1,mandatory
+CHECK-MAT-PIPE-005-331,MAT-PIPE-005,enum_check,"[""连接方式""]",,连接方式,"[""焊接"", ""法兰连接"", ""卡压式连接"", ""沟槽连接""]",block,连接方式不在GB/T 12771-2019允许范围内,GB/T 12771-2019,,mandatory
+CHECK-MAT-FITT-001-332,MAT-FITT-001,enum_check,"[""公称直径""]",,公称直径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100"", ""DN125"", ""DN150"", ""DN200"", ""DN250"", ""DN300""]",block,公称直径不在GB/T 12459-2017允许范围内,GB/T 12459-2017,GB12459-表1,mandatory
+CHECK-MAT-FITT-001-333,MAT-FITT-001,enum_check,"[""角度""]",,角度,"[""45°"", ""90°"", ""180°""]",block,角度不在GB/T 12459-2017允许范围内,GB/T 12459-2017,,mandatory
+CHECK-MAT-FITT-001-334,MAT-FITT-001,enum_check,"[""壁厚系列""]",,壁厚系列,"[""SCH20"", ""SCH40"", ""SCH80"", ""SCH160"", ""XS"", ""XXS""]",block,壁厚系列不在GB/T 12459-2017允许范围内,GB/T 12459-2017,,mandatory
+CHECK-MAT-FITT-001-335,MAT-FITT-001,enum_check,"[""材质""]",,材质,"[""20#"", ""Q235B"", ""Q345B"", ""16Mn"", ""304"", ""316L"", ""15CrMo""]",block,材质不在GB/T 12459-2017允许范围内,GB/T 12459-2017,,mandatory
+CHECK-MAT-FITT-003-336,MAT-FITT-003,enum_check,"[""公称直径""]",,公称直径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100"", ""DN125"", ""DN150"", ""DN200"", ""DN250"", ""DN300""]",block,公称直径不在GB/T 9115-2010允许范围内,GB/T 9115-2010,,mandatory
+CHECK-MAT-FITT-003-337,MAT-FITT-003,enum_check,"[""公称压力""]",,公称压力,"[""PN6"", ""PN10"", ""PN16"", ""PN25"", ""PN40"", ""PN63"", ""PN100"", ""PN160""]",block,公称压力不在GB/T 9115-2010允许范围内,GB/T 9115-2010,,mandatory
+CHECK-MAT-FITT-003-338,MAT-FITT-003,enum_check,"[""型式""]",,型式,"[""平焊(SO)"", ""对焊(WN)"", ""松套"", ""螺纹"", ""盲板(BL)""]",block,型式不在GB/T 9115-2010允许范围内,GB/T 9115-2010,,mandatory
+CHECK-MAT-FITT-003-339,MAT-FITT-003,enum_check,"[""密封面""]",,密封面,"[""突面(RF)"", ""全平面(FF)"", ""凹凸面(MFM)"", ""榫槽面(TG)"", ""环连接面(RJ)""]",block,密封面不在GB/T 9115-2010允许范围内,GB/T 9115-2010,,mandatory
+CHECK-MAT-FITT-003-340,MAT-FITT-003,enum_check,"[""材质""]",,材质,"[""20#"", ""Q235B"", ""16Mn"", ""304"", ""316L"", ""321""]",block,材质不在GB/T 9115-2010允许范围内,GB/T 9115-2010,,mandatory
+CHECK-MAT-VALV-001-341,MAT-VALV-001,enum_check,"[""公称直径""]",,公称直径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100"", ""DN125"", ""DN150"", ""DN200"", ""DN250"", ""DN300"", ""DN350"", ""DN400"", ""DN500"", ""DN600""]",block,公称直径不在GB/T 12232-2025允许范围内,GB/T 12232-2025,,mandatory
+CHECK-MAT-VALV-001-342,MAT-VALV-001,enum_check,"[""公称压力""]",,公称压力,"[""PN10"", ""PN16"", ""PN25"", ""PN40"", ""PN63"", ""PN100"", ""PN160""]",block,公称压力不在GB/T 12232-2025允许范围内,GB/T 12232-2025,,mandatory
+CHECK-MAT-VALV-001-343,MAT-VALV-001,enum_check,"[""阀体材质""]",,阀体材质,"[""铸铁"", ""球墨铸铁"", ""铸钢"", ""不锈钢304"", ""不锈钢316""]",block,阀体材质不在GB/T 12232-2025允许范围内,GB/T 12232-2025,,mandatory
+CHECK-MAT-VALV-001-344,MAT-VALV-001,enum_check,"[""连接方式""]",,连接方式,"[""法兰连接"", ""螺纹连接"", ""焊接""]",block,连接方式不在GB/T 12232-2025允许范围内,GB/T 12232-2025,,mandatory
+CHECK-MAT-VALV-002-345,MAT-VALV-002,enum_check,"[""公称直径""]",,公称直径,"[""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100"", ""DN125"", ""DN150"", ""DN200"", ""DN250"", ""DN300"", ""DN350"", ""DN400"", ""DN500"", ""DN600"", ""DN800"", ""DN1000""]",block,公称直径不在GB/T 12238-2008允许范围内,GB/T 12238-2008,,mandatory
+CHECK-MAT-VALV-002-346,MAT-VALV-002,enum_check,"[""公称压力""]",,公称压力,"[""PN10"", ""PN16"", ""PN25"", ""PN40""]",block,公称压力不在GB/T 12238-2008允许范围内,GB/T 12238-2008,,mandatory
+CHECK-MAT-VALV-002-347,MAT-VALV-002,enum_check,"[""阀体材质""]",,阀体材质,"[""球墨铸铁"", ""铸钢"", ""不锈钢304"", ""不锈钢316"", ""双相不锈钢""]",block,阀体材质不在GB/T 12238-2008允许范围内,GB/T 12238-2008,,mandatory
+CHECK-MAT-VALV-002-348,MAT-VALV-002,enum_check,"[""连接方式""]",,连接方式,"[""对夹"", ""法兰"", ""凸耳""]",block,连接方式不在GB/T 12238-2008允许范围内,GB/T 12238-2008,,mandatory
+CHECK-MAT-VALV-003-349,MAT-VALV-003,enum_check,"[""公称直径""]",,公称直径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100"", ""DN125"", ""DN150"", ""DN200""]",block,公称直径不在GB/T 12235-2025允许范围内,GB/T 12235-2025,,mandatory
+CHECK-MAT-VALV-003-350,MAT-VALV-003,enum_check,"[""公称压力""]",,公称压力,"[""PN16"", ""PN25"", ""PN40"", ""PN63"", ""PN100"", ""PN160""]",block,公称压力不在GB/T 12235-2025允许范围内,GB/T 12235-2025,,mandatory
+CHECK-MAT-VALV-003-351,MAT-VALV-003,enum_check,"[""阀体材质""]",,阀体材质,"[""铸铁"", ""球墨铸铁"", ""铸钢"", ""锻钢"", ""不锈钢304"", ""不锈钢316""]",block,阀体材质不在GB/T 12235-2025允许范围内,GB/T 12235-2025,,mandatory
+CHECK-MAT-VALV-004-352,MAT-VALV-004,enum_check,"[""公称直径""]",,公称直径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100"", ""DN125"", ""DN150"", ""DN200"", ""DN250"", ""DN300""]",block,公称直径不在GB/T 12236-2025允许范围内,GB/T 12236-2025,,mandatory
+CHECK-MAT-VALV-004-353,MAT-VALV-004,enum_check,"[""公称压力""]",,公称压力,"[""PN10"", ""PN16"", ""PN25"", ""PN40"", ""PN63"", ""PN100""]",block,公称压力不在GB/T 12236-2025允许范围内,GB/T 12236-2025,,mandatory
+CHECK-MAT-VALV-004-354,MAT-VALV-004,enum_check,"[""结构形式""]",,结构形式,"[""升降式"", ""旋启式"", ""双瓣式"", ""轴流式"", ""缓闭式"", ""球形""]",block,结构形式不在GB/T 12236-2025允许范围内,GB/T 12236-2025,,mandatory
+CHECK-MAT-VALV-004-355,MAT-VALV-004,enum_check,"[""阀体材质""]",,阀体材质,"[""铸铁"", ""球墨铸铁"", ""铸钢"", ""不锈钢304"", ""不锈钢316""]",block,阀体材质不在GB/T 12236-2025允许范围内,GB/T 12236-2025,,mandatory
+CHECK-MAT-VALV-005-356,MAT-VALV-005,enum_check,"[""公称直径""]",,公称直径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100"", ""DN125"", ""DN150"", ""DN200""]",block,公称直径不在GB/T 12237-2021允许范围内,GB/T 12237-2021,,mandatory
+CHECK-MAT-VALV-005-357,MAT-VALV-005,enum_check,"[""公称压力""]",,公称压力,"[""PN10"", ""PN16"", ""PN25"", ""PN40"", ""PN63"", ""PN100""]",block,公称压力不在GB/T 12237-2021允许范围内,GB/T 12237-2021,,mandatory
+CHECK-MAT-VALV-005-358,MAT-VALV-005,enum_check,"[""阀体材质""]",,阀体材质,"[""碳钢"", ""不锈钢304"", ""不锈钢316L"", ""黄铜"", ""UPVC""]",block,阀体材质不在GB/T 12237-2021允许范围内,GB/T 12237-2021,,mandatory
+CHECK-MAT-VALV-008-359,MAT-VALV-008,enum_check,"[""公称直径""]",,公称直径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100"", ""DN125"", ""DN150"", ""DN200""]",block,公称直径不在GB/T 12244-2025允许范围内,GB/T 12244-2025,,mandatory
+CHECK-MAT-VALV-008-360,MAT-VALV-008,enum_check,"[""公称压力""]",,公称压力,"[""PN10"", ""PN16"", ""PN25"", ""PN40""]",block,公称压力不在GB/T 12244-2025允许范围内,GB/T 12244-2025,,mandatory
+CHECK-MAT-VALV-008-361,MAT-VALV-008,enum_check,"[""结构形式""]",,结构形式,"[""膜片式"", ""先导活塞式"", ""波纹管式"", ""比例式""]",block,结构形式不在GB/T 12244-2025允许范围内,GB/T 12244-2025,,mandatory
+CHECK-MAT-VALV-008-362,MAT-VALV-008,enum_check,"[""阀体材质""]",,阀体材质,"[""铸铁"", ""球墨铸铁"", ""铸钢"", ""不锈钢304"", ""铜""]",block,阀体材质不在GB/T 12244-2025允许范围内,GB/T 12244-2025,,mandatory
+CHECK-MAT-STEL-001-363,MAT-STEL-001,enum_check,"[""规格""]",,规格,"[""L30x3"", ""L40x4"", ""L50x5"", ""L63x6"", ""L63x8"", ""L75x6"", ""L75x8"", ""L80x8"", ""L90x8"", ""L100x8"", ""L100x10"", ""L125x10"", ""L125x12"", ""L140x12"", ""L160x14"", ""L180x16"", ""L200x18"", ""L200x20""]",block,规格不在GB/T 706-2016允许范围内,GB/T 706-2016,,mandatory
+CHECK-MAT-STEL-001-364,MAT-STEL-001,enum_check,"[""材质""]",,材质,"[""Q235B"", ""Q345B"", ""Q345C"", ""Q345D"", ""Q420"", ""304"", ""316L"", ""Q355B""]",block,材质不在GB/T 706-2016允许范围内,GB/T 706-2016,,mandatory
+CHECK-MAT-CABL-001-365,MAT-CABL-001,enum_check,"[""额定电压""]",,额定电压,"[""0.6/1kV"", ""3.6/6kV"", ""6/10kV"", ""8.7/15kV"", ""12/20kV"", ""18/30kV"", ""21/35kV"", ""26/35kV""]",block,额定电压不在GB/T 12706.3-2020允许范围内,GB/T 12706.3-2020,GB12706-表1,mandatory
+CHECK-MAT-CABL-001-366,MAT-CABL-001,enum_check,"[""截面""]",,截面,"[""1.5"", ""2.5"", ""4"", ""6"", ""10"", ""16"", ""25"", ""35"", ""50"", ""70"", ""95"", ""120"", ""150"", ""185"", ""240"", ""300"", ""400"", ""500"", ""630"", ""800"", ""1000""]",block,截面不在GB/T 12706.3-2020允许范围内,GB/T 12706.3-2020,,mandatory
+CHECK-MAT-CABL-001-367,MAT-CABL-001,enum_check,"[""芯数""]",,芯数,"[""1"", ""2"", ""3"", ""4"", ""5"", ""3+1"", ""3+2"", ""4+1""]",block,芯数不在GB/T 12706.3-2020允许范围内,GB/T 12706.3-2020,,mandatory
+CHECK-MAT-CABL-001-368,MAT-CABL-001,enum_check,"[""导体材质""]",,导体材质,"[""铜芯(T)"", ""铝芯(L)""]",block,导体材质不在GB/T 12706.3-2020允许范围内,GB/T 12706.3-2020,,mandatory
+CHECK-MAT-CABL-002-369,MAT-CABL-002,enum_check,"[""额定电压""]",,额定电压,"[""0.6/1kV"", ""3.6/6kV"", ""6/10kV"", ""8.7/15kV"", ""12/20kV""]",block,额定电压不在GB/T 12706.3-2020允许范围内,GB/T 12706.3-2020,,mandatory
+CHECK-MAT-CABL-002-370,MAT-CABL-002,enum_check,"[""截面""]",,截面,"[""4"", ""6"", ""10"", ""16"", ""25"", ""35"", ""50"", ""70"", ""95"", ""120"", ""150"", ""185"", ""240"", ""300"", ""400""]",block,截面不在GB/T 12706.3-2020允许范围内,GB/T 12706.3-2020,,mandatory
+CHECK-MAT-CABL-002-371,MAT-CABL-002,enum_check,"[""芯数""]",,芯数,"[""2"", ""3"", ""4"", ""5"", ""3+1"", ""3+2"", ""4+1""]",block,芯数不在GB/T 12706.3-2020允许范围内,GB/T 12706.3-2020,,mandatory
+CHECK-MAT-CABL-002-372,MAT-CABL-002,enum_check,"[""导体材质""]",,导体材质,"[""铜芯(T)"", ""铝芯(L)""]",block,导体材质不在GB/T 12706.3-2020允许范围内,GB/T 12706.3-2020,,mandatory
+CHECK-MAT-CABL-003-373,MAT-CABL-003,enum_check,"[""额定电压""]",,额定电压,"[""300/500V"", ""450/750V""]",block,额定电压不在GB/T 9330-2020允许范围内,GB/T 9330-2020,,mandatory
+CHECK-MAT-CABL-003-374,MAT-CABL-003,enum_check,"[""截面""]",,截面,"[""0.75"", ""1.0"", ""1.5"", ""2.5"", ""4"", ""6"", ""10""]",block,截面不在GB/T 9330-2020允许范围内,GB/T 9330-2020,,mandatory
+CHECK-MAT-CABL-003-375,MAT-CABL-003,enum_check,"[""芯数""]",,芯数,"[""2"", ""3"", ""4"", ""5"", ""7"", ""8"", ""10"", ""12"", ""14"", ""16"", ""19"", ""24"", ""30"", ""37""]",block,芯数不在GB/T 9330-2020允许范围内,GB/T 9330-2020,,mandatory
+CHECK-MAT-CABL-004-376,MAT-CABL-004,enum_check,"[""额定电压""]",,额定电压,"[""300/500V"", ""450/750V""]",block,额定电压不在GB/T 5023-2008允许范围内,GB/T 5023-2008,,mandatory
+CHECK-MAT-CABL-004-377,MAT-CABL-004,enum_check,"[""截面""]",,截面,"[""1.0"", ""1.5"", ""2.5"", ""4"", ""6"", ""10"", ""16"", ""25"", ""35"", ""50"", ""70"", ""95"", ""120"", ""150"", ""185"", ""240""]",block,截面不在GB/T 5023-2008允许范围内,GB/T 5023-2008,,mandatory
+CHECK-MAT-CABL-004-378,MAT-CABL-004,enum_check,"[""导体结构""]",,导体结构,"[""单芯硬导体(BV)"", ""单芯软导体(BVR)""]",block,导体结构不在GB/T 5023-2008允许范围内,GB/T 5023-2008,,mandatory
+CHECK-MAT-CABL-005-379,MAT-CABL-005,enum_check,"[""额定电压""]",,额定电压,"[""300/500V"", ""450/750V""]",block,额定电压不在GB/T 5023-2008允许范围内,GB/T 5023-2008,,mandatory
+CHECK-MAT-CABL-005-380,MAT-CABL-005,enum_check,"[""截面""]",,截面,"[""1.0"", ""1.5"", ""2.5"", ""4"", ""6"", ""10"", ""16"", ""25"", ""35"", ""50""]",block,截面不在GB/T 5023-2008允许范围内,GB/T 5023-2008,,mandatory
+CHECK-MAT-CABL-005-381,MAT-CABL-005,enum_check,"[""耐火等级""]",,耐火等级,"[""NH-BV(B类)"", ""NH-A-BV(A类)"", ""NH-C-BV(C类)""]",block,耐火等级不在GB/T 5023-2008允许范围内,GB/T 5023-2008,,mandatory
+CHECK-MAT-CABL-007-382,MAT-CABL-007,enum_check,"[""额定电压""]",,额定电压,"[""0.6/1kV"", ""3.6/6kV""]",block,额定电压不在GB/T 19666-2019允许范围内,GB/T 19666-2019,,mandatory
+CHECK-MAT-CABL-007-383,MAT-CABL-007,enum_check,"[""截面""]",,截面,"[""1.5"", ""2.5"", ""4"", ""6"", ""10"", ""16"", ""25"", ""35"", ""50"", ""70"", ""95"", ""120"", ""150"", ""185"", ""240"", ""300""]",block,截面不在GB/T 19666-2019允许范围内,GB/T 19666-2019,,mandatory
+CHECK-MAT-CABL-007-384,MAT-CABL-007,enum_check,"[""阻燃等级""]",,阻燃等级,"[""ZR-A(A类)"", ""ZR-B(B类)"", ""ZR-C(C类)"", ""ZR-D(D类)""]",block,阻燃等级不在GB/T 19666-2019允许范围内,GB/T 19666-2019,,mandatory
+CHECK-MAT-CABL-008-385,MAT-CABL-008,enum_check,"[""额定电压""]",,额定电压,"[""0.6/1kV"", ""3.6/6kV""]",block,额定电压不在GB/T 19666-2019允许范围内,GB/T 19666-2019,,mandatory
+CHECK-MAT-CABL-008-386,MAT-CABL-008,enum_check,"[""截面""]",,截面,"[""1.5"", ""2.5"", ""4"", ""6"", ""10"", ""16"", ""25"", ""35"", ""50"", ""70"", ""95"", ""120"", ""150"", ""185"", ""240""]",block,截面不在GB/T 19666-2019允许范围内,GB/T 19666-2019,,mandatory
+CHECK-MAT-CABL-008-387,MAT-CABL-008,enum_check,"[""耐火等级""]",,耐火等级,"[""N(A类)"", ""N(B类)"", ""N(C类)""]",block,耐火等级不在GB/T 19666-2019允许范围内,GB/T 19666-2019,,mandatory
+CHECK-MAT-CABL-009-388,MAT-CABL-009,enum_check,"[""类型""]",,类型,"[""单模光缆"", ""多模光缆"", ""超五类网线"", ""六类网线"", ""超六类网线"", ""七类网线"", ""同轴电缆""]",block,类型不在YD/T 901-2018允许范围内,YD/T 901-2018,,mandatory
+CHECK-MAT-INSU-001-389,MAT-INSU-001,enum_check,"[""形式""]",,形式,"[""管壳"", ""板"", ""毡"", ""带""]",block,形式不在GB/T 11835-2016允许范围内,GB/T 11835-2016,,mandatory
+CHECK-MAT-INSU-001-390,MAT-INSU-001,enum_check,"[""容重""]",,容重,"[""40"", ""50"", ""60"", ""80"", ""100"", ""120"", ""140"", ""160""]",block,容重不在GB/T 11835-2016允许范围内,GB/T 11835-2016,,mandatory
+CHECK-MAT-INSU-001-391,MAT-INSU-001,enum_check,"[""厚度""]",,厚度,"[""30"", ""40"", ""50"", ""60"", ""80"", ""100"", ""120"", ""150""]",block,厚度不在GB/T 11835-2016允许范围内,GB/T 11835-2016,,mandatory
+CHECK-MAT-INSU-003-392,MAT-INSU-003,enum_check,"[""形式""]",,形式,"[""管壳"", ""板"", ""毡""]",block,形式不在GB/T 11835-2016允许范围内,GB/T 11835-2016,,mandatory
+CHECK-MAT-INSU-003-393,MAT-INSU-003,enum_check,"[""容重""]",,容重,"[""24"", ""32"", ""48"", ""64"", ""80"", ""96""]",block,容重不在GB/T 11835-2016允许范围内,GB/T 11835-2016,,mandatory
+CHECK-MAT-INSU-003-394,MAT-INSU-003,enum_check,"[""厚度""]",,厚度,"[""25"", ""30"", ""40"", ""50"", ""60"", ""80"", ""100""]",block,厚度不在GB/T 11835-2016允许范围内,GB/T 11835-2016,,mandatory
+CHECK-MAT-COAT-001-395,MAT-COAT-001,enum_check,"[""漆类型""]",,漆类型,"[""环氧富锌底漆(双组分)"", ""环氧富锌底漆(单组分)"", ""水性环氧富锌底漆""]",block,漆类型不在HG/T 3668-2009允许范围内,HG/T 3668-2009,,mandatory
+CHECK-MAT-COAT-001-396,MAT-COAT-001,enum_check,"[""干膜含锌量""]",,干膜含锌量,"[""≥80%"", ""≥70%"", ""≥60%""]",block,干膜含锌量不在HG/T 3668-2009允许范围内,HG/T 3668-2009,,mandatory
+CHECK-MAT-COAT-001-397,MAT-COAT-001,enum_check,"[""干膜厚度/道""]",,干膜厚度/道,"[""40-50"", ""60-80"", ""80-100"", ""100-125""]",block,干膜厚度/道不在HG/T 3668-2009允许范围内,HG/T 3668-2009,,mandatory
+CHECK-MAT-COAT-005-398,MAT-COAT-005,enum_check,"[""衬里类型""]",,衬里类型,"[""耐酸砖衬里"", ""耐酸瓷板衬里"", ""铸石板衬里"", ""橡胶衬里(衬胶)"", ""铅衬里(搪铅)"", ""环氧树脂衬里"", ""乙烯基酯树脂衬里"", ""玻璃钢衬里(FRP)""]",block,衬里类型不在GB/T 8488-2008允许范围内,GB/T 8488-2008,,mandatory
+CHECK-MAT-COAT-005-399,MAT-COAT-005,enum_check,"[""胶泥类型""]",,胶泥类型,"[""钾水玻璃胶泥"", ""钠水玻璃胶泥"", ""环氧树脂胶泥"", ""呋喃树脂胶泥"", ""酚醛树脂胶泥"", ""乙烯基酯树脂胶泥""]",block,胶泥类型不在GB/T 8488-2008允许范围内,GB/T 8488-2008,,mandatory
+CHECK-MAT-AUXI-001-400,MAT-AUXI-001,enum_check,"[""强度等级""]",,强度等级,"[""C40"", ""C50"", ""C60"", ""C70"", ""C80"", ""C90"", ""C100"", ""C120""]",block,强度等级不在GB/T 50448-2015允许范围内,GB/T 50448-2015,,mandatory
+CHECK-MAT-AUXI-002-401,MAT-AUXI-002,enum_check,"[""类型""]",,类型,"[""直钩地脚螺栓"", ""弯钩地脚螺栓"", ""锚板地脚螺栓"", ""双头螺栓"", ""化学锚栓"", ""膨胀锚栓"", ""后扩底锚栓""]",block,类型不在GB/T 799-2020允许范围内,GB/T 799-2020,,mandatory
+CHECK-MAT-AUXI-002-402,MAT-AUXI-002,enum_check,"[""螺纹规格""]",,螺纹规格,"[""M12"", ""M14"", ""M16"", ""M18"", ""M20"", ""M22"", ""M24"", ""M27"", ""M30"", ""M33"", ""M36"", ""M42"", ""M48"", ""M56"", ""M64""]",block,螺纹规格不在GB/T 799-2020允许范围内,GB/T 799-2020,,mandatory
+CHECK-MAT-AUXI-002-403,MAT-AUXI-002,enum_check,"[""材质/性能等级""]",,材质/性能等级,"[""Q235B/4.8级"", ""Q345B/5.6级"", ""35#/6.8级"", ""45#/8.8级"", ""40Cr/10.9级"", ""35CrMo/12.9级"", ""304(A2-70)"", ""316(A4-70)""]",block,材质/性能等级不在GB/T 799-2020允许范围内,GB/T 799-2020,,mandatory
+CHECK-MAT-AUXI-004-404,MAT-AUXI-004,enum_check,"[""焊条牌号""]",,焊条牌号,"[""J422"", ""J502"", ""J506"", ""J507"", ""J427"", ""J507RH"", ""E308(A102)"", ""E309(A302)"", ""E316(A202)"", ""E308L(A002)"", ""E316L(A022)""]",block,焊条牌号不在GB/T 5117-2012允许范围内,GB/T 5117-2012,,mandatory
+CHECK-MAT-AUXI-004-405,MAT-AUXI-004,enum_check,"[""直径""]",,直径,"[""2.0"", ""2.5"", ""3.2"", ""4.0"", ""5.0""]",block,直径不在GB/T 5117-2012允许范围内,GB/T 5117-2012,,mandatory
+CHECK-MAT-AUXI-008-406,MAT-AUXI-008,enum_check,"[""材料形式""]",,材料形式,"[""镀锌扁钢(水平)"", ""镀锌圆钢(垂直接地极)"", ""铜排"", ""铜包钢"", ""锌包钢"", ""铜绞线"", ""铜棒""]",block,材料形式不在GB/T 50065-2011允许范围内,GB/T 50065-2011,,mandatory
+CHECK-MAT-AUXI-008-407,MAT-AUXI-008,enum_check,"[""规格(扁钢x厚/圆钢直径)""]",,规格(扁钢x厚/圆钢直径),"[""25x4"", ""30x4"", ""40x4"", ""50x5"", ""50x6"", ""63x6"", ""Φ12(圆钢)"", ""Φ16"", ""Φ20"", ""Φ25""]",block,规格(扁钢x厚/圆钢直径)不在GB/T 50065-2011允许范围内,GB/T 50065-2011,,mandatory
+CHECK-MAT-AUXI-012-408,MAT-AUXI-012,enum_check,"[""接头类型""]",,接头类型,"[""单球橡胶接头"", ""双球橡胶接头"", ""同心异径橡胶接头"", ""偏心异径橡胶接头"", ""金属软接头(不锈钢波纹)"", ""PTFE软接头""]",block,接头类型不在GB/T 14905-2020允许范围内,GB/T 14905-2020,,mandatory
+CHECK-MAT-AUXI-012-409,MAT-AUXI-012,enum_check,"[""公称直径""]",,公称直径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80"", ""DN100"", ""DN125"", ""DN150"", ""DN200"", ""DN250"", ""DN300""]",block,公称直径不在GB/T 14905-2020允许范围内,GB/T 14905-2020,,mandatory
+CHECK-MAT-AUXI-012-410,MAT-AUXI-012,enum_check,"[""公称压力""]",,公称压力,"[""PN6"", ""PN10"", ""PN16"", ""PN25"", ""PN40""]",block,公称压力不在GB/T 14905-2020允许范围内,GB/T 14905-2020,,mandatory
+CHECK-MAT-AUXI-019-411,MAT-AUXI-019,enum_check,"[""管材类型""]",,管材类型,"[""JDG紧定式薄壁钢管"", ""KBG扣压式薄壁钢管"", ""SC焊接钢管"", ""可挠金属管(普利卡)"", ""阻燃PVC电工套管"", ""金属软管(包塑)""]",block,管材类型不在GB/T 3091-2015允许范围内,GB/T 3091-2015,,mandatory
+CHECK-MAT-AUXI-019-412,MAT-AUXI-019,enum_check,"[""公称直径""]",,公称直径,"[""DN15"", ""DN20"", ""DN25"", ""DN32"", ""DN40"", ""DN50"", ""DN65"", ""DN80""]",block,公称直径不在GB/T 3091-2015允许范围内,GB/T 3091-2015,,mandatory
+CHECK-MAT-AUXI-019-413,MAT-AUXI-019,enum_check,"[""壁厚""]",,壁厚,"[""1.0"", ""1.2"", ""1.5"", ""1.6"", ""2.0"", ""2.5"", ""3.0"", ""3.5"", ""4.0""]",block,壁厚不在GB/T 3091-2015允许范围内,GB/T 3091-2015,,mandatory

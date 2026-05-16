@@ -1,0 +1,113 @@
+﻿standard_id,standard_name,standard_type,version_year,effective_date,replaces,status,parse_status,source_file,priority,notes
+GB 1499.1-2024,钢筋混凝土用钢 第1部分：热轧光圆钢筋,product_standard,2024,2024-09-25,GB/T 1499.1-2017,active,extracted,GB+1499.1-2024.pdf,P0,强制性国家标准; 牌号HPB300
+GB/T 706-2016,热轧型钢,product_standard,2016,2017-04-01,GB/T 706-2008,active,extracted,706-2016-gbt-cd-300.pdf,P1,涵盖等边角钢/不等边角钢/槽钢/工字钢/L型钢
+GB/T 11263-2024,热轧H型钢和剖分T型钢,product_standard,2024,2025-03-01,GB/T 11263-2017,active,extracted,GBT+11263-2024.pdf,P1,包含HW/HM/HN/HT系列及剖分T型钢TW/TM/TN
+GB/T 1231-2024,钢结构用高强度大六角头螺栓连接副,product_standard,2024,2025-05-01,"GB/T 1231-2006, GB/T 1228-2006, GB/T 1229-2006, GB/T 1230-2006",active,extracted,GBT+1231-2024.pdf,P1,合并螺栓/螺母/垫圈标准;新增M33/M36规格
+GB/T 3632-2008,钢结构用扭剪型高强度螺栓连接副,product_standard,2008,2008-09-01,GB/T 3632~3633-1995,active,extracted,3632-2008-gbt-e-300.pdf,P1,扭剪型螺栓;10.9S级
+GB/T 25181-2019,预拌砂浆,product_standard,2019,2020-03-01,GB/T 25181-2010,active,extracted,GBT+25181-2019.pdf,P1,涵盖干混砂浆(DM/DP/DS)和湿拌砂浆(WM/WP/WS)
+GB 1499.2-2024,钢筋混凝土用钢 第2部分：热轧带肋钢筋,product_standard,2024,2024-09-25,GB/T 1499.2-2018,active,extracted,GB+1499.2-2024.pdf,P0,强制性国家标准; 牌号HRB400/HRB500/HRB600
+GB/T 14902-2012,预拌混凝土,product_standard,2012,2013-01-01,GB/T 14902-2003,active,extracted,GBT+14902-2012.pdf,P0,强度等级C10~C100; 坍落度S1~S5
+GB/T 3091-2025,低压流体输送用焊接钢管,product_standard,2025,2025-06-01,GB/T 3091-2015,active,extracted,GBT+3091-2025.pdf,P0,DN15~DN200; 直缝高频焊/埋弧焊
+GB 50010-2010,混凝土结构设计规范,design_standard,2010,2011-07-01,GB 50010-2002,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/规范Markdown_图文保真版/GB_50010-2010.md,P1,混凝土结构设计; 需OCR处理
+GB 50164-2011,混凝土质量控制标准,quality_standard,2011,2012-05-01,,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB 50164-2011.pdf,P1,混凝土生产质量控制
+GB 50204-2015,混凝土结构工程施工质量验收规范,acceptance_standard,2015,2015-09-01,GB 50204-2002,active,unparsed,,P1,混凝土结构验收
+GB 50268-2008,给水排水管道工程施工及验收规范,acceptance_standard,2008,2009-05-01,,active,unparsed,,P1,管道工程验收
+GB 50666-2011,混凝土结构工程施工规范,construction_standard,2011,2012-08-01,,active,unparsed,,P1,混凝土施工
+GB 13544-2011,烧结多孔砖和多孔砌块,product_standard,2011,2012-04-01,GB 13544-2000,active,extracted,13544-2011-gb-e-300.pdf,P1,MU10~MU30;密度900~1300
+GB/T 15229-2011,轻集料混凝土小型空心砌块,product_standard,2011,2012-08-01,GB/T 15229-2002,active,extracted,15229-2011-gbt-e-300.pdf,P1,MU2.5~MU10;密度700~1400
+GB 18173.2-2014,高分子防水材料 第2部分：止水带,product_standard,2014,2015-05-01,GB 18173.2-2000,active,extracted,18173_2-2014-gb-e-300.pdf,P1,JX/JY/JS橡胶止水带
+GB/T 19250-2013,聚氨酯防水涂料,product_standard,2013,2014-08-01,GB/T 19250-2003,active,extracted,19250-2013-gbt-e-300.pdf,P1,I/II/III型;A/B环保等级
+GB/T 11982.1-2015,聚氯乙烯卷材地板 第1部分：非同质,product_standard,2015,2016-08-01,GB/T 11982.1-2005,active,extracted,11982_1-2015-gbt-cd-300.pdf,P1,使用等级21~42;耐磨T/P/M/F
+GB/T 11982.2-2015,聚氯乙烯卷材地板 第2部分：同质,product_standard,2015,2016-08-01,GB/T 11982.2-1996,active,extracted,11982_2-2015-gbt-cd-300.pdf,P1,同质PVC地板;使用等级21~43
+GB/T 8163-2018,输送流体用无缝钢管,product_standard,2018,2019-02-01,GB/T 8163-2008,active,extracted,GBT+8163-2018(EN).pdf,P0,10/20/Q345/Q390钢级;DN6~DN600;热轧/冷拔
+GB/T 12771-2019,流体输送用不锈钢焊接钢管,product_standard,2019,2020-05-01,GB/T 12771-2008,active,extracted,GBT+12771-2019(EN).pdf,P1,304/316/2205等牌号;DN6~DN1600
+GB/T 12238-2008,法兰和对夹连接弹性密封蝶阀,product_standard,2008,2009-07-01,GB/T 12238-1989,active,extracted,12238-2008-gbt-e-300.md,P1,DN50~DN4000;PN2.5~PN25;安装工程阀门
+GB/T 11981-2024,建筑用轻钢龙骨,product_standard,2024,2025-05-01,GB/T 11981-2008,active,extracted,GBT_11981-2024.md,P1,吊顶/隔墙龙骨;U/C/T/H型;0.4~1.5mm厚度
+GB/T 12232-2025,通用阀门 法兰连接铁制闸阀,product_standard,2025,2026-01-01,GB/T 12232-2005,active,extracted,GBT_12232-2025.md,P1,DN15~DN1800;PN2.5~PN40;安装工程
+GB/T 12235-2025,石油石化工业用钢制截止阀和升降式止回阀,product_standard,2025,2026-01-01,GB/T 12235-2007,active,extracted,GBT_12235-2025.md,P1,DN15~DN400;PN16~PN420;安装工程
+GB/T 12236-2025,石油化工工业用钢制旋启式止回阀,product_standard,2025,2026-01-01,GB/T 12236-2008,active,extracted,GBT_12236-2025.md,P1,DN50~DN600;PN16~PN250;安装工程
+GB/T 12237-2021,石油石化工业用钢制球阀,product_standard,2021,2022-05-01,GB/T 12237-2007,active,extracted,GBT_12237-2021.md,P1,DN15~DN600;PN16~PN250;安装工程
+GB/T 12244-2025,减压阀 一般要求,product_standard,2025,2026-01-01,GB/T 12244-2006,active,extracted,GBT_12244-2025.md,P2,DN15~DN500;安装工程
+GB/T 12706.3-2020,额定电压1~35kV挤包绝缘电力电缆 第3部分,product_standard,2020,2021-05-01,GB/T 12706.3-2008,active,extracted,GBT_12706.3-2020.md,P0,PVC/XLPE;1芯~5芯;安装工程
+GB/T 14683-2017,硅酮和改性硅酮建筑密封胶,product_standard,2017,2018-08-01,GB/T 14683-2003,active,extracted,GBT_14683-2017.md,P1,SR/MR型;位移能力20/25/35级;门窗/幕墙密封
+GB/T 14685-2022,建设用卵石、碎石,product_standard,2022,2023-02-01,GB/T 14685-2011,active,extracted,GBT_14685-2022.md,P1,5~80mm连续级配;I/II/III类;混凝土骨料
+GB/T 18242-2025,弹性体/塑性体改性沥青防水卷材,product_standard,2025,2026-05-01,GB 18242-2008/GB 18243-2008,active,extracted,GBT_18242-2025.md,P0,SBS/APP;PY/G;3/4/5mm厚度;取代两本旧标
+GB/T 18601-2024,天然花岗石建筑板材,product_standard,2024,2025-05-01,GB/T 18601-2009,active,extracted,GBT_18601-2024.md,P1,10~50mm;镜面/火烧/荔枝面;室内外墙面地面
+GB/T 19666-2019,阻燃和耐火电线电缆或光缆通则,product_standard,2019,2020-05-01,GB/T 19666-2005,active,extracted,GBT_19666-2019.md,P1,ZA/ZB/ZC/ZN/ZD;阻燃/耐火分级;安装工程
+GB/T 20909-2017,钢门窗,product_standard,2017,2018-08-01,GB/T 20909-2007,active,extracted,GBT_20909-2017.md,P1,钢质门/窗;外/内/隔断;气密/水密/抗风压
+GB/T 23445-2025,聚合物水泥防水涂料(JS),product_standard,2025,2026-01-01,GB/T 23445-2009,active,extracted,GBT_23445-2025.md,P0,I/II/III型;液料+粉料双组分;延伸率/拉伸强度
+GB/T 23457-2025,预铺防水卷材,product_standard,2025,2026-01-01,GB/T 23457-2017,active,extracted,GBT_23457-2025.md,P0,P/H/R/ER型;自粘/非自粘;地下工程预铺反粘
+GB/T 25975-2018,建筑外墙外保温用岩棉制品,product_standard,2018,2019-04-01,GB/T 25975-2010,active,extracted,GBT_25975-2018_EN.md,P1,TR7.5/TR10/TR15;80~200kg/m³;A级不燃
+GB/T 25998-2020,矿物棉装饰吸声板,product_standard,2020,2021-03-01,GB/T 25998-2010,active,extracted,GBT_25998-2020_EN.md,P2,600×600/1200×600;9~18mm厚;吸声NRC≥0.55
+GB/T 29498-2024,木门窗,product_standard,2024,2025-05-01,GB/T 29498-2013,active,extracted,GBT_29498-2024.md,P1,实木/实木复合/木塑;平开/推拉;气密水密抗风压
+GB/T 32223-2025,建筑门窗五金件 通用要求,product_standard,2025,2026-01-01,GB/T 32223-2015,active,extracted,GBT_32223-2025.md,P1,合页/执手/传动锁闭器/撑挡/滑轮;耐久性5万次
+GB/T 8349-2000,金属覆盖层 钢铁制件热浸镀锌层 技术要求及试验方法,product_standard,2000,2001-02-01,,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/8349-2000-gbt-e-300.pdf,3,热浸镀锌层厚度/附着力/均匀性;GB/T 13912等效ISO1461
+GB 50108-2008,地下工程防水技术规范,technical_standard,2008,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GB50108-2008_地下工程防水技术规范.md,P0,防水工程; 已转MD待结构化
+GB/T 10801.1-2025,绝热用模塑聚苯乙烯泡沫塑料(EPS),product_standard,2025,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GBT_10801.1-2025.md,P0,保温材料; 已转MD待结构化
+GB/T 10801.2-2025,绝热用挤塑聚苯乙烯泡沫塑料(XPS),product_standard,2025,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GBT_10801.2-2025.md,P0,保温材料; 已转MD待结构化
+GB/T 11835-2016,绝热用岩棉、矿渣棉及其制品,product_standard,2016,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GBT_11835-2016_EN.md,P0,岩棉保温; 已转MD待结构化
+GB/T 11968-2020,蒸压加气混凝土砌块,product_standard,2020,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GBT_11968-2020.md,P0,砌体材料; 已转MD待结构化
+GB/T 5101-2017,烧结普通砖,product_standard,2017,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GBT_5101-2017_EN.md,P1,砖砌体; 已转MD待结构化
+GB/T 709-2019,热轧钢板和钢带的尺寸、外形、重量及允许偏差,product_standard,2019,,GB/T 709-2006,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/规范Markdown_OCR/GBT_709-2019_EN.md,P1,钢板尺寸公差; 已转MD待结构化
+GB/T 8478-2020,铝合金门窗,product_standard,2020,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GBT_8478-2020.md,P0,门窗; 已转MD待结构化
+GB/T 9330-2020,塑料绝缘控制电缆,product_standard,2020,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GBT_9330-2020.md,P0,控制电缆; 已转MD待结构化
+GB/T 9755-2024,合成树脂乳液外墙涂料,product_standard,2024,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GBT_9755-2024.md,P1,涂料; 已转MD待结构化
+GB/T 9775-2025,纸面石膏板,product_standard,2025,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GBT_9775-2025.md,P1,石膏板; 已转MD待结构化
+GB 12955-2024,防火门,product_standard,2024,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GB_12955-2024.md,P0,防火门; 已转MD待结构化
+GB 16809-2024,防火窗,product_standard,2024,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GB_16809-2024.md,P0,防火窗; 已转MD待结构化
+GB 17565-2022,防盗安全门通用技术条件,product_standard,2022,,,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GB_17565-2022.md,P0,防盗安全门; 已转MD待结构化
+GB 50003-2011,砌体结构设计规范,design_standard,2011,,GB 50003-2001,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GB_50003-2011_砌体结构设计规范.md,P0,砌体结构设计; 已转MD待结构化
+GB 50212-2014,建筑防腐蚀工程施工规范,construction_standard,2014,,GB 50212-2002,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GB_50212-2014.md,P1,防腐蚀施工; 已转MD待结构化
+GB/T 12220-2015,工业阀门 标志,product_standard,2015,,GB/T 12220-1989,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GB_T_12220-2015.md,P2,阀门标志; 已转MD待结构化
+GB/T 4100-2015,陶瓷砖,product_standard,2015,,GB/T 4100-2006,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GB_T_4100-2015.md,P0,陶瓷砖; 已转MD待结构化
+GB/T 5023-2008,额定电压450/750V及以下聚氯乙烯绝缘电缆,product_standard,2008,,GB/T 5023-1997,active,extracted,/Users/qianqianawodebaobei/Documents/Codex/batch_md_out/GB_T_5023-2008.md,P0,电线电缆; 已转MD待结构化
+GB/T 9755-2014,合成树脂乳液外墙涂料,product_standard,,,,,indexed_only,,,Phase1补入;对应MAT-PAI-001;注:内墙另有GB/T 9756
+GB 18582-2020,建筑用墙面涂料中有害物质限量,product_standard,,,,,indexed_only,,,Phase1补入;涂料环保强制性标准
+JG/T 298-2010,建筑室内用腻子,product_standard,,,,,indexed_only,,,Phase1补入;对应MAT-PUT-001
+HG/T 3668-2009,富锌底漆,product_standard,,,,,indexed_only,,,Phase1补入;对应MAT-PNT-001/MAT-COAT-001
+JC/T 547-2017,陶瓷砖胶粘剂,product_standard,2017,2018-04-01,JC/T 547-2005,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/JC-T547-2017陶瓷砖胶粘剂.pdf,P2,陶瓷砖胶粘剂; 图片版PDF; 新PDF已上传
+GB 14907-2018,钢结构防火涂料,product_standard,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+14907-2018(EN).pdf,,Phase1补入;对应MAT-FPC-001/002
+JG/T 24-2018,合成树脂乳液砂壁状建筑涂料,product_standard,,,,,indexed_only,,,Phase1补入;对应MAT-PAI-003真石漆
+GB/T 12459-2017,钢制对焊管件 类型与参数,product_standard,,,,,indexed_only,,,Phase1补入;对应MAT-FITT-001
+GB/T 9115-2010,对焊钢制管法兰,product_standard,,,,,indexed_only,,,Phase1补入;对应MAT-FITT-003
+GB/T 799-2020,地脚螺栓,product_standard,2020,2021-06-01,GB/T 799-1988,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GBT+799-2020.pdf,P2,地脚螺栓; M8~M72; 新PDF已上传
+GB/T 50448-2015,水泥基灌浆材料应用技术规范,technical_standard,,,,,indexed_only,,,Phase1补入;对应MAT-AUXI-001
+JC/T 986-2018,水泥基灌浆材料,product_standard,,,,,indexed_only,,,Phase1补入;对应MAT-AUXI-001产品标准
+GB/T 3091-2015,低压流体输送用焊接钢管,product_standard,,,,,indexed_only,,,Phase1补入;对应MAT-AUXI-019/MAT-PIPE-002
+YD/T 901-2018,通信用层绞填充式室外光缆,product_standard,,,,,indexed_only,,,Phase1补入;对应MAT-CABL-009
+GB/T 17656-2018,混凝土模板用胶合板,product_standard,2018,2018-12-01,GB/T 17656-2008,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GBT+17656-2018.pdf,P2,混凝土模板用胶合板; 新PDF已上传
+GB/T 5117-2012,非合金钢及细晶粒钢焊条,product_standard,,,,,indexed_only,,,对应MAT-AUXI-004电焊条J422/J507(5次使用)
+GB/T 5118-2012,热强钢焊条,product_standard,,,,,indexed_only,,,对应MAT-AUXI-004电焊条J507等(5次使用)
+GB/T 8488-2008,耐酸砖,product_standard,,,,,indexed_only,,,对应MAT-COAT-005耐酸砖/板衬里(5次使用)
+GB/T 50065-2011,交流电气装置的接地设计规范,technical_standard,,,,,indexed_only,,,对应MAT-AUXI-008接地材料/镀锌扁钢(4次使用)
+GB/T 153-2019,针叶树锯材,product_standard,,,,,indexed_only,,,对应MAT-WOO-001规格材(3次使用)
+GB/T 4817-2019,阔叶树锯材,product_standard,,,,,indexed_only,,,对应MAT-WOO-001规格材/方木(3次使用)
+GB/T 14905-2020,橡胶和塑料软管及软管组合件,product_standard,,,,,indexed_only,,,对应MAT-AUXI-012软接头/橡胶接头等
+GB/T 13912-2020,金属覆盖层 钢铁制件热浸镀锌层,product_standard,,,,,indexed_only,,,对应MAT-AUXI-008接地材料热镀锌(4次使用)
+GB 4717-2024,火灾报警控制器,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+4717-2024.pdf,,
+GB 5135.2-2025,自动喷水灭火系统 第2部分:湿式报警阀,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+5135.2-2025.pdf,,
+GB 5135.3-2025,自动喷水灭火系统 第3部分:水雾喷头,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+5135.3-2025.pdf,,
+GB 5135.4-2025,自动喷水灭火系统 第4部分:干式报警阀,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+5135.4-2025.pdf,,
+GB 5135.11-2025,自动喷水灭火系统 第11部分:沟槽式管接头,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+5135.11-2025.pdf,,
+GB 5135.21-2025,自动喷水灭火系统 第21部分:末端试水装置,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+5135.21-2025.pdf,,
+GB 5135.23-2026,自动喷水灭火系统 第23部分:特殊应用喷头,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+5135.23-2026.pdf,,
+GB 6246-2026,消防水带,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+6246-2026.pdf,,
+GB 18145-2014,陶瓷片密封水嘴,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+18145-2014.pdf,,
+GB 25972-2024,气体灭火系统及部件,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+25972-2024.pdf,,
+GB 50057-2010,建筑物防雷设计规范,design,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+50057-2010.pdf,,
+GB/T 2099.10-2026,家用和类似用途插头插座 第10部分:延长线插座,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+T+2099.10-2026.pdf,,
+GB/T 6952-2015,卫生陶瓷,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+T+6952-2015.pdf,,
+GB/T 7251.8-2020,低压成套开关设备和控制设备 第8部分:智能型成套设备,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+T+7251.8-2020.pdf,,
+GB/T 10228-2023,干式电力变压器技术参数和要求,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+T+10228-2023.pdf,,
+GB/T 14294-2026,组合式空调机组,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+T+14294-2026.pdf,,
+GB/T 14561-2019,消火栓箱,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+T+14561-2019.pdf,,
+GB/T 23447-2023,卫生洁具 淋浴用花洒,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+T+23447-2023.pdf,,
+GB/T 27710-2020,地漏,product,,,,,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+T+27710-2020.pdf,,
+GB/T 25251-2010,合成树脂乳液内墙涂料,product_standard,2010,,,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/25251-2010-gbt-e-300.pdf,P1,内墙涂料; 新PDF已上传
+GB/T 32321-2015,钢塑复合压力管,product_standard,2015,,,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/32321-2015-gbt-cd-300.pdf,P1,钢塑复合管; 新PDF已上传
+GB 50243-2016,通风与空调工程施工质量验收规范,construction_standard,2016,,,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/通风与空调工程施工质量验收规范GB 50243-2016.pdf,P2,施工验收规范
+GB/T 9286-2021,色漆和清漆 划格试验,test_method,2021,,GB/T 9286-1998,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB:T 9286-2021.pdf,P2,涂层附着力试验方法
+GB 4351-2023,手提式灭火器,product_standard,2023,,GB 4351.1-2005,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+4351-2023.pdf,P2,消防器材; 新PDF已上传
+GB 4715-2024,点型感烟火灾探测器,product_standard,2024,,GB 4715-2005,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+4715-2024.pdf,P2,消防报警设备; 新PDF已上传
+GB 4716-2024,点型感温火灾探测器,product_standard,2024,,GB 4716-2005,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GB+4716-2024.pdf,P2,消防报警设备; 新PDF已上传
+GB/T 12459-2025,钢制对焊管件 类型与参数,product_standard,2025,2026-05-01,GB/T 12459-2017,active,extracted,/Users/qianqianawodebaobei/Downloads/国家规范/GBT+12459-2025.pdf,P2,钢制对焊管件; DN8~DN3400; 替代2017版; 新PDF已上传

@@ -1,0 +1,881 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-05-15",
+  "source": "T3_房建_标准物料库.csv + T3_安装_标准物料库.csv",
+  "standard_count": 65,
+  "param_count": 79,
+  "standards": {
+    "GB 1499.2": {
+      "code": "GB 1499.2",
+      "year": "2024",
+      "full": "GB 1499.2-2024",
+      "materials": [
+        "MAT-STE-001"
+      ],
+      "params_defined": [
+        "牌号",
+        "公称直径",
+        "理论单位重量",
+        "重量允许偏差",
+        "下屈服强度ReL",
+        "抗拉强度Rm",
+        "断后伸长率A",
+        "最大力总延伸率Agt",
+        "强屈比R°m/R°eL",
+        "超强比R°eL/ReL",
+        "碳含量C",
+        "碳当量Ceq",
+        "弯曲压头直径",
+        "反向弯曲",
+        "表面标志"
+      ],
+      "material_count": 1,
+      "param_count": 15
+    },
+    "GB 1499.1": {
+      "code": "GB 1499.1",
+      "year": "2024",
+      "full": "GB 1499.1-2024",
+      "materials": [
+        "MAT-STE-002"
+      ],
+      "params_defined": [
+        "牌号",
+        "公称直径",
+        "理论单位重量",
+        "重量允许偏差",
+        "下屈服强度ReL",
+        "抗拉强度Rm",
+        "断后伸长率A",
+        "最大力总延伸率Agt",
+        "碳含量C",
+        "弯曲压头直径"
+      ],
+      "material_count": 1,
+      "param_count": 10
+    },
+    "GB/T 11263": {
+      "code": "GB/T 11263",
+      "year": "2024",
+      "full": "GB/T 11263-2024",
+      "materials": [
+        "MAT-STE-003"
+      ],
+      "params_defined": [
+        "牌号",
+        "截面型号",
+        "截面高度H",
+        "翼缘宽度B",
+        "腹板厚度t1",
+        "翼缘厚度t2",
+        "下屈服强度"
+      ],
+      "material_count": 1,
+      "param_count": 7
+    },
+    "GB/T 706": {
+      "code": "GB/T 706",
+      "year": "2016",
+      "full": "GB/T 706-2016",
+      "materials": [
+        "MAT-STE-004",
+        "MAT-STE-011",
+        "MAT-STEL-001"
+      ],
+      "params_defined": [],
+      "material_count": 3,
+      "param_count": 0
+    },
+    "GB/T 709": {
+      "code": "GB/T 709",
+      "year": "2019",
+      "full": "GB/T 709-2019",
+      "materials": [
+        "MAT-STE-006"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 3091": {
+      "code": "GB/T 3091",
+      "year": "2025",
+      "full": "GB/T 3091-2025",
+      "materials": [
+        "MAT-STE-007",
+        "MAT-PIPE-002",
+        "MAT-AUXI-019"
+      ],
+      "params_defined": [
+        "焊接方式",
+        "表面状态",
+        "公称通径DN",
+        "外径",
+        "外径系列",
+        "最小壁厚",
+        "外径允许偏差",
+        "壁厚允许偏差"
+      ],
+      "material_count": 3,
+      "param_count": 8
+    },
+    "GB/T 1231": {
+      "code": "GB/T 1231",
+      "year": "2024",
+      "full": "GB/T 1231-2024",
+      "materials": [
+        "MAT-STE-008"
+      ],
+      "params_defined": [
+        "性能等级",
+        "螺栓规格",
+        "抗拉强度Rm",
+        "规定非比例延伸强度Rp0.2"
+      ],
+      "material_count": 1,
+      "param_count": 4
+    },
+    "GB/T 14902": {
+      "code": "GB/T 14902",
+      "year": "2012",
+      "full": "GB/T 14902-2012",
+      "materials": [
+        "MAT-CON-001",
+        "MAT-CON-002",
+        "MAT-CON-003",
+        "MAT-CON-004",
+        "MAT-CON-005",
+        "MAT-CON-006",
+        "MAT-CON-007",
+        "MAT-CON-008"
+      ],
+      "params_defined": [
+        "强度等级",
+        "分类",
+        "特制品子类",
+        "坍落度等级",
+        "坍落度控制目标值",
+        "坍落度允许偏差",
+        "扩展度等级",
+        "含气量",
+        "抗冻等级",
+        "抗渗等级",
+        "水溶性氯离子限量"
+      ],
+      "material_count": 8,
+      "param_count": 11
+    },
+    "GB/T 25181": {
+      "code": "GB/T 25181",
+      "year": "2019",
+      "full": "GB/T 25181-2019",
+      "materials": [
+        "MAT-MOR-001",
+        "MAT-MOR-002",
+        "MAT-MOR-003"
+      ],
+      "params_defined": [
+        "强度等级",
+        "稠度",
+        "保水率",
+        "28d抗压强度",
+        "凝结时间",
+        "拉伸粘结强度"
+      ],
+      "material_count": 3,
+      "param_count": 6
+    },
+    "GB/T 5101": {
+      "code": "GB/T 5101",
+      "year": "2017",
+      "full": "GB/T 5101-2017",
+      "materials": [
+        "MAT-BRI-001"
+      ],
+      "params_defined": [
+        "强度",
+        "尺寸"
+      ],
+      "material_count": 1,
+      "param_count": 2
+    },
+    "GB 13544": {
+      "code": "GB 13544",
+      "year": "2011",
+      "full": "GB 13544-2011",
+      "materials": [
+        "MAT-BRI-002"
+      ],
+      "params_defined": [
+        "强度等级",
+        "密度等级",
+        "孔洞率",
+        "长度",
+        "宽度",
+        "高度",
+        "品种",
+        "抗压强度平均值",
+        "强度标准值fk"
+      ],
+      "material_count": 1,
+      "param_count": 9
+    },
+    "GB/T 11968": {
+      "code": "GB/T 11968",
+      "year": "2020",
+      "full": "GB/T 11968-2020",
+      "materials": [
+        "MAT-BLO-001"
+      ],
+      "params_defined": [
+        "强度",
+        "密度"
+      ],
+      "material_count": 1,
+      "param_count": 2
+    },
+    "GB/T 15229": {
+      "code": "GB/T 15229",
+      "year": "2011",
+      "full": "GB/T 15229-2011",
+      "materials": [
+        "MAT-BLO-002"
+      ],
+      "params_defined": [
+        "强度等级",
+        "密度等级",
+        "吸水率",
+        "长度",
+        "宽度",
+        "高度",
+        "抗冻标号"
+      ],
+      "material_count": 1,
+      "param_count": 7
+    },
+    "GB/T 18242": {
+      "code": "GB/T 18242",
+      "year": "2025",
+      "full": "GB/T 18242-2025",
+      "materials": [
+        "MAT-WAP-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 19250": {
+      "code": "GB/T 19250",
+      "year": "2013",
+      "full": "GB/T 19250-2013",
+      "materials": [
+        "MAT-WAP-003"
+      ],
+      "params_defined": [
+        "产品类型",
+        "组分类别",
+        "拉伸强度",
+        "断裂伸长率",
+        "撕裂强度",
+        "固体含量",
+        "粘结强度",
+        "燃烧性能",
+        "环保等级"
+      ],
+      "material_count": 1,
+      "param_count": 9
+    },
+    "GB/T 23445": {
+      "code": "GB/T 23445",
+      "year": "2025",
+      "full": "GB/T 23445-2025",
+      "materials": [
+        "MAT-WAP-005"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 23457": {
+      "code": "GB/T 23457",
+      "year": "2025",
+      "full": "GB/T 23457-2025",
+      "materials": [
+        "MAT-WAP-006"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB 18173.2": {
+      "code": "GB 18173.2",
+      "year": "2014",
+      "full": "GB 18173.2-2014",
+      "materials": [
+        "MAT-WAP-007"
+      ],
+      "params_defined": [
+        "止水带类型",
+        "宽度",
+        "厚度",
+        "拉伸强度",
+        "拉断伸长率",
+        "撕裂强度"
+      ],
+      "material_count": 1,
+      "param_count": 6
+    },
+    "GB/T 10801.2": {
+      "code": "GB/T 10801.2",
+      "year": "2025",
+      "full": "GB/T 10801.2-2025",
+      "materials": [
+        "MAT-INS-001"
+      ],
+      "params_defined": [
+        "厚度",
+        "密度",
+        "导热系数"
+      ],
+      "material_count": 1,
+      "param_count": 3
+    },
+    "GB/T 10801.1": {
+      "code": "GB/T 10801.1",
+      "year": "2025",
+      "full": "GB/T 10801.1-2025",
+      "materials": [
+        "MAT-INS-002"
+      ],
+      "params_defined": [
+        "厚度"
+      ],
+      "material_count": 1,
+      "param_count": 1
+    },
+    "GB/T 25975": {
+      "code": "GB/T 25975",
+      "year": "2018",
+      "full": "GB/T 25975-2018",
+      "materials": [
+        "MAT-INS-003",
+        "MAT-INS-004"
+      ],
+      "params_defined": [
+        "厚度"
+      ],
+      "material_count": 2,
+      "param_count": 1
+    },
+    "GB/T 25998": {
+      "code": "GB/T 25998",
+      "year": "2020",
+      "full": "GB/T 25998-2020",
+      "materials": [
+        "MAT-INS-005",
+        "MAT-BRD-004"
+      ],
+      "params_defined": [],
+      "material_count": 2,
+      "param_count": 0
+    },
+    "GB/T 4100": {
+      "code": "GB/T 4100",
+      "year": "2015",
+      "full": "GB/T 4100-2015",
+      "materials": [
+        "MAT-TIL-001",
+        "MAT-TIL-003",
+        "MAT-TIL-006",
+        "MAT-TIL-004",
+        "MAT-TIL-005"
+      ],
+      "params_defined": [
+        "尺寸",
+        "吸水率"
+      ],
+      "material_count": 5,
+      "param_count": 2
+    },
+    "GB/T 9755": {
+      "code": "GB/T 9755",
+      "year": "2014",
+      "full": "GB/T 9755-2014",
+      "materials": [
+        "MAT-PAI-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "JG/T 24": {
+      "code": "JG/T 24",
+      "year": "2018",
+      "full": "JG/T 24-2018",
+      "materials": [
+        "MAT-PAI-003"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB 14907": {
+      "code": "GB 14907",
+      "year": "2018",
+      "full": "GB 14907-2018",
+      "materials": [
+        "MAT-FPC-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "HG/T 3668": {
+      "code": "HG/T 3668",
+      "year": "2009",
+      "full": "HG/T 3668-2009",
+      "materials": [
+        "MAT-PNT-001",
+        "MAT-COAT-001"
+      ],
+      "params_defined": [],
+      "material_count": 2,
+      "param_count": 0
+    },
+    "JC/T 547": {
+      "code": "JC/T 547",
+      "year": "2017",
+      "full": "JC/T 547-2017",
+      "materials": [
+        "MAT-ADH-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "JG/T 298": {
+      "code": "JG/T 298",
+      "year": "2010",
+      "full": "JG/T 298-2010",
+      "materials": [
+        "MAT-PUT-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 11981": {
+      "code": "GB/T 11981",
+      "year": "2024",
+      "full": "GB/T 11981-2024",
+      "materials": [
+        "MAT-FRM-001",
+        "MAT-FRM-002"
+      ],
+      "params_defined": [],
+      "material_count": 2,
+      "param_count": 0
+    },
+    "GB/T 9775": {
+      "code": "GB/T 9775",
+      "year": "2025",
+      "full": "GB/T 9775-2025",
+      "materials": [
+        "MAT-BRD-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 14683": {
+      "code": "GB/T 14683",
+      "year": "2017",
+      "full": "GB/T 14683-2017",
+      "materials": [
+        "MAT-SEA-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 20909": {
+      "code": "GB/T 20909",
+      "year": "2017",
+      "full": "GB/T 20909-2017",
+      "materials": [
+        "MAT-DOO-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB 12955": {
+      "code": "GB 12955",
+      "year": "2024",
+      "full": "GB 12955-2024",
+      "materials": [
+        "MAT-DOO-002"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 8478": {
+      "code": "GB/T 8478",
+      "year": "2020",
+      "full": "GB/T 8478-2020",
+      "materials": [
+        "MAT-DOO-003",
+        "MAT-DOO-004"
+      ],
+      "params_defined": [],
+      "material_count": 2,
+      "param_count": 0
+    },
+    "GB/T 29498": {
+      "code": "GB/T 29498",
+      "year": "2024",
+      "full": "GB/T 29498-2024",
+      "materials": [
+        "MAT-DOO-005"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 17656": {
+      "code": "GB/T 17656",
+      "year": "2018",
+      "full": "GB/T 17656-2018",
+      "materials": [
+        "MAT-TRN-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 153": {
+      "code": "GB/T 153",
+      "year": "2019",
+      "full": "GB/T 153-2019",
+      "materials": [
+        "MAT-WOO-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 14685": {
+      "code": "GB/T 14685",
+      "year": "2022",
+      "full": "GB/T 14685-2022",
+      "materials": [
+        "MAT-EAR-002"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 8163": {
+      "code": "GB/T 8163",
+      "year": "2018",
+      "full": "GB/T 8163-2018",
+      "materials": [
+        "MAT-STE-010",
+        "MAT-PIPE-001"
+      ],
+      "params_defined": [],
+      "material_count": 2,
+      "param_count": 0
+    },
+    "GB/T 18601": {
+      "code": "GB/T 18601",
+      "year": "2024",
+      "full": "GB/T 18601-2024",
+      "materials": [
+        "MAT-STO-002"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 11982.1": {
+      "code": "GB/T 11982.1",
+      "year": "2015",
+      "full": "GB/T 11982.1-2015",
+      "materials": [
+        "MAT-FLR-001"
+      ],
+      "params_defined": [
+        "结构类型",
+        "使用等级",
+        "耐磨等级",
+        "总厚度",
+        "耐磨层厚度",
+        "宽度",
+        "长度"
+      ],
+      "material_count": 1,
+      "param_count": 7
+    },
+    "GB/T 12771": {
+      "code": "GB/T 12771",
+      "year": "2019",
+      "full": "GB/T 12771-2019",
+      "materials": [
+        "MAT-STE-013",
+        "MAT-PIPE-005"
+      ],
+      "params_defined": [],
+      "material_count": 2,
+      "param_count": 0
+    },
+    "GB 16809": {
+      "code": "GB 16809",
+      "year": "2024",
+      "full": "GB 16809-2024",
+      "materials": [
+        "MAT-DOO-010"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 32223": {
+      "code": "GB/T 32223",
+      "year": "2025",
+      "full": "GB/T 32223-2025",
+      "materials": [
+        "MAT-HDW-001",
+        "MAT-HDW-002"
+      ],
+      "params_defined": [],
+      "material_count": 2,
+      "param_count": 0
+    },
+    "GB/T 12459": {
+      "code": "GB/T 12459",
+      "year": "2017",
+      "full": "GB/T 12459-2017",
+      "materials": [
+        "MAT-FITT-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 9115": {
+      "code": "GB/T 9115",
+      "year": "2010",
+      "full": "GB/T 9115-2010",
+      "materials": [
+        "MAT-FITT-003"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 12232": {
+      "code": "GB/T 12232",
+      "year": "2025",
+      "full": "GB/T 12232-2025",
+      "materials": [
+        "MAT-VALV-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 12238": {
+      "code": "GB/T 12238",
+      "year": "2008",
+      "full": "GB/T 12238-2008",
+      "materials": [
+        "MAT-VALV-002"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 12235": {
+      "code": "GB/T 12235",
+      "year": "2025",
+      "full": "GB/T 12235-2025",
+      "materials": [
+        "MAT-VALV-003"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 12236": {
+      "code": "GB/T 12236",
+      "year": "2025",
+      "full": "GB/T 12236-2025",
+      "materials": [
+        "MAT-VALV-004"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 12237": {
+      "code": "GB/T 12237",
+      "year": "2021",
+      "full": "GB/T 12237-2021",
+      "materials": [
+        "MAT-VALV-005"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 12244": {
+      "code": "GB/T 12244",
+      "year": "2025",
+      "full": "GB/T 12244-2025",
+      "materials": [
+        "MAT-VALV-008"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 12706.3": {
+      "code": "GB/T 12706.3",
+      "year": "2020",
+      "full": "GB/T 12706.3-2020",
+      "materials": [
+        "MAT-CABL-001",
+        "MAT-CABL-002"
+      ],
+      "params_defined": [],
+      "material_count": 2,
+      "param_count": 0
+    },
+    "GB/T 9330": {
+      "code": "GB/T 9330",
+      "year": "2020",
+      "full": "GB/T 9330-2020",
+      "materials": [
+        "MAT-CABL-003"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 5023": {
+      "code": "GB/T 5023",
+      "year": "2008",
+      "full": "GB/T 5023-2008",
+      "materials": [
+        "MAT-CABL-004",
+        "MAT-CABL-005"
+      ],
+      "params_defined": [],
+      "material_count": 2,
+      "param_count": 0
+    },
+    "GB/T 19666": {
+      "code": "GB/T 19666",
+      "year": "2019",
+      "full": "GB/T 19666-2019",
+      "materials": [
+        "MAT-CABL-007",
+        "MAT-CABL-008"
+      ],
+      "params_defined": [],
+      "material_count": 2,
+      "param_count": 0
+    },
+    "YD/T 901": {
+      "code": "YD/T 901",
+      "year": "2018",
+      "full": "YD/T 901-2018",
+      "materials": [
+        "MAT-CABL-009"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 11835": {
+      "code": "GB/T 11835",
+      "year": "2016",
+      "full": "GB/T 11835-2016",
+      "materials": [
+        "MAT-INSU-001",
+        "MAT-INSU-003"
+      ],
+      "params_defined": [],
+      "material_count": 2,
+      "param_count": 0
+    },
+    "GB/T 8488": {
+      "code": "GB/T 8488",
+      "year": "2008",
+      "full": "GB/T 8488-2008",
+      "materials": [
+        "MAT-COAT-005"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 50448": {
+      "code": "GB/T 50448",
+      "year": "2015",
+      "full": "GB/T 50448-2015",
+      "materials": [
+        "MAT-AUXI-001"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 799": {
+      "code": "GB/T 799",
+      "year": "2020",
+      "full": "GB/T 799-2020",
+      "materials": [
+        "MAT-AUXI-002"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 5117": {
+      "code": "GB/T 5117",
+      "year": "2012",
+      "full": "GB/T 5117-2012",
+      "materials": [
+        "MAT-AUXI-004"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 50065": {
+      "code": "GB/T 50065",
+      "year": "2011",
+      "full": "GB/T 50065-2011",
+      "materials": [
+        "MAT-AUXI-008"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    },
+    "GB/T 14905": {
+      "code": "GB/T 14905",
+      "year": "2020",
+      "full": "GB/T 14905-2020",
+      "materials": [
+        "MAT-AUXI-012"
+      ],
+      "params_defined": [],
+      "material_count": 1,
+      "param_count": 0
+    }
+  }
+}

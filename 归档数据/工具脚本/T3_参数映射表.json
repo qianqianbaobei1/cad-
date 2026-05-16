@@ -1,0 +1,917 @@
+{
+  "牌号": {
+    "param": "牌号",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "HRB400E",
+    "required": true,
+    "materials": [
+      "MAT-STE-001",
+      "MAT-STE-002",
+      "MAT-STE-003"
+    ]
+  },
+  "公称直径": {
+    "param": "公称直径",
+    "type": "enum",
+    "unit": "mm",
+    "options": "",
+    "default": "16",
+    "required": true,
+    "materials": [
+      "MAT-STE-001",
+      "MAT-STE-002"
+    ]
+  },
+  "理论单位重量": {
+    "param": "理论单位重量",
+    "type": "number",
+    "unit": "kg/m",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-STE-001",
+      "MAT-STE-002"
+    ]
+  },
+  "重量允许偏差": {
+    "param": "重量允许偏差",
+    "type": "range",
+    "unit": "%",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-STE-001",
+      "MAT-STE-002"
+    ]
+  },
+  "下屈服强度ReL": {
+    "param": "下屈服强度ReL",
+    "type": "number",
+    "unit": "MPa",
+    "options": "",
+    "default": "400",
+    "required": false,
+    "materials": [
+      "MAT-STE-001",
+      "MAT-STE-002"
+    ]
+  },
+  "抗拉强度Rm": {
+    "param": "抗拉强度Rm",
+    "type": "number",
+    "unit": "MPa",
+    "options": "",
+    "default": "540",
+    "required": false,
+    "materials": [
+      "MAT-STE-001",
+      "MAT-STE-002",
+      "MAT-STE-008"
+    ]
+  },
+  "断后伸长率A": {
+    "param": "断后伸长率A",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "16",
+    "required": false,
+    "materials": [
+      "MAT-STE-001",
+      "MAT-STE-002"
+    ]
+  },
+  "最大力总延伸率Agt": {
+    "param": "最大力总延伸率Agt",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "9.0",
+    "required": false,
+    "materials": [
+      "MAT-STE-001",
+      "MAT-STE-002"
+    ]
+  },
+  "强屈比R°m/R°eL": {
+    "param": "强屈比R°m/R°eL",
+    "type": "number",
+    "unit": "",
+    "options": "",
+    "default": "1.25",
+    "required": false,
+    "materials": [
+      "MAT-STE-001"
+    ]
+  },
+  "超强比R°eL/ReL": {
+    "param": "超强比R°eL/ReL",
+    "type": "number",
+    "unit": "",
+    "options": "",
+    "default": "1.30",
+    "required": false,
+    "materials": [
+      "MAT-STE-001"
+    ]
+  },
+  "碳含量C": {
+    "param": "碳含量C",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "0.25",
+    "required": false,
+    "materials": [
+      "MAT-STE-001",
+      "MAT-STE-002"
+    ]
+  },
+  "碳当量Ceq": {
+    "param": "碳当量Ceq",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "0.54",
+    "required": false,
+    "materials": [
+      "MAT-STE-001"
+    ]
+  },
+  "弯曲压头直径": {
+    "param": "弯曲压头直径",
+    "type": "text",
+    "unit": "",
+    "options": "",
+    "default": "4d",
+    "required": false,
+    "materials": [
+      "MAT-STE-001",
+      "MAT-STE-002"
+    ]
+  },
+  "反向弯曲": {
+    "param": "反向弯曲",
+    "type": "boolean",
+    "unit": "",
+    "options": "",
+    "default": "Y",
+    "required": false,
+    "materials": [
+      "MAT-STE-001"
+    ]
+  },
+  "表面标志": {
+    "param": "表面标志",
+    "type": "text",
+    "unit": "",
+    "options": "",
+    "default": "4E",
+    "required": false,
+    "materials": [
+      "MAT-STE-001"
+    ]
+  },
+  "截面型号": {
+    "param": "截面型号",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-STE-003"
+    ]
+  },
+  "截面高度H": {
+    "param": "截面高度H",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-STE-003"
+    ]
+  },
+  "翼缘宽度B": {
+    "param": "翼缘宽度B",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-STE-003"
+    ]
+  },
+  "腹板厚度t1": {
+    "param": "腹板厚度t1",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-STE-003"
+    ]
+  },
+  "翼缘厚度t2": {
+    "param": "翼缘厚度t2",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-STE-003"
+    ]
+  },
+  "下屈服强度": {
+    "param": "下屈服强度",
+    "type": "number",
+    "unit": "MPa",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-STE-003"
+    ]
+  },
+  "焊接方式": {
+    "param": "焊接方式",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "HFW",
+    "required": true,
+    "materials": [
+      "MAT-STE-007"
+    ]
+  },
+  "表面状态": {
+    "param": "表面状态",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "不镀锌",
+    "required": true,
+    "materials": [
+      "MAT-STE-007"
+    ]
+  },
+  "公称通径DN": {
+    "param": "公称通径DN",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "50",
+    "required": true,
+    "materials": [
+      "MAT-STE-007"
+    ]
+  },
+  "外径": {
+    "param": "外径",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "60.3",
+    "required": true,
+    "materials": [
+      "MAT-STE-007"
+    ]
+  },
+  "外径系列": {
+    "param": "外径系列",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "系列1",
+    "required": false,
+    "materials": [
+      "MAT-STE-007"
+    ]
+  },
+  "最小壁厚": {
+    "param": "最小壁厚",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "3.2",
+    "required": true,
+    "materials": [
+      "MAT-STE-007"
+    ]
+  },
+  "外径允许偏差": {
+    "param": "外径允许偏差",
+    "type": "text",
+    "unit": "",
+    "options": "",
+    "default": "±1%D",
+    "required": false,
+    "materials": [
+      "MAT-STE-007"
+    ]
+  },
+  "壁厚允许偏差": {
+    "param": "壁厚允许偏差",
+    "type": "text",
+    "unit": "",
+    "options": "",
+    "default": "±10%t",
+    "required": false,
+    "materials": [
+      "MAT-STE-007"
+    ]
+  },
+  "性能等级": {
+    "param": "性能等级",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "10.9S",
+    "required": true,
+    "materials": [
+      "MAT-STE-008"
+    ]
+  },
+  "螺栓规格": {
+    "param": "螺栓规格",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-STE-008"
+    ]
+  },
+  "规定非比例延伸强度Rp0.2": {
+    "param": "规定非比例延伸强度Rp0.2",
+    "type": "number",
+    "unit": "MPa",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-STE-008"
+    ]
+  },
+  "强度等级": {
+    "param": "强度等级",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "C30",
+    "required": true,
+    "materials": [
+      "MAT-CON-001",
+      "MAT-CON-002",
+      "MAT-CON-003",
+      "MAT-CON-005",
+      "MAT-MOR-001",
+      "MAT-MOR-002",
+      "MAT-MOR-003",
+      "MAT-BRI-002",
+      "MAT-BLO-002"
+    ]
+  },
+  "分类": {
+    "param": "分类",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "A",
+    "required": true,
+    "materials": [
+      "MAT-CON-001"
+    ]
+  },
+  "特制品子类": {
+    "param": "特制品子类",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-CON-001"
+    ]
+  },
+  "坍落度等级": {
+    "param": "坍落度等级",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "S3",
+    "required": true,
+    "materials": [
+      "MAT-CON-001"
+    ]
+  },
+  "坍落度控制目标值": {
+    "param": "坍落度控制目标值",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "120",
+    "required": true,
+    "materials": [
+      "MAT-CON-001"
+    ]
+  },
+  "坍落度允许偏差": {
+    "param": "坍落度允许偏差",
+    "type": "range",
+    "unit": "mm",
+    "options": "",
+    "default": "±30",
+    "required": false,
+    "materials": [
+      "MAT-CON-001"
+    ]
+  },
+  "扩展度等级": {
+    "param": "扩展度等级",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-CON-001"
+    ]
+  },
+  "含气量": {
+    "param": "含气量",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "7",
+    "required": false,
+    "materials": [
+      "MAT-CON-001"
+    ]
+  },
+  "抗冻等级": {
+    "param": "抗冻等级",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-CON-001"
+    ]
+  },
+  "抗渗等级": {
+    "param": "抗渗等级",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-CON-001"
+    ]
+  },
+  "水溶性氯离子限量": {
+    "param": "水溶性氯离子限量",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "0.3",
+    "required": false,
+    "materials": [
+      "MAT-CON-001"
+    ]
+  },
+  "稠度": {
+    "param": "稠度",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-MOR-001",
+      "MAT-MOR-002",
+      "MAT-MOR-003"
+    ]
+  },
+  "保水率": {
+    "param": "保水率",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-MOR-001",
+      "MAT-MOR-002",
+      "MAT-MOR-003"
+    ]
+  },
+  "28d抗压强度": {
+    "param": "28d抗压强度",
+    "type": "number",
+    "unit": "MPa",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-MOR-001",
+      "MAT-MOR-002",
+      "MAT-MOR-003"
+    ]
+  },
+  "凝结时间": {
+    "param": "凝结时间",
+    "type": "number",
+    "unit": "h",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-MOR-001",
+      "MAT-MOR-002",
+      "MAT-MOR-003"
+    ]
+  },
+  "拉伸粘结强度": {
+    "param": "拉伸粘结强度",
+    "type": "number",
+    "unit": "MPa",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-MOR-002"
+    ]
+  },
+  "强度": {
+    "param": "强度",
+    "type": "",
+    "unit": "",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-BRI-001",
+      "MAT-BLO-001"
+    ]
+  },
+  "尺寸": {
+    "param": "尺寸",
+    "type": "",
+    "unit": "",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-BRI-001",
+      "MAT-TIL-001",
+      "MAT-TIL-003",
+      "MAT-TIL-005"
+    ]
+  },
+  "密度等级": {
+    "param": "密度等级",
+    "type": "enum",
+    "unit": "kg/m³",
+    "options": "",
+    "default": "1000",
+    "required": true,
+    "materials": [
+      "MAT-BRI-002",
+      "MAT-BLO-002"
+    ]
+  },
+  "孔洞率": {
+    "param": "孔洞率",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "28",
+    "required": true,
+    "materials": [
+      "MAT-BRI-002"
+    ]
+  },
+  "长度": {
+    "param": "长度",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "290",
+    "required": true,
+    "materials": [
+      "MAT-BRI-002",
+      "MAT-BLO-002",
+      "MAT-FLR-001"
+    ]
+  },
+  "宽度": {
+    "param": "宽度",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "140",
+    "required": true,
+    "materials": [
+      "MAT-BRI-002",
+      "MAT-BLO-002",
+      "MAT-WAP-007",
+      "MAT-FLR-001"
+    ]
+  },
+  "高度": {
+    "param": "高度",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "90",
+    "required": true,
+    "materials": [
+      "MAT-BRI-002",
+      "MAT-BLO-002"
+    ]
+  },
+  "品种": {
+    "param": "品种",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "粘土",
+    "required": true,
+    "materials": [
+      "MAT-BRI-002"
+    ]
+  },
+  "抗压强度平均值": {
+    "param": "抗压强度平均值",
+    "type": "number",
+    "unit": "MPa",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-BRI-002"
+    ]
+  },
+  "强度标准值fk": {
+    "param": "强度标准值fk",
+    "type": "number",
+    "unit": "MPa",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-BRI-002"
+    ]
+  },
+  "密度": {
+    "param": "密度",
+    "type": "",
+    "unit": "",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-BLO-001",
+      "MAT-INS-001"
+    ]
+  },
+  "吸水率": {
+    "param": "吸水率",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "18",
+    "required": true,
+    "materials": [
+      "MAT-BLO-002",
+      "MAT-TIL-001"
+    ]
+  },
+  "抗冻标号": {
+    "param": "抗冻标号",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "D25",
+    "required": true,
+    "materials": [
+      "MAT-BLO-002"
+    ]
+  },
+  "产品类型": {
+    "param": "产品类型",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "II",
+    "required": true,
+    "materials": [
+      "MAT-WAP-003"
+    ]
+  },
+  "组分类别": {
+    "param": "组分类别",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "双组分",
+    "required": true,
+    "materials": [
+      "MAT-WAP-003"
+    ]
+  },
+  "拉伸强度": {
+    "param": "拉伸强度",
+    "type": "number",
+    "unit": "MPa",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-WAP-003",
+      "MAT-WAP-007"
+    ]
+  },
+  "断裂伸长率": {
+    "param": "断裂伸长率",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-WAP-003"
+    ]
+  },
+  "撕裂强度": {
+    "param": "撕裂强度",
+    "type": "number",
+    "unit": "N/mm",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-WAP-003",
+      "MAT-WAP-007"
+    ]
+  },
+  "固体含量": {
+    "param": "固体含量",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "92",
+    "required": true,
+    "materials": [
+      "MAT-WAP-003"
+    ]
+  },
+  "粘结强度": {
+    "param": "粘结强度",
+    "type": "number",
+    "unit": "MPa",
+    "options": "",
+    "default": "1.0",
+    "required": true,
+    "materials": [
+      "MAT-WAP-003"
+    ]
+  },
+  "燃烧性能": {
+    "param": "燃烧性能",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "B2-E",
+    "required": true,
+    "materials": [
+      "MAT-WAP-003"
+    ]
+  },
+  "环保等级": {
+    "param": "环保等级",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "A类",
+    "required": false,
+    "materials": [
+      "MAT-WAP-003"
+    ]
+  },
+  "止水带类型": {
+    "param": "止水带类型",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "JX",
+    "required": true,
+    "materials": [
+      "MAT-WAP-007"
+    ]
+  },
+  "厚度": {
+    "param": "厚度",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "8",
+    "required": true,
+    "materials": [
+      "MAT-WAP-007",
+      "MAT-INS-001",
+      "MAT-INS-002",
+      "MAT-INS-004"
+    ]
+  },
+  "拉断伸长率": {
+    "param": "拉断伸长率",
+    "type": "number",
+    "unit": "%",
+    "options": "",
+    "default": "",
+    "required": true,
+    "materials": [
+      "MAT-WAP-007"
+    ]
+  },
+  "导热系数": {
+    "param": "导热系数",
+    "type": "",
+    "unit": "W/(m·K)",
+    "options": "",
+    "default": "",
+    "required": false,
+    "materials": [
+      "MAT-INS-001"
+    ]
+  },
+  "结构类型": {
+    "param": "结构类型",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "同质",
+    "required": true,
+    "materials": [
+      "MAT-FLR-001"
+    ]
+  },
+  "使用等级": {
+    "param": "使用等级",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "32",
+    "required": true,
+    "materials": [
+      "MAT-FLR-001"
+    ]
+  },
+  "耐磨等级": {
+    "param": "耐磨等级",
+    "type": "enum",
+    "unit": "",
+    "options": "",
+    "default": "T级",
+    "required": true,
+    "materials": [
+      "MAT-FLR-001"
+    ]
+  },
+  "总厚度": {
+    "param": "总厚度",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "2.0",
+    "required": true,
+    "materials": [
+      "MAT-FLR-001"
+    ]
+  },
+  "耐磨层厚度": {
+    "param": "耐磨层厚度",
+    "type": "number",
+    "unit": "mm",
+    "options": "",
+    "default": "0.15",
+    "required": false,
+    "materials": [
+      "MAT-FLR-001"
+    ]
+  }
+}

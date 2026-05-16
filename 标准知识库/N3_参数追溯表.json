@@ -1,0 +1,1667 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-05-15",
+  "description": "参数→规范版本追溯表。每个参数记录其在哪些T3物料中定义，关联标准代号。",
+  "total_params": 79,
+  "total_param_occurrences": 125,
+  "params": {
+    "牌号": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "",
+        "default": "HRB400E",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      },
+      {
+        "material_id": "MAT-STE-002",
+        "material_name": "热轧光圆钢筋 HPB300",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "",
+        "default": "HPB300",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 1499.1-2024"
+      },
+      {
+        "material_id": "MAT-STE-003",
+        "material_name": "热轧H型钢 Q355B",
+        "category": "黑色及有色金属 > 建筑钢材 > H型钢",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "",
+        "default": "Q355B",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11263-2024"
+      }
+    ],
+    "公称直径": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "mm",
+        "default": "16",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      },
+      {
+        "material_id": "MAT-STE-002",
+        "material_name": "热轧光圆钢筋 HPB300",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "mm",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 1499.1-2024"
+      }
+    ],
+    "理论单位重量": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "kg/m",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      },
+      {
+        "material_id": "MAT-STE-002",
+        "material_name": "热轧光圆钢筋 HPB300",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "kg/m",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.1-2024"
+      }
+    ],
+    "重量允许偏差": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "range",
+        "param_unit": "%",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      },
+      {
+        "material_id": "MAT-STE-002",
+        "material_name": "热轧光圆钢筋 HPB300",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "%",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.1-2024"
+      }
+    ],
+    "下屈服强度ReL": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "400",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      },
+      {
+        "material_id": "MAT-STE-002",
+        "material_name": "热轧光圆钢筋 HPB300",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "300",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.1-2024"
+      }
+    ],
+    "抗拉强度Rm": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "540",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      },
+      {
+        "material_id": "MAT-STE-002",
+        "material_name": "热轧光圆钢筋 HPB300",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "420",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.1-2024"
+      },
+      {
+        "material_id": "MAT-STE-008",
+        "material_name": "高强螺栓 10.9级",
+        "category": "",
+        "unit": "套",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 1231-2024"
+      }
+    ],
+    "断后伸长率A": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "%",
+        "default": "16",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      },
+      {
+        "material_id": "MAT-STE-002",
+        "material_name": "热轧光圆钢筋 HPB300",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "%",
+        "default": "25",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.1-2024"
+      }
+    ],
+    "最大力总延伸率Agt": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "%",
+        "default": "9.0",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      },
+      {
+        "material_id": "MAT-STE-002",
+        "material_name": "热轧光圆钢筋 HPB300",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "%",
+        "default": "10",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.1-2024"
+      }
+    ],
+    "强屈比R°m/R°eL": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "",
+        "default": "1.25",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      }
+    ],
+    "超强比R°eL/ReL": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "",
+        "default": "1.30",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      }
+    ],
+    "碳含量C": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "%",
+        "default": "0.25",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      },
+      {
+        "material_id": "MAT-STE-002",
+        "material_name": "热轧光圆钢筋 HPB300",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "%",
+        "default": "0.25",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.1-2024"
+      }
+    ],
+    "碳当量Ceq": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "%",
+        "default": "0.54",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      }
+    ],
+    "弯曲压头直径": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "text",
+        "param_unit": "",
+        "default": "4d",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      },
+      {
+        "material_id": "MAT-STE-002",
+        "material_name": "热轧光圆钢筋 HPB300",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "",
+        "default": "1d",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.1-2024"
+      }
+    ],
+    "反向弯曲": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "boolean",
+        "param_unit": "",
+        "default": "Y",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      }
+    ],
+    "表面标志": [
+      {
+        "material_id": "MAT-STE-001",
+        "material_name": "热轧带肋钢筋 HRB400E",
+        "category": "黑色及有色金属 > 建筑钢材 > 钢筋",
+        "unit": "t",
+        "type": "text",
+        "param_unit": "",
+        "default": "4E",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 1499.2-2024"
+      }
+    ],
+    "截面型号": [
+      {
+        "material_id": "MAT-STE-003",
+        "material_name": "热轧H型钢 Q355B",
+        "category": "黑色及有色金属 > 建筑钢材 > H型钢",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11263-2024"
+      }
+    ],
+    "截面高度H": [
+      {
+        "material_id": "MAT-STE-003",
+        "material_name": "热轧H型钢 Q355B",
+        "category": "黑色及有色金属 > 建筑钢材 > H型钢",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11263-2024"
+      }
+    ],
+    "翼缘宽度B": [
+      {
+        "material_id": "MAT-STE-003",
+        "material_name": "热轧H型钢 Q355B",
+        "category": "黑色及有色金属 > 建筑钢材 > H型钢",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11263-2024"
+      }
+    ],
+    "腹板厚度t1": [
+      {
+        "material_id": "MAT-STE-003",
+        "material_name": "热轧H型钢 Q355B",
+        "category": "黑色及有色金属 > 建筑钢材 > H型钢",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11263-2024"
+      }
+    ],
+    "翼缘厚度t2": [
+      {
+        "material_id": "MAT-STE-003",
+        "material_name": "热轧H型钢 Q355B",
+        "category": "黑色及有色金属 > 建筑钢材 > H型钢",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11263-2024"
+      }
+    ],
+    "下屈服强度": [
+      {
+        "material_id": "MAT-STE-003",
+        "material_name": "热轧H型钢 Q355B",
+        "category": "黑色及有色金属 > 建筑钢材 > H型钢",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 11263-2024"
+      }
+    ],
+    "焊接方式": [
+      {
+        "material_id": "MAT-STE-007",
+        "material_name": "焊接钢管(直缝) Q235B",
+        "category": "管材 > 金属管材 > 焊接钢管",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "",
+        "default": "HFW",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 3091-2025"
+      }
+    ],
+    "表面状态": [
+      {
+        "material_id": "MAT-STE-007",
+        "material_name": "焊接钢管(直缝) Q235B",
+        "category": "管材 > 金属管材 > 焊接钢管",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "",
+        "default": "不镀锌",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 3091-2025"
+      }
+    ],
+    "公称通径DN": [
+      {
+        "material_id": "MAT-STE-007",
+        "material_name": "焊接钢管(直缝) Q235B",
+        "category": "管材 > 金属管材 > 焊接钢管",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "",
+        "default": "50",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 3091-2025"
+      }
+    ],
+    "外径": [
+      {
+        "material_id": "MAT-STE-007",
+        "material_name": "焊接钢管(直缝) Q235B",
+        "category": "管材 > 金属管材 > 焊接钢管",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "60.3",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 3091-2025"
+      }
+    ],
+    "外径系列": [
+      {
+        "material_id": "MAT-STE-007",
+        "material_name": "焊接钢管(直缝) Q235B",
+        "category": "管材 > 金属管材 > 焊接钢管",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "",
+        "default": "系列1",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 3091-2025"
+      }
+    ],
+    "最小壁厚": [
+      {
+        "material_id": "MAT-STE-007",
+        "material_name": "焊接钢管(直缝) Q235B",
+        "category": "管材 > 金属管材 > 焊接钢管",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "3.2",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 3091-2025"
+      }
+    ],
+    "外径允许偏差": [
+      {
+        "material_id": "MAT-STE-007",
+        "material_name": "焊接钢管(直缝) Q235B",
+        "category": "管材 > 金属管材 > 焊接钢管",
+        "unit": "t",
+        "type": "text",
+        "param_unit": "",
+        "default": "±1%D",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 3091-2025"
+      }
+    ],
+    "壁厚允许偏差": [
+      {
+        "material_id": "MAT-STE-007",
+        "material_name": "焊接钢管(直缝) Q235B",
+        "category": "管材 > 金属管材 > 焊接钢管",
+        "unit": "t",
+        "type": "text",
+        "param_unit": "",
+        "default": "±10%t",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 3091-2025"
+      }
+    ],
+    "性能等级": [
+      {
+        "material_id": "MAT-STE-008",
+        "material_name": "高强螺栓 10.9级",
+        "category": "",
+        "unit": "套",
+        "type": "enum",
+        "param_unit": "",
+        "default": "10.9S",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 1231-2024"
+      }
+    ],
+    "螺栓规格": [
+      {
+        "material_id": "MAT-STE-008",
+        "material_name": "高强螺栓 10.9级",
+        "category": "",
+        "unit": "套",
+        "type": "enum",
+        "param_unit": "",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 1231-2024"
+      }
+    ],
+    "规定非比例延伸强度Rp0.2": [
+      {
+        "material_id": "MAT-STE-008",
+        "material_name": "高强螺栓 10.9级",
+        "category": "",
+        "unit": "套",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 1231-2024"
+      }
+    ],
+    "强度等级": [
+      {
+        "material_id": "MAT-CON-001",
+        "material_name": "预拌混凝土 C30",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "",
+        "default": "C30",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      },
+      {
+        "material_id": "MAT-CON-002",
+        "material_name": "预拌混凝土 C25",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      },
+      {
+        "material_id": "MAT-CON-003",
+        "material_name": "预拌混凝土 C35",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      },
+      {
+        "material_id": "MAT-CON-005",
+        "material_name": "预拌混凝土 C20",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      },
+      {
+        "material_id": "MAT-MOR-001",
+        "material_name": "干混砌筑砂浆 DM M10",
+        "category": "",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      },
+      {
+        "material_id": "MAT-MOR-002",
+        "material_name": "干混抹灰砂浆 DP M10",
+        "category": "",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      },
+      {
+        "material_id": "MAT-MOR-003",
+        "material_name": "干混地面砂浆 DS M20",
+        "category": "",
+        "unit": "t",
+        "type": "enum",
+        "param_unit": "",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      },
+      {
+        "material_id": "MAT-BRI-002",
+        "material_name": "烧结多孔砖 MU10",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌砖",
+        "unit": "千块",
+        "type": "enum",
+        "param_unit": "",
+        "default": "MU10",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 13544-2011"
+      },
+      {
+        "material_id": "MAT-BLO-002",
+        "material_name": "轻集料混凝土小型空心砌块",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 轻骨料混凝土",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "",
+        "default": "MU5.0",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 15229-2011"
+      }
+    ],
+    "分类": [
+      {
+        "material_id": "MAT-CON-001",
+        "material_name": "预拌混凝土 C30",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "",
+        "default": "A",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      }
+    ],
+    "特制品子类": [
+      {
+        "material_id": "MAT-CON-001",
+        "material_name": "预拌混凝土 C30",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      }
+    ],
+    "坍落度等级": [
+      {
+        "material_id": "MAT-CON-001",
+        "material_name": "预拌混凝土 C30",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "",
+        "default": "S3",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      }
+    ],
+    "坍落度控制目标值": [
+      {
+        "material_id": "MAT-CON-001",
+        "material_name": "预拌混凝土 C30",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "120",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      }
+    ],
+    "坍落度允许偏差": [
+      {
+        "material_id": "MAT-CON-001",
+        "material_name": "预拌混凝土 C30",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "range",
+        "param_unit": "mm",
+        "default": "±30",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      }
+    ],
+    "扩展度等级": [
+      {
+        "material_id": "MAT-CON-001",
+        "material_name": "预拌混凝土 C30",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      }
+    ],
+    "含气量": [
+      {
+        "material_id": "MAT-CON-001",
+        "material_name": "预拌混凝土 C30",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "%",
+        "default": "7",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      }
+    ],
+    "抗冻等级": [
+      {
+        "material_id": "MAT-CON-001",
+        "material_name": "预拌混凝土 C30",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      }
+    ],
+    "抗渗等级": [
+      {
+        "material_id": "MAT-CON-001",
+        "material_name": "预拌混凝土 C30",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      }
+    ],
+    "水溶性氯离子限量": [
+      {
+        "material_id": "MAT-CON-001",
+        "material_name": "预拌混凝土 C30",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 普通混凝土",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "%",
+        "default": "0.3",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 14902-2012"
+      }
+    ],
+    "稠度": [
+      {
+        "material_id": "MAT-MOR-001",
+        "material_name": "干混砌筑砂浆 DM M10",
+        "category": "",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      },
+      {
+        "material_id": "MAT-MOR-002",
+        "material_name": "干混抹灰砂浆 DP M10",
+        "category": "",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "90",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      },
+      {
+        "material_id": "MAT-MOR-003",
+        "material_name": "干混地面砂浆 DS M20",
+        "category": "",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "50",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      }
+    ],
+    "保水率": [
+      {
+        "material_id": "MAT-MOR-001",
+        "material_name": "干混砌筑砂浆 DM M10",
+        "category": "",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "%",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      },
+      {
+        "material_id": "MAT-MOR-002",
+        "material_name": "干混抹灰砂浆 DP M10",
+        "category": "",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "%",
+        "default": "92",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      },
+      {
+        "material_id": "MAT-MOR-003",
+        "material_name": "干混地面砂浆 DS M20",
+        "category": "",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "%",
+        "default": "88",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      }
+    ],
+    "28d抗压强度": [
+      {
+        "material_id": "MAT-MOR-001",
+        "material_name": "干混砌筑砂浆 DM M10",
+        "category": "",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      },
+      {
+        "material_id": "MAT-MOR-002",
+        "material_name": "干混抹灰砂浆 DP M10",
+        "category": "",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      },
+      {
+        "material_id": "MAT-MOR-003",
+        "material_name": "干混地面砂浆 DS M20",
+        "category": "",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      }
+    ],
+    "凝结时间": [
+      {
+        "material_id": "MAT-MOR-001",
+        "material_name": "干混砌筑砂浆 DM M10",
+        "category": "",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "h",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      },
+      {
+        "material_id": "MAT-MOR-002",
+        "material_name": "干混抹灰砂浆 DP M10",
+        "category": "",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "h",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      },
+      {
+        "material_id": "MAT-MOR-003",
+        "material_name": "干混地面砂浆 DS M20",
+        "category": "",
+        "unit": "t",
+        "type": "number",
+        "param_unit": "h",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      }
+    ],
+    "拉伸粘结强度": [
+      {
+        "material_id": "MAT-MOR-002",
+        "material_name": "干混抹灰砂浆 DP M10",
+        "category": "",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 25181-2019"
+      }
+    ],
+    "强度": [
+      {
+        "material_id": "MAT-BRI-001",
+        "material_name": "烧结普通砖 MU10",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌砖",
+        "unit": "千块",
+        "type": "",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 5101-2017"
+      },
+      {
+        "material_id": "MAT-BLO-001",
+        "material_name": "蒸压加气混凝土砌块 A5.0 B06",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌块",
+        "unit": "m³",
+        "type": "",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 11968-2020"
+      }
+    ],
+    "尺寸": [
+      {
+        "material_id": "MAT-BRI-001",
+        "material_name": "烧结普通砖 MU10",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌砖",
+        "unit": "千块",
+        "type": "",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 5101-2017"
+      },
+      {
+        "material_id": "MAT-TIL-001",
+        "material_name": "全瓷抛光砖 600×600mm",
+        "category": "",
+        "unit": "m²",
+        "type": "",
+        "param_unit": "mm",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 4100-2015"
+      },
+      {
+        "material_id": "MAT-TIL-003",
+        "material_name": "釉面内墙砖 300×600mm",
+        "category": "墙砖、地砖、地板、地毯类材料 > 陶瓷砖（板） > 瓷砖",
+        "unit": "m²",
+        "type": "",
+        "param_unit": "mm",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 4100-2015"
+      },
+      {
+        "material_id": "MAT-TIL-005",
+        "material_name": "耐酸砖(面层用) 230×113×65",
+        "category": "",
+        "unit": "m²",
+        "type": "",
+        "param_unit": "mm",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 4100-2015"
+      }
+    ],
+    "密度等级": [
+      {
+        "material_id": "MAT-BRI-002",
+        "material_name": "烧结多孔砖 MU10",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌砖",
+        "unit": "千块",
+        "type": "enum",
+        "param_unit": "kg/m³",
+        "default": "1000",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 13544-2011"
+      },
+      {
+        "material_id": "MAT-BLO-002",
+        "material_name": "轻集料混凝土小型空心砌块",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 轻骨料混凝土",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "kg/m³",
+        "default": "900",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 15229-2011"
+      }
+    ],
+    "孔洞率": [
+      {
+        "material_id": "MAT-BRI-002",
+        "material_name": "烧结多孔砖 MU10",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌砖",
+        "unit": "千块",
+        "type": "number",
+        "param_unit": "%",
+        "default": "28",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 13544-2011"
+      }
+    ],
+    "长度": [
+      {
+        "material_id": "MAT-BRI-002",
+        "material_name": "烧结多孔砖 MU10",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌砖",
+        "unit": "千块",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "290",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 13544-2011"
+      },
+      {
+        "material_id": "MAT-BLO-002",
+        "material_name": "轻集料混凝土小型空心砌块",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 轻骨料混凝土",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "390",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 15229-2011"
+      },
+      {
+        "material_id": "MAT-FLR-001",
+        "material_name": "同质透心塑胶地板 2mm",
+        "category": "墙砖、地砖、地板、地毯类材料 > 塑料、橡胶地板 > 塑料地板",
+        "unit": "m2",
+        "type": "number",
+        "param_unit": "m",
+        "default": "15",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11982.1-2015"
+      }
+    ],
+    "宽度": [
+      {
+        "material_id": "MAT-BRI-002",
+        "material_name": "烧结多孔砖 MU10",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌砖",
+        "unit": "千块",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "140",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 13544-2011"
+      },
+      {
+        "material_id": "MAT-BLO-002",
+        "material_name": "轻集料混凝土小型空心砌块",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 轻骨料混凝土",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "190",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 15229-2011"
+      },
+      {
+        "material_id": "MAT-WAP-007",
+        "material_name": "橡胶止水带 300×8mm",
+        "category": "消防器材 > 喷水灭火产品 > 软管卷盘、水龙带及接口",
+        "unit": "m",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "300",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 18173.2-2014"
+      },
+      {
+        "material_id": "MAT-FLR-001",
+        "material_name": "同质透心塑胶地板 2mm",
+        "category": "墙砖、地砖、地板、地毯类材料 > 塑料、橡胶地板 > 塑料地板",
+        "unit": "m2",
+        "type": "number",
+        "param_unit": "m",
+        "default": "2",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11982.1-2015"
+      }
+    ],
+    "高度": [
+      {
+        "material_id": "MAT-BRI-002",
+        "material_name": "烧结多孔砖 MU10",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌砖",
+        "unit": "千块",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "90",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 13544-2011"
+      },
+      {
+        "material_id": "MAT-BLO-002",
+        "material_name": "轻集料混凝土小型空心砌块",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 轻骨料混凝土",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "190",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 15229-2011"
+      }
+    ],
+    "品种": [
+      {
+        "material_id": "MAT-BRI-002",
+        "material_name": "烧结多孔砖 MU10",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌砖",
+        "unit": "千块",
+        "type": "enum",
+        "param_unit": "",
+        "default": "粘土",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 13544-2011"
+      }
+    ],
+    "抗压强度平均值": [
+      {
+        "material_id": "MAT-BRI-002",
+        "material_name": "烧结多孔砖 MU10",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌砖",
+        "unit": "千块",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 13544-2011"
+      }
+    ],
+    "强度标准值fk": [
+      {
+        "material_id": "MAT-BRI-002",
+        "material_name": "烧结多孔砖 MU10",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌砖",
+        "unit": "千块",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB 13544-2011"
+      }
+    ],
+    "密度": [
+      {
+        "material_id": "MAT-BLO-001",
+        "material_name": "蒸压加气混凝土砌块 A5.0 B06",
+        "category": "水泥、砖瓦灰砂石及混凝土制品 > 砌砖、砌块 > 砌块",
+        "unit": "m³",
+        "type": "",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 11968-2020"
+      },
+      {
+        "material_id": "MAT-INS-001",
+        "material_name": "绝热用挤塑聚苯乙烯泡沫塑料(XPS)",
+        "category": "",
+        "unit": "m³",
+        "type": "",
+        "param_unit": "kg/m³",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 10801.2-2025"
+      }
+    ],
+    "吸水率": [
+      {
+        "material_id": "MAT-BLO-002",
+        "material_name": "轻集料混凝土小型空心砌块",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 轻骨料混凝土",
+        "unit": "m³",
+        "type": "number",
+        "param_unit": "%",
+        "default": "18",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 15229-2011"
+      },
+      {
+        "material_id": "MAT-TIL-001",
+        "material_name": "全瓷抛光砖 600×600mm",
+        "category": "",
+        "unit": "m²",
+        "type": "",
+        "param_unit": "",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 4100-2015"
+      }
+    ],
+    "抗冻标号": [
+      {
+        "material_id": "MAT-BLO-002",
+        "material_name": "轻集料混凝土小型空心砌块",
+        "category": "砼、砂浆及其他配合比材料 > 预拌混凝土 > 轻骨料混凝土",
+        "unit": "m³",
+        "type": "enum",
+        "param_unit": "",
+        "default": "D25",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 15229-2011"
+      }
+    ],
+    "产品类型": [
+      {
+        "material_id": "MAT-WAP-003",
+        "material_name": "聚氨酯防水涂料（双组分）",
+        "category": "涂料及防腐、防水材料 > 防水材料 > 防水涂料",
+        "unit": "kg",
+        "type": "enum",
+        "param_unit": "",
+        "default": "II",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 19250-2013"
+      }
+    ],
+    "组分类别": [
+      {
+        "material_id": "MAT-WAP-003",
+        "material_name": "聚氨酯防水涂料（双组分）",
+        "category": "涂料及防腐、防水材料 > 防水材料 > 防水涂料",
+        "unit": "kg",
+        "type": "enum",
+        "param_unit": "",
+        "default": "双组分",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 19250-2013"
+      }
+    ],
+    "拉伸强度": [
+      {
+        "material_id": "MAT-WAP-003",
+        "material_name": "聚氨酯防水涂料（双组分）",
+        "category": "涂料及防腐、防水材料 > 防水材料 > 防水涂料",
+        "unit": "kg",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 19250-2013"
+      },
+      {
+        "material_id": "MAT-WAP-007",
+        "material_name": "橡胶止水带 300×8mm",
+        "category": "消防器材 > 喷水灭火产品 > 软管卷盘、水龙带及接口",
+        "unit": "m",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 18173.2-2014"
+      }
+    ],
+    "断裂伸长率": [
+      {
+        "material_id": "MAT-WAP-003",
+        "material_name": "聚氨酯防水涂料（双组分）",
+        "category": "涂料及防腐、防水材料 > 防水材料 > 防水涂料",
+        "unit": "kg",
+        "type": "number",
+        "param_unit": "%",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 19250-2013"
+      }
+    ],
+    "撕裂强度": [
+      {
+        "material_id": "MAT-WAP-003",
+        "material_name": "聚氨酯防水涂料（双组分）",
+        "category": "涂料及防腐、防水材料 > 防水材料 > 防水涂料",
+        "unit": "kg",
+        "type": "number",
+        "param_unit": "N/mm",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 19250-2013"
+      },
+      {
+        "material_id": "MAT-WAP-007",
+        "material_name": "橡胶止水带 300×8mm",
+        "category": "消防器材 > 喷水灭火产品 > 软管卷盘、水龙带及接口",
+        "unit": "m",
+        "type": "number",
+        "param_unit": "kN/m",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 18173.2-2014"
+      }
+    ],
+    "固体含量": [
+      {
+        "material_id": "MAT-WAP-003",
+        "material_name": "聚氨酯防水涂料（双组分）",
+        "category": "涂料及防腐、防水材料 > 防水材料 > 防水涂料",
+        "unit": "kg",
+        "type": "number",
+        "param_unit": "%",
+        "default": "92",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 19250-2013"
+      }
+    ],
+    "粘结强度": [
+      {
+        "material_id": "MAT-WAP-003",
+        "material_name": "聚氨酯防水涂料（双组分）",
+        "category": "涂料及防腐、防水材料 > 防水材料 > 防水涂料",
+        "unit": "kg",
+        "type": "number",
+        "param_unit": "MPa",
+        "default": "1.0",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 19250-2013"
+      }
+    ],
+    "燃烧性能": [
+      {
+        "material_id": "MAT-WAP-003",
+        "material_name": "聚氨酯防水涂料（双组分）",
+        "category": "涂料及防腐、防水材料 > 防水材料 > 防水涂料",
+        "unit": "kg",
+        "type": "enum",
+        "param_unit": "",
+        "default": "B2-E",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 19250-2013"
+      }
+    ],
+    "环保等级": [
+      {
+        "material_id": "MAT-WAP-003",
+        "material_name": "聚氨酯防水涂料（双组分）",
+        "category": "涂料及防腐、防水材料 > 防水材料 > 防水涂料",
+        "unit": "kg",
+        "type": "enum",
+        "param_unit": "",
+        "default": "A类",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 19250-2013"
+      }
+    ],
+    "止水带类型": [
+      {
+        "material_id": "MAT-WAP-007",
+        "material_name": "橡胶止水带 300×8mm",
+        "category": "消防器材 > 喷水灭火产品 > 软管卷盘、水龙带及接口",
+        "unit": "m",
+        "type": "enum",
+        "param_unit": "",
+        "default": "JX",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 18173.2-2014"
+      }
+    ],
+    "厚度": [
+      {
+        "material_id": "MAT-WAP-007",
+        "material_name": "橡胶止水带 300×8mm",
+        "category": "消防器材 > 喷水灭火产品 > 软管卷盘、水龙带及接口",
+        "unit": "m",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "8",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 18173.2-2014"
+      },
+      {
+        "material_id": "MAT-INS-001",
+        "material_name": "绝热用挤塑聚苯乙烯泡沫塑料(XPS)",
+        "category": "",
+        "unit": "m³",
+        "type": "",
+        "param_unit": "mm",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 10801.2-2025"
+      },
+      {
+        "material_id": "MAT-INS-002",
+        "material_name": "绝热用模塑聚苯乙烯泡沫塑料(EPS)",
+        "category": "",
+        "unit": "m³",
+        "type": "",
+        "param_unit": "mm",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 10801.1-2025"
+      },
+      {
+        "material_id": "MAT-INS-004",
+        "material_name": "石墨聚苯板 SEPS B1级",
+        "category": "绝热（保温）、耐火材料 > 保温绝热材料 > 模塑聚苯乙烯泡沫塑料（EPS）制品",
+        "unit": "m³",
+        "type": "",
+        "param_unit": "mm",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 25975-2018"
+      }
+    ],
+    "拉断伸长率": [
+      {
+        "material_id": "MAT-WAP-007",
+        "material_name": "橡胶止水带 300×8mm",
+        "category": "消防器材 > 喷水灭火产品 > 软管卷盘、水龙带及接口",
+        "unit": "m",
+        "type": "number",
+        "param_unit": "%",
+        "default": "",
+        "required": true,
+        "options": "",
+        "standard_code": "GB 18173.2-2014"
+      }
+    ],
+    "导热系数": [
+      {
+        "material_id": "MAT-INS-001",
+        "material_name": "绝热用挤塑聚苯乙烯泡沫塑料(XPS)",
+        "category": "",
+        "unit": "m³",
+        "type": "",
+        "param_unit": "W/(m·K)",
+        "default": "",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 10801.2-2025"
+      }
+    ],
+    "结构类型": [
+      {
+        "material_id": "MAT-FLR-001",
+        "material_name": "同质透心塑胶地板 2mm",
+        "category": "墙砖、地砖、地板、地毯类材料 > 塑料、橡胶地板 > 塑料地板",
+        "unit": "m2",
+        "type": "enum",
+        "param_unit": "",
+        "default": "同质",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11982.1-2015"
+      }
+    ],
+    "使用等级": [
+      {
+        "material_id": "MAT-FLR-001",
+        "material_name": "同质透心塑胶地板 2mm",
+        "category": "墙砖、地砖、地板、地毯类材料 > 塑料、橡胶地板 > 塑料地板",
+        "unit": "m2",
+        "type": "enum",
+        "param_unit": "",
+        "default": "32",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11982.1-2015"
+      }
+    ],
+    "耐磨等级": [
+      {
+        "material_id": "MAT-FLR-001",
+        "material_name": "同质透心塑胶地板 2mm",
+        "category": "墙砖、地砖、地板、地毯类材料 > 塑料、橡胶地板 > 塑料地板",
+        "unit": "m2",
+        "type": "enum",
+        "param_unit": "",
+        "default": "T级",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11982.1-2015"
+      }
+    ],
+    "总厚度": [
+      {
+        "material_id": "MAT-FLR-001",
+        "material_name": "同质透心塑胶地板 2mm",
+        "category": "墙砖、地砖、地板、地毯类材料 > 塑料、橡胶地板 > 塑料地板",
+        "unit": "m2",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "2.0",
+        "required": true,
+        "options": "",
+        "standard_code": "GB/T 11982.1-2015"
+      }
+    ],
+    "耐磨层厚度": [
+      {
+        "material_id": "MAT-FLR-001",
+        "material_name": "同质透心塑胶地板 2mm",
+        "category": "墙砖、地砖、地板、地毯类材料 > 塑料、橡胶地板 > 塑料地板",
+        "unit": "m2",
+        "type": "number",
+        "param_unit": "mm",
+        "default": "0.15",
+        "required": false,
+        "options": "",
+        "standard_code": "GB/T 11982.1-2015"
+      }
+    ]
+  }
+}

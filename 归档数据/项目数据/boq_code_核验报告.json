@@ -1,0 +1,14 @@
+{
+  "chapter_mode_verification": {
+    "total": 8974,
+    "confirmed": 0,
+    "corrected": 0,
+    "cleared": 8974
+  },
+  "q2_exact_name_issues": 21151,
+  "current_state": {
+    "total": 72430,
+    "has_boq_code": 63420,
+    "empty": 9010
+  }
+}

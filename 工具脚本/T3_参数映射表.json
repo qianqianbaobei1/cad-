@@ -1,0 +1,591 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-05-15",
+  "description": "T3标准物料库参数映射表 — 将材料规格参数名映射到统一的字段名、类型、单位",
+  "param_count": 79,
+  "params": {
+    "牌号": {
+      "field": "steel_grade",
+      "type": "enum",
+      "unit": "",
+      "category": "钢材",
+      "extract_regex": "HRB\\\\d+E?|HPB\\\\d+|Q\\\\d{3}[A-Z]?",
+      "description": "钢筋/钢材牌号"
+    },
+    "公称直径": {
+      "field": "dn_size",
+      "type": "enum",
+      "unit": "mm",
+      "category": "管材/钢材",
+      "extract_regex": "DN\\\\d+(?:\\\\.\\\\d+)?",
+      "description": "管道公称直径或钢筋公称直径"
+    },
+    "外径": {
+      "field": "outer_diameter",
+      "type": "enum",
+      "unit": "mm",
+      "category": "管材",
+      "extract_regex": "[Φφ]\\\\d+(?:\\\\.\\\\d+)?",
+      "description": "管道/圆形材料外径"
+    },
+    "壁厚": {
+      "field": "thickness",
+      "type": "enum",
+      "unit": "mm",
+      "category": "管材",
+      "extract_regex": "\\\\d+(?:\\\\.\\\\d+)?\\\\s*mm\\\\s*厚|壁厚\\\\s*\\\\d+(?:\\\\.\\\\d+)?",
+      "description": "管材壁厚"
+    },
+    "材质": {
+      "field": "material_type",
+      "type": "enum",
+      "unit": "",
+      "category": "通用",
+      "description": "材料材质"
+    },
+    "强度等级": {
+      "field": "strength_grade",
+      "type": "enum",
+      "unit": "",
+      "category": "混凝土/砂浆",
+      "extract_regex": "C\\\\d{2,3}(?!\\\\d)|M\\\\d{1,2}\\\\.?\\\\d?",
+      "description": "混凝土/砂浆强度等级"
+    },
+    "抗渗等级": {
+      "field": "impermeability_grade",
+      "type": "enum",
+      "unit": "",
+      "category": "混凝土",
+      "extract_regex": "P\\\\d{1,2}(?!\\\\d)",
+      "description": "混凝土抗渗等级"
+    },
+    "抗冻等级": {
+      "field": "frost_resistance_grade",
+      "type": "enum",
+      "unit": "",
+      "category": "混凝土",
+      "extract_regex": "F\\\\d{2,3}(?!\\\\d)",
+      "description": "混凝土抗冻等级"
+    },
+    "制造工艺": {
+      "field": "manufacture_process",
+      "type": "enum",
+      "unit": "",
+      "category": "钢材/管材",
+      "description": "制造工艺"
+    },
+    "连接方式": {
+      "field": "connection_type",
+      "type": "enum",
+      "unit": "",
+      "category": "管材",
+      "description": "管材连接方式"
+    },
+    "压力等级": {
+      "field": "pressure_rating",
+      "type": "text",
+      "unit": "MPa",
+      "category": "管材/阀门",
+      "description": "压力等级"
+    },
+    "镀锌方式": {
+      "field": "galvanize_type",
+      "type": "enum",
+      "unit": "",
+      "category": "钢材",
+      "description": "镀锌方式"
+    },
+    "锌层重量": {
+      "field": "zinc_coating_weight",
+      "type": "range",
+      "unit": "g/m²",
+      "category": "钢材",
+      "description": "镀锌层重量"
+    },
+    "理论单位重量": {
+      "field": "theoretical_weight",
+      "type": "number",
+      "unit": "kg/m",
+      "category": "钢材",
+      "description": "每米理论重量"
+    },
+    "重量允许偏差": {
+      "field": "weight_tolerance",
+      "type": "range",
+      "unit": "%",
+      "category": "钢材",
+      "description": "重量允许偏差"
+    },
+    "下屈服强度ReL": {
+      "field": "yield_strength",
+      "type": "number",
+      "unit": "MPa",
+      "category": "钢材",
+      "description": "下屈服强度"
+    },
+    "抗拉强度Rm": {
+      "field": "tensile_strength",
+      "type": "number",
+      "unit": "MPa",
+      "category": "钢材",
+      "description": "抗拉强度"
+    },
+    "断后伸长率A": {
+      "field": "elongation",
+      "type": "number",
+      "unit": "%",
+      "category": "钢材",
+      "description": "断后伸长率"
+    },
+    "最大力总延伸率Agt": {
+      "field": "total_elongation",
+      "type": "number",
+      "unit": "%",
+      "category": "钢材",
+      "description": "最大力总延伸率"
+    },
+    "强屈比": {
+      "field": "strength_ratio",
+      "type": "number",
+      "unit": "",
+      "category": "钢材",
+      "description": "抗拉强度与屈服强度之比"
+    },
+    "碳含量C": {
+      "field": "carbon_content",
+      "type": "number",
+      "unit": "%",
+      "category": "钢材",
+      "description": "碳含量"
+    },
+    "碳当量Ceq": {
+      "field": "carbon_equivalent",
+      "type": "number",
+      "unit": "%",
+      "category": "钢材",
+      "description": "碳当量"
+    },
+    "弯曲压头直径": {
+      "field": "bend_mandrel_diameter",
+      "type": "text",
+      "unit": "",
+      "category": "钢材",
+      "description": "弯曲压头直径"
+    },
+    "反向弯曲": {
+      "field": "reverse_bending",
+      "type": "boolean",
+      "unit": "",
+      "category": "钢材",
+      "description": "是否需反向弯曲"
+    },
+    "表面标志": {
+      "field": "surface_marking",
+      "type": "text",
+      "unit": "",
+      "category": "钢材",
+      "description": "表面标志符号"
+    },
+    "密度": {
+      "field": "density",
+      "type": "number",
+      "unit": "kg/m³",
+      "category": "通用",
+      "description": "材料密度/容重"
+    },
+    "防火等级": {
+      "field": "fire_rating",
+      "type": "enum",
+      "unit": "",
+      "category": "通用",
+      "extract_regex": "[AB]\\\\s*[12]级",
+      "description": "防火/燃烧性能等级"
+    },
+    "性能等级": {
+      "field": "performance_grade",
+      "type": "enum",
+      "unit": "",
+      "category": "紧固件",
+      "extract_regex": "\\\\d+(?:\\\\.\\\\d+)?级",
+      "description": "性能等级（如螺栓10.9级）"
+    },
+    "配合比": {
+      "field": "mix_ratio",
+      "type": "text",
+      "unit": "",
+      "category": "混凝土/砂浆",
+      "extract_regex": "\\\\d+:\\\\d+(?:\\\\.\\\\d+)?(?::\\\\d+(?:\\\\.\\\\d+)?)?",
+      "description": "配合比"
+    },
+    "尺寸": {
+      "field": "dimensions",
+      "type": "text",
+      "unit": "mm",
+      "category": "通用",
+      "extract_regex": "\\\\d+(?:\\\\.\\\\d+)?\\\\s*[×xX]\\\\s*\\\\d+(?:\\\\.\\\\d+)?(?:\\\\s*[×xX]\\\\s*\\\\d+(?:\\\\.\\\\d+)?)?\\\\s*mm",
+      "description": "长×宽×高/厚尺寸"
+    },
+    "厚度": {
+      "field": "thickness_delta",
+      "type": "number",
+      "unit": "mm",
+      "category": "板材",
+      "extract_regex": "[δΔ]\\\\s*\\\\d+(?:\\\\.\\\\d+)?",
+      "description": "板材壁厚/板厚"
+    },
+    "截面型号": {
+      "field": "section_type",
+      "type": "enum",
+      "unit": "",
+      "category": "钢材",
+      "description": "型钢截面型号"
+    },
+    "表面处理": {
+      "field": "surface_treatment",
+      "type": "enum",
+      "unit": "",
+      "category": "通用",
+      "description": "表面处理方式"
+    },
+    "颜色": {
+      "field": "color",
+      "type": "text",
+      "unit": "",
+      "category": "装饰材料",
+      "description": "材料颜色"
+    },
+    "防水等级": {
+      "field": "waterproof_grade",
+      "type": "enum",
+      "unit": "",
+      "category": "防水材料",
+      "description": "防水等级"
+    },
+    "保温材料密度": {
+      "field": "insulation_density",
+      "type": "number",
+      "unit": "kg/m³",
+      "category": "保温材料",
+      "description": "保温材料密度要求"
+    },
+    "导热系数": {
+      "field": "thermal_conductivity",
+      "type": "number",
+      "unit": "W/(m·K)",
+      "category": "保温材料",
+      "description": "导热系数"
+    },
+    "耐火极限": {
+      "field": "fire_resistance_limit",
+      "type": "number",
+      "unit": "h",
+      "category": "防火材料",
+      "description": "耐火极限(小时)"
+    },
+    "额定电压": {
+      "field": "rated_voltage",
+      "type": "text",
+      "unit": "V/kV",
+      "category": "电气",
+      "description": "额定电压"
+    },
+    "芯数": {
+      "field": "core_count",
+      "type": "number",
+      "unit": "芯",
+      "category": "电缆",
+      "description": "电缆芯数"
+    },
+    "截面面积": {
+      "field": "cross_section_area",
+      "type": "number",
+      "unit": "mm²",
+      "category": "电缆",
+      "description": "电缆/导线截面面积"
+    },
+    "绝缘类型": {
+      "field": "insulation_type",
+      "type": "enum",
+      "unit": "",
+      "category": "电气",
+      "description": "绝缘材料类型"
+    },
+    "护套材料": {
+      "field": "sheath_material",
+      "type": "enum",
+      "unit": "",
+      "category": "电缆",
+      "description": "电缆护套材料"
+    },
+    "铠装类型": {
+      "field": "armor_type",
+      "type": "enum",
+      "unit": "",
+      "category": "电缆",
+      "description": "铠装类型"
+    },
+    "阻燃等级": {
+      "field": "flame_retardant_grade",
+      "type": "enum",
+      "unit": "",
+      "category": "电气/装饰",
+      "description": "阻燃等级"
+    },
+    "阀门类型": {
+      "field": "valve_type",
+      "type": "enum",
+      "unit": "",
+      "category": "给排水/暖通",
+      "description": "阀门类型（闸阀/截止阀/球阀等）"
+    },
+    "连接口径": {
+      "field": "connection_size",
+      "type": "enum",
+      "unit": "mm",
+      "category": "给排水/暖通",
+      "extract_regex": "DN\\\\d+(?:\\\\.\\\\d+)?",
+      "description": "阀门/管件连接口径"
+    },
+    "公称压力": {
+      "field": "nominal_pressure",
+      "type": "enum",
+      "unit": "MPa",
+      "category": "给排水/暖通",
+      "description": "公称压力等级（PN10/PN16等）"
+    },
+    "适用介质": {
+      "field": "applicable_medium",
+      "type": "text",
+      "unit": "",
+      "category": "给排水/暖通",
+      "description": "适用介质（水/蒸汽/油等）"
+    },
+    "涂料类型": {
+      "field": "coating_type",
+      "type": "enum",
+      "unit": "",
+      "category": "涂料",
+      "description": "涂料类型"
+    },
+    "涂布率": {
+      "field": "coverage_rate",
+      "type": "number",
+      "unit": "m²/L",
+      "category": "涂料",
+      "description": "涂料理论涂布率"
+    },
+    "干膜厚度": {
+      "field": "dry_film_thickness",
+      "type": "number",
+      "unit": "μm",
+      "category": "涂料",
+      "description": "干膜厚度"
+    },
+    "粘结强度": {
+      "field": "bond_strength",
+      "type": "number",
+      "unit": "MPa",
+      "category": "防水/装饰",
+      "description": "粘结强度"
+    },
+    "坍落度": {
+      "field": "slump",
+      "type": "range",
+      "unit": "mm",
+      "category": "混凝土",
+      "description": "混凝土坍落度"
+    },
+    "骨料最大粒径": {
+      "field": "max_aggregate_size",
+      "type": "number",
+      "unit": "mm",
+      "category": "混凝土",
+      "description": "骨料最大粒径"
+    },
+    "砌块强度等级": {
+      "field": "block_strength_grade",
+      "type": "enum",
+      "unit": "",
+      "category": "砌体",
+      "description": "砌块强度等级（MUxx）"
+    },
+    "砖规格": {
+      "field": "brick_size",
+      "type": "text",
+      "unit": "mm",
+      "category": "砌体",
+      "description": "砖块规格尺寸"
+    },
+    "石材类型": {
+      "field": "stone_type",
+      "type": "enum",
+      "unit": "",
+      "category": "石材",
+      "description": "石材品种"
+    },
+    "石材表面加工": {
+      "field": "stone_surface_finish",
+      "type": "enum",
+      "unit": "",
+      "category": "石材",
+      "description": "石材表面加工方式"
+    },
+    "玻璃类型": {
+      "field": "glass_type",
+      "type": "enum",
+      "unit": "",
+      "category": "玻璃",
+      "description": "玻璃类型"
+    },
+    "玻璃厚度": {
+      "field": "glass_thickness",
+      "type": "number",
+      "unit": "mm",
+      "category": "玻璃",
+      "description": "玻璃厚度"
+    },
+    "中空层厚度": {
+      "field": "air_gap_thickness",
+      "type": "number",
+      "unit": "mm",
+      "category": "玻璃/门窗",
+      "description": "中空玻璃空气层厚度"
+    },
+    "Low-E": {
+      "field": "low_e_coating",
+      "type": "boolean",
+      "unit": "",
+      "category": "玻璃",
+      "description": "是否Low-E镀膜"
+    },
+    "门窗开启方式": {
+      "field": "window_opening_type",
+      "type": "enum",
+      "unit": "",
+      "category": "门窗",
+      "description": "门窗开启方式（平开/推拉/上悬等）"
+    },
+    "型材系列": {
+      "field": "profile_series",
+      "type": "text",
+      "unit": "",
+      "category": "门窗",
+      "description": "铝合金/塑钢型材系列"
+    },
+    "五金配件等级": {
+      "field": "hardware_grade",
+      "type": "enum",
+      "unit": "",
+      "category": "门窗",
+      "description": "五金配件等级"
+    },
+    "密封胶类型": {
+      "field": "sealant_type",
+      "type": "enum",
+      "unit": "",
+      "category": "密封材料",
+      "description": "密封胶类型"
+    },
+    "防水卷材类型": {
+      "field": "waterproof_membrane_type",
+      "type": "enum",
+      "unit": "",
+      "category": "防水材料",
+      "description": "防水卷材类型（SBS/APP/PVC等）"
+    },
+    "胎基类型": {
+      "field": "reinforcement_type",
+      "type": "enum",
+      "unit": "",
+      "category": "防水材料",
+      "description": "防水卷材胎基类型"
+    },
+    "厚度规格": {
+      "field": "membrane_thickness",
+      "type": "number",
+      "unit": "mm",
+      "category": "防水材料",
+      "description": "防水卷材厚度"
+    },
+    "保温板类型": {
+      "field": "insulation_board_type",
+      "type": "enum",
+      "unit": "",
+      "category": "保温材料",
+      "description": "保温板类型（XPS/EPS/岩棉等）"
+    },
+    "压缩强度": {
+      "field": "compressive_strength",
+      "type": "number",
+      "unit": "kPa",
+      "category": "保温材料",
+      "description": "保温板压缩强度"
+    },
+    "吸水率": {
+      "field": "water_absorption",
+      "type": "number",
+      "unit": "%",
+      "category": "通用",
+      "description": "材料吸水率"
+    },
+    "干密度": {
+      "field": "dry_density",
+      "type": "number",
+      "unit": "kg/m³",
+      "category": "保温/砌体",
+      "description": "材料干密度"
+    },
+    "氧指数": {
+      "field": "oxygen_index",
+      "type": "number",
+      "unit": "%",
+      "category": "保温/装饰",
+      "description": "氧指数（阻燃性能指标）"
+    },
+    "燃烧等级": {
+      "field": "combustion_grade",
+      "type": "enum",
+      "unit": "",
+      "category": "保温/装饰",
+      "description": "燃烧性能等级（A/B1/B2/B3）"
+    },
+    "软化系数": {
+      "field": "softening_coefficient",
+      "type": "number",
+      "unit": "",
+      "category": "砌体/装饰",
+      "description": "材料软化系数"
+    },
+    "环刚度": {
+      "field": "ring_stiffness",
+      "type": "enum",
+      "unit": "kN/m²",
+      "category": "管材",
+      "description": "塑料管环刚度（SN4/SN8等）"
+    },
+    "弯曲半径": {
+      "field": "bending_radius",
+      "type": "number",
+      "unit": "mm",
+      "category": "管材",
+      "description": "最小弯曲半径"
+    }
+  },
+  "param_categories": {
+    "钢材": ["牌号", "公称直径", "制造工艺", "表面处理", "理论单位重量", "下屈服强度ReL", "抗拉强度Rm", "断后伸长率A", "碳含量C", "碳当量Ceq", "弯曲压头直径", "反向弯曲", "截面型号", "镀锌方式", "锌层重量", "重量允许偏差"],
+    "混凝土": ["强度等级", "抗渗等级", "抗冻等级", "配合比", "坍落度", "骨料最大粒径"],
+    "管材": ["外径", "壁厚", "公称直径", "材质", "压力等级", "连接方式", "制造工艺", "环刚度", "弯曲半径"],
+    "电缆": ["额定电压", "芯数", "截面面积", "绝缘类型", "护套材料", "铠装类型"],
+    "给排水/暖通": ["阀门类型", "连接口径", "公称压力", "适用介质"],
+    "涂料": ["涂料类型", "涂布率", "干膜厚度", "颜色"],
+    "防水材料": ["防水卷材类型", "胎基类型", "厚度规格", "防水等级", "粘结强度"],
+    "保温材料": ["保温板类型", "保温材料密度", "导热系数", "压缩强度", "干密度", "氧指数", "燃烧等级"],
+    "砌体": ["砌块强度等级", "砖规格", "软化系数"],
+    "石材": ["石材类型", "石材表面加工", "厚度"],
+    "玻璃": ["玻璃类型", "玻璃厚度", "中空层厚度", "Low-E"],
+    "门窗": ["门窗开启方式", "型材系列", "五金配件等级", "防火等级"],
+    "紧固件": ["性能等级", "表面处理"],
+    "电气": ["额定电压", "绝缘类型", "阻燃等级"],
+    "密封材料": ["密封胶类型"]
+  }
+}

@@ -1,0 +1,718 @@
+﻿material_id,param_code,param_name,param_type,required_level,procurement_visible,boq_extractable,default_value,unit,standard_id,clause_id,notes
+MAT-STE-001,steel_grade,牌号,enum,required,1,1,HRB400E,,GB 1499.2-2024,GB1499.2-2024-4.1-表1,钢筋的核心标识参数
+MAT-STE-001,nominal_diameter,公称直径,enum,required,1,0,16,mm,GB 1499.2-2024,GB1499.2-2024-5.2-表2,13种标准直径可选
+MAT-STE-001,theoretical_weight,理论单位重量,number,derived,0,0,,kg/m,GB 1499.2-2024,GB1499.2-2024-5.2-表2,由直径和密度7.85g/cm³计算
+MAT-STE-001,weight_deviation,重量允许偏差,range,check,0,0,,%,GB 1499.2-2024,GB1499.2-2024-5.6-表4,按直径范围分3档
+MAT-STE-001,yield_strength,下屈服强度ReL,number,check,0,0,400,MPa,GB 1499.2-2024,GB1499.2-2024-6.3-表6,最小保证值
+MAT-STE-001,tensile_strength,抗拉强度Rm,number,check,0,0,540,MPa,GB 1499.2-2024,GB1499.2-2024-6.3-表6,最小保证值
+MAT-STE-001,elongation,断后伸长率A,number,check,0,0,16,%,GB 1499.2-2024,GB1499.2-2024-6.3-表6,非E牌号;E牌号无此参数
+MAT-STE-001,total_elongation,最大力总延伸率Agt,number,check,0,0,9.0,%,GB 1499.2-2024,GB1499.2-2024-6.3-表6,仅E牌号
+MAT-STE-001,strength_ratio,强屈比R°m/R°eL,number,check,0,0,1.25,,GB 1499.2-2024,GB1499.2-2024-6.3-表6,仅E牌号
+MAT-STE-001,yield_ratio,超强比R°eL/ReL,number,check,0,0,1.30,,GB 1499.2-2024,GB1499.2-2024-6.3-表6,仅E牌号
+MAT-STE-001,carbon_content,碳含量C,number,check,0,0,0.25,%,GB 1499.2-2024,GB1499.2-2024-6.2-表5,上限值
+MAT-STE-001,carbon_equivalent,碳当量Ceq,number,check,0,0,0.54,%,GB 1499.2-2024,GB1499.2-2024-6.2-表5,上限值
+MAT-STE-001,bending_mandrel,弯曲压头直径,text,check,0,0,4d,,GB 1499.2-2024,GB1499.2-2024-6.4-表7,按牌号和直径范围分档
+MAT-STE-001,reverse_bending,反向弯曲,boolean,check,0,0,Y,,GB 1499.2-2024,GB1499.2-2024-6.4.2-反向弯曲,仅E牌号需要
+MAT-STE-001,surface_mark,表面标志,text,check,0,0,4E,,GB 1499.2-2024,GB1499.2-2024-9.1-标志,轧制在钢筋表面
+MAT-STE-007,pipe_type,焊接方式,enum,required,1,0,HFW,,GB/T 3091-2025,GB3091-2025-5-分类,HFW/SAWL/SAWH
+MAT-STE-007,surface_type,表面状态,enum,required,1,1,不镀锌,,GB/T 3091-2025,GB3091-2025-5-分类,不镀锌/镀锌
+MAT-STE-007,dn,公称通径DN,enum,required,1,1,50,,GB/T 3091-2025,GB3091-2025-6-表1,DN15~DN200
+MAT-STE-007,outer_diameter,外径,number,required,1,1,60.3,mm,GB/T 3091-2025,GB3091-2025-6-表1,按DN和系列确定
+MAT-STE-007,od_series,外径系列,enum,optional,0,0,系列1,,GB/T 3091-2025,GB3091-2025-6-表1,系列1(通用)/系列2(沿用)/系列3(特殊)
+MAT-STE-007,wall_thickness,最小壁厚,number,required,1,1,3.2,mm,GB/T 3091-2025,GB3091-2025-6-表1,按DN确定
+MAT-STE-007,od_tolerance,外径允许偏差,text,check,0,0,±1%D,,GB/T 3091-2025,GB3091-2025-6-外径允许偏差,按外径范围分档
+MAT-STE-007,wt_tolerance,壁厚允许偏差,text,check,0,0,±10%t,,GB/T 3091-2025,GB3091-2025-6-壁厚允许偏差,t为公称壁厚
+MAT-STE-002,steel_grade,牌号,enum,required,1,1,HPB300,,GB 1499.1-2024,GB1499.1-2024-4-表1,
+MAT-STE-002,nominal_diameter,公称直径,enum,required,1,1,,mm,GB 1499.1-2024,GB1499.1-2024-5.1-表2,6~25mm
+MAT-STE-002,theoretical_weight,理论单位重量,number,derived,1,0,,kg/m,GB 1499.1-2024,GB1499.1-2024-5.2-表2,由公称直径推导
+MAT-STE-002,weight_deviation,重量允许偏差,enum,derived,0,0,,%,GB 1499.1-2024,GB1499.1-2024-5.4-表4,按直径分档
+MAT-STE-002,yield_strength,下屈服强度ReL,number,derived,0,0,300,MPa,GB 1499.1-2024,GB1499.1-2024-6.3-表6,≥300
+MAT-STE-002,tensile_strength,抗拉强度Rm,number,derived,0,0,420,MPa,GB 1499.1-2024,GB1499.1-2024-6.3-表6,≥420
+MAT-STE-002,elongation,断后伸长率A,number,derived,0,0,25,%,GB 1499.1-2024,GB1499.1-2024-6.3-表6,≥25
+MAT-STE-002,total_elongation,最大力总延伸率Agt,number,derived,0,0,10,%,GB 1499.1-2024,GB1499.1-2024-6.3-表6,≥10
+MAT-STE-002,carbon_content,碳含量C,number,derived,0,0,0.25,%,GB 1499.1-2024,GB1499.1-2024-6.1-表5,≤0.25%
+MAT-STE-002,bending_mandrel,弯曲压头直径,number,derived,0,0,1d,,GB 1499.1-2024,GB1499.1-2024-6.4-弯曲,180°弯曲D=d
+MAT-STE-003,steel_grade,牌号,enum,required,1,1,Q355B,,GB/T 11263-2024,GB11263-2024-5-牌号,Q235B/Q355B/Q355C/Q355D/Q390/Q420/Q460
+MAT-STE-003,section_type,截面型号,enum,required,1,1,,,GB/T 11263-2024,GB11263-2024-4-分类,HW/HM/HN/HT
+MAT-STE-003,section_height,截面高度H,number,required,1,0,,mm,GB/T 11263-2024,GB11263-2024-6-表1,
+MAT-STE-003,flange_width,翼缘宽度B,number,required,1,0,,mm,GB/T 11263-2024,GB11263-2024-6-表1,
+MAT-STE-003,web_thickness,腹板厚度t1,number,required,1,0,,mm,GB/T 11263-2024,GB11263-2024-6-表1,
+MAT-STE-003,flange_thickness,翼缘厚度t2,number,required,1,0,,mm,GB/T 11263-2024,GB11263-2024-6-表1,
+MAT-STE-003,yield_strength,下屈服强度,number,derived,0,0,,MPa,GB/T 11263-2024,GB11263-2024-7-力学性能,按厚度分档
+MAT-STE-008,performance_grade,性能等级,enum,required,1,1,10.9S,,GB/T 1231-2024,GB1231-2024-4-等级,8.8S/10.9S
+MAT-STE-008,bolt_size,螺栓规格,enum,required,1,1,,,GB/T 1231-2024,GB1231-2024-5-规格,M12~M36
+MAT-STE-008,tensile_strength,抗拉强度Rm,number,derived,0,0,,MPa,GB/T 1231-2024,GB1231-2024-6.2-力学性能,
+MAT-STE-008,proof_stress,规定非比例延伸强度Rp0.2,number,derived,0,0,,MPa,GB/T 1231-2024,GB1231-2024-6.2-力学性能,
+MAT-MOR-001,strength_grade,强度等级,enum,required,1,1,,,GB/T 25181-2019,GB25181-2019-4-分类,M5~M30
+MAT-MOR-001,consistency,稠度,number,required,1,0,,mm,GB/T 25181-2019,GB25181-2019-5-表3,70~90mm(砌筑)
+MAT-MOR-001,water_retention,保水率,number,required,0,0,,%,GB/T 25181-2019,GB25181-2019-5-表3,≥88%
+MAT-MOR-001,compressive_strength,28d抗压强度,number,required,1,0,,MPa,GB/T 25181-2019,GB25181-2019-5-表4,
+MAT-MOR-001,setting_time,凝结时间,number,required,0,0,,h,GB/T 25181-2019,GB25181-2019-5-表5,3~9h
+MAT-MOR-002,strength_grade,强度等级,enum,required,1,,,,GB/T 25181-2019,GB25181-2019-4-分类,
+MAT-MOR-002,consistency,稠度,number,required,1,,90,mm,GB/T 25181-2019,GB25181-2019-5-表3,
+MAT-MOR-002,water_retention,保水率,number,required,0,,92,%,GB/T 25181-2019,GB25181-2019-5-表3,
+MAT-MOR-002,compressive_strength,28d抗压强度,number,required,0,,,MPa,GB/T 25181-2019,GB25181-2019-5-表4,
+MAT-MOR-002,setting_time,凝结时间,number,required,0,,,h,GB/T 25181-2019,GB25181-2019-5-表5,
+MAT-MOR-002,tensile_bond,拉伸粘结强度,number,required,0,,,MPa,GB/T 25181-2019,GB25181-2019-5-表4,
+MAT-MOR-003,strength_grade,强度等级,enum,required,1,,,,GB/T 25181-2019,GB25181-2019-4-分类,
+MAT-MOR-003,consistency,稠度,number,required,1,,50,mm,GB/T 25181-2019,GB25181-2019-5-表3,
+MAT-MOR-003,water_retention,保水率,number,required,0,,88,%,GB/T 25181-2019,GB25181-2019-5-表3,
+MAT-MOR-003,compressive_strength,28d抗压强度,number,required,0,,,MPa,GB/T 25181-2019,GB25181-2019-5-表4,
+MAT-MOR-003,setting_time,凝结时间,number,required,0,,,h,GB/T 25181-2019,GB25181-2019-5-表5,
+MAT-BRI-002,strength_grade,强度等级,enum,required,1,,MU10,,GB 13544-2011,GB13544-2011-5.4,
+MAT-BRI-002,density_grade,密度等级,enum,required,1,,1000,kg/m³,GB 13544-2011,GB13544-2011-5.3,
+MAT-BRI-002,hole_rate,孔洞率,number,required,0,,28,%,GB 13544-2011,GB13544-2011-5.5,
+MAT-BRI-002,length,长度,number,required,1,,290,mm,GB 13544-2011,GB13544-2011-4.2,
+MAT-BRI-002,width,宽度,number,required,1,,140,mm,GB 13544-2011,GB13544-2011-4.2,
+MAT-BRI-002,height,高度,number,required,1,,90,mm,GB 13544-2011,GB13544-2011-4.2,
+MAT-BRI-002,product_type,品种,enum,required,1,,粘土,,GB 13544-2011,GB13544-2011-4.1,
+MAT-BRI-002,compressive_strength_avg,抗压强度平均值,number,derived,0,,,MPa,GB 13544-2011,GB13544-2011-表4,
+MAT-BRI-002,compressive_strength_std,强度标准值fk,number,derived,0,,,MPa,GB 13544-2011,GB13544-2011-表4,
+MAT-BLO-002,strength_grade,强度等级,enum,required,1,,MU5.0,,GB/T 15229-2011,GB15229-2011-5.3,
+MAT-BLO-002,density_grade,密度等级,enum,required,1,,900,kg/m³,GB/T 15229-2011,GB15229-2011-5.2,
+MAT-BLO-002,water_absorption,吸水率,number,required,0,,18,%,GB/T 15229-2011,GB15229-2011-5.4.1,
+MAT-BLO-002,length,长度,number,required,1,,390,mm,GB/T 15229-2011,GB15229-2011-4.1,
+MAT-BLO-002,width,宽度,number,required,1,,190,mm,GB/T 15229-2011,GB15229-2011-4.1,
+MAT-BLO-002,height,高度,number,required,1,,190,mm,GB/T 15229-2011,GB15229-2011-4.1,
+MAT-BLO-002,freeze_thaw_grade,抗冻标号,enum,required,0,,D25,,GB/T 15229-2011,GB15229-2011-5.5,
+MAT-WAP-003,product_type,产品类型,enum,required,1,,II,,GB/T 19250-2013,GB19250-2013-4.1,
+MAT-WAP-003,component_type,组分类别,enum,required,1,,双组分,,GB/T 19250-2013,GB19250-2013-4.2,
+MAT-WAP-003,tensile_strength,拉伸强度,number,derived,0,,,MPa,GB/T 19250-2013,GB19250-2013-表1,
+MAT-WAP-003,elongation,断裂伸长率,number,derived,0,,,%,GB/T 19250-2013,GB19250-2013-表1,
+MAT-WAP-003,tear_strength,撕裂强度,number,derived,0,,,N/mm,GB/T 19250-2013,GB19250-2013-表1,
+MAT-WAP-003,solid_content,固体含量,number,required,0,,92,%,GB/T 19250-2013,GB19250-2013-表1,
+MAT-WAP-003,bond_strength,粘结强度,number,required,0,,1.0,MPa,GB/T 19250-2013,GB19250-2013-表1,
+MAT-WAP-003,combustion_grade,燃烧性能,enum,required,0,,B2-E,,GB/T 19250-2013,GB19250-2013-表1,
+MAT-WAP-003,env_class,环保等级,enum,optional,1,,A类,,GB/T 19250-2013,GB19250-2013-5.3,
+MAT-VALV-002,dn,公称尺寸DN,enum,required,1,1,100,,GB/T 12238-2008,GB12238-2008-4.1,DN50~DN4000(法兰);DN50~DN1200(对夹)
+MAT-VALV-002,pn,公称压力PN,enum,required,1,1,PN10,,GB/T 12238-2008,GB12238-2008-4.1,PN2.5~PN25(法兰);PN2.5~PN16(对夹)
+MAT-VALV-002,connection_type,连接方式,enum,required,1,1,法兰,,GB/T 12238-2008,GB12238-2008-3,法兰/对夹/单法兰/U型法兰
+MAT-VALV-002,body_material,阀体材料,enum,required,1,1,HT200,,GB/T 12238-2008,GB12238-2008-5.2,HT200/球墨铸铁/碳钢/不锈钢
+MAT-VALV-002,seat_material,密封面材料,enum,required,1,1,铜合金,,GB/T 12238-2008,GB12238-2008-5.4,铜合金/不锈钢
+MAT-VALV-002,stem_material,阀杆材料,enum,required,1,0,不锈钢,,GB/T 12238-2008,GB12238-2008-5.5,不锈钢/铜合金
+MAT-VALV-002,operation_type,操作方式,enum,required,1,1,手动,,GB/T 12238-2008,GB12238-2008-4.9,手动/电动/液动/气动
+MAT-VALV-002,min_body_wall,阀体最小壁厚,number,derived,0,0,,mm,GB/T 12238-2008,GB12238-2008-4.9-表3,按DN和PN查表确定
+MAT-VALV-002,min_seat_dia,阀座流道最小直径,number,derived,0,0,,mm,GB/T 12238-2008,GB12238-2008-4.8-表2,按DN查表确定
+MAT-STE-007,steel_grade,钢的牌号,enum,required,1,1,Q235B,,GB/T 3091-2025,GB3091-2025-6.1-表6,Q195~Q355B 8个牌号
+MAT-STE-007,galv_coating,镀锌层重量,enum,optional,0,1,300,g/m²,GB/T 3091-2025,GB3091-2025-6.10.2,300/500
+MAT-STE-007,tensile_strength,抗拉强度Rm,number,derived,0,0,,MPa,GB/T 3091-2025,GB3091-2025-6.5-表6,由牌号推导
+MAT-STE-007,yield_strength,上屈服强度ReH,number,derived,0,0,,MPa,GB/T 3091-2025,GB3091-2025-6.5-表6,由牌号推导
+MAT-STE-007,elongation,断后伸长率A,number,derived,0,0,,%,GB/T 3091-2025,GB3091-2025-6.5-表6,由牌号推导
+MAT-SEA-001,type,类型,enum,required,1,1,SR,,GB/T 14683-2017,GB14683-2017-4,SR硅酮/MS改性硅酮
+MAT-SEA-001,displacement_class,位移能力级别,enum,required,1,1,20,级,GB/T 14683-2017,GB14683-2017-4-表1,20/25/35级
+MAT-SEA-001,sag,下垂度,number,derived,0,0,,mm,GB/T 14683-2017,GB14683-2017-5-表1,≤3mm(垂直)
+MAT-SEA-001,tensile_strength,拉伸强度,number,required,1,1,,MPa,GB/T 14683-2017,GB14683-2017-5-表1,由级别确定
+MAT-SEA-001,elongation,断裂伸长率,number,required,1,1,,%,GB/T 14683-2017,GB14683-2017-5-表1,由级别确定
+MAT-SEA-001,curing_time,表干时间,number,derived,0,0,,h,GB/T 14683-2017,GB14683-2017-5,≤3h
+MAT-WAP-001,type,类型,enum,required,1,1,SBS,,GB/T 18242-2025,GB18242-2025-4,SBS弹性体/APP塑性体
+MAT-WAP-001,substrate,胎基,enum,required,1,1,PY,,GB/T 18242-2025,GB18242-2025-4-表1,PY聚酯毡/G玻纤毡
+MAT-WAP-001,surface,表面材料,enum,required,1,1,PE膜,,GB/T 18242-2025,GB18242-2025-4-表2,PE膜/砂面/矿物粒料
+MAT-WAP-001,thickness,厚度,number,required,1,1,3,mm,GB/T 18242-2025,GB18242-2025-5-表3,3/4/5mm
+MAT-WAP-001,low_temp_flex,低温柔性,number,required,1,1,,℃,GB/T 18242-2025,GB18242-2025-5-表4,-20/-25℃ 无裂纹
+MAT-WAP-001,heat_resistance,耐热性,number,required,1,1,,℃,GB/T 18242-2025,GB18242-2025-5-表4,90/105℃ 2h无流淌
+MAT-WAP-001,tensile_force,拉力,number,derived,0,0,,N/50mm,GB/T 18242-2025,GB18242-2025-5-表4,由胎基确定
+MAT-WAP-001,elongation_max,最大延伸率,number,derived,0,0,,%,GB/T 18242-2025,GB18242-2025-5-表4,由胎基确定
+MAT-WAP-005,type,类型,enum,required,1,1,II型,,GB/T 23445-2025,GB23445-2025-4,I/II/III型
+MAT-WAP-005,mix_ratio,液粉比,text,optional,0,1,1:1.5,,GB/T 23445-2025,GB23445-2025-5,液料:粉料
+MAT-WAP-005,tensile_strength,拉伸强度,number,required,1,1,,MPa,GB/T 23445-2025,GB23445-2025-5-表1,≥1.2/1.8/2.0MPa
+MAT-WAP-005,elongation_break,断裂伸长率,number,required,1,1,,%,GB/T 23445-2025,GB23445-2025-5-表1,≥200/80/30%
+MAT-WAP-005,low_temp_flex,低温柔性,number,required,1,1,,℃,GB/T 23445-2025,GB23445-2025-5-表1,-10℃无裂纹
+MAT-WAP-005,waterproof_0.3,不透水性,boolean,required,1,0,true,,GB/T 23445-2025,GB23445-2025-5-表1,0.3MPa 30min不透水
+MAT-WAP-006,type,类型,enum,required,1,1,P,,GB/T 23457-2025,GB23457-2025-4,P/H/R/ER型
+MAT-WAP-006,thickness,厚度,number,required,1,1,1.2,mm,GB/T 23457-2025,GB23457-2025-5,0.7~2.0mm
+MAT-WAP-006,tensile_force,拉力,number,required,1,1,,N/50mm,GB/T 23457-2025,GB23457-2025-5-表1,≥400N/50mm
+MAT-WAP-006,elongation_max,最大延伸率,number,required,1,1,,%,GB/T 23457-2025,GB23457-2025-5-表1,≥400%
+MAT-WAP-006,tear_strength,撕裂强度,number,required,1,1,,N,GB/T 23457-2025,GB23457-2025-5-表1,≥50N
+MAT-WAP-006,anti_channeling,抗窜水性,number,required,1,1,,MPa,GB/T 23457-2025,GB23457-2025-5-表1,1.5MPa无窜水
+MAT-INS-003,density,密度,number,required,1,1,120,kg/m³,GB/T 25975-2018,GB25975-2018-5,80~200kg/m³
+MAT-INS-003,thermal_cond,导热系数,number,required,1,1,,W/(m·K),GB/T 25975-2018,GB25975-2018-5-表1,≤0.040
+MAT-INS-003,fire_class,燃烧性能,enum,required,1,1,A1,,GB/T 25975-2018,GB25975-2018-5-表1,A1/A2不燃
+MAT-INS-003,water_repellent,憎水率,number,required,1,1,,%,GB/T 25975-2018,GB25975-2018-5-表1,≥98%
+MAT-INS-003,tensile_strength_perp,垂直于板面抗拉强度,number,required,1,1,,kPa,GB/T 25975-2018,GB25975-2018-5-表1,TR7.5/10/15
+MAT-STO-002,thickness,厚度,number,required,1,1,20,mm,GB/T 18601-2024,GB18601-2024-5,10~50mm
+MAT-STO-002,surface_finish,表面处理,enum,required,1,1,镜面,,GB/T 18601-2024,GB18601-2024-4,镜面/火烧/荔枝面/机切
+MAT-STO-002,bending_strength,弯曲强度,number,required,1,1,,MPa,GB/T 18601-2024,GB18601-2024-5-表4,≥8.0MPa
+MAT-STO-002,water_absorption,吸水率,number,derived,0,0,,%,GB/T 18601-2024,GB18601-2024-5-表4,≤0.6%
+MAT-STO-002,density,体积密度,number,derived,0,0,,g/cm³,GB/T 18601-2024,GB18601-2024-5-表4,≥2.56
+MAT-EAR-002,size_range,粒径范围,enum,required,1,1,5~20,mm,GB/T 14685-2022,GB14685-2022-5,5~80mm连续级配
+MAT-EAR-002,class,类别,enum,required,1,1,II类,,GB/T 14685-2022,GB14685-2022-4,I/II/III类
+MAT-EAR-002,mud_content,含泥量,number,derived,0,0,,%,GB/T 14685-2022,GB14685-2022-6-表2,I≤0.5/II≤1.0/III≤1.5
+MAT-EAR-002,crushing_index,压碎指标,number,required,1,1,,%,GB/T 14685-2022,GB14685-2022-6-表3,I≤10/II≤20/III≤30
+MAT-EAR-002,needle_flake,针片状含量,number,derived,0,0,,%,GB/T 14685-2022,GB14685-2022-6-表2,I≤5/II≤10/III≤15
+MAT-DOO-001,type,类型,enum,required,1,1,外门,,GB/T 20909-2017,GB20909-2017-4,外门/窗;内门/窗;隔断门/窗
+MAT-DOO-001,air_permeability,气密性,number,required,1,1,,级,GB/T 20909-2017,GB20909-2017-5-表2,1~8级
+MAT-DOO-001,water_tightness,水密性,number,required,1,1,,Pa,GB/T 20909-2017,GB20909-2017-5-表3,1~6级(100~700Pa)
+MAT-DOO-001,wind_resistance,抗风压,number,required,1,1,,kPa,GB/T 20909-2017,GB20909-2017-5-表4,1~9级(1.0~5.0kPa)
+MAT-DOO-001,thermal_trans,传热系数K,number,derived,0,0,,W/(m²·K),GB/T 20909-2017,GB20909-2017-5-表5,1~10级
+MAT-DOO-005,type,类型,enum,required,1,1,实木,,GB/T 29498-2024,GB29498-2024-4,实木/实木复合/木塑
+MAT-DOO-005,style,开启方式,enum,required,1,0,平开,,GB/T 29498-2024,GB29498-2024-4,平开/推拉/折叠
+MAT-DOO-005,air_permeability,气密性,number,required,1,1,,级,GB/T 29498-2024,GB29498-2024-5,1~8级
+MAT-DOO-005,water_tightness,水密性,number,required,1,1,,Pa,GB/T 29498-2024,GB29498-2024-5,1~6级
+MAT-DOO-005,acoustic_insulation,隔声性能,number,optional,0,1,,dB,GB/T 29498-2024,GB29498-2024-5,Rw≥30dB
+MAT-HDW-001,type,五金类别,enum,required,1,1,执手,,GB/T 32223-2025,GB32223-2025-5,执手/合页/传动锁闭器/撑挡/滑轮
+MAT-HDW-001,load_capacity,承载力,number,required,1,1,,kg,GB/T 32223-2025,GB32223-2025-5-表2,按类别不同
+MAT-HDW-001,durability,耐久性,number,required,1,1,,次,GB/T 32223-2025,GB32223-2025-5-表1,≥2.5万~5万次
+MAT-HDW-001,corrosion_resist,耐腐蚀性,number,required,1,1,,级,GB/T 32223-2025,GB32223-2025-5,CASS 48h≥9级
+MAT-VALV-001,dn,公称尺寸DN,enum,required,1,1,100,,GB/T 12232-2025,GB12232-2025-4,DN15~DN1800
+MAT-VALV-001,pn,公称压力PN,enum,required,1,1,PN16,,GB/T 12232-2025,GB12232-2025-4,PN2.5~PN40
+MAT-VALV-001,body_material,阀体材料,enum,required,1,1,HT200,,GB/T 12232-2025,GB12232-2025-5,HT200/QT400-18/WCB
+MAT-VALV-001,connection,连接方式,enum,required,1,1,法兰,,GB/T 12232-2025,GB12232-2025-4,法兰连接
+MAT-VALV-003,dn,公称尺寸DN,enum,required,1,1,50,,GB/T 12235-2025,GB12235-2025-4,DN15~DN400
+MAT-VALV-003,pn,公称压力PN,enum,required,1,1,PN40,,GB/T 12235-2025,GB12235-2025-4,PN16~PN420
+MAT-VALV-003,body_material,阀体材料,enum,required,1,1,WCB,,GB/T 12235-2025,GB12235-2025-5,WCB/CF8/CF8M
+MAT-VALV-003,disc_seat_material,密封面材料,enum,required,1,1,13Cr,,GB/T 12235-2025,GB12235-2025-5,13Cr/STL/PTFE
+MAT-VALV-004,dn,公称尺寸DN,enum,required,1,1,100,,GB/T 12236-2025,GB12236-2025-4,DN50~DN600
+MAT-VALV-004,pn,公称压力PN,enum,required,1,1,PN40,,GB/T 12236-2025,GB12236-2025-4,PN16~PN250
+MAT-VALV-004,body_material,阀体材料,enum,required,1,1,WCB,,GB/T 12236-2025,GB12236-2025-5,WCB/CF8/CF8M
+MAT-VALV-004,type,止回结构,enum,required,1,0,旋启式,,GB/T 12236-2025,GB12236-2025-3,旋启式
+MAT-VALV-005,dn,公称尺寸DN,enum,required,1,1,50,,GB/T 12237-2021,GB12237-2021-4,DN15~DN600
+MAT-VALV-005,pn,公称压力PN,enum,required,1,1,PN40,,GB/T 12237-2021,GB12237-2021-4,PN16~PN250
+MAT-VALV-005,body_material,阀体材料,enum,required,1,1,WCB,,GB/T 12237-2021,GB12237-2021-5,WCB/CF8/CF8M
+MAT-VALV-005,ball_type,球体结构,enum,required,1,0,浮动球,,GB/T 12237-2021,GB12237-2021-3,浮动球/固定球
+MAT-VALV-005,seat_material,密封面材料,enum,required,1,1,PTFE,,GB/T 12237-2021,GB12237-2021-5,PTFE/RPTFE/PPL
+MAT-HDW-002,type,五金类别,enum,required,1,1,铰链,,GB/T 32223-2025,GB32223-2025-5,摩擦铰链/合页
+MAT-HDW-002,load_capacity,承载力,number,required,1,1,,kg,GB/T 32223-2025,GB32223-2025-5-表2,≤80kg(窗用)
+MAT-HDW-002,durability,耐久性,number,required,1,1,,次,GB/T 32223-2025,GB32223-2025-5-表1,≥2.5万次
+MAT-TIL-001,wa_group,吸水率分组,enum,required,1,0,BIa,,GB/T 4100-2015,第4条/表1,全瓷抛光砖; GB/T 4100第4条按吸水率分类
+MAT-TIL-001,breaking_strength,破坏强度,number,check,0,0,,N,GB/T 4100-2015,表7/附录C,全瓷抛光砖; 按ISO 10545-4(附录C)方法
+MAT-TIL-001,modulus_of_rupture,断裂模数,number,check,0,0,,MPa,GB/T 4100-2015,表7/附录C,全瓷抛光砖; 按ISO 10545-4(附录C)方法
+MAT-TIL-001,surface_quality,表面质量,enum,check,0,0,,,GB/T 4100-2015,第5.1.3条,全瓷抛光砖; 釉面/图案/色差要求
+MAT-TIL-001,dim_length_width,长度宽度允许偏差,string,check,0,0,,%,GB/T 4100-2015,第5.1.1条/表1-4,全瓷抛光砖; 按公称尺寸分档
+MAT-TIL-001,dim_thickness,厚度允许偏差,string,check,0,0,,%,GB/T 4100-2015,第5.1.1条/表5,全瓷抛光砖; 按公称厚度分档
+MAT-TIL-001,dim_flatness,表面平整度偏差,string,check,0,0,,mm,GB/T 4100-2015,第5.1.2条/表6,全瓷抛光砖; 中心弯曲度/边弯曲度/翘曲度
+MAT-TIL-001,crazing_resistance,抗釉裂性,enum,check,0,0,,,GB/T 4100-2015,第5.4条/附录E,全瓷抛光砖; 附录E蒸压试验; 釉面不应有裂纹
+MAT-TIL-001,thermal_shock,抗热震性,enum,check,0,0,,,GB/T 4100-2015,第5.5条/附录F,全瓷抛光砖; 附录F 10次冷热循环; 无裂纹
+MAT-TIL-001,surface_gloss,表面光泽度,number,check,0,0,,GU,GB/T 4100-2015,第5.2条,全瓷抛光砖; 抛光砖光泽度要求
+MAT-TIL-003,wa_group,吸水率分组,enum,required,1,0,BIII,,GB/T 4100-2015,第4条/表1,釉面内墙砖; GB/T 4100第4条按吸水率分类
+MAT-TIL-003,breaking_strength,破坏强度,number,check,0,0,,N,GB/T 4100-2015,表7/附录C,釉面内墙砖; 按ISO 10545-4(附录C)方法
+MAT-TIL-003,modulus_of_rupture,断裂模数,number,check,0,0,,MPa,GB/T 4100-2015,表7/附录C,釉面内墙砖; 按ISO 10545-4(附录C)方法
+MAT-TIL-003,surface_quality,表面质量,enum,check,0,0,,,GB/T 4100-2015,第5.1.3条,釉面内墙砖; 釉面/图案/色差要求
+MAT-TIL-003,dim_length_width,长度宽度允许偏差,string,check,0,0,,%,GB/T 4100-2015,第5.1.1条/表1-4,釉面内墙砖; 按公称尺寸分档
+MAT-TIL-003,dim_thickness,厚度允许偏差,string,check,0,0,,%,GB/T 4100-2015,第5.1.1条/表5,釉面内墙砖; 按公称厚度分档
+MAT-TIL-003,dim_flatness,表面平整度偏差,string,check,0,0,,mm,GB/T 4100-2015,第5.1.2条/表6,釉面内墙砖; 中心弯曲度/边弯曲度/翘曲度
+MAT-TIL-003,crazing_resistance,抗釉裂性,enum,check,0,0,,,GB/T 4100-2015,第5.4条/附录E,釉面内墙砖; 附录E蒸压试验; 釉面不应有裂纹
+MAT-TIL-003,thermal_shock,抗热震性,enum,check,0,0,,,GB/T 4100-2015,第5.5条/附录F,釉面内墙砖; 附录F 10次冷热循环; 无裂纹
+MAT-TIL-004,wa_group,吸水率分组,enum,required,1,0,BIIb,,GB/T 4100-2015,第4条/表1,墙面砖; GB/T 4100第4条按吸水率分类
+MAT-TIL-004,breaking_strength,破坏强度,number,check,0,0,,N,GB/T 4100-2015,表7/附录C,墙面砖; 按ISO 10545-4(附录C)方法
+MAT-TIL-004,modulus_of_rupture,断裂模数,number,check,0,0,,MPa,GB/T 4100-2015,表7/附录C,墙面砖; 按ISO 10545-4(附录C)方法
+MAT-TIL-004,surface_quality,表面质量,enum,check,0,0,,,GB/T 4100-2015,第5.1.3条,墙面砖; 釉面/图案/色差要求
+MAT-TIL-004,dim_length_width,长度宽度允许偏差,string,check,0,0,,%,GB/T 4100-2015,第5.1.1条/表1-4,墙面砖; 按公称尺寸分档
+MAT-TIL-004,dim_thickness,厚度允许偏差,string,check,0,0,,%,GB/T 4100-2015,第5.1.1条/表5,墙面砖; 按公称厚度分档
+MAT-TIL-004,dim_flatness,表面平整度偏差,string,check,0,0,,mm,GB/T 4100-2015,第5.1.2条/表6,墙面砖; 中心弯曲度/边弯曲度/翘曲度
+MAT-TIL-004,crazing_resistance,抗釉裂性,enum,check,0,0,,,GB/T 4100-2015,第5.4条/附录E,墙面砖; 附录E蒸压试验; 釉面不应有裂纹
+MAT-TIL-004,thermal_shock,抗热震性,enum,check,0,0,,,GB/T 4100-2015,第5.5条/附录F,墙面砖; 附录F 10次冷热循环; 无裂纹
+MAT-TIL-005,wa_group,吸水率分组,enum,required,1,0,BIa,,GB/T 4100-2015,第4条/表1,耐酸砖; GB/T 4100第4条按吸水率分类
+MAT-TIL-005,breaking_strength,破坏强度,number,check,0,0,,N,GB/T 4100-2015,表7/附录C,耐酸砖; 按ISO 10545-4(附录C)方法
+MAT-TIL-005,modulus_of_rupture,断裂模数,number,check,0,0,,MPa,GB/T 4100-2015,表7/附录C,耐酸砖; 按ISO 10545-4(附录C)方法
+MAT-TIL-005,surface_quality,表面质量,enum,check,0,0,,,GB/T 4100-2015,第5.1.3条,耐酸砖; 釉面/图案/色差要求
+MAT-TIL-005,dim_length_width,长度宽度允许偏差,string,check,0,0,,%,GB/T 4100-2015,第5.1.1条/表1-4,耐酸砖; 按公称尺寸分档
+MAT-TIL-005,dim_thickness,厚度允许偏差,string,check,0,0,,%,GB/T 4100-2015,第5.1.1条/表5,耐酸砖; 按公称厚度分档
+MAT-TIL-005,dim_flatness,表面平整度偏差,string,check,0,0,,mm,GB/T 4100-2015,第5.1.2条/表6,耐酸砖; 中心弯曲度/边弯曲度/翘曲度
+MAT-TIL-005,crazing_resistance,抗釉裂性,enum,check,0,0,,,GB/T 4100-2015,第5.4条/附录E,耐酸砖; 附录E蒸压试验; 釉面不应有裂纹
+MAT-TIL-005,thermal_shock,抗热震性,enum,check,0,0,,,GB/T 4100-2015,第5.5条/附录F,耐酸砖; 附录F 10次冷热循环; 无裂纹
+MAT-TIL-005,acid_resistance,耐酸性,enum,check,0,0,,,GB/T 4100-2015,附录H,耐酸砖; 附录H方法; A/B/C级
+MAT-TIL-006,wa_group,吸水率分组,enum,required,1,0,BIb,,GB/T 4100-2015,第4条/表1,防滑地砖; GB/T 4100第4条按吸水率分类
+MAT-TIL-006,breaking_strength,破坏强度,number,check,0,0,,N,GB/T 4100-2015,表7/附录C,防滑地砖; 按ISO 10545-4(附录C)方法
+MAT-TIL-006,modulus_of_rupture,断裂模数,number,check,0,0,,MPa,GB/T 4100-2015,表7/附录C,防滑地砖; 按ISO 10545-4(附录C)方法
+MAT-TIL-006,surface_quality,表面质量,enum,check,0,0,,,GB/T 4100-2015,第5.1.3条,防滑地砖; 釉面/图案/色差要求
+MAT-TIL-006,dim_length_width,长度宽度允许偏差,string,check,0,0,,%,GB/T 4100-2015,第5.1.1条/表1-4,防滑地砖; 按公称尺寸分档
+MAT-TIL-006,dim_thickness,厚度允许偏差,string,check,0,0,,%,GB/T 4100-2015,第5.1.1条/表5,防滑地砖; 按公称厚度分档
+MAT-TIL-006,dim_flatness,表面平整度偏差,string,check,0,0,,mm,GB/T 4100-2015,第5.1.2条/表6,防滑地砖; 中心弯曲度/边弯曲度/翘曲度
+MAT-TIL-006,crazing_resistance,抗釉裂性,enum,check,0,0,,,GB/T 4100-2015,第5.4条/附录E,防滑地砖; 附录E蒸压试验; 釉面不应有裂纹
+MAT-TIL-006,thermal_shock,抗热震性,enum,check,0,0,,,GB/T 4100-2015,第5.5条/附录F,防滑地砖; 附录F 10次冷热循环; 无裂纹
+MAT-INSU-001,product_form,制品形态,enum,required,1,1,,,GB/T 11835-2016,第4条,岩棉管壳/板; 板/管壳/毡/带
+MAT-INSU-001,nominal_density,公称密度,number,required,1,0,,kg/m³,GB/T 11835-2016,第4条/表1,岩棉; 按密度分档
+MAT-INSU-001,thermal_cond_25,导热系数(25℃),number,check,0,0,,W/(m·K),GB/T 11835-2016,第5.1条/表2,岩棉; 平均温度25±2℃
+MAT-INSU-001,compressive_strength,压缩强度(10%变形),number,check,0,0,,kPa,GB/T 11835-2016,第5.2条,岩棉; EN 826方法
+MAT-INSU-001,tensile_strength_perp,垂直表面抗拉强度,number,check,0,0,,kPa,GB/T 11835-2016,第5.3条,岩棉; EN 1607方法
+MAT-INSU-001,fire_class,燃烧性能等级,enum,check,0,0,A1,,GB/T 11835-2016,第5.4条,岩棉; GB 8624分级
+MAT-INSU-001,water_short,短期吸水率,number,check,0,0,,kg/m²,GB/T 11835-2016,第5.5条,岩棉; 部分浸入法
+MAT-INSU-001,shot_content,渣球含量(>0.25mm),number,check,0,0,,%,GB/T 11835-2016,第5.6条,岩棉; 筛分法测定
+MAT-INSU-003,product_form,制品形态,enum,required,1,1,,,GB/T 11835-2016,第4条,玻璃棉管壳/板; 板/管壳/毡/带
+MAT-INSU-003,nominal_density,公称密度,number,required,1,0,,kg/m³,GB/T 11835-2016,第4条/表1,玻璃棉; 按密度分档
+MAT-INSU-003,thermal_cond_25,导热系数(25℃),number,check,0,0,,W/(m·K),GB/T 11835-2016,第5.1条/表2,玻璃棉; 平均温度25±2℃
+MAT-INSU-003,compressive_strength,压缩强度(10%变形),number,check,0,0,,kPa,GB/T 11835-2016,第5.2条,玻璃棉; EN 826方法
+MAT-INSU-003,tensile_strength_perp,垂直表面抗拉强度,number,check,0,0,,kPa,GB/T 11835-2016,第5.3条,玻璃棉; EN 1607方法
+MAT-INSU-003,fire_class,燃烧性能等级,enum,check,0,0,A1,,GB/T 11835-2016,第5.4条,玻璃棉; GB 8624分级
+MAT-INSU-003,water_short,短期吸水率,number,check,0,0,,kg/m²,GB/T 11835-2016,第5.5条,玻璃棉; 部分浸入法
+MAT-INSU-003,shot_content,渣球含量(>0.25mm),number,check,0,0,,%,GB/T 11835-2016,第5.6条,玻璃棉; 筛分法测定
+MAT-STE-004,steel_grade,钢牌号,enum,required,1,1,Q235B,,GB/T 706-2016,表1/第5.1条,槽钢; Q235B~Q460
+MAT-STE-004,surface_quality,表面质量,enum,check,0,0,合格,,GB/T 706-2016,第5.6条,槽钢; 无裂纹/折叠/结疤
+MAT-STE-004,deviation_class,截面偏差等级,enum,check,0,0,,,GB/T 706-2016,第5.2条,槽钢; 普通精度/较高精度
+MAT-STE-004,theoretical_weight,理论重量,number,derived,0,1,,kg/m,GB/T 706-2016,第4条/截面表,槽钢; ρ=7.85g/cm³
+MAT-STE-004,section_area,截面面积,number,derived,0,0,,cm²,GB/T 706-2016,截面表,槽钢
+MAT-STE-004,channel_model,槽钢型号,enum,required,1,1,,,GB/T 706-2016,表A.1,槽钢; [5~[40c
+MAT-STE-004,height_h,截面高度h,number,required,1,1,,mm,GB/T 706-2016,表A.1,槽钢; 50~400mm
+MAT-STE-004,leg_width_b,腿宽b,number,required,1,1,,mm,GB/T 706-2016,表A.1,槽钢; 37~104mm
+MAT-STE-004,waist_d,腰厚d,number,required,1,1,,mm,GB/T 706-2016,表A.1,槽钢; 4.5~14.5mm
+MAT-STE-011,steel_grade,钢牌号,enum,required,1,1,Q235B,,GB/T 706-2016,表1/第5.1条,等边角钢; Q235B~Q460
+MAT-STE-011,surface_quality,表面质量,enum,check,0,0,合格,,GB/T 706-2016,第5.6条,等边角钢; 无裂纹/折叠/结疤
+MAT-STE-011,deviation_class,截面偏差等级,enum,check,0,0,,,GB/T 706-2016,第5.2条,等边角钢; 普通精度/较高精度
+MAT-STE-011,theoretical_weight,理论重量,number,derived,0,1,,kg/m,GB/T 706-2016,第4条/截面表,等边角钢; ρ=7.85g/cm³
+MAT-STE-011,section_area,截面面积,number,derived,0,0,,cm²,GB/T 706-2016,截面表,等边角钢
+MAT-STE-011,angle_model,角钢型号,string,required,1,1,,,GB/T 706-2016,表A.2,等边角钢; L20×3~L200×24
+MAT-STE-011,leg_width_b,边宽b,number,required,1,1,,mm,GB/T 706-2016,表A.2,等边角钢; 20~200mm
+MAT-STE-011,leg_thick_d,边厚d,number,required,1,1,,mm,GB/T 706-2016,表A.2,等边角钢; 3~24mm
+MAT-STEL-001,steel_grade,钢牌号,enum,required,1,1,Q235B,,GB/T 706-2016,表1/第5.1条,等边角钢; Q235B~Q460
+MAT-STEL-001,surface_quality,表面质量,enum,check,0,0,合格,,GB/T 706-2016,第5.6条,等边角钢; 无裂纹/折叠/结疤
+MAT-STEL-001,deviation_class,截面偏差等级,enum,check,0,0,,,GB/T 706-2016,第5.2条,等边角钢; 普通精度/较高精度
+MAT-STEL-001,theoretical_weight,理论重量,number,derived,0,1,,kg/m,GB/T 706-2016,第4条/截面表,等边角钢; ρ=7.85g/cm³
+MAT-STEL-001,section_area,截面面积,number,derived,0,0,,cm²,GB/T 706-2016,截面表,等边角钢
+MAT-STEL-001,angle_model,角钢型号,string,required,1,1,,,GB/T 706-2016,表A.2,等边角钢; L20×3~L200×24
+MAT-STEL-001,leg_width_b,边宽b,number,required,1,1,,mm,GB/T 706-2016,表A.2,等边角钢; 20~200mm
+MAT-STEL-001,leg_thick_d,边厚d,number,required,1,1,,mm,GB/T 706-2016,表A.2,等边角钢; 3~24mm
+MAT-CABL-002,rated_voltage_uo_u,额定电压U₀/U,string,required,1,1,,kV,GB/T 12706.3-2020,第4条/表1,"电力电缆; U₀=电缆导体对地电压, U=导体间电压; 3.6/6~26/35kV"
+MAT-CABL-002,conductor_material,导体材质,enum,required,1,1,铜,,GB/T 12706.3-2020,第5.1条,电力电缆; 铜导体或铝导体
+MAT-CABL-002,num_cores,芯数,number,required,1,1,3,,GB/T 12706.3-2020,第5.2条/表2,电力电缆; 1芯/3芯为主
+MAT-CABL-002,conductor_cross_section,导体标称截面,number,required,1,1,,mm²,GB/T 12706.3-2020,第5.2条/表2,电力电缆; 1.5~630mm²
+MAT-CABL-002,insulation_type,绝缘类型,enum,required,1,1,XLPE,,GB/T 12706.3-2020,第6条/表3,电力电缆; PVC/XLPE/EPR
+MAT-CABL-002,armor_type,铠装类型,enum,check,0,0,钢带铠装,,GB/T 12706.3-2020,第7.1条/表4,电力电缆; 无铠装/钢带铠装/钢丝铠装
+MAT-CABL-002,sheath_material,外护套材料,enum,check,0,0,PVC,,GB/T 12706.3-2020,第7.2条/表5,电力电缆; PVC/PE/低烟无卤
+MAT-CABL-002,cable_od_approx,电缆近似外径,number,derived,0,0,,mm,GB/T 12706.3-2020,附录A/表A.1,电力电缆; 按截面与电压推算
+MAT-CABL-002,cable_weight_approx,电缆近似重量,number,derived,0,0,,kg/km,GB/T 12706.3-2020,附录A/表A.2,电力电缆; 按截面与电压推算
+MAT-CABL-002,min_bending_radius,最小弯曲半径,number,check,0,0,,mm,GB/T 12706.3-2020,第9条/表6,电力电缆; 通常为15D~20D(D=外径)
+MAT-CABL-008,flame_retardant_class,阻燃等级,enum,required,1,1,ZC,,GB/T 19666-2019,第4.1条/表1,阻燃耐火电缆; ZA/ZB/ZC/ZD
+MAT-CABL-008,fire_resistance_class,耐火等级,enum,check,0,0,N,,GB/T 19666-2019,第4.2条/表2,阻燃耐火电缆; N/NJ/NS
+MAT-CABL-008,low_smoke,低烟性能,boolean,check,0,0,是,,GB/T 19666-2019,第4.3条,阻燃耐火电缆; 透光率≥60%
+MAT-CABL-008,halogen_free,无卤性能,boolean,check,0,0,是,,GB/T 19666-2019,第4.4条,阻燃耐火电缆; HCl释放量≤0.5%
+MAT-CABL-008,low_toxicity,低毒性,boolean,check,0,0,是,,GB/T 19666-2019,第4.5条,阻燃耐火电缆; 毒性指数要求
+MAT-CABL-008,low_corrosion,低腐蚀性,boolean,check,0,0,是,,GB/T 19666-2019,第4.6条,阻燃耐火电缆; 电导率/PH值要求
+MAT-CABL-008,cable_type_code,电缆型号代号,string,derived,0,1,,,GB/T 19666-2019,第5条/附录A,阻燃耐火电缆; 如WDZAN-YJY
+MAT-BRD-004,nominal_dimensions,公称尺寸,string,required,1,1,600×600,mm,GB/T 25998-2020,第4.1条/表1,矿棉吸声板; 常见规格300×600/600×600/600×1200
+MAT-BRD-004,thickness,厚度,number,required,1,1,15,mm,GB/T 25998-2020,第4.1条/表1,矿棉吸声板; 9/12/15/18mm
+MAT-BRD-004,density_max,密度上限,number,check,0,0,500,kg/m³,GB/T 25998-2020,第5.1条/表2,矿棉吸声板; ≤500kg/m³
+MAT-BRD-004,nrc,降噪系数NRC,number,check,0,0,,,GB/T 25998-2020,第5.2条/表2,矿棉吸声板; NRC≥0.45(按GB/T 20247混响室法)
+MAT-BRD-004,fire_class,防火等级,enum,check,0,0,A2,,GB/T 25998-2020,第5.3条/表2,矿棉吸声板; 按GB 8624分级; A2或B1
+MAT-BRD-004,bending_strength,弯曲破坏载荷,number,check,0,0,,N,GB/T 25998-2020,第5.4条/表2,矿棉吸声板; 按厚度分档≥60~120N
+MAT-BRD-004,formaldehyde_class,甲醛释放等级,enum,check,0,0,E1,,GB/T 25998-2020,第5.5条/表2,矿棉吸声板; E1≤1.5mg/L或E0≤0.5mg/L
+MAT-BRD-004,thermal_conductivity,导热系数,number,check,0,0,,W/(m·K),GB/T 25998-2020,第5.6条/表2,矿棉吸声板; ≤0.055W/(m·K)(平均温度25±5℃)
+MAT-BRD-004,surface_pattern,表面花纹,enum,check,0,0,平板,,GB/T 25998-2020,第4.2条,矿棉吸声板; 平板/穿孔/浮雕
+MAT-BRD-004,humidity_sag,受潮挠度,number,check,0,0,,mm,GB/T 25998-2020,第5.7条/表2,矿棉吸声板; ≤设计值要求
+MAT-VALV-008,nominal_diameter,公称通径DN,number,required,1,1,,mm,GB/T 12244-2025,第4.1条/表1,减压阀; DN15~DN500
+MAT-VALV-008,pressure_rating,公称压力PN,number,required,1,1,1.6,MPa,GB/T 12244-2025,第4.1条/表1,减压阀; PN10/PN16/PN25/PN40
+MAT-VALV-008,body_material,阀体材质,enum,required,1,1,铸铁,,GB/T 12244-2025,第5.1条/表2,减压阀; 铸铁/铸钢/不锈钢
+MAT-VALV-008,inlet_pressure_range,进口压力范围P1,string,required,1,0,,MPa,GB/T 12244-2025,第4.2条/表3,减压阀; 如0.2~1.6MPa(依PN分档)
+MAT-VALV-008,outlet_pressure_range,出口压力范围P2,string,required,1,1,,MPa,GB/T 12244-2025,第4.3条/表3,减压阀; 如0.05~1.0MPa(弹簧或先导式)
+MAT-VALV-008,connection_type,连接方式,enum,required,1,1,法兰,,GB/T 12244-2025,第6.1条,减压阀; 法兰/螺纹
+MAT-VALV-008,medium_temp_range,介质温度范围,string,check,0,0,,℃,GB/T 12244-2025,第4.4条/表4,减压阀; 如-20~200℃(依密封材料)
+MAT-VALV-008,spring_range,弹簧调节范围,string,check,0,0,,MPa,GB/T 12244-2025,第4.5条/表5,减压阀; 如0.05~0.5/0.1~1.0MPa
+MAT-VALV-008,min_pressure_diff,最小压差,number,check,0,0,0.05,MPa,GB/T 12244-2025,第4.6条,减压阀; P1-P2≥0.05MPa
+MAT-PAI-001,paint_type,涂料类型,enum,required,1,1,外墙乳胶漆,,GB/T 9755-2024,第3条/表1,外墙涂料; 面漆/底漆/中涂
+MAT-PAI-001,contrast_ratio,对比率(遮盖力),number,check,0,0,,,GB/T 9755-2024,第5.1条/表2,外墙涂料; 面漆≥0.90/0.93/0.95(依等级)
+MAT-PAI-001,scrub_resistance,耐洗刷性,number,check,0,0,,次,GB/T 9755-2024,第5.2条/表2,外墙涂料; ≥2000/5000/10000次(依等级)
+MAT-PAI-001,alkali_resistance,耐碱性,number,check,0,0,,h,GB/T 9755-2024,第5.3条/表2,外墙涂料; ≥48h/72h无异常
+MAT-PAI-001,weathering_resistance,耐人工气候老化,number,check,0,0,,h,GB/T 9755-2024,第5.4条/表2,外墙涂料; ≥600/1000/1500h(依等级)
+MAT-PAI-001,low_temp_stability,低温稳定性,enum,check,0,0,不变质,,GB/T 9755-2024,第5.5条,外墙涂料; -5±2℃三次循环不变质
+MAT-PAI-001,coating_appearance,涂膜外观,enum,check,0,0,正常,,GB/T 9755-2024,第5.6条,外墙涂料; 涂膜平整、无明显缺陷
+MAT-PAI-001,drying_time_surface,表干时间,number,check,0,0,≤2,h,GB/T 9755-2024,第5.7条/表2,外墙涂料; ≤2h
+MAT-PAI-001,water_resistance,耐水性,number,check,0,0,,h,GB/T 9755-2024,第5.8条/表2,外墙涂料; ≥96h无异常
+MAT-PAI-001,voc_content,VOC含量,number,check,0,0,,g/L,GB 18582-2020,第4.1条/表1,内墙涂料; ≤80g/L(水性墙面涂料)
+MAT-PAI-001,formaldehyde_content,甲醛含量,number,check,0,0,,mg/kg,GB 18582-2020,第4.2条/表1,内墙涂料; ≤50mg/kg
+MAT-FPC-001,coating_type,涂料类型,enum,required,1,1,,,GB 14907-2018,第4条/表1,钢结构防火涂料; 厚型(H)/薄型(B)/超薄型(CB)
+MAT-FPC-001,use_location,使用场所,enum,required,1,1,室内,,GB 14907-2018,第4条/表1,钢结构防火涂料; 室内/室外
+MAT-FPC-001,fire_rating,耐火性能等级,string,required,1,1,,h,GB 14907-2018,第5.1条/表2,钢结构防火涂料; 如F1.5/F2.0/F2.5/F3.0(≥1.0h)
+MAT-FPC-001,design_thickness,涂层厚度(设计),number,required,0,0,,mm,GB 14907-2018,第5.2条/表2,"钢结构防火涂料; 厚型≥8mm,薄型≥3mm,超薄型≥2mm"
+MAT-FPC-001,bond_strength,粘结强度,number,check,0,0,,MPa,GB 14907-2018,第5.3条/表2,钢结构防火涂料; ≥0.15MPa(厚型)/≥0.20MPa(薄型)
+MAT-FPC-001,compressive_strength_thick,抗压强度(厚型),number,check,0,0,,MPa,GB 14907-2018,第5.3条/表2,钢结构防火涂料(厚型); ≥0.5MPa
+MAT-FPC-001,dry_density_thick,干密度(厚型),number,check,0,0,,kg/m³,GB 14907-2018,第5.4条/表2,钢结构防火涂料(厚型); ≤600kg/m³
+MAT-FPC-001,water_resistance,耐水性,number,check,0,0,,h,GB 14907-2018,第5.5条/表2,钢结构防火涂料; ≥24h无异常
+MAT-FPC-001,thermal_shock_resistance,耐冷热循环性,number,check,0,0,,次,GB 14907-2018,第5.6条/表2,钢结构防火涂料; ≥15次循环无异常
+MAT-FPC-001,heat_exposure_resistance,耐曝热性(室外),number,check,0,0,,h,GB 14907-2018,第5.7条/表2,钢结构防火涂料(室外); ≥720h无异常
+MAT-FPC-001,humidity_heat_resistance,耐湿热性(室外),number,check,0,0,,h,GB 14907-2018,第5.8条/表2,钢结构防火涂料(室外); ≥504h无异常
+MAT-STE-007,galvanizing_coating_grade,热浸镀锌层等级,enum,required,1,1,B,,GB/T 8349-2000,第3条/表1,"钢结构(镀锌); A/B/C三级,对应不同附着量"
+MAT-STE-007,min_coating_mass,最小镀锌层附着量,number,check,0,0,,g/m²,GB/T 8349-2000,第3条/表1,钢结构(镀锌); A≥610/B≥460/C≥305(依厚度)
+MAT-STE-007,coating_adhesion,镀锌层附着力,enum,check,0,0,合格,,GB/T 8349-2000,第4条,钢结构(镀锌); 锤击试验不脱落
+MAT-STE-007,coating_uniformity,镀锌层均匀性,enum,check,0,0,合格,,GB/T 8349-2000,第5条/表2,钢结构(镀锌); 硫酸铜浸渍试验次数
+MAT-STE-007,coating_repair_method,镀锌层修补方法,enum,check,0,0,,,GB/T 8349-2000,第6条/附录A,钢结构(镀锌); 锌基涂料/锌丝喷涂/熔融锌焊
+MAT-FRM-001,galvanizing_coating_grade,热浸镀锌层等级,enum,required,1,1,B,,GB/T 8349-2000,第3条/表1,"门窗框(镀锌); A/B/C三级,对应不同附着量"
+MAT-FRM-001,min_coating_mass,最小镀锌层附着量,number,check,0,0,,g/m²,GB/T 8349-2000,第3条/表1,门窗框(镀锌); A≥610/B≥460/C≥305(依厚度)
+MAT-FRM-001,coating_adhesion,镀锌层附着力,enum,check,0,0,合格,,GB/T 8349-2000,第4条,门窗框(镀锌); 锤击试验不脱落
+MAT-FRM-001,coating_uniformity,镀锌层均匀性,enum,check,0,0,合格,,GB/T 8349-2000,第5条/表2,门窗框(镀锌); 硫酸铜浸渍试验次数
+MAT-FRM-001,coating_repair_method,镀锌层修补方法,enum,check,0,0,,,GB/T 8349-2000,第6条/附录A,门窗框(镀锌); 锌基涂料/锌丝喷涂/熔融锌焊
+MAT-CON-002,strength_grade,强度等级,enum,required,1,1,C15,,GB/T 14902-2012,第5.1条/表1,预拌混凝土C15; 按立方体抗压强度标准值
+MAT-CON-002,slump,坍落度,number,required,1,0,,mm,GB/T 14902-2012,第5.2条/表2,预拌混凝土C15; 供需双方合同约定
+MAT-CON-002,max_aggregate_size,最大骨料粒径,number,check,0,0,,mm,GB/T 14902-2012,第5.3条/附录A,预拌混凝土C15; 按结构形式选择
+MAT-CON-003,strength_grade,强度等级,enum,required,1,1,C20,,GB/T 14902-2012,第5.1条/表1,预拌混凝土C20; 按立方体抗压强度标准值
+MAT-CON-003,slump,坍落度,number,required,1,0,,mm,GB/T 14902-2012,第5.2条/表2,预拌混凝土C20; 供需双方合同约定
+MAT-CON-003,max_aggregate_size,最大骨料粒径,number,check,0,0,,mm,GB/T 14902-2012,第5.3条/附录A,预拌混凝土C20; 按结构形式选择
+MAT-CON-004,strength_grade,强度等级,enum,required,1,1,C25,,GB/T 14902-2012,第5.1条/表1,预拌混凝土C25; 按立方体抗压强度标准值
+MAT-CON-004,slump,坍落度,number,required,1,0,,mm,GB/T 14902-2012,第5.2条/表2,预拌混凝土C25; 供需双方合同约定
+MAT-CON-004,max_aggregate_size,最大骨料粒径,number,check,0,0,,mm,GB/T 14902-2012,第5.3条/附录A,预拌混凝土C25; 按结构形式选择
+MAT-CON-005,strength_grade,强度等级,enum,required,1,1,C30,,GB/T 14902-2012,第5.1条/表1,预拌混凝土C30; 按立方体抗压强度标准值
+MAT-CON-005,slump,坍落度,number,required,1,0,,mm,GB/T 14902-2012,第5.2条/表2,预拌混凝土C30; 供需双方合同约定
+MAT-CON-005,max_aggregate_size,最大骨料粒径,number,check,0,0,,mm,GB/T 14902-2012,第5.3条/附录A,预拌混凝土C30; 按结构形式选择
+MAT-CON-006,strength_grade,强度等级,enum,required,1,1,C35,,GB/T 14902-2012,第5.1条/表1,预拌混凝土C35; 按立方体抗压强度标准值
+MAT-CON-006,slump,坍落度,number,required,1,0,,mm,GB/T 14902-2012,第5.2条/表2,预拌混凝土C35; 供需双方合同约定
+MAT-CON-006,max_aggregate_size,最大骨料粒径,number,check,0,0,,mm,GB/T 14902-2012,第5.3条/附录A,预拌混凝土C35; 按结构形式选择
+MAT-CON-007,strength_grade,强度等级,enum,required,1,1,C40,,GB/T 14902-2012,第5.1条/表1,预拌混凝土C40; 按立方体抗压强度标准值
+MAT-CON-007,slump,坍落度,number,required,1,0,,mm,GB/T 14902-2012,第5.2条/表2,预拌混凝土C40; 供需双方合同约定
+MAT-CON-007,max_aggregate_size,最大骨料粒径,number,check,0,0,,mm,GB/T 14902-2012,第5.3条/附录A,预拌混凝土C40; 按结构形式选择
+MAT-CON-008,strength_grade,强度等级,enum,required,1,1,C45,,GB/T 14902-2012,第5.1条/表1,预拌混凝土C45; 按立方体抗压强度标准值
+MAT-CON-008,slump,坍落度,number,required,1,0,,mm,GB/T 14902-2012,第5.2条/表2,预拌混凝土C45; 供需双方合同约定
+MAT-CON-008,max_aggregate_size,最大骨料粒径,number,check,0,0,,mm,GB/T 14902-2012,第5.3条/附录A,预拌混凝土C45; 按结构形式选择
+MAT-FRM-002,keel_type,龙骨类型,enum,required,1,1,,,GB/T 11981-2024,第4条/表1,轻钢龙骨; 天地龙骨/竖龙骨/通贯龙骨/吊顶龙骨
+MAT-FRM-002,steel_thickness,钢材厚度,number,required,1,1,,mm,GB/T 11981-2024,第4条/表1,轻钢龙骨; 0.6~1.5mm按截面分档
+MAT-FRM-002,section_shape,截面形状,enum,required,1,1,C型,,GB/T 11981-2024,第4条/表1,轻钢龙骨; C型/U型/L型
+MAT-FRM-002,section_dimensions,截面尺寸,string,required,1,1,,mm,GB/T 11981-2024,第4条/表1,"轻钢龙骨; 如50×25, 75×40, 100×40"
+MAT-FRM-002,nominal_length,公称长度,number,required,1,1,3000,mm,GB/T 11981-2024,第4条/表2,轻钢龙骨; 常用2700/3000/3300/3600/4000
+MAT-FRM-002,steel_grade_design,钢材牌号,enum,check,0,0,Q235B,,GB/T 11981-2024,第5.1条,轻钢龙骨; Q195/Q215/Q235B
+MAT-FRM-002,surface_treatment,表面处理,enum,required,1,0,镀锌,,GB/T 11981-2024,第5.2条,轻钢龙骨; 镀锌/镀铝锌/彩涂
+MAT-FRM-002,zinc_coating_mass,镀锌层重量,number,check,0,0,,g/m²,GB/T 11981-2024,第5.2条/表3,轻钢龙骨; 双面≥100g/m²(Z100)
+MAT-FRM-002,dimension_deviation_length,长度偏差,string,check,0,0,±3,mm,GB/T 11981-2024,第6.1条/表4,轻钢龙骨; ≤3000mm: ±3mm
+MAT-FRM-002,dimension_deviation_section,截面尺寸偏差,string,check,0,0,±0.5,mm,GB/T 11981-2024,第6.1条/表4,"轻钢龙骨; 宽度±0.5mm, 翼缘±0.3mm"
+MAT-FRM-002,straightness,弯曲度,number,check,0,0,,mm/m,GB/T 11981-2024,第6.2条,轻钢龙骨; 侧面≤1.0mm/m 底面≤2.0mm/m
+MAT-FRM-002,torsion,扭曲度,number,check,0,0,,mm,GB/T 11981-2024,第6.3条,轻钢龙骨; ≤3mm(全长度)
+MAT-FRM-002,flatness_keel,平面度,number,check,0,0,,mm,GB/T 11981-2024,第6.4条,轻钢龙骨; 底面≤1.5mm
+MAT-FRM-002,load_capacity,承载力,number,check,0,0,,N,GB/T 11981-2024,第7条/表5,轻钢龙骨; 按截面与跨度查表
+MAT-FRM-002,stiffness,刚度(挠度),number,check,0,0,,mm,GB/T 11981-2024,第7条/表5,轻钢龙骨; ≤L/300(L=跨度)
+MAT-FRM-002,impact_resistance,抗冲击性,enum,check,0,0,合格,,GB/T 11981-2024,第8条,轻钢龙骨; GB/T 11981方法
+MAT-STE-010,steel_grade,钢牌号,enum,required,1,1,20,,GB/T 8163-2018,第5.1条/表1,无缝钢管; 10/20/Q345B/Q390B等
+MAT-STE-010,outer_diameter,外径D,number,required,1,1,,mm,GB/T 8163-2018,第4条/表2,无缝钢管; 6~630mm(热轧)/6~200mm(冷拔)
+MAT-STE-010,wall_thickness,壁厚S,number,required,1,1,,mm,GB/T 8163-2018,第4条/表2,无缝钢管; 0.5~65mm(按外径分档)
+MAT-STE-010,delivery_condition,交货状态,enum,check,0,0,热轧,,GB/T 8163-2018,第5.2条,无缝钢管; 热轧/冷拔/热处理
+MAT-STE-010,tensile_strength_rm,抗拉强度Rm,number,check,0,0,,MPa,GB/T 8163-2018,第6.1条/表3,无缝钢管; 按牌号≥335~630MPa
+MAT-STE-010,yield_strength_rel,下屈服强度ReL,number,check,0,0,,MPa,GB/T 8163-2018,第6.1条/表3,无缝钢管; 按牌号≥205~420MPa
+MAT-STE-010,elongation_a,断后伸长率A,number,check,0,0,,%,GB/T 8163-2018,第6.1条/表3,无缝钢管; 按牌号≥20~25%
+MAT-STE-010,hydraulic_test,液压试验,string,check,0,0,,MPa,GB/T 8163-2018,第6.2条/附录B,"无缝钢管; P=2SR/D(S=壁厚, R=许用应力)"
+MAT-STE-010,flattening_test,压扁试验,enum,check,0,0,合格,,GB/T 8163-2018,第6.3条,无缝钢管; D>22mm时进行
+MAT-STE-010,bending_test,弯曲试验,enum,check,0,0,合格,,GB/T 8163-2018,第6.4条,无缝钢管; D≤22mm时进行
+MAT-STE-010,surface_quality,表面质量,enum,check,0,0,合格,,GB/T 8163-2018,第6.5条,无缝钢管; 无裂纹/折叠/结疤/离层
+MAT-STE-010,dimension_tolerance,尺寸公差,string,check,0,0,±1%,%,GB/T 8163-2018,第7条/表4,无缝钢管; 按外径范围分档
+MAT-DOO-003,profile_series,型材系列,string,required,1,1,,,GB/T 8478-2020,第4条/表1,铝合金门; 50/55/60/65/70/75/80系列
+MAT-DOO-003,profile_wall_thickness,型材壁厚,number,required,1,1,,mm,GB/T 8478-2020,第5.1条/表2,铝合金门; 主型材≥1.8mm(外门)≥1.4mm(外窗)
+MAT-DOO-003,glass_type,玻璃类型,enum,required,0,0,中空钢化,,GB/T 8478-2020,第5.2条,铝合金门; 中空/夹胶/Low-E/钢化
+MAT-DOO-003,thermal_transmittance,传热系数K,number,check,0,0,,W/(m²·K),GB/T 8478-2020,第6.1条/表3,铝合金门; 按地区节能要求≤1.1~2.8
+MAT-DOO-003,air_permeability,气密性能,number,check,0,0,,m³/(m·h),GB/T 8478-2020,第6.2条/表4,铝合金门; q1≤1.5/q2≤4.5(8级~1级)
+MAT-DOO-003,water_tightness,水密性能,number,check,0,0,,Pa,GB/T 8478-2020,第6.3条/表5,铝合金门; ΔP≥100~700Pa(1~6级)
+MAT-DOO-003,wind_resistance,抗风压性能,number,check,0,0,,kPa,GB/T 8478-2020,第6.4条/表6,铝合金门; P3≥1.0~5.0kPa(1~9级)
+MAT-DOO-003,sound_insulation,隔声性能,number,check,0,0,,dB,GB/T 8478-2020,第6.5条/表7,铝合金门; Rw≥20~45dB(1~6级)
+MAT-DOO-003,hardware_cycles,五金件启闭次数,number,check,0,0,,次,GB/T 8478-2020,第7条/表8,铝合金门; ≥2万~10万次(依等级)
+MAT-DOO-003,surface_coating,表面涂层,enum,check,0,0,粉末喷涂,,GB/T 8478-2020,第8条/表9,铝合金门; 阳极氧化/电泳/粉末喷涂/氟碳
+MAT-DOO-004,profile_series,型材系列,string,required,1,1,,,GB/T 8478-2020,第4条/表1,铝合金窗; 50/55/60/65/70/75/80系列
+MAT-DOO-004,profile_wall_thickness,型材壁厚,number,required,1,1,,mm,GB/T 8478-2020,第5.1条/表2,铝合金窗; 主型材≥1.8mm(外门)≥1.4mm(外窗)
+MAT-DOO-004,glass_type,玻璃类型,enum,required,0,0,中空钢化,,GB/T 8478-2020,第5.2条,铝合金窗; 中空/夹胶/Low-E/钢化
+MAT-DOO-004,thermal_transmittance,传热系数K,number,check,0,0,,W/(m²·K),GB/T 8478-2020,第6.1条/表3,铝合金窗; 按地区节能要求≤1.1~2.8
+MAT-DOO-004,air_permeability,气密性能,number,check,0,0,,m³/(m·h),GB/T 8478-2020,第6.2条/表4,铝合金窗; q1≤1.5/q2≤4.5(8级~1级)
+MAT-DOO-004,water_tightness,水密性能,number,check,0,0,,Pa,GB/T 8478-2020,第6.3条/表5,铝合金窗; ΔP≥100~700Pa(1~6级)
+MAT-DOO-004,wind_resistance,抗风压性能,number,check,0,0,,kPa,GB/T 8478-2020,第6.4条/表6,铝合金窗; P3≥1.0~5.0kPa(1~9级)
+MAT-DOO-004,sound_insulation,隔声性能,number,check,0,0,,dB,GB/T 8478-2020,第6.5条/表7,铝合金窗; Rw≥20~45dB(1~6级)
+MAT-DOO-004,hardware_cycles,五金件启闭次数,number,check,0,0,,次,GB/T 8478-2020,第7条/表8,铝合金窗; ≥2万~10万次(依等级)
+MAT-DOO-004,surface_coating,表面涂层,enum,check,0,0,粉末喷涂,,GB/T 8478-2020,第8条/表9,铝合金窗; 阳极氧化/电泳/粉末喷涂/氟碳
+MAT-STE-013,steel_grade,钢牌号,enum,required,1,1,06Cr19Ni10,,GB/T 12771-2019,第5.1条/表1,不锈钢焊管; 06Cr19Ni10/022Cr19Ni10/06Cr17Ni12Mo2等
+MAT-STE-013,outer_diameter,外径D,number,required,1,1,,mm,GB/T 12771-2019,第4条/表2,不锈钢焊管; 6~2000mm
+MAT-STE-013,wall_thickness,壁厚S,number,required,1,1,,mm,GB/T 12771-2019,第4条/表2,不锈钢焊管; 0.5~50mm
+MAT-STE-013,welding_method,焊接方法,enum,check,0,0,TIG,,GB/T 12771-2019,第5.2条,不锈钢焊管; TIG(钨极氩弧焊)/HF(高频焊)/LASER/SAW
+MAT-STE-013,heat_treatment,热处理状态,enum,check,0,0,固溶,,GB/T 12771-2019,第5.3条/表3,不锈钢焊管; 固溶/退火/酸洗钝化
+MAT-STE-013,tensile_strength,抗拉强度Rm,number,check,0,0,,MPa,GB/T 12771-2019,第6.1条/表4,不锈钢焊管; ≥485~520MPa(依牌号)
+MAT-STE-013,yield_strength,规定塑性延伸强度Rp0.2,number,check,0,0,,MPa,GB/T 12771-2019,第6.1条/表4,不锈钢焊管; ≥170~205MPa(依牌号)
+MAT-STE-013,elongation,断后伸长率A,number,check,0,0,,%,GB/T 12771-2019,第6.1条/表4,不锈钢焊管; ≥35~40%(依牌号)
+MAT-STE-013,intergranular_corrosion,晶间腐蚀,enum,check,0,0,合格,,GB/T 12771-2019,第6.2条/附录B,不锈钢焊管; GB/T 4334 E法
+MAT-STE-013,hydraulic_test,液压试验/涡流探伤,enum,check,0,0,合格,,GB/T 12771-2019,第6.3条,不锈钢焊管; 液压试验或涡流探伤二选一
+MAT-STE-013,surface_quality,表面质量,enum,check,0,0,合格,,GB/T 12771-2019,第6.4条,不锈钢焊管; 无裂纹/折叠/过酸洗
+MAT-CABL-004,rated_voltage,额定电压,string,required,1,1,450/750,V,GB/T 5023-2008,第4条,BV铜芯硬线; U₀/U=450/750V
+MAT-CABL-004,conductor_class,导体类别,enum,required,1,1,1类(实心),,GB/T 5023-2008,第5条/表1,BV铜芯硬线; 1类实心/2类绞合/5类软导体
+MAT-CABL-004,cross_section,标称截面,number,required,1,1,,mm²,GB/T 5023-2008,第5条/表1,BV铜芯硬线; 0.5~400mm²
+MAT-CABL-004,insulation_material,绝缘材料,enum,check,0,0,PVC/C,,GB/T 5023-2008,第6条/表2,BV铜芯硬线; PVC/C(70℃)/PVC/D(耐热)
+MAT-CABL-005,rated_voltage,额定电压,string,required,1,1,450/750,V,GB/T 5023-2008,第4条,BVR铜芯软线; U₀/U=450/750V
+MAT-CABL-005,conductor_class,导体类别,enum,required,1,1,2类(绞合),,GB/T 5023-2008,第5条/表1,BVR铜芯软线; 1类实心/2类绞合/5类软导体
+MAT-CABL-005,cross_section,标称截面,number,required,1,1,,mm²,GB/T 5023-2008,第5条/表1,BVR铜芯软线; 0.5~400mm²
+MAT-CABL-005,insulation_material,绝缘材料,enum,check,0,0,PVC/C,,GB/T 5023-2008,第6条/表2,BVR铜芯软线; PVC/C(70℃)/PVC/D(耐热)
+MAT-CON-001,concrete_grade,混凝土强度等级,enum,required,1,1,C30,,GB 50010-2010,第4.1条/表4.1.3,结构混凝土; C15~C80
+MAT-CON-001,fc_cube,"立方体抗压强度标准值fcu,k",number,derived,0,1,,MPa,GB 50010-2010,第4.1条/表4.1.3-1,结构混凝土; 150mm立方体28d标准养护
+MAT-CON-001,fc_design,轴心抗压强度设计值fc,number,derived,0,1,,MPa,GB 50010-2010,第4.1条/表4.1.4-1,"结构混凝土; fc=0.88×αc1×αc2×fcu,k/1.4"
+MAT-CON-001,ft_design,轴心抗拉强度设计值ft,number,derived,0,1,,MPa,GB 50010-2010,第4.1条/表4.1.4-2,"结构混凝土; ft=0.88×0.395×fcu,k^0.55×(1-1.645δ)^0.45×αc2/1.4"
+MAT-CON-001,ec_elastic_modulus,弹性模量Ec,number,derived,0,0,,×10⁴MPa,GB 50010-2010,第4.1条/表4.1.5,结构混凝土; 按强度等级查表
+MAT-CON-001,durability_grade,耐久性等级,enum,check,0,0,二b,,GB 50010-2010,第3.5条/表3.5.1,结构混凝土; 环境类别一/二a/二b/三a/三b等
+MAT-CON-001,min_cover,最小保护层厚度,number,check,0,0,,mm,GB 50010-2010,第8.2条/表8.2.1,结构混凝土; 按环境类别与构件类型
+MAT-CON-001,slump_quality,坍落度允许偏差,string,check,0,0,,mm,GB 50164-2011,第3.1条/表3.1.2,混凝土质量控制; 设计值≤40mm:±10; 50~90:±20; ≥100:±30
+MAT-CON-001,strength_evaluation,强度评定方法,enum,check,0,0,统计法,,GB 50164-2011,第4.1条,混凝土质量控制; 统计法/非统计法
+MAT-CON-001,strength_acceptance,强度合格评定系数,string,check,0,0,,,GB 50164-2011,第4.1条/表4.1.4,混凝土质量控制; λ1/λ2系数按组数n查表
+MAT-CON-001,water_cement_ratio,水胶比限值,string,check,0,0,,,GB 50164-2011,第3.2条/表3.2.2,混凝土质量控制; 按环境类别≤0.40~0.60
+MAT-CON-001,chloride_content,氯离子含量限值,string,check,0,0,≤0.06%,%,GB 50164-2011,第3.3条/表3.3.1,混凝土质量控制; 按环境类别≤0.06%~0.30%
+MAT-BRD-001,board_type,板类型,enum,required,1,1,普通,,GB/T 9775-2025,第4条/表1,纸面石膏板; 普通/耐水/耐火/耐潮
+MAT-BRD-001,nominal_thickness,公称厚度,number,required,1,1,12,mm,GB/T 9775-2025,第4条/表1,纸面石膏板; 9.5/12/15mm
+MAT-BRD-001,nominal_width,公称宽度,number,required,1,1,1200,mm,GB/T 9775-2025,第4条/表1,纸面石膏板; 900/1200/1220mm
+MAT-BRD-001,nominal_length,公称长度,number,required,1,1,2400,mm,GB/T 9775-2025,第4条/表1,纸面石膏板; 1800~3600mm(300mm进级)
+MAT-BRD-001,edge_shape,棱边形状,enum,check,0,0,楔形,,GB/T 9775-2025,第4条/表2,纸面石膏板; 楔形/直角/圆形/倒角
+MAT-DOO-002,fire_rating_door,防火等级,enum,required,1,1,甲级,,GB 12955-2024,第4条/表1,防火门; 甲(A1.5h)/乙(A1.0h)/丙(A0.5h)
+MAT-DOO-002,door_material,门扇材质,enum,required,1,1,钢质,,GB 12955-2024,第5.1条,防火门; 钢质/木质/钢木复合
+MAT-DOO-002,door_size,洞口尺寸,string,required,1,1,,mm,GB 12955-2024,第5.2条,"防火门; 单扇/双扇,宽600~2100mm,高1800~2700mm"
+MAT-DOO-002,door_hardware,五金配件,enum,check,0,0,防火锁+闭门器,,GB 12955-2024,第6条/表2,防火门; 防火锁/闭门器/顺序器/防火铰链
+MAT-DOO-002,smoke_seal,防火密封件,enum,check,0,0,有,,GB 12955-2024,第7条,防火门; 膨胀型防火密封条
+MAT-DOO-001,security_grade,防盗安全等级,enum,required,1,1,4级,,GB 17565-2022,第4条/表1,防盗门; 1~4级(4级最高)
+MAT-DOO-001,door_leaf_thickness,门扇厚度,number,required,1,1,70,mm,GB 17565-2022,第5.1条/表2,防盗门; ≥50mm(1级)~≥70mm(4级)
+MAT-DOO-001,steel_plate_thickness,钢板厚度,number,required,1,1,,mm,GB 17565-2022,第5.2条/表2,"防盗门; 门框≥1.5mm,门扇面板≥0.8mm(4级)"
+MAT-DOO-001,locking_points,锁闭点数,number,check,0,0,,,GB 17565-2022,第5.3条/表2,防盗门; ≥10(4级)/≥8(3级)/≥6(2级)/≥4(1级)
+MAT-PIPE-002,steel_grade,钢牌号,enum,required,1,1,Q235B,,GB/T 3091-2015,第5条/表1,焊接钢管; Q195/Q215/Q235B/Q345B
+MAT-PIPE-002,nominal_diameter_pipe,公称口径DN,string,required,1,1,,mm,GB/T 3091-2015,第4条/表1,焊接钢管; DN15~DN200
+MAT-PIPE-002,galvanizing_type,镀锌方式,enum,check,0,0,热浸镀锌,,GB/T 3091-2015,第6条/表2,焊接钢管; 热浸镀锌/电镀锌/不镀锌(黑管)
+MAT-PIPE-002,pipe_end_type,管端形式,enum,check,0,0,平端,,GB/T 3091-2015,第4条,焊接钢管; 平端/螺纹/坡口
+MAT-STE-006,steel_plate_thickness_param,公称厚度,number,required,1,1,,mm,GB/T 709-2019,第4条/表1,热轧钢板; 1.2~400mm
+MAT-STE-006,steel_plate_width,公称宽度,number,required,1,0,,mm,GB/T 709-2019,第4条/表1,热轧钢板; 600~4800mm
+MAT-STE-006,thickness_tolerance,厚度允许偏差,string,check,0,0,,mm,GB/T 709-2019,第5条/表2,热轧钢板; 按厚度/宽度分档; N类/A类/B类/C类
+MAT-BRI-001,strength_grade_brick,强度等级,enum,required,1,1,MU10,,GB/T 5101-2017,第5条/表1,烧结普通砖; MU10/MU15/MU20/MU25/MU30
+MAT-BRI-001,frost_resistance,抗冻性,enum,check,0,0,合格,,GB/T 5101-2017,第6条/表2,烧结普通砖; 冻融后强度损失≤25%/质量损失≤5%
+MAT-BRI-001,lime_blast,石灰爆裂,enum,check,0,0,合格,,GB/T 5101-2017,第7条/表3,烧结普通砖; 无爆裂区域或允许范围
+MAT-BRI-001,efflorescence,泛霜,enum,check,0,0,无泛霜,,GB/T 5101-2017,第8条,烧结普通砖; 无泛霜/轻微泛霜/中等泛霜/严重泛霜
+MAT-BRI-001,weathering_zone,风化区分类,enum,check,0,0,非严重,,GB/T 5101-2017,第4条/附录A,烧结普通砖; 严重风化区/非严重风化区
+MAT-BRI-001,dimension_std_brick,标准尺寸偏差,string,check,0,0,±2.0,mm,GB/T 5101-2017,第4条/表4,烧结普通砖; 240×115×53mm偏差: 长度±2.0/宽度±1.5/高度±1.5
+MAT-BLO-001,strength_grade_aac,强度等级,enum,required,1,1,A3.5,,GB/T 11968-2020,第4条/表1,加气混凝土砌块; A1.0/A2.0/A2.5/A3.5/A5.0/A7.5
+MAT-BLO-001,density_grade_aac,干密度等级,enum,check,0,0,B06,,GB/T 11968-2020,第4条/表2,加气混凝土砌块; B03/B04/B05/B06/B07/B08
+MAT-BLO-001,compressive_strength_aac,立方体抗压强度,number,check,0,0,,MPa,GB/T 11968-2020,第5条/表1,加气混凝土砌块; ≥1.0~7.5MPa(依等级)
+MAT-BLO-001,dry_thermal_cond,干态导热系数,number,check,0,0,,W/(m·K),GB/T 11968-2020,第6条/表3,加气混凝土砌块; ≤0.10~0.20W/(m·K)
+MAT-BLO-001,drying_shrinkage,干燥收缩值,string,check,0,0,,mm/m,GB/T 11968-2020,第7条/表4,加气混凝土砌块; 标准法≤0.50/快速法≤0.80
+MAT-BLO-001,frost_resist_aac,冻融质量/强度损失,string,check,0,0,≤5%/≤20%,%,GB/T 11968-2020,第8条/表5,"加气混凝土砌块; 冻融15次后质量损失≤5%,强度损失≤20%"
+MAT-INS-001,density_eps,表观密度,number,required,1,1,,kg/m³,GB/T 10801.1-2025,第4条/表1,EPS板; 10~35kg/m³
+MAT-INS-001,thermal_cond_eps,导热系数(25℃),number,check,0,0,,W/(m·K),GB/T 10801.1-2025,第5条/表2,EPS板; ≤0.039W/(m·K)
+MAT-INS-001,compressive_strength_eps,压缩强度,number,check,0,0,,kPa,GB/T 10801.1-2025,第5条/表2,EPS板; ≥60~≥200kPa(依等级)
+MAT-INS-001,water_absorption_eps,体积吸水率,number,check,0,0,≤4,%,GB/T 10801.1-2025,第6条/表3,EPS板; 浸泡96h≤4%
+MAT-INS-001,fire_class_eps,燃烧性能等级,enum,check,0,0,B1,,GB/T 10801.1-2025,第7条,EPS板; 按GB 8624分级; B1(难燃)/B2(可燃)
+MAT-INS-002,density_xps,表观密度,number,required,1,1,,kg/m³,GB/T 10801.2-2025,第4条/表1,XPS板; 25~45kg/m³
+MAT-INS-002,thermal_cond_xps,导热系数(25℃),number,check,0,0,,W/(m·K),GB/T 10801.2-2025,第5条/表2,XPS板; ≤0.030W/(m·K)(带表皮)/≤0.032(不带表皮)
+MAT-INS-002,compressive_strength_xps,压缩强度,number,check,0,0,,kPa,GB/T 10801.2-2025,第5条/表2,XPS板; ≥150~≥500kPa(依等级)
+MAT-INS-002,water_absorption_xps,体积吸水率,number,check,0,0,≤1.5,%,GB/T 10801.2-2025,第6条/表3,XPS板; 浸泡96h≤1.5%
+MAT-INS-002,dimensional_stability,尺寸稳定性(80℃),number,check,0,0,≤2.0,%,GB/T 10801.2-2025,第7条/表4,XPS板; 80℃/48h尺寸变化率≤2.0%
+MAT-INS-002,fire_class_xps,燃烧性能等级,enum,check,0,0,B1,,GB/T 10801.2-2025,第8条,XPS板; 按GB 8624分级
+MAT-CABL-003,rated_voltage_ctrl,额定电压U₀/U,string,required,1,1,450/750,V,GB/T 9330-2020,第4条/表1,控制电缆; U₀/U=450/750V
+MAT-CABL-003,num_cores_ctrl,芯数,number,required,1,1,,,GB/T 9330-2020,第5条/表2,控制电缆; 2~61芯
+MAT-CABL-003,cross_section_ctrl,导体标称截面,number,required,1,1,,mm²,GB/T 9330-2020,第5条/表2,控制电缆; 0.5~10mm²
+MAT-CABL-003,insulation_ctrl,绝缘类型,enum,check,0,0,PVC,,GB/T 9330-2020,第6条/表3,控制电缆; PVC/XLPE
+MAT-CABL-003,sheath_ctrl,护套类型,enum,check,0,0,PVC,,GB/T 9330-2020,第7条/表4,控制电缆; PVC/PE/低烟无卤
+MAT-DOO-010,fire_rating_window,耐火等级,enum,required,1,1,甲级,,GB 16809-2024,第4条/表1,防火窗; 甲(A1.5h)/乙(A1.0h)/丙(A0.5h)
+MAT-DOO-010,window_frame_material,窗框材质,enum,required,1,1,钢质,,GB 16809-2024,第5.1条,防火窗; 钢质/木质/钢木复合
+MAT-DOO-010,glass_type_fire,防火玻璃类型,enum,required,1,1,复合防火玻璃,,GB 16809-2024,第5.2条,防火窗; 复合/单片/灌浆防火玻璃
+MAT-DOO-010,window_operation,启闭方式,enum,check,0,0,固定式,,GB 16809-2024,第4条,防火窗; 固定式/活动式(可开启)
+MAT-DOO-010,auto_close_device,自动关闭装置,enum,check,0,0,温控释放,,GB 16809-2024,第6条,防火窗(活动式); 温控释放装置; 74±2℃动作
+MAT-DOO-010,smoke_seal_window,防火密封件,enum,check,0,0,有,,GB 16809-2024,第7条,防火窗; 膨胀型防火密封条
+MAT-FLR-001,floor_type_pvc,卷材类型,enum,required,1,1,发泡层,,GB/T 11982.1-2015,第4条/表1,PVC卷材地板; 发泡层/密实/同质透心
+MAT-FLR-001,total_thickness,总厚度,number,required,1,1,2.0,mm,GB/T 11982.1-2015,第4条/表1,PVC卷材地板; 0.8~4.0mm
+MAT-FLR-001,wear_layer_thickness,耐磨层厚度,number,check,0,0,,mm,GB/T 11982.1-2015,第5条/表2,PVC卷材地板; ≥0.15mm(家用)≥0.30mm(商用)
+MAT-FLR-001,wear_resistance_group,耐磨等级,enum,check,0,0,T级,,GB/T 11982.1-2015,第5条/表2,PVC卷材地板; T级/P级/M级/F级
+MAT-FLR-001,residual_indentation,残余凹陷度,number,check,0,0,≤0.2,mm,GB/T 11982.1-2015,第6条/表3,PVC卷材地板; ≤0.2mm(发泡层)/≤0.1mm(密实)
+MAT-WAP-007,membrane_type,卷材类型,enum,required,1,1,均质片,,GB 18173.2-2014,第4条/表1,高分子防水卷材; 均质片/复合片/自粘片
+MAT-WAP-007,nominal_thickness_mb,公称厚度,number,required,1,1,1.5,mm,GB 18173.2-2014,第4条/表1,高分子防水卷材; 1.2/1.5/2.0mm
+MAT-WAP-007,tensile_strength_mb,拉伸强度,number,check,0,0,,MPa,GB 18173.2-2014,第5条/表2,高分子防水卷材; ≥7.5MPa(均质PVC)/≥5.0MPa(复合)
+MAT-WAP-007,elongation_mb,断裂伸长率,number,check,0,0,,%,GB 18173.2-2014,第5条/表2,高分子防水卷材; ≥200%~≥400%(依类型)
+MAT-WAP-007,water_tightness_mb,不透水性,string,check,0,0,0.3MPa/30min,MPa,GB 18173.2-2014,第6条/表3,高分子防水卷材; 0.3MPa/30min不透水
+MAT-WAP-007,low_temp_flex,低温弯折性,string,check,0,0,-20℃无裂纹,℃,GB 18173.2-2014,第7条/表4,高分子防水卷材; -20℃/-25℃弯折无裂纹
+MAT-ELEQ-005,protection_level,防雷等级,enum,required,1,0,,,GB 50057-2010,第4.2条,防雷接地; 一类/二类/三类
+MAT-ELEQ-005,ground_resistance,接地电阻,number,required,1,0,,Ω,GB 50057-2010,第5.4条,防雷接地; ≤1Ω(联合接地)/≤10Ω(独立接地)
+MAT-ELEQ-005,down_conductor_spacing,引下线间距,number,required,1,0,,m,GB 50057-2010,第4.3条,防雷接地; 一类≤12m/二类≤18m/三类≤25m
+MAT-ELEQ-005,lightning_arrester_type,接闪器类型,enum,check,0,0,,,GB 50057-2010,第5.1条,防雷接地; 接闪杆/接闪带/接闪网
+MAT-ELEQ-005,equipotential_bonding,等电位连接,enum,check,0,0,,,GB 50057-2010,第6.3条,防雷接地; 是/否
+MAT-ELEQ-005,spd_installation,电涌保护器SPD,enum,check,0,0,,,GB 50057-2010,第5.5条,防雷接地; I级/I+II级/II级
+MAT-PLUM-004,faucet_type,水嘴类型,enum,required,1,0,,,GB 18145-2014,第4条,水嘴/水龙头; 单柄单控/单柄双控/双柄双控
+MAT-PLUM-004,nominal_diameter_fn,公称通径DN,number,required,1,0,,mm,GB 18145-2014,第4条/表1,水嘴/水龙头; DN15/DN20/DN25
+MAT-PLUM-004,flow_rate_class,流量等级,string,required,1,0,,L/s,GB 18145-2014,第5条/表2,水嘴/水龙头; 1级≤0.100/2级≤0.125/3级
+MAT-PLUM-004,sealing_test_pressure,密封试验压力,number,check,0,0,,MPa,GB 18145-2014,第6条,水嘴/水龙头; 1.6MPa无渗漏
+MAT-PLUM-004,surface_quality_fn,表面质量,enum,check,0,0,,,GB 18145-2014,第7条,水嘴/水龙头; 优等品/一级品/合格品
+MAT-PLUM-004,coating_adhesion_fn,镀层附着力,enum,check,0,0,,,GB 18145-2014,第8条,水嘴/水龙头; 合格/不合格
+MAT-FIRE-003,extinguishing_agent,灭火剂类型,enum,required,1,0,,,GB 25972-2024,第4条,气体灭火系统; 七氟丙烷/IG541/IG100/CO2
+MAT-FIRE-003,design_concentration,设计浓度,number,required,1,0,,%,GB 25972-2024,第5条/表1,气体灭火系统; 按灭火剂类型≥8%~≥40%
+MAT-FIRE-003,discharge_time,喷放时间,number,required,1,0,,s,GB 25972-2024,第5条,气体灭火系统; ≤10s(七氟丙烷)/≤60s(IG541)
+MAT-FIRE-003,cylinder_pressure,钢瓶储存压力,number,check,0,0,,MPa,GB 25972-2024,第6条,气体灭火系统; 2.5/4.2/5.6MPa(依药剂)
+MAT-FIRE-003,nozzle_type,喷头类型,enum,check,0,0,,,GB 25972-2024,第7条,气体灭火系统; 全淹没/局部应用
+MAT-FIRE-003,control_mode,控制方式,enum,check,0,0,,,GB 25972-2024,第8条,气体灭火系统; 自动/手动/机械应急
+MAT-FIRE-005,controller_type,控制器类型,enum,required,1,0,,,GB 4717-2024,第4条,火灾报警控制器; 区域/集中/控制中心
+MAT-FIRE-005,loop_capacity,回路容量,number,required,1,0,,点,GB 4717-2024,第5条/表1,火灾报警控制器; 200/242/324/484
+MAT-FIRE-005,monitoring_points,监控点数,number,required,1,0,,点,GB 4717-2024,第5条/表1,火灾报警控制器; 按回路容量×回路数
+MAT-FIRE-005,power_backup,备电时间,number,check,0,0,,h,GB 4717-2024,第6条,火灾报警控制器; ≥8h(监控)+0.5h(报警)
+MAT-FIRE-005,alarm_outputs,报警输出接口,string,check,0,0,,,GB 4717-2024,第7条,火灾报警控制器; 继电器/RS485/CAN/以太网
+MAT-FIRE-005,env_class,使用环境,enum,check,0,0,,,GB 4717-2024,第8条,火灾报警控制器; 室内型/户外型/防爆型
+MAT-FIRE-001,hose_diameter,公称内径,number,required,1,0,,mm,GB 6246-2026,第4条/表1,消防水带; 25/40/50/65/80/100
+MAT-FIRE-001,hose_length,公称长度,number,required,1,0,,m,GB 6246-2026,第4条/表1,消防水带; 20/25/30/40
+MAT-FIRE-001,working_pressure,工作压力,number,required,1,0,,MPa,GB 6246-2026,第5条/表2,消防水带; 0.8/1.0/1.3/1.6/2.0/2.5
+MAT-FIRE-001,burst_pressure,爆破压力,number,check,0,0,,MPa,GB 6246-2026,第5条/表2,消防水带; ≥3倍工作压力
+MAT-FIRE-001,liner_material,衬里材质,enum,check,0,0,,,GB 6246-2026,第6条,消防水带; 橡胶/聚氨酯/PVC
+MAT-FIRE-001,coupling_type,接口类型,enum,check,0,0,,,GB 6246-2026,第7条,消防水带; 内扣式/卡式/螺纹式
+MAT-ELEC-004,socket_type,插座类型,enum,required,1,0,,,GB/T 2099.10-2026,第4条,家用插座; 单相二极/单相三极/三相四极
+MAT-ELEC-004,rated_current,额定电流,number,required,1,0,,A,GB/T 2099.10-2026,第4条/表1,家用插座; 10/16/25/32
+MAT-ELEC-004,rated_voltage_socket,额定电压,number,required,1,0,,V,GB/T 2099.10-2026,第4条/表1,家用插座; 250/380
+MAT-ELEC-004,protection_degree,防护等级,enum,check,0,0,,,GB/T 2099.10-2026,第5条,家用插座; IP20/IP44/IP54/IP66
+MAT-ELEC-004,material_socket,外壳材质,enum,check,0,0,,,GB/T 2099.10-2026,第6条,家用插座; PC/PA/尿素树脂
+MAT-ELEC-004,child_protection,儿童保护门,enum,check,0,0,,,GB/T 2099.10-2026,第7条,家用插座; 有/无
+MAT-FIRE-008,cabinet_type,机柜类型,enum,required,1,0,,,GB/T 14561-2019,第4条,消防控制室设备; 琴台柜/立柜/壁挂
+MAT-FIRE-008,display_type,显示方式,enum,required,1,0,,,GB/T 14561-2019,第5条,消防控制室设备; LED点阵/LCD/GIS地图
+MAT-FIRE-008,communication_protocol,通信协议,enum,required,1,0,,,GB/T 14561-2019,第6条,消防控制室设备; CAN/RS485/以太网/无线
+MAT-FIRE-008,event_log_capacity,事件记录容量,number,check,0,0,,条,GB/T 14561-2019,第7条,消防控制室设备; ≥10000条
+MAT-FIRE-008,power_consumption,功耗,number,check,0,0,,W,GB/T 14561-2019,第8条,消防控制室设备; ≤500W(含显示器)
+MAT-FIRE-008,backup_battery_time,备电时间,number,check,0,0,,h,GB/T 14561-2019,第9条,消防控制室设备; ≥8h
+MAT-FIRE-008,rated_capacity,额定容量,number,required,1,0,,kVA,GB/T 10228-2023,第4条/表1,干式电力变压器; 30~2500kVA
+MAT-FIRE-008,primary_voltage,一次电压,number,required,1,0,,kV,GB/T 10228-2023,第4条/表1,干式电力变压器; 6/10/20/35
+MAT-FIRE-008,secondary_voltage,二次电压,number,required,1,0,,V,GB/T 10228-2023,第4条/表1,干式电力变压器; 400/690
+MAT-FIRE-008,cooling_method,冷却方式,enum,check,0,0,,,GB/T 10228-2023,第5条,干式电力变压器; AN(自冷)/AF(风冷)
+MAT-FIRE-008,insulation_class,绝缘等级,enum,check,0,0,,,GB/T 10228-2023,第6条,干式电力变压器; F级(155℃)/H级(180℃)
+MAT-FIRE-008,no_load_loss,空载损耗,number,check,0,0,,W,GB/T 10228-2023,第7条/表2,干式电力变压器; 按容量等级分档
+MAT-FIRE-008,air_volume,额定风量,number,required,1,0,,m³/h,GB/T 14294-2026,第4条/表1,组合式空调机组; 2000~200000
+MAT-FIRE-008,cooling_capacity,制冷量,number,required,1,0,,kW,GB/T 14294-2026,第5条/表2,组合式空调机组; 按风量与工况
+MAT-FIRE-008,heating_capacity,制热量,number,required,1,0,,kW,GB/T 14294-2026,第5条/表2,组合式空调机组; 按风量与工况
+MAT-FIRE-008,static_pressure,机外静压,number,check,0,0,,Pa,GB/T 14294-2026,第6条,组合式空调机组; 150~800Pa
+MAT-FIRE-008,filter_grade,过滤等级,enum,check,0,0,,,GB/T 14294-2026,第7条,组合式空调机组; G3/G4/F5/F6/F7/F8/F9
+MAT-FIRE-008,noise_level,噪声限值,number,check,0,0,,dB(A),GB/T 14294-2026,第8条/表3,组合式空调机组; ≤65~≤85(依风量)
+MAT-FLR-001,floor_grade_pvc,使用等级,enum,required,1,0,,,GB/T 11982.2-2015,第4条,同质PVC地板; 21(家用)/23(重家用)/31(商用)/33(重商用)/42(轻工业)
+MAT-FLR-001,total_thickness_homo,总厚度,number,required,1,0,,mm,GB/T 11982.2-2015,第4条/表1,同质PVC地板; 1.5/2.0/2.5/3.0
+MAT-FLR-001,abrasion_resistance,耐磨性,number,required,1,0,,mm³,GB/T 11982.2-2015,第5条/表2,同质PVC地板; ≤2.0mm³(T级)/≤4.0(P)/≤7.5(M)
+MAT-FLR-001,slip_resistance,防滑性,string,check,0,0,,,GB/T 11982.2-2015,第6条,同质PVC地板; R9/R10/R11/R12
+MAT-FLR-001,dimensional_stability_homo,尺寸稳定性,number,check,0,0,,%,GB/T 11982.2-2015,第7条,同质PVC地板; ≤0.25%(卷材)/≤0.15%(块材)
+MAT-FIRE-006,nominal_diameter_sv,公称通径DN,number,required,1,0,,mm,GB 5135.2-2025,第4条/表1,湿式报警阀; DN50~DN250
+MAT-FIRE-006,pressure_rating_sv,公称压力PN,number,required,1,0,,MPa,GB 5135.2-2025,第4条/表1,湿式报警阀; 1.2/1.6
+MAT-FIRE-006,alarm_flow_rate,报警流量,number,required,1,0,,L/min,GB 5135.2-2025,第5条,湿式报警阀; 15~60L/min
+MAT-FIRE-006,delay_time,延迟时间,number,check,0,0,,s,GB 5135.2-2025,第6条,湿式报警阀; 5~90s可调
+MAT-FIRE-006,body_material_sv,阀体材质,enum,check,0,0,,,GB 5135.2-2025,第7条,湿式报警阀; 球墨铸铁/铸钢/不锈钢
+MAT-FIRE-007,nominal_diameter_dv,公称通径DN,number,required,1,0,,mm,GB 5135.3-2025,第4条/表1,雨淋报警阀; DN50~DN250
+MAT-FIRE-007,pressure_rating_dv,公称压力PN,number,required,1,0,,MPa,GB 5135.3-2025,第4条/表1,雨淋报警阀; 1.2/1.6/2.5
+MAT-FIRE-007,actuation_method,启动方式,enum,required,1,0,,,GB 5135.3-2025,第5条,雨淋报警阀; 湿式先导/干式先导/电控/手动
+MAT-FIRE-007,reset_method,复位方式,enum,check,0,0,,,GB 5135.3-2025,第6条,雨淋报警阀; 自动/手动
+MAT-FIRE-007,body_material_dv,阀体材质,enum,check,0,0,,,GB 5135.3-2025,第7条,雨淋报警阀; 球墨铸铁/铸钢/不锈钢
+MAT-FIRE-006,nominal_diameter_dry,公称通径DN,number,required,1,0,,mm,GB 5135.4-2025,第4条/表1,干式报警阀; DN50~DN200
+MAT-FIRE-006,pressure_rating_dry,公称压力PN,number,required,1,0,,MPa,GB 5135.4-2025,第4条/表1,干式报警阀; 1.2/1.6
+MAT-FIRE-006,air_pressure_range,气压范围,string,required,1,0,,MPa,GB 5135.4-2025,第5条,干式报警阀; 0.02~0.20MPa
+MAT-FIRE-006,acceleration_device,加速器,enum,check,0,0,,,GB 5135.4-2025,第6条,干式报警阀; 有/无
+MAT-FIRE-006,body_material_dry,阀体材质,enum,check,0,0,,,GB 5135.4-2025,第7条,干式报警阀; 球墨铸铁/铸钢
+MAT-FIRE-008,nominal_diameter_gj,公称通径DN,number,required,1,0,,mm,GB 5135.11-2025,第4条/表1,沟槽式管接头; DN25~DN300
+MAT-FIRE-008,pressure_rating_gj,公称压力PN,number,required,1,0,,MPa,GB 5135.11-2025,第4条/表1,沟槽式管接头; 1.6/2.5/4.0
+MAT-FIRE-008,gasket_material,密封圈材质,enum,required,1,0,,,GB 5135.11-2025,第5条,沟槽式管接头; EPDM/丁腈/硅橡胶
+MAT-FIRE-008,housing_material,卡箍壳体材质,enum,check,0,0,,,GB 5135.11-2025,第6条,沟槽式管接头; 球墨铸铁/锻钢
+MAT-FIRE-008,surface_treatment_gj,表面处理,enum,check,0,0,,,GB 5135.11-2025,第7条,沟槽式管接头; 镀锌/涂塑/达克罗
+MAT-FIRE-008,nominal_diameter_nozzle,公称口径,number,required,1,0,,mm,GB 5135.21-2025,第4条/表1,消防洒水喷头(家用); 10/15/20
+MAT-FIRE-008,k_factor,流量系数K,number,required,1,0,,,GB 5135.21-2025,第5条/表2,消防洒水喷头(家用); 57/80/115
+MAT-FIRE-008,response_temp,动作温度,number,required,1,0,,℃,GB 5135.21-2025,第6条/表3,消防洒水喷头(家用); 57/68/79/93/141
+MAT-FIRE-008,coverage_pattern,布水方式,enum,check,0,0,,,GB 5135.21-2025,第7条,消防洒水喷头(家用); 标准覆盖/扩大覆盖
+MAT-VALV-006,nominal_diameter_sp,公称口径,number,required,1,0,,mm,GB 5135.23-2026,第4条/表1,消防洒水喷头(特殊应用); 15/20
+MAT-VALV-006,k_factor_sp,流量系数K,number,required,1,0,,,GB 5135.23-2026,第5条/表2,消防洒水喷头(特殊应用); 115/161/202/242/323/363
+MAT-VALV-006,response_type,响应类型,enum,required,1,0,,,GB 5135.23-2026,第6条,消防洒水喷头(特殊应用); 标准响应/快速响应
+MAT-VALV-006,application_type,应用类型,enum,check,0,0,,,GB 5135.23-2026,第7条,消防洒水喷头(特殊应用); 仓储/高架/中庭/隧道
+MAT-VALV-006,deflector_type,溅水盘类型,enum,check,0,0,,,GB 5135.23-2026,第8条,消防洒水喷头(特殊应用); 上喷/下喷/水平侧喷
+MAT-PLUM-001,product_type_toilet,产品类型,enum,required,1,0,,,GB/T 6952-2015,第4条,卫生陶瓷; 坐便器/蹲便器/小便器/洗面器
+MAT-PLUM-001,flush_volume,冲洗水量,number,required,1,0,,L,GB/T 6952-2015,第5条/表1,卫生陶瓷; ≤6.0(普通)/≤4.0(节水)/≤3.0(超节水)
+MAT-PLUM-001,flush_method,冲洗方式,enum,required,1,0,,,GB/T 6952-2015,第5条,卫生陶瓷; 冲落式/虹吸式/喷射虹吸
+MAT-PLUM-001,water_seal_depth,水封深度,number,check,0,0,,mm,GB/T 6952-2015,第6条,卫生陶瓷; ≥50mm
+MAT-PLUM-001,surface_quality_cerm,釉面质量,enum,check,0,0,,,GB/T 6952-2015,第7条,卫生陶瓷; 优等品/一级品/合格品
+MAT-PLUM-003,shower_set_type,花洒类型,enum,required,1,0,,,GB/T 23447-2023,第4条,淋浴花洒; 顶喷花洒/手持花洒/侧喷花洒
+MAT-PLUM-003,flow_rate_shower,流量,number,required,1,0,,L/min,GB/T 23447-2023,第5条/表1,淋浴花洒; ≤9.0L/min(2级)/≤7.5(1级)
+MAT-PLUM-003,spray_pattern,喷水模式,string,required,1,0,,,GB/T 23447-2023,第6条,淋浴花洒; 单一/双模式/三模式/多模式
+MAT-PLUM-003,surface_finish,表面镀层,enum,check,0,0,,,GB/T 23447-2023,第7条,淋浴花洒; 镀铬/拉丝镍/烤漆/PVD
+MAT-PLUM-003,hose_length_shower,软管长度,number,check,0,0,,mm,GB/T 23447-2023,第8条,淋浴花洒; 1500/2000
+MAT-PLUM-005,valve_type_fire,阀门类型,enum,required,1,0,,,GB/T 27710-2020,第4条,防火阀/排烟防火阀; 防火阀/排烟防火阀/排烟阀
+MAT-PLUM-005,nominal_size,公称尺寸,string,required,1,0,,mm,GB/T 27710-2020,第4条/表1,防火阀/排烟防火阀; DN100~DN2000
+MAT-PLUM-005,operation_temp,动作温度,number,required,1,0,,℃,GB/T 27710-2020,第5条,防火阀/排烟防火阀; 70±2℃(防火阀)/280±2℃(排烟防火阀)
+MAT-PLUM-005,leakage_rate,漏风量,number,check,0,0,,m³/(m²·h),GB/T 27710-2020,第6条,防火阀/排烟防火阀; ≤500(常闭)/≤200(常开)
+MAT-PLUM-005,actuator_type,执行机构,enum,check,0,0,,,GB/T 27710-2020,第7条,防火阀/排烟防火阀; 电磁铁/电动/气动
+MAT-ELEC-002,rated_current_pdb,额定电流,number,required,1,0,,A,GB/T 7251.8-2020,第4条/表1,建筑工地配电箱; 63/100/160/250/400/630
+MAT-ELEC-002,rated_voltage_pdb,额定电压,number,required,1,0,,V,GB/T 7251.8-2020,第4条/表1,建筑工地配电箱; 230/400
+MAT-ELEC-002,protection_degree_pdb,防护等级,enum,required,1,0,,,GB/T 7251.8-2020,第5条,建筑工地配电箱; IP44/IP54/IP65
+MAT-ELEC-002,enclosure_material,箱体材质,enum,check,0,0,,,GB/T 7251.8-2020,第6条,建筑工地配电箱; 钢板/不锈钢/绝缘材料
+MAT-ELEC-002,circuit_config,回路配置,string,check,0,0,,,GB/T 7251.8-2020,第7条,建筑工地配电箱; 1路进线+N路出线
+MAT-CABL-001,voltage,额定电压U₀/U,string,required,1,1,0.6/1,kV,GB/T 12706.3-2020,第4条/表1,电力电缆(通用); 0.6/1~26/35kV
+MAT-CABL-001,cores,芯数,number,required,1,1,3,,GB/T 12706.3-2020,第5.2条/表2,电力电缆(通用); 1~5芯
+MAT-CABL-001,cross_section,标称截面,number,required,1,1,,mm²,GB/T 12706.3-2020,第5.2条/表2,电力电缆(通用); 1.5~630mm²
+MAT-CABL-001,insulation,绝缘类型,enum,required,1,1,XLPE,,GB/T 12706.3-2020,第6条/表3,电力电缆(通用); PVC/XLPE/EPR
+MAT-CABL-001,sheath,护套材料,enum,check,0,0,PVC,,GB/T 12706.3-2020,第7.2条/表5,电力电缆(通用); PVC/PE/低烟无卤
+MAT-CABL-007,flame_class,阻燃类别,enum,required,1,1,ZC,,GB/T 19666-2019,第4.1条/表1,阻燃耐火电缆(通用); ZA/ZB/ZC/ZD
+MAT-CABL-007,fire_resist,耐火级别,enum,check,0,0,N,,GB/T 19666-2019,第4.2条/表2,阻燃耐火电缆(通用); N/NJ/NS
+MAT-INS-005,size,尺寸,string,required,1,1,600×600,mm,GB/T 25998-2020,第4.1条/表1,矿棉吸声板(通用); 300×600~600×1200
+MAT-INS-005,thickness,厚度,number,required,1,1,15,mm,GB/T 25998-2020,第4.1条/表1,矿棉吸声板(通用); 9/12/15/18mm
+MAT-INS-005,nrc,吸声系数NRC,number,check,0,0,,,GB/T 25998-2020,第5.2条/表2,矿棉吸声板(通用); NRC≥0.45
+MAT-INS-005,flexural_strength,抗折强度,number,check,0,0,,N,GB/T 25998-2020,第5.4条/表2,矿棉吸声板(通用); ≥60~120N
+MAT-INS-005,fire_class,燃烧性能,enum,check,0,0,A2,,GB/T 25998-2020,第5.3条/表2,矿棉吸声板(通用); A2或B1
+MAT-PAI-003,container_state,在容器中状态,enum,check,0,0,搅拌后均匀无硬块,,GB/T 25251-2010,第5条/表1,内墙涂料; 搅拌混合后应无硬块
+MAT-PAI-003,workability,施工性,enum,check,0,0,刷涂二道无障碍,,GB/T 25251-2010,第5条/表1,内墙涂料; 涂刷无障碍
+MAT-PAI-003,low_temp_stability,低温稳定性(-5℃/3次循环),enum,check,0,0,不变质,,GB/T 25251-2010,第5条/表1,内墙涂料; 3次冷热循环不变质
+MAT-PAI-003,film_appearance,涂膜外观,enum,check,0,0,正常,,GB/T 25251-2010,第5条/表1,内墙涂料; 涂膜均匀、无针孔/流挂
+MAT-PAI-003,drying_time_surface,表干时间,number,check,0,0,≤2,h,GB/T 25251-2010,第5条/表1,内墙涂料; 指触干≤2h
+MAT-PAI-003,contrast_ratio,对比率(白色和浅色),number,check,0,0,,,GB/T 25251-2010,第5条/表1,内墙涂料; 合格品≥0.90/一等品≥0.93/优等品≥0.95
+MAT-PAI-003,alkali_resistance,耐碱性(24h),enum,check,0,0,无异常,,GB/T 25251-2010,第5条/表1,内墙涂料; 24h碱液浸泡后无起泡/剥落
+MAT-PAI-003,scrub_resistance,耐洗刷性,number,check,0,0,,次,GB/T 25251-2010,第5条/表1,内墙涂料; 合格品≥300次/一等品≥1000次/优等品≥5000次
+MAT-PIPE-001,nominal_diameter_sp,公称通径DN,string,required,1,1,,mm,GB/T 32321-2015,第4条/表1,钢塑复合管; DN15~DN1200
+MAT-PIPE-001,outer_diameter_sp,公称外径dn,number,required,1,0,,mm,GB/T 32321-2015,第4条/表1,钢塑复合管; 按DN对应
+MAT-PIPE-001,wall_thickness_sp,壁厚,number,required,1,1,,mm,GB/T 32321-2015,第4条/表2,钢塑复合管; 钢管壁厚+塑料层厚度
+MAT-PIPE-001,steel_grade_sp,钢管牌号,enum,check,0,0,Q235B,,GB/T 32321-2015,第5.1条/表3,钢塑复合管; Q195/Q215/Q235B
+MAT-PIPE-001,plastic_material,塑料层材质,enum,check,0,0,PE,,GB/T 32321-2015,第5.2条,钢塑复合管; PE/PEX/PP-R
+MAT-PIPE-001,working_pressure_sp,工作压力,number,check,0,0,,MPa,GB/T 32321-2015,第5.3条/表4,钢塑复合管; 1.0/1.6/2.5MPa
+MAT-PIPE-001,bonding_strength,钢塑结合强度,number,check,0,0,,MPa,GB/T 32321-2015,第6条/表5,钢塑复合管; ≥0.3MPa(剥离)
+MAT-PIPE-005,nominal_diameter_sp,公称通径DN,string,required,1,1,,mm,GB/T 32321-2015,第4条/表1,衬塑复合管; DN15~DN1200
+MAT-PIPE-005,outer_diameter_sp,公称外径dn,number,required,1,0,,mm,GB/T 32321-2015,第4条/表1,衬塑复合管; 按DN对应
+MAT-PIPE-005,wall_thickness_sp,壁厚,number,required,1,1,,mm,GB/T 32321-2015,第4条/表2,衬塑复合管; 钢管壁厚+塑料层厚度
+MAT-PIPE-005,steel_grade_sp,钢管牌号,enum,check,0,0,Q235B,,GB/T 32321-2015,第5.1条/表3,衬塑复合管; Q195/Q215/Q235B
+MAT-PIPE-005,plastic_material,塑料层材质,enum,check,0,0,PE,,GB/T 32321-2015,第5.2条,衬塑复合管; PE/PEX/PP-R
+MAT-PIPE-005,working_pressure_sp,工作压力,number,check,0,0,,MPa,GB/T 32321-2015,第5.3条/表4,衬塑复合管; 1.0/1.6/2.5MPa
+MAT-PIPE-005,bonding_strength,钢塑结合强度,number,check,0,0,,MPa,GB/T 32321-2015,第6条/表5,衬塑复合管; ≥0.3MPa(剥离)
+MAT-COAT-001,coating_type_ac,涂料类型(防腐蚀),enum,required,1,1,环氧树脂,,GB 50212-2014,第4章/表4.1.1,防腐涂料(环氧类); 环氧/聚氨酯/乙烯基酯/氯化橡胶/耐酸/沥青
+MAT-COAT-001,substrate_treatment,基层处理等级,enum,check,0,0,Sa2.5,,GB 50212-2014,第5.2条/表5.2.4,防腐涂料(环氧类); St2/St3/Sa2/Sa2.5/Sa3
+MAT-COAT-001,coating_thickness_ac,涂层厚度(设计),number,check,0,0,,μm,GB 50212-2014,第6章/表6.1.4,防腐涂料(环氧类); ≥200μm(中腐蚀)/≥300μm(强腐蚀)
+MAT-COAT-001,pinhole_test,针孔检测,enum,check,0,0,合格(无针孔),,GB 50212-2014,第6.4条,防腐涂料(环氧类); 电火花检测无针孔
+MAT-COAT-001,adhesion_pulloff,附着力(拉开法),number,check,0,0,,MPa,GB 50212-2014,第6.5条/附录A,防腐涂料(环氧类); ≥1.5MPa(环氧)/≥1.0MPa(其他)
+MAT-COAT-005,coating_type_ac,涂料类型(防腐蚀),enum,required,1,1,耐酸涂料,,GB 50212-2014,第4章/表4.1.1,防腐涂料(耐酸类); 环氧/聚氨酯/乙烯基酯/氯化橡胶/耐酸/沥青
+MAT-COAT-005,substrate_treatment,基层处理等级,enum,check,0,0,Sa2.5,,GB 50212-2014,第5.2条/表5.2.4,防腐涂料(耐酸类); St2/St3/Sa2/Sa2.5/Sa3
+MAT-COAT-005,coating_thickness_ac,涂层厚度(设计),number,check,0,0,,μm,GB 50212-2014,第6章/表6.1.4,防腐涂料(耐酸类); ≥200μm(中腐蚀)/≥300μm(强腐蚀)
+MAT-COAT-005,pinhole_test,针孔检测,enum,check,0,0,合格(无针孔),,GB 50212-2014,第6.4条,防腐涂料(耐酸类); 电火花检测无针孔
+MAT-COAT-005,adhesion_pulloff,附着力(拉开法),number,check,0,0,,MPa,GB 50212-2014,第6.5条/附录A,防腐涂料(耐酸类); ≥1.5MPa(环氧)/≥1.0MPa(其他)
+MAT-PAI-003,cross_cut_grade,划格试验等级,enum,check,0,0,≤1级,,GB/T 9286-2021,第7条/表1,涂层附着力(划格法); 0~5级(0级最优)
+MAT-PAI-003,cross_cut_spacing,切割间距,number,check,0,0,,mm,GB/T 9286-2021,第5条/表2,划格间距; 总膜厚≤60μm:1mm; 61~120μm:2mm; 121~250μm:3mm
+MAT-PUT-001,cross_cut_grade,划格试验等级,enum,check,0,0,≤1级,,GB/T 9286-2021,第7条/表1,涂层附着力(划格法); 0~5级(0级最优)
+MAT-PUT-001,cross_cut_spacing,切割间距,number,check,0,0,,mm,GB/T 9286-2021,第5条/表2,划格间距; 总膜厚≤60μm:1mm; 61~120μm:2mm; 121~250μm:3mm
+MAT-HVAC-003,duct_material,风管材质,enum,required,1,1,镀锌钢板,,GB 50243-2016,第4.2条/表4.2.4-1,通风管道; 镀锌钢板/不锈钢/玻璃钢/酚醛复合
+MAT-HVAC-003,duct_thickness,风管壁厚,number,required,1,0,,mm,GB 50243-2016,第4.2条/表4.2.4-2,风管壁厚; 按风管大边长分档0.5~1.2mm
+MAT-HVAC-003,duct_sealing_class,风管密封等级,enum,check,0,0,C级(中压),,GB 50243-2016,第4.3条/表4.3.1,风管密封; A(低压)/B(一般)/C(中压)/D(高压)
+MAT-HVAC-003,insulation_material_duct,保温材料,enum,check,0,0,离心玻璃棉,,GB 50243-2016,第10章/表10.2.3,管道保温; 离心玻璃棉/橡塑/聚氨酯/岩棉
+MAT-HVAC-003,insulation_thickness,保温层厚度,number,check,0,0,,mm,GB 50243-2016,第10章/表10.2.3,保温厚度; 按管径/介质温度分档≥25~60mm
+MAT-FIRE-002,extinguisher_type,灭火器类型,enum,required,1,1,干粉(ABC),,GB 4351-2023,第4条/表1,灭火器; 干粉/CO2/水基/洁净气体
+MAT-FIRE-002,filling_weight,充装量,string,required,1,1,4,kg,GB 4351-2023,第4条/表1,灭火器; 1/2/3/4/5/6/8/9/12kg
+MAT-FIRE-002,fire_rating_ext,灭火级别,string,check,0,0,2A/55B,,GB 4351-2023,第5条/表2,灭火级别; 1A~6A/21B~183B
+MAT-FIRE-002,operating_temp,使用温度范围,string,check,0,0,-20~55,℃,GB 4351-2023,第6条,灭火器; -20~55℃(干粉)/-10~55℃(水基)
+MAT-FIRE-002,cylinder_pressure_ext,钢瓶工作压力,number,check,0,0,,MPa,GB 4351-2023,第7条/表3,灭火器; 1.2~2.5MPa(依类型)
+MAT-FIRE-003,detector_type_smoke,探测器类型,enum,required,1,1,点型光电感烟,,GB 4715-2024,第4条/表1,感烟探测器; 光电/离子/红外光束/吸气式
+MAT-FIRE-003,sensitivity_smoke,灵敏度(响应阈值),number,check,0,0,,dB/m,GB 4715-2024,第5条/表2,感烟探测器; 0.05~0.20dB/m(减光系数)
+MAT-FIRE-003,rated_voltage_det,额定工作电压,string,check,0,0,DC24,V,GB 4715-2024,第6条,探测器; DC12/DC24/总线供电
+MAT-FIRE-003,monitoring_current,监控电流,number,check,0,0,≤300,μA,GB 4715-2024,第6条,探测器; 静态监控电流≤300μA
+MAT-FIRE-003,alarm_current,报警电流,number,check,0,0,≤30,mA,GB 4715-2024,第6条,探测器; 报警状态电流≤30mA
+MAT-FIRE-004,detector_type_heat,探测器类型,enum,required,1,1,点型定温,,GB 4716-2024,第4条/表1,感温探测器; 定温/差温/差定温
+MAT-FIRE-004,response_class,响应等级,enum,check,0,0,I级(灵敏),,GB 4716-2024,第5条/表2,感温探测器; I级(灵敏)/II级(普通)/III级(不灵敏)
+MAT-FIRE-004,rated_action_temp,标称动作温度,number,check,0,0,,℃,GB 4716-2024,第5条/表3,感温探测器; 54/62/70/78/84/93/102℃(按颜色标记)
+MAT-FIRE-004,max_static_temp,最高静态温度,number,check,0,0,,℃,GB 4716-2024,第5条/表3,感温探测器; 比动作温度低12~28℃
+MAT-FIRE-004,response_time,响应时间,string,check,0,0,≤30,s,GB 4716-2024,第6条/表4,感温探测器; I级≤30s/II级≤40s/III级≤50s
+MAT-AUXI-019,nominal_diameter_conduit,公称口径DN,string,required,1,1,,mm,GB/T 3091-2015,第4条/表1,穿线管(电线管); DN15~DN100; 用于电气线路保护
+MAT-AUXI-019,outer_diameter_conduit,外径,number,required,1,0,,mm,GB/T 3091-2015,第4条/表1,穿线管; 普通管/加厚管两种壁厚系列外径
+MAT-AUXI-019,wall_thickness_conduit,壁厚,number,required,1,1,,mm,GB/T 3091-2015,第4条/表1,穿线管; 普通型/加厚型两档; 电气穿线常用普通型
+MAT-AUXI-019,steel_grade_conduit,钢牌号,enum,required,1,1,Q235B,,GB/T 3091-2015,第5条/表1,穿线管; Q195/Q215/Q235B; 电气穿线管常用Q235B
+MAT-AUXI-019,galvanizing_type_conduit,镀锌方式,enum,required,1,1,热浸镀锌,,GB/T 3091-2015,第6条/表2,穿线管; 热浸镀锌/电镀锌; 电气穿线管要求防腐镀锌
+MAT-AUXI-019,zinc_coating_weight,镀锌层重量,number,check,0,0,,g/m²,GB/T 3091-2015,第6条/表2,"穿线管; 热浸镀锌≥300g/m²,电镀锌≥120g/m²"
+MAT-AUXI-019,tensile_strength_conduit,抗拉强度Rm,number,check,0,0,,MPa,GB/T 3091-2015,第7条/表3,穿线管; 钢管抗拉强度≥375MPa(Q235B)
+MAT-AUXI-019,yield_strength_conduit,下屈服强度ReL,number,check,0,0,,MPa,GB/T 3091-2015,第7条/表3,穿线管; Q235B壁厚≤16mm:≥235MPa
+MAT-AUXI-019,elongation_conduit,断后伸长率A,number,check,0,0,,%,GB/T 3091-2015,第7条/表3,穿线管; Q235B≥26%
+MAT-AUXI-019,bend_test_conduit,弯曲试验,enum,check,0,0,合格(无裂纹),,GB/T 3091-2015,第8条/表4,穿线管; 弯曲90°外径8倍无裂纹; 穿线安装关键要求
+MAT-AUXI-019,surface_quality_conduit,表面质量,enum,check,0,0,光滑无毛刺,,GB/T 3091-2015,第10条,穿线管; 内外表面光滑/无毛刺/无裂纹; 保护导线绝缘层
+MAT-AUXI-019,hydrostatic_test_conduit,水压试验,enum,check,0,0,合格(无渗漏),,GB/T 3091-2015,第12条/表6,穿线管; 5.0MPa保压≥5s无渗漏; 确保管体密封性
+MAT-AUXI-002,bolt_size,螺栓规格,string,required,1,1,M20,mm,GB/T 799-2020,第4条/表1~表3,地脚螺栓; M8~M72; 螺纹规格d
+MAT-AUXI-002,bolt_type,螺栓型式,enum,required,1,1,A型,,GB/T 799-2020,第3条,地脚螺栓; A型(直角弯钩)/B型(锚板)/C型(直杆)
+MAT-AUXI-002,performance_grade,性能等级,enum,required,1,1,4.6,,GB/T 799-2020,第4条,地脚螺栓; 4.6/5.6级; d≤M39按GB/T 3098.1
+MAT-AUXI-002,surface_treatment,表面处理,enum,check,0,0,不处理,,GB/T 799-2020,第4条,地脚螺栓; 不处理/镀锌(GB/T 5267.3)/其他涂层
+MAT-AUXI-002,thread_pitch,螺距P,number,check,0,0,,mm,GB/T 799-2020,第4条/表1~表3,地脚螺栓; M8=1.25~M72=6
+MAT-AUXI-002,bolt_length,螺栓总长l,number,required,1,1,,mm,GB/T 799-2020,第4条/表1~表3,地脚螺栓; A型46~430/B型48~432/C型32~288
+MAT-AUXI-002,thread_length,螺纹长度b,number,check,0,0,,mm,GB/T 799-2020,第4条/表1~表3,地脚螺栓; b=l-2P~各类别不同
+MAT-FITT-001,fitting_type,管件类型,enum,required,1,1,90°长半径弯头,,GB/T 12459-2025,第4条/表1,"钢制对焊管件; 弯头/三通/异径管/管帽/翻边短节等,见表1"
+MAT-FITT-001,fitting_code,管件代号,enum,check,0,0,90EL,,GB/T 12459-2025,第4条/表1,"管件代号; 90EL/W90EL/45EL/TE/RC/RE/CAP等,见表1"
+MAT-FITT-001,nominal_size,公称尺寸DN,string,required,1,1,,mm,GB/T 12459-2025,第6条/表8~表52,钢制对焊管件; DN8~DN3400(NPS1/4~NPS136)
+MAT-FITT-001,wall_thickness_sch,壁厚系列,enum,check,0,0,SCH40,,GB/T 12459-2025,第6条/表2~表7,管件壁厚; SCH5S/SCH10S/SCH40S/SCH80S/STD/XS/XXS等
+MAT-FITT-001,material_group_fit,材料类别,enum,required,1,1,碳钢,,GB/T 12459-2025,第9条/附录A,管件材料; 碳钢/合金钢/不锈钢/镍基合金; 按附录A设计验证
+MAT-FITT-001,pressure_class_fit,压力等级Class,string,check,0,0,,,GB/T 12459-2025,第5条,管件压力等级; Class150/300/600/900/1500/2500; 按GB/T 9124.2
+MAT-FITT-001,end_bevel,端部坡口,enum,check,0,0,符合第8条,,GB/T 12459-2025,第8条,管件端部坡口; 按壁厚分档加工坡口角度
+MAT-FITT-001,surface_contour_fit,表面轮廓,enum,check,0,0,光滑无裂纹,,GB/T 12459-2025,第7条,管件内外表面; 光滑/无裂纹/无折叠/无重皮
+MAT-TRN-001,board_type_trn,板类型,enum,required,1,1,普通型,,GB/T 17656-2018,第4条,模板胶合板; 普通型/覆膜型/涂膜型(第4条)
+MAT-TRN-001,thickness_trn,厚度,number,required,1,1,15,mm,GB/T 17656-2018,第5.3条/表1,模板胶合板; 12≤t<15/15≤t<18/18≤t<21/21≤t<24
+MAT-TRN-001,nominal_width_trn,公称宽度,number,check,0,0,1220,mm,GB/T 17656-2018,第5.3条/表1,模板胶合板; 900/915/1000/1200/1220/1250mm
+MAT-TRN-001,nominal_length_trn,公称长度,number,check,0,0,2440,mm,GB/T 17656-2018,第5.3条/表1,模板胶合板; 1800/1830/1880/2000/2135/2400/2440/2500mm
+MAT-TRN-001,bending_strength_parallel,静曲强度(顺纹),number,check,0,0,,MPa,GB/T 17656-2018,第5.5条/表3~表5,模板胶合板; 普通型≥50MPa(t<15)~≥35MPa(t≥21)/覆膜型≥50MPa(t<15)
+MAT-TRN-001,bending_strength_perp,静曲强度(横纹),number,check,0,0,,MPa,GB/T 17656-2018,第5.5条/表3~表5,模板胶合板; 普通型≥30MPa~≥25MPa/覆膜型≥30MPa~≥25MPa
+MAT-TRN-001,elastic_mod_parallel,弹性模量(顺纹),number,check,0,0,,MPa,GB/T 17656-2018,第5.5条/表3~表5,模板胶合板; 普通型≥6000MPa(t<15)~≥5000MPa(t≥21)
+MAT-TRN-001,elastic_mod_perp,弹性模量(横纹),number,check,0,0,,MPa,GB/T 17656-2018,第5.5条/表3~表5,模板胶合板; 普通型≥4500MPa(t<15)~≥4000MPa(t≥21)
+MAT-TRN-001,moisture_content,含水率,number,check,0,0,5~14,%,GB/T 17656-2018,第5.6条/表6,模板胶合板; 含水率5%~14%
+MAT-TRN-001,bond_strength_trn,胶合强度,number,check,0,0,≥0.70,MPa,GB/T 17656-2018,第5.6条/表6,模板胶合板; 胶合强度≥0.70MPa; 浸渍剥离≤25mm
+MAT-ADH-001,adhesive_type,胶粘剂类型,enum,required,1,1,C2,,JC/T 547-2017,第4条/表1,"陶瓷砖胶粘剂; C1(普通型)/C2(增强型)/D1/D2/R1/R2,见第4条/表1"
+MAT-ADH-001,tensile_adhesion_std,拉伸粘接强度(标准),number,check,0,0,≥0.5,MPa,JC/T 547-2017,第5条/表2,"陶瓷砖胶粘剂; C1≥0.5MPa/C2≥1.0MPa,标准养护条件"
+MAT-ADH-001,tensile_adhesion_water,拉伸粘接强度(浸水),number,check,0,0,≥0.5,MPa,JC/T 547-2017,第5条/表2,陶瓷砖胶粘剂; 浸水后≥0.5MPa(C1)/≥1.0MPa(C2)
+MAT-ADH-001,tensile_adhesion_heat,拉伸粘接强度(热老化),number,check,0,0,≥0.5,MPa,JC/T 547-2017,第5条/表2,陶瓷砖胶粘剂; 70°C热老化后≥0.5MPa(C1)/≥1.0MPa(C2)
+MAT-ADH-001,tensile_adhesion_freeze,拉伸粘接强度(冻融),number,check,0,0,≥0.5,MPa,JC/T 547-2017,第5条/表2,陶瓷砖胶粘剂; 冻融循环后≥0.5MPa(C1)/≥1.0MPa(C2)
+MAT-ADH-001,open_time_20min,晾置时间20min粘接强度,number,check,0,0,≥0.5,MPa,JC/T 547-2017,第5条/表2,陶瓷砖胶粘剂; 晾置20min后≥0.5MPa(C1/C2)
+MAT-ADH-001,slip_resistance,抗滑移性能,number,check,0,0,≤0.5,mm,JC/T 547-2017,第5条/表2,陶瓷砖胶粘剂; 滑移≤0.5mm
+MAT-ADH-001,transverse_deformation,横向变形,string,check,0,0,,mm,JC/T 547-2017,第5条/表2,陶瓷砖胶粘剂; S1≥2.5mm/S2≥5.0mm(仅C2)
