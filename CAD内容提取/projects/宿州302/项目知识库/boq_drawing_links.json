@@ -1,0 +1,2071 @@
+[
+  {
+    "link_id": "LINK-ea844c9882",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-3a654db009",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.77,
+    "rank": 1,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-eef52e7646",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-bacae5cd28",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.77,
+    "rank": 2,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-6325763499",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-2e27134d9e",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.77,
+    "rank": 3,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-d032497d63",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-b35cb5ada3",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚1",
+    "location": "配电间、地下交通核内设备用房、风机房、地下封闭楼梯间、过道",
+    "confidence": 0.77,
+    "rank": 4,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-953fbb70a1",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-0e04c997eb",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.77,
+    "rank": 5,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-f259790f91",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-ee720dba99",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.77,
+    "rank": 6,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-ab62e6702e",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-206bc09ee6",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.77,
+    "rank": 7,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-8e23041dc9",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-1ee8285c26",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚1",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 8,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-7d694a575d",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-f3bb6b6ac8",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.77,
+    "rank": 9,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-2f7cffad70",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-6da7e32cdb",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.77,
+    "rank": 10,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-2c72f8ddbf",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-62d0447602",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.77,
+    "rank": 11,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-204114c145",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-2a0d705bcf",
+    "building": "Y-2号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚1",
+    "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+    "confidence": 0.77,
+    "rank": 12,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-b2f64b233e",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-ec37472b37",
+    "building": "Y-2号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.77,
+    "rank": 13,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-9c3accdc50",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-92dd301200",
+    "building": "Y-2号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.77,
+    "rank": 14,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-858dc7637f",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-c695474859",
+    "building": "Y-2号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.77,
+    "rank": 15,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-367dfc9434",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-9842fb9a61",
+    "building": "Y-3号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.77,
+    "rank": 16,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-101c3631bb",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-749deb68c0",
+    "building": "Y-3号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.77,
+    "rank": 17,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-5be7110ebb",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-6794e7cabd",
+    "building": "Y-3号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.77,
+    "rank": 18,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-e5b78d17d9",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-ab95b7550a",
+    "building": "Y-4号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚1",
+    "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+    "confidence": 0.77,
+    "rank": 19,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-1c2ffaa77a",
+    "boq_item_id": "BOQ-001",
+    "practice_id": "PR-cc66c47903",
+    "building": "Y-4号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "地上顶棚4",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.77,
+    "rank": 20,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-b179a5eab0",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-2e27134d9e",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.84,
+    "rank": 1,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-a895eb5220",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-206bc09ee6",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.84,
+    "rank": 2,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-3ae7d96da5",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-f3bb6b6ac8",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.84,
+    "rank": 3,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-4d5b35cda9",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-62d0447602",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.84,
+    "rank": 4,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-083db2e661",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-92dd301200",
+    "building": "Y-2号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.84,
+    "rank": 5,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-388dca6f69",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-c695474859",
+    "building": "Y-2号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.84,
+    "rank": 6,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-639fff6a9b",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-6794e7cabd",
+    "building": "Y-3号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.84,
+    "rank": 7,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-26401fdb12",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-c8434a9cb9",
+    "building": "Y-4号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "地上顶棚5",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.84,
+    "rank": 8,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-25c6eb292f",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-324fb091cf",
+    "building": "Y-4号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "地上顶棚6",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.84,
+    "rank": 9,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-35c3e4c863",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-6a93180d8a",
+    "building": "Y-5号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "地上顶棚4",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.84,
+    "rank": 10,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-29c7176424",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-f4d51b0521",
+    "building": "Y-5号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "地上顶棚5",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.84,
+    "rank": 11,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-cab2a4d3bd",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-624ed60c3c",
+    "building": "Y-6号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "封闭楼梯间",
+    "confidence": 0.84,
+    "rank": 12,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-c678c38e50",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-6d63581c55",
+    "building": "Y-6号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚8",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.84,
+    "rank": 13,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-7ca36078db",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-7b81121a19",
+    "building": "Y-7号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "地上顶棚4",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.84,
+    "rank": 14,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-634876538e",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-0861f4df50",
+    "building": "Y-7号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "地上顶棚5",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.84,
+    "rank": 15,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-42fe30df40",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-7cd58b9c96",
+    "building": "Y-8号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.84,
+    "rank": 16,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-8d87c5e7d2",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-bc8b57dc21",
+    "building": "Y-8号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.84,
+    "rank": 17,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-80ca2633d3",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-ebbddbcc32",
+    "building": "Y-9号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.84,
+    "rank": 18,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料,腻子",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：腻子,涂料"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-30dc9de9a4",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-d011bae322",
+    "building": "Y-10号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙7",
+    "location": "封闭楼梯间、敞开楼梯间,电梯机房 (非分户墙)",
+    "confidence": 0.72,
+    "rank": 19,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：涂料"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-608012755f",
+    "boq_item_id": "BOQ-002",
+    "practice_id": "PR-7debc9930e",
+    "building": "Y-10号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙8",
+    "location": "封闭楼梯间、敞开楼梯间,电梯机房 (分户墙)",
+    "confidence": 0.72,
+    "rank": 20,
+    "match_basis": [
+      "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+      "BOQ与做法层共同命中关键词：涂料",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：涂料"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-f614a47717",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-3a654db009",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.57,
+    "rank": 1,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-e463244a02",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-bacae5cd28",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.57,
+    "rank": 2,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-632559163d",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-2e27134d9e",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.57,
+    "rank": 3,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-bfef26e463",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-93e9a70aef",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚8",
+    "location": "设备管井（除水管井）",
+    "confidence": 0.57,
+    "rank": 4,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-69d8fe8ac0",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-b86a2866a4",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚9",
+    "location": "水管井",
+    "confidence": 0.57,
+    "rank": 5,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-d597ac21e1",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-a4f37e3d36",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚10",
+    "location": "架空层",
+    "confidence": 0.57,
+    "rank": 6,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-2a34342518",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-b35cb5ada3",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚1",
+    "location": "配电间、地下交通核内设备用房、风机房、地下封闭楼梯间、过道",
+    "confidence": 0.57,
+    "rank": 7,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-10072fb68d",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-0e04c997eb",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.57,
+    "rank": 8,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-57f9a3e02d",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-ee720dba99",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.57,
+    "rank": 9,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-a04a2233f9",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-206bc09ee6",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.57,
+    "rank": 10,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-7716e926c1",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-bf740fce27",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚8",
+    "location": "设备管井（除水管井）",
+    "confidence": 0.57,
+    "rank": 11,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-4228970c19",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-c9d99a77fc",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚9",
+    "location": "水管井",
+    "confidence": 0.57,
+    "rank": 12,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-e2fcbb1aeb",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-1ee8285c26",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚1",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.57,
+    "rank": 13,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-a257a4ca22",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-f3bb6b6ac8",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.57,
+    "rank": 14,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-2f87cdc352",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-6da7e32cdb",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.57,
+    "rank": 15,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-005fb23226",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-62d0447602",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.57,
+    "rank": 16,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-140dc4eb4d",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-eb46aef7b7",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚9",
+    "location": "水管井",
+    "confidence": 0.57,
+    "rank": 17,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-bcf6c2c3c2",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-2a0d705bcf",
+    "building": "Y-2号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚1",
+    "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+    "confidence": 0.57,
+    "rank": 18,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-95571ec31f",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-ec37472b37",
+    "building": "Y-2号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.57,
+    "rank": 19,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-608792af45",
+    "boq_item_id": "BOQ-003",
+    "practice_id": "PR-92dd301200",
+    "building": "Y-2号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.57,
+    "rank": 20,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：腻子",
+      "材料提及与BOQ描述相关：腻子"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-e67245a18a",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-7fd454bac4",
+    "building": "Y-10号楼",
+    "practice_category": "地面做法",
+    "practice_code": "地面3",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 1,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-d4124db1c9",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-c9dc862a4e",
+    "building": "Y-10号楼",
+    "practice_category": "楼面做法",
+    "practice_code": "楼7",
+    "location": "门厅、电梯厅、前室、合用前室、地下大堂",
+    "confidence": 0.77,
+    "rank": 2,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-3c202968c3",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-81e3cb7ce1",
+    "building": "Y-11号楼",
+    "practice_category": "楼面做法",
+    "practice_code": "楼8",
+    "location": "首层门厅、电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.77,
+    "rank": 3,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-7faa824f7b",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-78b24699b2",
+    "building": "Y-1号楼",
+    "practice_category": "地面做法",
+    "practice_code": "地面3",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 4,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-80b3616538",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-d5fce7b430",
+    "building": "Y-1号楼",
+    "practice_category": "楼面做法",
+    "practice_code": "楼3",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 5,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-793f28bddf",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-2714f55577",
+    "building": "Y-1号楼",
+    "practice_category": "楼面做法",
+    "practice_code": "楼8",
+    "location": "首层封闭楼梯间",
+    "confidence": 0.77,
+    "rank": 6,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-8c8bea0265",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-b34a1ed14d",
+    "building": "Y-2号楼",
+    "practice_category": "地面做法",
+    "practice_code": "地面3",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 7,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-e8b6ce1de6",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-b305932c42",
+    "building": "Y-2号楼",
+    "practice_category": "楼面做法",
+    "practice_code": "楼3",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 8,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-d6bd92184c",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-d6ee24568c",
+    "building": "Y-3号楼",
+    "practice_category": "地面做法",
+    "practice_code": "地面3",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 9,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-7ea5494af5",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-aea8a1d793",
+    "building": "Y-3号楼",
+    "practice_category": "楼面做法",
+    "practice_code": "楼2",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 10,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-29ac8a58cd",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-e1944a5fa7",
+    "building": "Y-4号楼",
+    "practice_category": "地面做法",
+    "practice_code": "地面3",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 11,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-f4f8a5e004",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-0c649444d4",
+    "building": "Y-5号楼",
+    "practice_category": "地面做法",
+    "practice_code": "地面8",
+    "location": "首层门厅、电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.77,
+    "rank": 12,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-5adac59324",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-7a38257d00",
+    "building": "Y-5号楼",
+    "practice_category": "楼面做法",
+    "practice_code": "楼3",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 13,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-422ec8879c",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-28cd8d6727",
+    "building": "Y-6号楼",
+    "practice_category": "楼面做法",
+    "practice_code": "楼8",
+    "location": "门厅、电梯厅、前室、合用前室、地下大堂",
+    "confidence": 0.77,
+    "rank": 14,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-00035752c7",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-194577dcf0",
+    "building": "Y-7号楼",
+    "practice_category": "地面做法",
+    "practice_code": "地面3",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 15,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-a452cdbcf5",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-4189f71a20",
+    "building": "Y-7号楼",
+    "practice_category": "楼面做法",
+    "practice_code": "楼3",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 16,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-604f483e3c",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-6218346f70",
+    "building": "Y-7号楼",
+    "practice_category": "楼面做法",
+    "practice_code": "楼8",
+    "location": "首层门厅、电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.77,
+    "rank": 17,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-389996f780",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-f926d53be9",
+    "building": "Y-8号楼",
+    "practice_category": "楼面做法",
+    "practice_code": "楼5",
+    "location": "门厅、电梯厅、前室、合用前室、地下大堂",
+    "confidence": 0.77,
+    "rank": 18,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-49a42fc221",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-4aa0ec5280",
+    "building": "Y-9号楼",
+    "practice_category": "地面做法",
+    "practice_code": "地面3",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.77,
+    "rank": 19,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-261f3a9505",
+    "boq_item_id": "BOQ-004",
+    "practice_id": "PR-5739ccafd9",
+    "building": "Y-9号楼",
+    "practice_category": "地面做法",
+    "practice_code": "地面7",
+    "location": "首层门厅、电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.77,
+    "rank": 20,
+    "match_basis": [
+      "BOQ类别为地面材料，做法类别为地面/楼面",
+      "BOQ与做法层共同命中关键词：地砖",
+      "BOQ为公共区域，做法部位属于公共/交通空间",
+      "材料提及与BOQ描述相关：防滑地砖"
+    ],
+    "status": "auto_candidate_high"
+  },
+  {
+    "link_id": "LINK-85cfc58456",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-37052c47a8",
+    "building": "S-1号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙1",
+    "location": "社区大堂",
+    "confidence": 0.5,
+    "rank": 1,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-912524c834",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-1ffa2343f3",
+    "building": "Y-10号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙5",
+    "location": "门厅、电梯厅、前室、合用前室、地下大堂 (非分户墙)",
+    "confidence": 0.5,
+    "rank": 2,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-fd90fdbd0b",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-abf12c08f0",
+    "building": "Y-10号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙6",
+    "location": "门厅、电梯厅、前室、合用前室、地下大堂 (分户墙)",
+    "confidence": 0.5,
+    "rank": 3,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-0e430ad9ed",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-d011bae322",
+    "building": "Y-10号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙7",
+    "location": "封闭楼梯间、敞开楼梯间,电梯机房 (非分户墙)",
+    "confidence": 0.5,
+    "rank": 4,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-e82668b118",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-7debc9930e",
+    "building": "Y-10号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙8",
+    "location": "封闭楼梯间、敞开楼梯间,电梯机房 (分户墙)",
+    "confidence": 0.5,
+    "rank": 5,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-ca2f4c03a5",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-3f854c78a9",
+    "building": "Y-10号楼",
+    "practice_category": "外墙做法",
+    "practice_code": "外墙3",
+    "location": "住宅基座、门厅等主要立面线脚",
+    "confidence": 0.5,
+    "rank": 6,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-a5841dfb7b",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-6a81033a77",
+    "building": "Y-11号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙5",
+    "location": "门厅、电梯厅、前室、合用前室、地下大堂",
+    "confidence": 0.5,
+    "rank": 7,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-8104fdad3c",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-f73b63568a",
+    "building": "Y-11号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙6",
+    "location": "门厅、电梯厅、前室、合用前室、地下大堂",
+    "confidence": 0.5,
+    "rank": 8,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-cae332d95f",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-9fbd84f32a",
+    "building": "Y-11号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙7",
+    "location": "封闭楼梯间 、敞开楼梯间 ,电梯机房",
+    "confidence": 0.5,
+    "rank": 9,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-d4ba8c12d1",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-a80cb259d5",
+    "building": "Y-11号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙8",
+    "location": "封闭楼梯间 、敞开楼梯间 ,电梯机房",
+    "confidence": 0.5,
+    "rank": 10,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-197c2e16e7",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-b9627394c8",
+    "building": "Y-11号楼",
+    "practice_category": "外墙做法",
+    "practice_code": "外墙3",
+    "location": "住宅基座、门厅等主要立面线脚",
+    "confidence": 0.5,
+    "rank": 11,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-a8f11aa055",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-3a7cdd381f",
+    "building": "Y-1号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙5",
+    "location": "门厅、电梯厅、前室、合用前室、地下大堂",
+    "confidence": 0.5,
+    "rank": 12,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-945115958e",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-7863e17f67",
+    "building": "Y-1号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙6",
+    "location": "门厅、电梯厅、前室、合用前室、地下大堂",
+    "confidence": 0.5,
+    "rank": 13,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-311d5628e6",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-fd2c4274ee",
+    "building": "Y-1号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙7",
+    "location": "封闭楼梯间 、敞开楼梯间 ,电梯机房",
+    "confidence": 0.5,
+    "rank": 14,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-f6e1e6e58b",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-72d74c6fb3",
+    "building": "Y-1号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙8",
+    "location": "封闭楼梯间 、敞开楼梯间 ,电梯机房",
+    "confidence": 0.5,
+    "rank": 15,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-f93530e8e6",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-8198626b48",
+    "building": "Y-1号楼",
+    "practice_category": "外墙做法",
+    "practice_code": "外墙3",
+    "location": "住宅基座、门厅等主要立面线脚",
+    "confidence": 0.5,
+    "rank": 16,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-94e9964f8b",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-bcbb4cccd1",
+    "building": "Y-2号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙5",
+    "location": "门厅、电梯厅、前室、合用前室、地下大堂",
+    "confidence": 0.5,
+    "rank": 17,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-850e6ae6bf",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-bf6b02e0c9",
+    "building": "Y-2号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙6",
+    "location": "门厅、电梯厅、前室、合用前室、地下大堂",
+    "confidence": 0.5,
+    "rank": 18,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-c871542306",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-7cf895830a",
+    "building": "Y-2号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙7",
+    "location": "封闭楼梯间 、敞开楼梯间            ,电梯机房",
+    "confidence": 0.5,
+    "rank": 19,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-4a565f7737",
+    "boq_item_id": "BOQ-005",
+    "practice_id": "PR-f5c5ee498b",
+    "building": "Y-2号楼",
+    "practice_category": "内墙做法",
+    "practice_code": "内墙8",
+    "location": "封闭楼梯间 、敞开楼梯间            ,电梯机房",
+    "confidence": 0.5,
+    "rank": 20,
+    "match_basis": [
+      "BOQ类别为墙面材料，做法类别为内墙/外墙",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-86be1f9e0d",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-b572a3522b",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚2",
+    "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+    "confidence": 0.62,
+    "rank": 1,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：吊顶",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-1036e4be1a",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-46ebc52b0f",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚2",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.62,
+    "rank": 2,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：吊顶",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-b733f768a1",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-c0aa2419b5",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚2",
+    "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+    "confidence": 0.62,
+    "rank": 3,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：吊顶",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-f805aeebd3",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-58f7f18209",
+    "building": "Y-2号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚2",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.62,
+    "rank": 4,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：吊顶",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-5a3576497a",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-af7cdfd639",
+    "building": "Y-3号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚2",
+    "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+    "confidence": 0.62,
+    "rank": 5,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：吊顶",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-5bc717a7e4",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-cbf5823db9",
+    "building": "Y-4号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚2",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.62,
+    "rank": 6,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：吊顶",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-eb87a59d25",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-d0b607f2ad",
+    "building": "Y-5号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚2",
+    "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+    "confidence": 0.62,
+    "rank": 7,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：吊顶",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-eef9328d30",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-fa039f28b3",
+    "building": "Y-7号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚2",
+    "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+    "confidence": 0.62,
+    "rank": 8,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：吊顶",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-7f6b073b73",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-0139535efc",
+    "building": "Y-8号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚2",
+    "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+    "confidence": 0.62,
+    "rank": 9,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ与做法层共同命中关键词：吊顶",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "candidate_needs_review"
+  },
+  {
+    "link_id": "LINK-2bebfb283f",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-63decbcae3",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚1",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.5,
+    "rank": 10,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-da1072eadb",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-3a654db009",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.5,
+    "rank": 11,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-045bd124cb",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-bacae5cd28",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.5,
+    "rank": 12,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-a32aa68bd5",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-2e27134d9e",
+    "building": "Y-10号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.5,
+    "rank": 13,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-6bad845ba2",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-b35cb5ada3",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚1",
+    "location": "配电间、地下交通核内设备用房、风机房、地下封闭楼梯间、过道",
+    "confidence": 0.5,
+    "rank": 14,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-8e4d6c1a2c",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-0e04c997eb",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.5,
+    "rank": 15,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-1d7a9ca10c",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-ee720dba99",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.5,
+    "rank": 16,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-2dd2f9c24b",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-206bc09ee6",
+    "building": "Y-11号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚7",
+    "location": "敞开楼梯间、电梯机房",
+    "confidence": 0.5,
+    "rank": 17,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-de74592bd6",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-1ee8285c26",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚1",
+    "location": "地下电梯厅、地下大堂",
+    "confidence": 0.5,
+    "rank": 18,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-f571ef9b4b",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-f3bb6b6ac8",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚5",
+    "location": "电梯厅、前室、合用前室、敞开楼梯间",
+    "confidence": 0.5,
+    "rank": 19,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  },
+  {
+    "link_id": "LINK-f23ac0141e",
+    "boq_item_id": "BOQ-006",
+    "practice_id": "PR-6da7e32cdb",
+    "building": "Y-1号楼",
+    "practice_category": "顶棚做法",
+    "practice_code": "顶棚6",
+    "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+    "confidence": 0.5,
+    "rank": 20,
+    "match_basis": [
+      "BOQ类别为天花材料，做法类别为顶棚",
+      "BOQ为公共区域，做法部位属于公共/交通空间"
+    ],
+    "status": "weak_candidate"
+  }
+]

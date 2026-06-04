@@ -1,0 +1,25 @@
+{
+  "project": "宿州302",
+  "generated_at": "2026-06-04T15:41:02",
+  "work_dir": "材料拆解工作区",
+  "files": {
+    "materials_master": "材料拆解工作区/materials_master.json",
+    "material_aliases": "材料拆解工作区/material_aliases.json",
+    "decomposition_rules": "材料拆解工作区/decomposition_rules.json",
+    "task_queue": "材料拆解工作区/拆解任务队列.json",
+    "missing_inputs": "材料拆解工作区/缺失资料清单.json",
+    "accepted_seed": "材料拆解工作区/可采纳清单_种子.json",
+    "pending_seed": "材料拆解工作区/待人工确认清单.json",
+    "review_workbook": "材料拆解工作区/材料拆解工作区_人工确认.xlsx"
+  },
+  "counts": {
+    "materials_master": 11,
+    "material_aliases": 50,
+    "decomposition_rules": 7,
+    "tasks": 16,
+    "missing_inputs": 60,
+    "accepted_seed": 1,
+    "pending_seed": 15
+  },
+  "important_note": "当前输出是拆解工作区，不是最终采购清单。所有 formula_template_only 和 pending_confirm 项必须经过规则完善或人工确认。"
+}

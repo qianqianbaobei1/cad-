@@ -1,0 +1,177 @@
+[
+  {
+    "rule_id": "RULE-PAINT-CEILING",
+    "name": "天花油漆拆解",
+    "match_keywords": [
+      "天花油漆",
+      "吊顶油漆",
+      "顶棚乳胶漆"
+    ],
+    "output_material_ids": [
+      "MAT-001",
+      "MAT-002"
+    ],
+    "optional_material_ids": [
+      "MAT-003"
+    ],
+    "quantity_level": "B",
+    "required_inputs": [
+      "涂刷面积",
+      "腻子遍数",
+      "乳胶漆底/面漆遍数",
+      "理论用量"
+    ],
+    "risk_notes": [
+      "BOQ 只有面积，不能直接得出 kg；必须有材料品牌或理论用量参数"
+    ]
+  },
+  {
+    "rule_id": "RULE-PAINT-WALL-CEILING",
+    "name": "墙面天花油漆拆解",
+    "match_keywords": [
+      "墙面天花油漆",
+      "墙面、天花油漆",
+      "墙面及天花油漆"
+    ],
+    "output_material_ids": [
+      "MAT-001",
+      "MAT-002"
+    ],
+    "optional_material_ids": [
+      "MAT-003"
+    ],
+    "quantity_level": "B",
+    "required_inputs": [
+      "墙面/天花面积拆分",
+      "腻子遍数",
+      "乳胶漆遍数",
+      "石膏找平厚度"
+    ],
+    "risk_notes": [
+      "一个 BOQ 同时覆盖墙面和天花时，需要拆分适用部位"
+    ]
+  },
+  {
+    "rule_id": "RULE-TILE-FLOOR",
+    "name": "地砖铺贴拆解",
+    "match_keywords": [
+      "地砖",
+      "防滑地砖",
+      "公共区域地砖"
+    ],
+    "output_material_ids": [
+      "MAT-004",
+      "MAT-006",
+      "MAT-007"
+    ],
+    "optional_material_ids": [],
+    "quantity_level": "B",
+    "required_inputs": [
+      "地砖规格",
+      "砂浆厚度/粘结材料",
+      "缝宽",
+      "损耗率"
+    ],
+    "risk_notes": [
+      "BOQ 面积可作为主材基数，但规格、排版、损耗会影响采购数量"
+    ]
+  },
+  {
+    "rule_id": "RULE-TILE-WALL",
+    "name": "墙砖铺贴拆解",
+    "match_keywords": [
+      "墙砖",
+      "墙面砖",
+      "公共区域墙砖"
+    ],
+    "output_material_ids": [
+      "MAT-005",
+      "MAT-006",
+      "MAT-007"
+    ],
+    "optional_material_ids": [],
+    "quantity_level": "B",
+    "required_inputs": [
+      "墙砖规格",
+      "粘结层做法",
+      "阳角收口",
+      "缝宽",
+      "损耗率"
+    ],
+    "risk_notes": [
+      "墙砖规格可能有多种，需要按区域或图纸材料表确认"
+    ]
+  },
+  {
+    "rule_id": "RULE-CEILING",
+    "name": "吊顶系统拆解",
+    "match_keywords": [
+      "吊顶"
+    ],
+    "output_material_ids": [
+      "MAT-008",
+      "MAT-009"
+    ],
+    "optional_material_ids": [],
+    "quantity_level": "C",
+    "required_inputs": [
+      "吊顶构造",
+      "石膏板层数",
+      "板材规格",
+      "龙骨间距",
+      "吊杆间距"
+    ],
+    "risk_notes": [
+      "只有吊顶面积时，无法可靠拆出龙骨、吊杆、螺丝等辅材"
+    ]
+  },
+  {
+    "rule_id": "RULE-RAILING",
+    "name": "栏杆成品拆解",
+    "match_keywords": [
+      "栏杆",
+      "扶手",
+      "护窗"
+    ],
+    "output_material_ids": [
+      "MAT-010"
+    ],
+    "optional_material_ids": [],
+    "quantity_level": "C",
+    "required_inputs": [
+      "栏杆高度",
+      "材质",
+      "节点详图",
+      "表面处理",
+      "安装方式"
+    ],
+    "risk_notes": [
+      "BOQ 长度可用，但成品深化参数不足时不能形成采购规格"
+    ]
+  },
+  {
+    "rule_id": "RULE-DOOR-WINDOW",
+    "name": "门窗成品拆解",
+    "match_keywords": [
+      "窗",
+      "门",
+      "百叶窗",
+      "防火门"
+    ],
+    "output_material_ids": [
+      "MAT-011"
+    ],
+    "optional_material_ids": [],
+    "quantity_level": "C",
+    "required_inputs": [
+      "门窗表",
+      "洞口尺寸",
+      "系列",
+      "开启方式",
+      "玻璃/五金配置"
+    ],
+    "risk_notes": [
+      "面积或樘数不能替代门窗表，需按编号和尺寸归集"
+    ]
+  }
+]

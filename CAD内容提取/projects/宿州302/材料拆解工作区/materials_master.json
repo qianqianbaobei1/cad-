@@ -1,0 +1,226 @@
+[
+  {
+    "material_id": "MAT-001",
+    "standard_name": "腻子",
+    "category": "涂装基层材料",
+    "purchase_unit": "kg",
+    "quantity_basis": "按涂刷面积折算，需确认遍数、理论用量、基层条件",
+    "required_specs": [
+      "内/外墙类型",
+      "耐水/普通",
+      "遍数",
+      "理论用量kg/m²/遍"
+    ],
+    "aliases": [
+      "内墙腻子",
+      "耐水腻子",
+      "腻子粉"
+    ],
+    "status": "seed"
+  },
+  {
+    "material_id": "MAT-002",
+    "standard_name": "乳胶漆",
+    "category": "面层涂料",
+    "purchase_unit": "kg",
+    "quantity_basis": "按涂刷面积折算，需确认底漆/面漆、遍数、理论涂布率",
+    "required_specs": [
+      "底漆/面漆",
+      "内/外墙",
+      "遍数",
+      "颜色",
+      "理论涂布率"
+    ],
+    "aliases": [
+      "内墙乳胶漆",
+      "涂料",
+      "面漆",
+      "底漆"
+    ],
+    "status": "seed"
+  },
+  {
+    "material_id": "MAT-003",
+    "standard_name": "石膏找平材料",
+    "category": "找平材料",
+    "purchase_unit": "kg",
+    "quantity_basis": "按面积和厚度折算，需确认厚度、容重、损耗",
+    "required_specs": [
+      "厚度mm",
+      "材料类型",
+      "容重kg/m³"
+    ],
+    "aliases": [
+      "石膏",
+      "粉刷石膏",
+      "石膏找平"
+    ],
+    "status": "seed"
+  },
+  {
+    "material_id": "MAT-004",
+    "standard_name": "防滑地砖",
+    "category": "块料面层",
+    "purchase_unit": "片/m²",
+    "quantity_basis": "优先按 BOQ 面积，结合规格、铺贴方式和损耗折算采购量",
+    "required_specs": [
+      "长宽规格",
+      "厚度",
+      "颜色/型号",
+      "防滑等级",
+      "损耗率"
+    ],
+    "aliases": [
+      "地砖",
+      "地面砖",
+      "面砖",
+      "防滑面砖"
+    ],
+    "status": "seed"
+  },
+  {
+    "material_id": "MAT-005",
+    "standard_name": "墙面砖",
+    "category": "块料面层",
+    "purchase_unit": "片/m²",
+    "quantity_basis": "优先按 BOQ 面积，结合规格、排版和损耗折算采购量",
+    "required_specs": [
+      "长宽规格",
+      "厚度",
+      "颜色/型号",
+      "阳角收口方式",
+      "损耗率"
+    ],
+    "aliases": [
+      "墙砖",
+      "墙面砖",
+      "面砖"
+    ],
+    "status": "seed"
+  },
+  {
+    "material_id": "MAT-006",
+    "standard_name": "水泥砂浆",
+    "category": "粘结/找平材料",
+    "purchase_unit": "m³",
+    "quantity_basis": "按面积、厚度、配合比折算，需确认砂浆类型和厚度",
+    "required_specs": [
+      "配合比",
+      "厚度mm",
+      "用途",
+      "损耗率"
+    ],
+    "aliases": [
+      "干硬性水泥砂浆",
+      "砂浆",
+      "1:3水泥砂浆",
+      "1:2水泥砂浆"
+    ],
+    "status": "seed"
+  },
+  {
+    "material_id": "MAT-007",
+    "standard_name": "美缝剂",
+    "category": "嵌缝材料",
+    "purchase_unit": "支/kg",
+    "quantity_basis": "按砖规格、缝宽、缝深和面积折算",
+    "required_specs": [
+      "缝宽mm",
+      "缝深mm",
+      "颜色",
+      "砖规格"
+    ],
+    "aliases": [
+      "勾缝剂",
+      "填缝剂",
+      "擦缝",
+      "美缝剂"
+    ],
+    "status": "seed"
+  },
+  {
+    "material_id": "MAT-008",
+    "standard_name": "纸面石膏板",
+    "category": "吊顶板材",
+    "purchase_unit": "张/m²",
+    "quantity_basis": "按吊顶展开面积、板材规格、层数、损耗折算",
+    "required_specs": [
+      "厚度mm",
+      "板材规格",
+      "层数",
+      "防水/普通"
+    ],
+    "aliases": [
+      "石膏板",
+      "纸面石膏板",
+      "防水石膏板"
+    ],
+    "status": "seed"
+  },
+  {
+    "material_id": "MAT-009",
+    "standard_name": "轻钢龙骨",
+    "category": "吊顶龙骨",
+    "purchase_unit": "m",
+    "quantity_basis": "按吊顶面积和龙骨间距折算，需确认主/副龙骨规格和间距",
+    "required_specs": [
+      "主龙骨规格",
+      "副龙骨规格",
+      "龙骨间距",
+      "吊杆间距"
+    ],
+    "aliases": [
+      "龙骨",
+      "轻钢龙骨",
+      "主龙骨",
+      "副龙骨"
+    ],
+    "status": "seed"
+  },
+  {
+    "material_id": "MAT-010",
+    "standard_name": "成品栏杆",
+    "category": "成品构件",
+    "purchase_unit": "m",
+    "quantity_basis": "按 BOQ 长度，结合高度、材质、立杆间距和安装方式确认",
+    "required_specs": [
+      "高度",
+      "材质",
+      "表面处理",
+      "立杆间距",
+      "扶手规格"
+    ],
+    "aliases": [
+      "栏杆",
+      "扶手栏杆",
+      "护窗栏杆",
+      "阳台栏杆",
+      "屋面栏杆"
+    ],
+    "status": "seed"
+  },
+  {
+    "material_id": "MAT-011",
+    "standard_name": "成品门窗",
+    "category": "成品构件",
+    "purchase_unit": "m²/樘",
+    "quantity_basis": "按 BOQ 面积或樘数，结合门窗表确认洞口尺寸、系列、五金、玻璃",
+    "required_specs": [
+      "系列",
+      "开启方式",
+      "尺寸",
+      "玻璃配置",
+      "五金",
+      "防火等级"
+    ],
+    "aliases": [
+      "窗",
+      "门",
+      "塑钢平开窗",
+      "彩塑推拉门",
+      "钢制乙级防火门",
+      "百叶窗"
+    ],
+    "status": "seed"
+  }
+]

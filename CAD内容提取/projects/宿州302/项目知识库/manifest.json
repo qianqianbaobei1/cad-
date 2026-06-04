@@ -1,0 +1,24 @@
+{
+  "project": "宿州302",
+  "knowledge_base_dir": "项目知识库",
+  "files": {
+    "boq_items": "项目知识库/boq_items.json",
+    "practice_rules": "项目知识库/practice_rules.json",
+    "material_mentions": "项目知识库/material_mentions.json",
+    "boq_drawing_links": "项目知识库/boq_drawing_links.json",
+    "quality_issues": "项目知识库/quality_issues.json"
+  },
+  "next_use": [
+    "材料拆解时先读取 boq_items.json 获取工程量和原始清单描述",
+    "读取 boq_drawing_links.json 找到每条 BOQ 对应的候选图纸做法",
+    "读取 practice_rules.json 和 material_mentions.json 作为拆料上下文",
+    "读取 quality_issues.json，把脏数据和低置信项放入人工确认队列"
+  ],
+  "counts": {
+    "boq_items": 16,
+    "practice_rules": 468,
+    "material_mentions": 1485,
+    "boq_drawing_links": 120,
+    "quality_issues": 552
+  }
+}

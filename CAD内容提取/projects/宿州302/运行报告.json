@@ -1,0 +1,84 @@
+{
+  "project": "宿州302",
+  "generated_at": "2026-06-04T15:47:08",
+  "executed_stages": [
+    "procurement"
+  ],
+  "status": {
+    "project": "宿州302",
+    "project_root": "/Users/qianqianawodebaobei/Desktop/智能清单/本地执行平台/CAD内容提取/projects/宿州302",
+    "inputs": {
+      "boq_excel_count": 1,
+      "boq_dir": "/Users/qianqianawodebaobei/Desktop/智能清单/本地执行平台/CAD内容提取/projects/宿州302/原始输入",
+      "practice_json_count": 12,
+      "practice_dir": "/Users/qianqianawodebaobei/Desktop/智能清单/本地执行平台/CAD内容提取/projects/宿州302/提取结果/做法表"
+    },
+    "knowledge_base": {
+      "exists": true,
+      "dir": "/Users/qianqianawodebaobei/Desktop/智能清单/本地执行平台/CAD内容提取/projects/宿州302/项目知识库",
+      "manifest": {
+        "project": "宿州302",
+        "knowledge_base_dir": "项目知识库",
+        "files": {
+          "boq_items": "项目知识库/boq_items.json",
+          "practice_rules": "项目知识库/practice_rules.json",
+          "material_mentions": "项目知识库/material_mentions.json",
+          "boq_drawing_links": "项目知识库/boq_drawing_links.json",
+          "quality_issues": "项目知识库/quality_issues.json"
+        },
+        "next_use": [
+          "材料拆解时先读取 boq_items.json 获取工程量和原始清单描述",
+          "读取 boq_drawing_links.json 找到每条 BOQ 对应的候选图纸做法",
+          "读取 practice_rules.json 和 material_mentions.json 作为拆料上下文",
+          "读取 quality_issues.json，把脏数据和低置信项放入人工确认队列"
+        ],
+        "counts": {
+          "boq_items": 16,
+          "practice_rules": 468,
+          "material_mentions": 1485,
+          "boq_drawing_links": 120,
+          "quality_issues": 552
+        }
+      }
+    },
+    "workspace": {
+      "exists": true,
+      "dir": "/Users/qianqianawodebaobei/Desktop/智能清单/本地执行平台/CAD内容提取/projects/宿州302/材料拆解工作区",
+      "manifest": {
+        "project": "宿州302",
+        "generated_at": "2026-06-04T15:41:02",
+        "work_dir": "材料拆解工作区",
+        "files": {
+          "materials_master": "材料拆解工作区/materials_master.json",
+          "material_aliases": "材料拆解工作区/material_aliases.json",
+          "decomposition_rules": "材料拆解工作区/decomposition_rules.json",
+          "task_queue": "材料拆解工作区/拆解任务队列.json",
+          "missing_inputs": "材料拆解工作区/缺失资料清单.json",
+          "accepted_seed": "材料拆解工作区/可采纳清单_种子.json",
+          "pending_seed": "材料拆解工作区/待人工确认清单.json",
+          "review_workbook": "材料拆解工作区/材料拆解工作区_人工确认.xlsx"
+        },
+        "counts": {
+          "materials_master": 11,
+          "material_aliases": 50,
+          "decomposition_rules": 7,
+          "tasks": 16,
+          "missing_inputs": 60,
+          "accepted_seed": 1,
+          "pending_seed": 15
+        },
+        "important_note": "当前输出是拆解工作区，不是最终采购清单。所有 formula_template_only 和 pending_confirm 项必须经过规则完善或人工确认。"
+      },
+      "review_workbook_exists": true
+    },
+    "final_output": {
+      "exists": true,
+      "file": "/Users/qianqianawodebaobei/Desktop/智能清单/本地执行平台/CAD内容提取/projects/宿州302/最终输出/采购计划物料清单.xlsx"
+    }
+  },
+  "final_output": {
+    "exists": true,
+    "file": "/Users/qianqianawodebaobei/Desktop/智能清单/本地执行平台/CAD内容提取/projects/宿州302/最终输出/采购计划物料清单.xlsx"
+  },
+  "recommended_next_step": "对外只交付 最终输出/采购计划物料清单.xlsx；中间目录仅供系统内部追溯和迭代使用。"
+}

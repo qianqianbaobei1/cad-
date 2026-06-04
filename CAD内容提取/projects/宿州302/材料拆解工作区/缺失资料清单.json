@@ -1,0 +1,482 @@
+[
+  {
+    "missing_id": "MISS-BOQ-001-01",
+    "boq_item_id": "BOQ-001",
+    "type": "calculation_or_spec_input",
+    "severity": "medium",
+    "description": "理论用量",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-001-QUALITY",
+    "boq_item_id": "BOQ-001",
+    "type": "source_quality",
+    "severity": "medium",
+    "description": "候选图纸做法存在 1 个质量问题，需要复核后再参与计算",
+    "suggested_owner": "人工复核/图纸解析优化"
+  },
+  {
+    "missing_id": "MISS-BOQ-003-01",
+    "boq_item_id": "BOQ-003",
+    "type": "calculation_or_spec_input",
+    "severity": "medium",
+    "description": "乳胶漆底/面漆遍数",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-003-02",
+    "boq_item_id": "BOQ-003",
+    "type": "calculation_or_spec_input",
+    "severity": "medium",
+    "description": "理论用量",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-003-QUALITY",
+    "boq_item_id": "BOQ-003",
+    "type": "source_quality",
+    "severity": "medium",
+    "description": "候选图纸做法存在 2 个质量问题，需要复核后再参与计算",
+    "suggested_owner": "人工复核/图纸解析优化"
+  },
+  {
+    "missing_id": "MISS-BOQ-004-01",
+    "boq_item_id": "BOQ-004",
+    "type": "calculation_or_spec_input",
+    "severity": "medium",
+    "description": "砂浆厚度/粘结材料",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-004-02",
+    "boq_item_id": "BOQ-004",
+    "type": "calculation_or_spec_input",
+    "severity": "medium",
+    "description": "缝宽",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-004-03",
+    "boq_item_id": "BOQ-004",
+    "type": "calculation_or_spec_input",
+    "severity": "medium",
+    "description": "损耗率",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-004-QUALITY",
+    "boq_item_id": "BOQ-004",
+    "type": "source_quality",
+    "severity": "medium",
+    "description": "候选图纸做法存在 6 个质量问题，需要复核后再参与计算",
+    "suggested_owner": "人工复核/图纸解析优化"
+  },
+  {
+    "missing_id": "MISS-BOQ-005-01",
+    "boq_item_id": "BOQ-005",
+    "type": "calculation_or_spec_input",
+    "severity": "medium",
+    "description": "粘结层做法",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-005-02",
+    "boq_item_id": "BOQ-005",
+    "type": "calculation_or_spec_input",
+    "severity": "medium",
+    "description": "阳角收口",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-005-03",
+    "boq_item_id": "BOQ-005",
+    "type": "calculation_or_spec_input",
+    "severity": "medium",
+    "description": "缝宽",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-005-04",
+    "boq_item_id": "BOQ-005",
+    "type": "calculation_or_spec_input",
+    "severity": "medium",
+    "description": "损耗率",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-005-QUALITY",
+    "boq_item_id": "BOQ-005",
+    "type": "source_quality",
+    "severity": "medium",
+    "description": "候选图纸做法存在 8 个质量问题，需要复核后再参与计算",
+    "suggested_owner": "人工复核/图纸解析优化"
+  },
+  {
+    "missing_id": "MISS-BOQ-006-01",
+    "boq_item_id": "BOQ-006",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "吊顶构造",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-006-02",
+    "boq_item_id": "BOQ-006",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "石膏板层数",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-006-03",
+    "boq_item_id": "BOQ-006",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "板材规格",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-006-04",
+    "boq_item_id": "BOQ-006",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "龙骨间距",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-006-05",
+    "boq_item_id": "BOQ-006",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "吊杆间距",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-007-01",
+    "boq_item_id": "BOQ-007",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "材质",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-007-02",
+    "boq_item_id": "BOQ-007",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "节点详图",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-007-03",
+    "boq_item_id": "BOQ-007",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "表面处理",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-007-04",
+    "boq_item_id": "BOQ-007",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "安装方式",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-008-01",
+    "boq_item_id": "BOQ-008",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "材质",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-008-02",
+    "boq_item_id": "BOQ-008",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "节点详图",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-008-03",
+    "boq_item_id": "BOQ-008",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "表面处理",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-008-04",
+    "boq_item_id": "BOQ-008",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "安装方式",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-009-01",
+    "boq_item_id": "BOQ-009",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "材质",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-009-02",
+    "boq_item_id": "BOQ-009",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "节点详图",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-009-03",
+    "boq_item_id": "BOQ-009",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "表面处理",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-009-04",
+    "boq_item_id": "BOQ-009",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "安装方式",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-010-01",
+    "boq_item_id": "BOQ-010",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "材质",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-010-02",
+    "boq_item_id": "BOQ-010",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "节点详图",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-010-03",
+    "boq_item_id": "BOQ-010",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "表面处理",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-010-04",
+    "boq_item_id": "BOQ-010",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "安装方式",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-011-01",
+    "boq_item_id": "BOQ-011",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "材质",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-011-02",
+    "boq_item_id": "BOQ-011",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "节点详图",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-011-03",
+    "boq_item_id": "BOQ-011",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "表面处理",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-011-04",
+    "boq_item_id": "BOQ-011",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "安装方式",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-012-01",
+    "boq_item_id": "BOQ-012",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "门窗表",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-012-02",
+    "boq_item_id": "BOQ-012",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "洞口尺寸",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-012-03",
+    "boq_item_id": "BOQ-012",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "开启方式",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-012-04",
+    "boq_item_id": "BOQ-012",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "玻璃/五金配置",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-013-01",
+    "boq_item_id": "BOQ-013",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "门窗表",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-013-02",
+    "boq_item_id": "BOQ-013",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "洞口尺寸",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-013-03",
+    "boq_item_id": "BOQ-013",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "开启方式",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-013-04",
+    "boq_item_id": "BOQ-013",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "玻璃/五金配置",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-014-01",
+    "boq_item_id": "BOQ-014",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "门窗表",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-014-02",
+    "boq_item_id": "BOQ-014",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "洞口尺寸",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-014-03",
+    "boq_item_id": "BOQ-014",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "开启方式",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-014-04",
+    "boq_item_id": "BOQ-014",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "玻璃/五金配置",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-015-01",
+    "boq_item_id": "BOQ-015",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "门窗表",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-015-02",
+    "boq_item_id": "BOQ-015",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "洞口尺寸",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-015-03",
+    "boq_item_id": "BOQ-015",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "系列",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-015-04",
+    "boq_item_id": "BOQ-015",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "开启方式",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-015-05",
+    "boq_item_id": "BOQ-015",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "玻璃/五金配置",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-016-01",
+    "boq_item_id": "BOQ-016",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "门窗表",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-016-02",
+    "boq_item_id": "BOQ-016",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "洞口尺寸",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-016-03",
+    "boq_item_id": "BOQ-016",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "开启方式",
+    "suggested_owner": "人工确认/项目资料补充"
+  },
+  {
+    "missing_id": "MISS-BOQ-016-04",
+    "boq_item_id": "BOQ-016",
+    "type": "calculation_or_spec_input",
+    "severity": "high",
+    "description": "玻璃/五金配置",
+    "suggested_owner": "人工确认/项目资料补充"
+  }
+]

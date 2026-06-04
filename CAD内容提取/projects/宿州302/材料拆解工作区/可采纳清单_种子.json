@@ -1,0 +1,240 @@
+[
+  {
+    "task_id": "TASK-002",
+    "boq_item_id": "BOQ-002",
+    "boq_name": "室内公共区域墙面天花油漆",
+    "boq_description": "腻子3遍刷乳胶漆+公区原顶5毫米石膏找平+3遍腻子，乳胶漆涂料3遍",
+    "boq_unit": "m²",
+    "boq_quantity": 10200,
+    "boq_category": "复合材料",
+    "matched_rule_id": "RULE-PAINT-WALL-CEILING",
+    "matched_rule_name": "墙面天花油漆拆解",
+    "quantity_grade": "B",
+    "confidence": 0.88,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [
+      {
+        "link_id": "LINK-b179a5eab0",
+        "practice_id": "PR-2e27134d9e",
+        "building": "Y-10号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚7",
+        "location": "敞开楼梯间、电梯机房",
+        "confidence": 0.84,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+          "BOQ与做法层共同命中关键词：涂料,腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子,涂料"
+        ]
+      },
+      {
+        "link_id": "LINK-a895eb5220",
+        "practice_id": "PR-206bc09ee6",
+        "building": "Y-11号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚7",
+        "location": "敞开楼梯间、电梯机房",
+        "confidence": 0.84,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+          "BOQ与做法层共同命中关键词：涂料,腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子,涂料"
+        ]
+      },
+      {
+        "link_id": "LINK-3ae7d96da5",
+        "practice_id": "PR-f3bb6b6ac8",
+        "building": "Y-1号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚5",
+        "location": "电梯厅、前室、合用前室、敞开楼梯间",
+        "confidence": 0.84,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+          "BOQ与做法层共同命中关键词：涂料,腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子,涂料"
+        ]
+      },
+      {
+        "link_id": "LINK-4d5b35cda9",
+        "practice_id": "PR-62d0447602",
+        "building": "Y-1号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚7",
+        "location": "敞开楼梯间、电梯机房",
+        "confidence": 0.84,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+          "BOQ与做法层共同命中关键词：涂料,腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子,涂料"
+        ]
+      },
+      {
+        "link_id": "LINK-083db2e661",
+        "practice_id": "PR-92dd301200",
+        "building": "Y-2号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚6",
+        "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+        "confidence": 0.84,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+          "BOQ与做法层共同命中关键词：涂料,腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子,涂料"
+        ]
+      }
+    ],
+    "drawing_evidence_summary": {
+      "candidate_count": 20,
+      "top_link_statuses": {
+        "auto_candidate_high": 5
+      },
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": [
+        {
+          "material_name": "腻子",
+          "raw_text": "耐水腻子二遍",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚7",
+            "layer_seq": 2
+          }
+        },
+        {
+          "material_name": "涂料",
+          "raw_text": "白色外墙涂料",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚7",
+            "layer_seq": 3
+          }
+        },
+        {
+          "material_name": "涂料",
+          "raw_text": "白色无机涂料",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-11号楼.json",
+            "practice_code": "顶棚7",
+            "layer_seq": 3
+          }
+        },
+        {
+          "material_name": "腻子",
+          "raw_text": "腻子二遍",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-1号楼.json",
+            "practice_code": "顶棚5",
+            "layer_seq": 2
+          }
+        }
+      ]
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-002-M01",
+        "material_id": "MAT-001",
+        "standard_name": "腻子",
+        "role": "主材",
+        "purchase_unit": "kg",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 10200m² × 遍数 × 理论用量 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "5毫米",
+          "3遍"
+        ],
+        "required_specs": [
+          "内/外墙类型",
+          "耐水/普通",
+          "遍数",
+          "理论用量kg/m²/遍"
+        ],
+        "evidence_material_mentions": [
+          {
+            "material_name": "腻子",
+            "raw_text": "耐水腻子二遍",
+            "spec": "",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "顶棚7",
+              "layer_seq": 2
+            }
+          },
+          {
+            "material_name": "腻子",
+            "raw_text": "腻子二遍",
+            "spec": "",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-1号楼.json",
+              "practice_code": "顶棚5",
+              "layer_seq": 2
+            }
+          }
+        ],
+        "status": "pending_confirm"
+      },
+      {
+        "line_id": "BOQ-002-M02",
+        "material_id": "MAT-002",
+        "standard_name": "乳胶漆",
+        "role": "辅材/配套材料",
+        "purchase_unit": "kg",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 10200m² × 遍数 × 理论用量 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "5毫米",
+          "3遍"
+        ],
+        "required_specs": [
+          "底漆/面漆",
+          "内/外墙",
+          "遍数",
+          "颜色",
+          "理论涂布率"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "墙面/天花面积拆分",
+      "腻子遍数",
+      "乳胶漆遍数",
+      "石膏找平厚度"
+    ],
+    "missing_inputs": [],
+    "risk_notes": [
+      "一个 BOQ 同时覆盖墙面和天花时，需要拆分适用部位",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 6
+      },
+      "knowledge_base": "项目知识库"
+    }
+  }
+]

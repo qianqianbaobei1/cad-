@@ -1,0 +1,354 @@
+[
+  {
+    "boq_item_id": "BOQ-001",
+    "row_index": 5,
+    "seq": 1,
+    "raw_name": "室内公共区域吊顶油漆",
+    "raw_description": "腻子两遍打磨平整涂刷乳胶漆",
+    "raw_unit": "元/㎡",
+    "unit": "m²",
+    "quantity": 1850,
+    "category": "天花材料",
+    "target_practice_categories": [
+      "顶棚做法"
+    ],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 5
+    }
+  },
+  {
+    "boq_item_id": "BOQ-002",
+    "row_index": 6,
+    "seq": 2,
+    "raw_name": "室内公共区域墙面天花油漆",
+    "raw_description": "腻子3遍刷乳胶漆+公区原顶5毫米石膏找平+3遍腻子，乳胶漆涂料3遍",
+    "raw_unit": "元/㎡",
+    "unit": "m²",
+    "quantity": 10200,
+    "category": "复合材料",
+    "target_practice_categories": [
+      "内墙做法",
+      "外墙做法",
+      "顶棚做法"
+    ],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 6
+    }
+  },
+  {
+    "boq_item_id": "BOQ-003",
+    "row_index": 7,
+    "seq": 3,
+    "raw_name": "室内户内天花油漆",
+    "raw_description": "2遍腻子",
+    "raw_unit": "元/㎡",
+    "unit": "m²",
+    "quantity": 36450,
+    "category": "天花材料",
+    "target_practice_categories": [
+      "顶棚做法"
+    ],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 7
+    }
+  },
+  {
+    "boq_item_id": "BOQ-004",
+    "row_index": 8,
+    "seq": 4,
+    "raw_name": "公共区域地砖",
+    "raw_description": "公共区域地砖（600*600）",
+    "raw_unit": "元/㎡",
+    "unit": "m²",
+    "quantity": 4430,
+    "category": "地面材料",
+    "target_practice_categories": [
+      "地面做法",
+      "楼面做法"
+    ],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 8
+    }
+  },
+  {
+    "boq_item_id": "BOQ-005",
+    "row_index": 9,
+    "seq": 5,
+    "raw_name": "公共区域墙砖",
+    "raw_description": "公共区域墙砖（600*600,600*300）",
+    "raw_unit": "元/㎡",
+    "unit": "m²",
+    "quantity": 6300,
+    "category": "墙面材料",
+    "target_practice_categories": [
+      "内墙做法",
+      "外墙做法"
+    ],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 9
+    }
+  },
+  {
+    "boq_item_id": "BOQ-006",
+    "row_index": 10,
+    "seq": 6,
+    "raw_name": "吊顶",
+    "raw_description": "公共区域吊顶",
+    "raw_unit": "元/㎡",
+    "unit": "m²",
+    "quantity": 2100,
+    "category": "天花材料",
+    "target_practice_categories": [
+      "顶棚做法"
+    ],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 10
+    }
+  },
+  {
+    "boq_item_id": "BOQ-007",
+    "row_index": 11,
+    "seq": 7,
+    "raw_name": "楼梯扶手栏杆",
+    "raw_description": "900高度",
+    "raw_unit": "元/m",
+    "unit": "m",
+    "quantity": 1250,
+    "category": "栏杆材料",
+    "target_practice_categories": [],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 11
+    }
+  },
+  {
+    "boq_item_id": "BOQ-008",
+    "row_index": 12,
+    "seq": 8,
+    "raw_name": "空调平台栏杆",
+    "raw_description": "500高度",
+    "raw_unit": "元/m",
+    "unit": "m",
+    "quantity": 2396,
+    "category": "栏杆材料",
+    "target_practice_categories": [],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 12
+    }
+  },
+  {
+    "boq_item_id": "BOQ-009",
+    "row_index": 13,
+    "seq": 9,
+    "raw_name": "护窗栏杆",
+    "raw_description": "900高度",
+    "raw_unit": "元/m",
+    "unit": "m",
+    "quantity": 1430,
+    "category": "栏杆材料",
+    "target_practice_categories": [],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 13
+    }
+  },
+  {
+    "boq_item_id": "BOQ-010",
+    "row_index": 14,
+    "seq": 10,
+    "raw_name": "屋面栏杆",
+    "raw_description": "1200高度",
+    "raw_unit": "元/m",
+    "unit": "m",
+    "quantity": 1030,
+    "category": "栏杆材料",
+    "target_practice_categories": [],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 14
+    }
+  },
+  {
+    "boq_item_id": "BOQ-011",
+    "row_index": 15,
+    "seq": 11,
+    "raw_name": "阳台栏杆",
+    "raw_description": "1100高度",
+    "raw_unit": "元/m",
+    "unit": "m",
+    "quantity": 2030,
+    "category": "栏杆材料",
+    "target_practice_categories": [],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 15
+    }
+  },
+  {
+    "boq_item_id": "BOQ-012",
+    "row_index": 16,
+    "seq": 12,
+    "raw_name": "窗",
+    "raw_description": "60系列塑钢平开窗",
+    "raw_unit": "元/㎡",
+    "unit": "m²",
+    "quantity": 7000,
+    "category": "门窗材料",
+    "target_practice_categories": [],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 16
+    }
+  },
+  {
+    "boq_item_id": "BOQ-013",
+    "row_index": 17,
+    "seq": 13,
+    "raw_name": "门",
+    "raw_description": "90系列彩塑推拉门",
+    "raw_unit": "元/㎡",
+    "unit": "m²",
+    "quantity": 4500,
+    "category": "门窗材料",
+    "target_practice_categories": [],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 17
+    }
+  },
+  {
+    "boq_item_id": "BOQ-014",
+    "row_index": 18,
+    "seq": 14,
+    "raw_name": "门",
+    "raw_description": "60系列塑钢平开门",
+    "raw_unit": "元/㎡",
+    "unit": "m²",
+    "quantity": 90,
+    "category": "门窗材料",
+    "target_practice_categories": [],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 18
+    }
+  },
+  {
+    "boq_item_id": "BOQ-015",
+    "row_index": 19,
+    "seq": 15,
+    "raw_name": "窗",
+    "raw_description": "锌钢百叶窗",
+    "raw_unit": "元/㎡",
+    "unit": "m²",
+    "quantity": 2500,
+    "category": "门窗材料",
+    "target_practice_categories": [],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 19
+    }
+  },
+  {
+    "boq_item_id": "BOQ-016",
+    "row_index": 20,
+    "seq": 16,
+    "raw_name": "进户门",
+    "raw_description": "钢制乙级防火门（高2160宽1060）",
+    "raw_unit": "樘",
+    "unit": "樘",
+    "quantity": 398,
+    "category": "门窗材料",
+    "target_practice_categories": [],
+    "standard_code": null,
+    "code_match_status": "not_available",
+    "references": [],
+    "status": "parsed",
+    "source": {
+      "file": "原始输入/BOQ_宿州302.xlsx",
+      "sheet": "Sheet1",
+      "row": 20
+    }
+  }
+]

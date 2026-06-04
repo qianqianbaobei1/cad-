@@ -1,0 +1,352 @@
+[
+  {
+    "alias": "内墙腻子",
+    "material_id": "MAT-001",
+    "standard_name": "腻子",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "耐水腻子",
+    "material_id": "MAT-001",
+    "standard_name": "腻子",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "腻子",
+    "material_id": "MAT-001",
+    "standard_name": "腻子",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "腻子粉",
+    "material_id": "MAT-001",
+    "standard_name": "腻子",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "乳胶漆",
+    "material_id": "MAT-002",
+    "standard_name": "乳胶漆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "内墙乳胶漆",
+    "material_id": "MAT-002",
+    "standard_name": "乳胶漆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "底漆",
+    "material_id": "MAT-002",
+    "standard_name": "乳胶漆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "涂料",
+    "material_id": "MAT-002",
+    "standard_name": "乳胶漆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "面漆",
+    "material_id": "MAT-002",
+    "standard_name": "乳胶漆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "石膏",
+    "material_id": "MAT-003",
+    "standard_name": "石膏找平材料",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "石膏找平",
+    "material_id": "MAT-003",
+    "standard_name": "石膏找平材料",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "石膏找平材料",
+    "material_id": "MAT-003",
+    "standard_name": "石膏找平材料",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "粉刷石膏",
+    "material_id": "MAT-003",
+    "standard_name": "石膏找平材料",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "地砖",
+    "material_id": "MAT-004",
+    "standard_name": "防滑地砖",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "地面砖",
+    "material_id": "MAT-004",
+    "standard_name": "防滑地砖",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "防滑地砖",
+    "material_id": "MAT-004",
+    "standard_name": "防滑地砖",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "防滑面砖",
+    "material_id": "MAT-004",
+    "standard_name": "防滑地砖",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "面砖",
+    "material_id": "MAT-004",
+    "standard_name": "防滑地砖",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "墙砖",
+    "material_id": "MAT-005",
+    "standard_name": "墙面砖",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "墙面砖",
+    "material_id": "MAT-005",
+    "standard_name": "墙面砖",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "面砖",
+    "material_id": "MAT-005",
+    "standard_name": "墙面砖",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "1:2水泥砂浆",
+    "material_id": "MAT-006",
+    "standard_name": "水泥砂浆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "1:3水泥砂浆",
+    "material_id": "MAT-006",
+    "standard_name": "水泥砂浆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "干硬性水泥砂浆",
+    "material_id": "MAT-006",
+    "standard_name": "水泥砂浆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "水泥砂浆",
+    "material_id": "MAT-006",
+    "standard_name": "水泥砂浆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "砂浆",
+    "material_id": "MAT-006",
+    "standard_name": "水泥砂浆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "勾缝剂",
+    "material_id": "MAT-007",
+    "standard_name": "美缝剂",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "填缝剂",
+    "material_id": "MAT-007",
+    "standard_name": "美缝剂",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "擦缝",
+    "material_id": "MAT-007",
+    "standard_name": "美缝剂",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "美缝剂",
+    "material_id": "MAT-007",
+    "standard_name": "美缝剂",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "石膏板",
+    "material_id": "MAT-008",
+    "standard_name": "纸面石膏板",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "纸面石膏板",
+    "material_id": "MAT-008",
+    "standard_name": "纸面石膏板",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "防水石膏板",
+    "material_id": "MAT-008",
+    "standard_name": "纸面石膏板",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "主龙骨",
+    "material_id": "MAT-009",
+    "standard_name": "轻钢龙骨",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "副龙骨",
+    "material_id": "MAT-009",
+    "standard_name": "轻钢龙骨",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "轻钢龙骨",
+    "material_id": "MAT-009",
+    "standard_name": "轻钢龙骨",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "龙骨",
+    "material_id": "MAT-009",
+    "standard_name": "轻钢龙骨",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "屋面栏杆",
+    "material_id": "MAT-010",
+    "standard_name": "成品栏杆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "成品栏杆",
+    "material_id": "MAT-010",
+    "standard_name": "成品栏杆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "扶手栏杆",
+    "material_id": "MAT-010",
+    "standard_name": "成品栏杆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "护窗栏杆",
+    "material_id": "MAT-010",
+    "standard_name": "成品栏杆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "栏杆",
+    "material_id": "MAT-010",
+    "standard_name": "成品栏杆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "阳台栏杆",
+    "material_id": "MAT-010",
+    "standard_name": "成品栏杆",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "塑钢平开窗",
+    "material_id": "MAT-011",
+    "standard_name": "成品门窗",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "彩塑推拉门",
+    "material_id": "MAT-011",
+    "standard_name": "成品门窗",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "成品门窗",
+    "material_id": "MAT-011",
+    "standard_name": "成品门窗",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "百叶窗",
+    "material_id": "MAT-011",
+    "standard_name": "成品门窗",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "窗",
+    "material_id": "MAT-011",
+    "standard_name": "成品门窗",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "钢制乙级防火门",
+    "material_id": "MAT-011",
+    "standard_name": "成品门窗",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  },
+  {
+    "alias": "门",
+    "material_id": "MAT-011",
+    "standard_name": "成品门窗",
+    "match_type": "exact_or_keyword_seed",
+    "status": "seed"
+  }
+]

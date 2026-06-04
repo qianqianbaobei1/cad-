@@ -1,0 +1,2749 @@
+[
+  {
+    "task_id": "TASK-001",
+    "boq_item_id": "BOQ-001",
+    "boq_name": "室内公共区域吊顶油漆",
+    "boq_description": "腻子两遍打磨平整涂刷乳胶漆",
+    "boq_unit": "m²",
+    "boq_quantity": 1850,
+    "boq_category": "天花材料",
+    "matched_rule_id": "RULE-PAINT-CEILING",
+    "matched_rule_name": "天花油漆拆解",
+    "quantity_grade": "B",
+    "confidence": 0.8,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [
+      {
+        "link_id": "LINK-ea844c9882",
+        "practice_id": "PR-3a654db009",
+        "building": "Y-10号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚5",
+        "location": "电梯厅、前室、合用前室、敞开楼梯间",
+        "confidence": 0.77,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子"
+        ]
+      },
+      {
+        "link_id": "LINK-eef52e7646",
+        "practice_id": "PR-bacae5cd28",
+        "building": "Y-10号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚6",
+        "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+        "confidence": 0.77,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子"
+        ]
+      },
+      {
+        "link_id": "LINK-6325763499",
+        "practice_id": "PR-2e27134d9e",
+        "building": "Y-10号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚7",
+        "location": "敞开楼梯间、电梯机房",
+        "confidence": 0.77,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子"
+        ]
+      },
+      {
+        "link_id": "LINK-d032497d63",
+        "practice_id": "PR-b35cb5ada3",
+        "building": "Y-11号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚1",
+        "location": "配电间、地下交通核内设备用房、风机房、地下封闭楼梯间、过道",
+        "confidence": 0.77,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子"
+        ]
+      },
+      {
+        "link_id": "LINK-953fbb70a1",
+        "practice_id": "PR-0e04c997eb",
+        "building": "Y-11号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚5",
+        "location": "电梯厅、前室、合用前室、敞开楼梯间",
+        "confidence": 0.77,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子"
+        ]
+      }
+    ],
+    "drawing_evidence_summary": {
+      "candidate_count": 20,
+      "top_link_statuses": {
+        "auto_candidate_high": 5
+      },
+      "top_practice_quality_issue_count": 1,
+      "top_material_mentions": [
+        {
+          "material_name": "腻子",
+          "raw_text": "腻子二遍",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚5",
+            "layer_seq": 2
+          }
+        },
+        {
+          "material_name": "腻子",
+          "raw_text": "耐水腻子二遍",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚7",
+            "layer_seq": 2
+          }
+        },
+        {
+          "material_name": "涂料",
+          "raw_text": "白色外墙涂料",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚7",
+            "layer_seq": 3
+          }
+        },
+        {
+          "material_name": "腻子",
+          "raw_text": "防水防霉腻子二遍",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-11号楼.json",
+            "practice_code": "顶棚1",
+            "layer_seq": 2
+          }
+        }
+      ]
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-001-M01",
+        "material_id": "MAT-001",
+        "standard_name": "腻子",
+        "role": "主材",
+        "purchase_unit": "kg",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 1850m² × 遍数 × 理论用量 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "两遍"
+        ],
+        "required_specs": [
+          "内/外墙类型",
+          "耐水/普通",
+          "遍数",
+          "理论用量kg/m²/遍"
+        ],
+        "evidence_material_mentions": [
+          {
+            "material_name": "腻子",
+            "raw_text": "腻子二遍",
+            "spec": "",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "顶棚5",
+              "layer_seq": 2
+            }
+          },
+          {
+            "material_name": "腻子",
+            "raw_text": "耐水腻子二遍",
+            "spec": "",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "顶棚7",
+              "layer_seq": 2
+            }
+          },
+          {
+            "material_name": "腻子",
+            "raw_text": "防水防霉腻子二遍",
+            "spec": "",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-11号楼.json",
+              "practice_code": "顶棚1",
+              "layer_seq": 2
+            }
+          }
+        ],
+        "status": "pending_confirm"
+      },
+      {
+        "line_id": "BOQ-001-M02",
+        "material_id": "MAT-002",
+        "standard_name": "乳胶漆",
+        "role": "辅材/配套材料",
+        "purchase_unit": "kg",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 1850m² × 遍数 × 理论用量 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "两遍"
+        ],
+        "required_specs": [
+          "底漆/面漆",
+          "内/外墙",
+          "遍数",
+          "颜色",
+          "理论涂布率"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "涂刷面积",
+      "腻子遍数",
+      "乳胶漆底/面漆遍数",
+      "理论用量"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-001-01",
+        "boq_item_id": "BOQ-001",
+        "type": "calculation_or_spec_input",
+        "severity": "medium",
+        "description": "理论用量",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-001-QUALITY",
+        "boq_item_id": "BOQ-001",
+        "type": "source_quality",
+        "severity": "medium",
+        "description": "候选图纸做法存在 1 个质量问题，需要复核后再参与计算",
+        "suggested_owner": "人工复核/图纸解析优化"
+      }
+    ],
+    "risk_notes": [
+      "BOQ 只有面积，不能直接得出 kg；必须有材料品牌或理论用量参数",
+      "图纸候选做法存在 OCR/拼接/占位问题，不能作为 A 级计算依据",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 5
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-002",
+    "boq_item_id": "BOQ-002",
+    "boq_name": "室内公共区域墙面天花油漆",
+    "boq_description": "腻子3遍刷乳胶漆+公区原顶5毫米石膏找平+3遍腻子，乳胶漆涂料3遍",
+    "boq_unit": "m²",
+    "boq_quantity": 10200,
+    "boq_category": "复合材料",
+    "matched_rule_id": "RULE-PAINT-WALL-CEILING",
+    "matched_rule_name": "墙面天花油漆拆解",
+    "quantity_grade": "B",
+    "confidence": 0.88,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [
+      {
+        "link_id": "LINK-b179a5eab0",
+        "practice_id": "PR-2e27134d9e",
+        "building": "Y-10号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚7",
+        "location": "敞开楼梯间、电梯机房",
+        "confidence": 0.84,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+          "BOQ与做法层共同命中关键词：涂料,腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子,涂料"
+        ]
+      },
+      {
+        "link_id": "LINK-a895eb5220",
+        "practice_id": "PR-206bc09ee6",
+        "building": "Y-11号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚7",
+        "location": "敞开楼梯间、电梯机房",
+        "confidence": 0.84,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+          "BOQ与做法层共同命中关键词：涂料,腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子,涂料"
+        ]
+      },
+      {
+        "link_id": "LINK-3ae7d96da5",
+        "practice_id": "PR-f3bb6b6ac8",
+        "building": "Y-1号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚5",
+        "location": "电梯厅、前室、合用前室、敞开楼梯间",
+        "confidence": 0.84,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+          "BOQ与做法层共同命中关键词：涂料,腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子,涂料"
+        ]
+      },
+      {
+        "link_id": "LINK-4d5b35cda9",
+        "practice_id": "PR-62d0447602",
+        "building": "Y-1号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚7",
+        "location": "敞开楼梯间、电梯机房",
+        "confidence": 0.84,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+          "BOQ与做法层共同命中关键词：涂料,腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子,涂料"
+        ]
+      },
+      {
+        "link_id": "LINK-083db2e661",
+        "practice_id": "PR-92dd301200",
+        "building": "Y-2号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚6",
+        "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+        "confidence": 0.84,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为墙面/天花复合项，做法类别在候选范围内",
+          "BOQ与做法层共同命中关键词：涂料,腻子",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：腻子,涂料"
+        ]
+      }
+    ],
+    "drawing_evidence_summary": {
+      "candidate_count": 20,
+      "top_link_statuses": {
+        "auto_candidate_high": 5
+      },
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": [
+        {
+          "material_name": "腻子",
+          "raw_text": "耐水腻子二遍",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚7",
+            "layer_seq": 2
+          }
+        },
+        {
+          "material_name": "涂料",
+          "raw_text": "白色外墙涂料",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚7",
+            "layer_seq": 3
+          }
+        },
+        {
+          "material_name": "涂料",
+          "raw_text": "白色无机涂料",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-11号楼.json",
+            "practice_code": "顶棚7",
+            "layer_seq": 3
+          }
+        },
+        {
+          "material_name": "腻子",
+          "raw_text": "腻子二遍",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-1号楼.json",
+            "practice_code": "顶棚5",
+            "layer_seq": 2
+          }
+        }
+      ]
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-002-M01",
+        "material_id": "MAT-001",
+        "standard_name": "腻子",
+        "role": "主材",
+        "purchase_unit": "kg",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 10200m² × 遍数 × 理论用量 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "5毫米",
+          "3遍"
+        ],
+        "required_specs": [
+          "内/外墙类型",
+          "耐水/普通",
+          "遍数",
+          "理论用量kg/m²/遍"
+        ],
+        "evidence_material_mentions": [
+          {
+            "material_name": "腻子",
+            "raw_text": "耐水腻子二遍",
+            "spec": "",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "顶棚7",
+              "layer_seq": 2
+            }
+          },
+          {
+            "material_name": "腻子",
+            "raw_text": "腻子二遍",
+            "spec": "",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-1号楼.json",
+              "practice_code": "顶棚5",
+              "layer_seq": 2
+            }
+          }
+        ],
+        "status": "pending_confirm"
+      },
+      {
+        "line_id": "BOQ-002-M02",
+        "material_id": "MAT-002",
+        "standard_name": "乳胶漆",
+        "role": "辅材/配套材料",
+        "purchase_unit": "kg",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 10200m² × 遍数 × 理论用量 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "5毫米",
+          "3遍"
+        ],
+        "required_specs": [
+          "底漆/面漆",
+          "内/外墙",
+          "遍数",
+          "颜色",
+          "理论涂布率"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "墙面/天花面积拆分",
+      "腻子遍数",
+      "乳胶漆遍数",
+      "石膏找平厚度"
+    ],
+    "missing_inputs": [],
+    "risk_notes": [
+      "一个 BOQ 同时覆盖墙面和天花时，需要拆分适用部位",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 6
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-003",
+    "boq_item_id": "BOQ-003",
+    "boq_name": "室内户内天花油漆",
+    "boq_description": "2遍腻子",
+    "boq_unit": "m²",
+    "boq_quantity": 36450,
+    "boq_category": "天花材料",
+    "matched_rule_id": "RULE-PAINT-CEILING",
+    "matched_rule_name": "天花油漆拆解",
+    "quantity_grade": "B",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [
+      {
+        "link_id": "LINK-f614a47717",
+        "practice_id": "PR-3a654db009",
+        "building": "Y-10号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚5",
+        "location": "电梯厅、前室、合用前室、敞开楼梯间",
+        "confidence": 0.57,
+        "status": "candidate_needs_review",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：腻子",
+          "材料提及与BOQ描述相关：腻子"
+        ]
+      },
+      {
+        "link_id": "LINK-e463244a02",
+        "practice_id": "PR-bacae5cd28",
+        "building": "Y-10号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚6",
+        "location": "住宅厅、房等居室、商铺、封闭楼梯间",
+        "confidence": 0.57,
+        "status": "candidate_needs_review",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：腻子",
+          "材料提及与BOQ描述相关：腻子"
+        ]
+      },
+      {
+        "link_id": "LINK-632559163d",
+        "practice_id": "PR-2e27134d9e",
+        "building": "Y-10号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚7",
+        "location": "敞开楼梯间、电梯机房",
+        "confidence": 0.57,
+        "status": "candidate_needs_review",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：腻子",
+          "材料提及与BOQ描述相关：腻子"
+        ]
+      },
+      {
+        "link_id": "LINK-bfef26e463",
+        "practice_id": "PR-93e9a70aef",
+        "building": "Y-10号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚8",
+        "location": "设备管井（除水管井）",
+        "confidence": 0.57,
+        "status": "candidate_needs_review",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：腻子",
+          "材料提及与BOQ描述相关：腻子"
+        ]
+      },
+      {
+        "link_id": "LINK-69d8fe8ac0",
+        "practice_id": "PR-b86a2866a4",
+        "building": "Y-10号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚9",
+        "location": "水管井",
+        "confidence": 0.57,
+        "status": "candidate_needs_review",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：腻子",
+          "材料提及与BOQ描述相关：腻子"
+        ]
+      }
+    ],
+    "drawing_evidence_summary": {
+      "candidate_count": 20,
+      "top_link_statuses": {
+        "candidate_needs_review": 5
+      },
+      "top_practice_quality_issue_count": 2,
+      "top_material_mentions": [
+        {
+          "material_name": "腻子",
+          "raw_text": "腻子二遍",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚5",
+            "layer_seq": 2
+          }
+        },
+        {
+          "material_name": "腻子",
+          "raw_text": "耐水腻子二遍",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚7",
+            "layer_seq": 2
+          }
+        },
+        {
+          "material_name": "涂料",
+          "raw_text": "白色外墙涂料",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚7",
+            "layer_seq": 3
+          }
+        },
+        {
+          "material_name": "界面剂",
+          "raw_text": "专用界面剂处理",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚9",
+            "layer_seq": 2
+          }
+        },
+        {
+          "material_name": "保温板",
+          "raw_text": "保温专用胶粘剂（不得小于保温板面积的60%）",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚9",
+            "layer_seq": 3
+          }
+        },
+        {
+          "material_name": "锚栓",
+          "raw_text": "1.2厚镀锌钢丝网，第一批锚栓（设计量的30%）固定",
+          "spec": "1.2厚",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚9",
+            "layer_seq": 5
+          }
+        },
+        {
+          "material_name": "镀锌钢丝网",
+          "raw_text": "1.2厚镀锌钢丝网，第一批锚栓（设计量的30%）固定",
+          "spec": "1.2厚",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚9",
+            "layer_seq": 5
+          }
+        },
+        {
+          "material_name": "锚栓",
+          "raw_text": "第二批锚栓（设计量的70%）固定",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "顶棚9",
+            "layer_seq": 7
+          }
+        }
+      ]
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-003-M01",
+        "material_id": "MAT-001",
+        "standard_name": "腻子",
+        "role": "主材",
+        "purchase_unit": "kg",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 36450m² × 遍数 × 理论用量 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "2遍"
+        ],
+        "required_specs": [
+          "内/外墙类型",
+          "耐水/普通",
+          "遍数",
+          "理论用量kg/m²/遍"
+        ],
+        "evidence_material_mentions": [
+          {
+            "material_name": "腻子",
+            "raw_text": "腻子二遍",
+            "spec": "",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "顶棚5",
+              "layer_seq": 2
+            }
+          },
+          {
+            "material_name": "腻子",
+            "raw_text": "耐水腻子二遍",
+            "spec": "",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "顶棚7",
+              "layer_seq": 2
+            }
+          }
+        ],
+        "status": "pending_confirm"
+      },
+      {
+        "line_id": "BOQ-003-M02",
+        "material_id": "MAT-002",
+        "standard_name": "乳胶漆",
+        "role": "辅材/配套材料",
+        "purchase_unit": "kg",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 36450m² × 遍数 × 理论用量 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "2遍"
+        ],
+        "required_specs": [
+          "底漆/面漆",
+          "内/外墙",
+          "遍数",
+          "颜色",
+          "理论涂布率"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "涂刷面积",
+      "腻子遍数",
+      "乳胶漆底/面漆遍数",
+      "理论用量"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-003-01",
+        "boq_item_id": "BOQ-003",
+        "type": "calculation_or_spec_input",
+        "severity": "medium",
+        "description": "乳胶漆底/面漆遍数",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-003-02",
+        "boq_item_id": "BOQ-003",
+        "type": "calculation_or_spec_input",
+        "severity": "medium",
+        "description": "理论用量",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-003-QUALITY",
+        "boq_item_id": "BOQ-003",
+        "type": "source_quality",
+        "severity": "medium",
+        "description": "候选图纸做法存在 2 个质量问题，需要复核后再参与计算",
+        "suggested_owner": "人工复核/图纸解析优化"
+      }
+    ],
+    "risk_notes": [
+      "BOQ 只有面积，不能直接得出 kg；必须有材料品牌或理论用量参数",
+      "图纸候选做法存在 OCR/拼接/占位问题，不能作为 A 级计算依据",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 7
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-004",
+    "boq_item_id": "BOQ-004",
+    "boq_name": "公共区域地砖",
+    "boq_description": "公共区域地砖（600*600）",
+    "boq_unit": "m²",
+    "boq_quantity": 4430,
+    "boq_category": "地面材料",
+    "matched_rule_id": "RULE-TILE-FLOOR",
+    "matched_rule_name": "地砖铺贴拆解",
+    "quantity_grade": "B",
+    "confidence": 0.8,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [
+      {
+        "link_id": "LINK-e67245a18a",
+        "practice_id": "PR-7fd454bac4",
+        "building": "Y-10号楼",
+        "practice_category": "地面做法",
+        "practice_code": "地面3",
+        "location": "地下电梯厅、地下大堂",
+        "confidence": 0.77,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为地面材料，做法类别为地面/楼面",
+          "BOQ与做法层共同命中关键词：地砖",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：防滑地砖"
+        ]
+      },
+      {
+        "link_id": "LINK-d4124db1c9",
+        "practice_id": "PR-c9dc862a4e",
+        "building": "Y-10号楼",
+        "practice_category": "楼面做法",
+        "practice_code": "楼7",
+        "location": "门厅、电梯厅、前室、合用前室、地下大堂",
+        "confidence": 0.77,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为地面材料，做法类别为地面/楼面",
+          "BOQ与做法层共同命中关键词：地砖",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：防滑地砖"
+        ]
+      },
+      {
+        "link_id": "LINK-3c202968c3",
+        "practice_id": "PR-81e3cb7ce1",
+        "building": "Y-11号楼",
+        "practice_category": "楼面做法",
+        "practice_code": "楼8",
+        "location": "首层门厅、电梯厅、前室、合用前室、敞开楼梯间",
+        "confidence": 0.77,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为地面材料，做法类别为地面/楼面",
+          "BOQ与做法层共同命中关键词：地砖",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：防滑地砖"
+        ]
+      },
+      {
+        "link_id": "LINK-7faa824f7b",
+        "practice_id": "PR-78b24699b2",
+        "building": "Y-1号楼",
+        "practice_category": "地面做法",
+        "practice_code": "地面3",
+        "location": "地下电梯厅、地下大堂",
+        "confidence": 0.77,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为地面材料，做法类别为地面/楼面",
+          "BOQ与做法层共同命中关键词：地砖",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：防滑地砖"
+        ]
+      },
+      {
+        "link_id": "LINK-80b3616538",
+        "practice_id": "PR-d5fce7b430",
+        "building": "Y-1号楼",
+        "practice_category": "楼面做法",
+        "practice_code": "楼3",
+        "location": "地下电梯厅、地下大堂",
+        "confidence": 0.77,
+        "status": "auto_candidate_high",
+        "match_basis": [
+          "BOQ类别为地面材料，做法类别为地面/楼面",
+          "BOQ与做法层共同命中关键词：地砖",
+          "BOQ为公共区域，做法部位属于公共/交通空间",
+          "材料提及与BOQ描述相关：防滑地砖"
+        ]
+      }
+    ],
+    "drawing_evidence_summary": {
+      "candidate_count": 20,
+      "top_link_statuses": {
+        "auto_candidate_high": 5
+      },
+      "top_practice_quality_issue_count": 6,
+      "top_material_mentions": [
+        {
+          "material_name": "JS聚合物水泥基防水涂料",
+          "raw_text": "1.2厚JS (II型）防水涂料防水层,四周上翻300",
+          "spec": "1.2厚、II型",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "地面3",
+            "layer_seq": 2
+          }
+        },
+        {
+          "material_name": "涂料",
+          "raw_text": "1.2厚JS (II型）防水涂料防水层,四周上翻300",
+          "spec": "1.2厚、II型",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "地面3",
+            "layer_seq": 2
+          }
+        },
+        {
+          "material_name": "水泥砂浆",
+          "raw_text": "20厚（最薄处）1:2.5水泥砂浆保护层",
+          "spec": "20厚、1:2.5",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "地面3",
+            "layer_seq": 3
+          }
+        },
+        {
+          "material_name": "水泥浆",
+          "raw_text": "水泥浆一道(内掺建筑胶)",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "地面3",
+            "layer_seq": 4
+          }
+        },
+        {
+          "material_name": "建筑胶",
+          "raw_text": "水泥浆一道(内掺建筑胶)",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "地面3",
+            "layer_seq": 4
+          }
+        },
+        {
+          "material_name": "水泥砂浆",
+          "raw_text": "20厚1:3千硬性水泥砂浆结合层,表面撒水泥粉",
+          "spec": "20厚、1:3",
+          "quality": "needs_review",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "地面3",
+            "layer_seq": 5
+          }
+        },
+        {
+          "material_name": "水泥砂浆",
+          "raw_text": "20厚1:2.5水泥砂浆找平",
+          "spec": "20厚、1:2.5",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "楼7",
+            "layer_seq": 3
+          }
+        },
+        {
+          "material_name": "水泥浆",
+          "raw_text": "水泥浆一道",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "楼7",
+            "layer_seq": 4
+          }
+        }
+      ]
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-004-M01",
+        "material_id": "MAT-004",
+        "standard_name": "防滑地砖",
+        "role": "主材",
+        "purchase_unit": "片/m²",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 4430m² × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "600*600"
+        ],
+        "required_specs": [
+          "长宽规格",
+          "厚度",
+          "颜色/型号",
+          "防滑等级",
+          "损耗率"
+        ],
+        "evidence_material_mentions": [
+          {
+            "material_name": "防滑地砖",
+            "raw_text": "10~12厚防滑地砖,干水泥或专用美缝剂勾缝",
+            "spec": "10~12厚",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "楼7",
+              "layer_seq": 6
+            }
+          }
+        ],
+        "status": "pending_confirm"
+      },
+      {
+        "line_id": "BOQ-004-M02",
+        "material_id": "MAT-006",
+        "standard_name": "水泥砂浆",
+        "role": "辅材/配套材料",
+        "purchase_unit": "m³",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 4430m² × 厚度m × 材料用量系数 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "600*600"
+        ],
+        "required_specs": [
+          "配合比",
+          "厚度mm",
+          "用途",
+          "损耗率"
+        ],
+        "evidence_material_mentions": [
+          {
+            "material_name": "水泥砂浆",
+            "raw_text": "20厚（最薄处）1:2.5水泥砂浆保护层",
+            "spec": "20厚、1:2.5",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "地面3",
+              "layer_seq": 3
+            }
+          },
+          {
+            "material_name": "水泥砂浆",
+            "raw_text": "20厚1:3千硬性水泥砂浆结合层,表面撒水泥粉",
+            "spec": "20厚、1:3",
+            "quality": "needs_review",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "地面3",
+              "layer_seq": 5
+            }
+          },
+          {
+            "material_name": "水泥砂浆",
+            "raw_text": "20厚1:2.5水泥砂浆找平",
+            "spec": "20厚、1:2.5",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "楼7",
+              "layer_seq": 3
+            }
+          }
+        ],
+        "status": "pending_confirm"
+      },
+      {
+        "line_id": "BOQ-004-M03",
+        "material_id": "MAT-007",
+        "standard_name": "美缝剂",
+        "role": "辅材/配套材料",
+        "purchase_unit": "支/kg",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 4430m² × 单位面积缝长 × 缝宽 × 缝深 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "600*600"
+        ],
+        "required_specs": [
+          "缝宽mm",
+          "缝深mm",
+          "颜色",
+          "砖规格"
+        ],
+        "evidence_material_mentions": [
+          {
+            "material_name": "美缝剂",
+            "raw_text": "10~12厚防滑地砖,干水泥或专用美缝剂勾缝",
+            "spec": "10~12厚",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "楼7",
+              "layer_seq": 6
+            }
+          }
+        ],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "地砖规格",
+      "砂浆厚度/粘结材料",
+      "缝宽",
+      "损耗率"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-004-01",
+        "boq_item_id": "BOQ-004",
+        "type": "calculation_or_spec_input",
+        "severity": "medium",
+        "description": "砂浆厚度/粘结材料",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-004-02",
+        "boq_item_id": "BOQ-004",
+        "type": "calculation_or_spec_input",
+        "severity": "medium",
+        "description": "缝宽",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-004-03",
+        "boq_item_id": "BOQ-004",
+        "type": "calculation_or_spec_input",
+        "severity": "medium",
+        "description": "损耗率",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-004-QUALITY",
+        "boq_item_id": "BOQ-004",
+        "type": "source_quality",
+        "severity": "medium",
+        "description": "候选图纸做法存在 6 个质量问题，需要复核后再参与计算",
+        "suggested_owner": "人工复核/图纸解析优化"
+      }
+    ],
+    "risk_notes": [
+      "BOQ 面积可作为主材基数，但规格、排版、损耗会影响采购数量",
+      "图纸候选做法存在 OCR/拼接/占位问题，不能作为 A 级计算依据",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 8
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-005",
+    "boq_item_id": "BOQ-005",
+    "boq_name": "公共区域墙砖",
+    "boq_description": "公共区域墙砖（600*600,600*300）",
+    "boq_unit": "m²",
+    "boq_quantity": 6300,
+    "boq_category": "墙面材料",
+    "matched_rule_id": "RULE-TILE-WALL",
+    "matched_rule_name": "墙砖铺贴拆解",
+    "quantity_grade": "B",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [
+      {
+        "link_id": "LINK-85cfc58456",
+        "practice_id": "PR-37052c47a8",
+        "building": "S-1号楼",
+        "practice_category": "内墙做法",
+        "practice_code": "内墙1",
+        "location": "社区大堂",
+        "confidence": 0.5,
+        "status": "weak_candidate",
+        "match_basis": [
+          "BOQ类别为墙面材料，做法类别为内墙/外墙",
+          "BOQ为公共区域，做法部位属于公共/交通空间"
+        ]
+      },
+      {
+        "link_id": "LINK-912524c834",
+        "practice_id": "PR-1ffa2343f3",
+        "building": "Y-10号楼",
+        "practice_category": "内墙做法",
+        "practice_code": "内墙5",
+        "location": "门厅、电梯厅、前室、合用前室、地下大堂 (非分户墙)",
+        "confidence": 0.5,
+        "status": "weak_candidate",
+        "match_basis": [
+          "BOQ类别为墙面材料，做法类别为内墙/外墙",
+          "BOQ为公共区域，做法部位属于公共/交通空间"
+        ]
+      },
+      {
+        "link_id": "LINK-fd90fdbd0b",
+        "practice_id": "PR-abf12c08f0",
+        "building": "Y-10号楼",
+        "practice_category": "内墙做法",
+        "practice_code": "内墙6",
+        "location": "门厅、电梯厅、前室、合用前室、地下大堂 (分户墙)",
+        "confidence": 0.5,
+        "status": "weak_candidate",
+        "match_basis": [
+          "BOQ类别为墙面材料，做法类别为内墙/外墙",
+          "BOQ为公共区域，做法部位属于公共/交通空间"
+        ]
+      },
+      {
+        "link_id": "LINK-0e430ad9ed",
+        "practice_id": "PR-d011bae322",
+        "building": "Y-10号楼",
+        "practice_category": "内墙做法",
+        "practice_code": "内墙7",
+        "location": "封闭楼梯间、敞开楼梯间,电梯机房 (非分户墙)",
+        "confidence": 0.5,
+        "status": "weak_candidate",
+        "match_basis": [
+          "BOQ类别为墙面材料，做法类别为内墙/外墙",
+          "BOQ为公共区域，做法部位属于公共/交通空间"
+        ]
+      },
+      {
+        "link_id": "LINK-e82668b118",
+        "practice_id": "PR-7debc9930e",
+        "building": "Y-10号楼",
+        "practice_category": "内墙做法",
+        "practice_code": "内墙8",
+        "location": "封闭楼梯间、敞开楼梯间,电梯机房 (分户墙)",
+        "confidence": 0.5,
+        "status": "weak_candidate",
+        "match_basis": [
+          "BOQ类别为墙面材料，做法类别为内墙/外墙",
+          "BOQ为公共区域，做法部位属于公共/交通空间"
+        ]
+      }
+    ],
+    "drawing_evidence_summary": {
+      "candidate_count": 20,
+      "top_link_statuses": {
+        "weak_candidate": 5
+      },
+      "top_practice_quality_issue_count": 8,
+      "top_material_mentions": [
+        {
+          "material_name": "界面剂",
+          "raw_text": "界面处理剂一道甩毛",
+          "spec": "",
+          "quality": "needs_review",
+          "source": {
+            "file": "提取结果/做法表/做法表_S-1号楼.json",
+            "practice_code": "内墙1",
+            "layer_seq": 1
+          }
+        },
+        {
+          "material_name": "水泥砂浆",
+          "raw_text": "10mm厚1:3水泥砂浆打底扫毛或划出纹道",
+          "spec": "1:3",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_S-1号楼.json",
+            "practice_code": "内墙1",
+            "layer_seq": 2
+          }
+        },
+        {
+          "material_name": "水泥砂浆",
+          "raw_text": "20厚1:3水泥砂浆保护层",
+          "spec": "20厚、1:3",
+          "quality": "needs_review",
+          "source": {
+            "file": "提取结果/做法表/做法表_S-1号楼.json",
+            "practice_code": "内墙1",
+            "layer_seq": 4
+          }
+        },
+        {
+          "material_name": "界面剂",
+          "raw_text": "专用界面砂浆处理（用于混凝土墙，用于烧结砖墙时取消该层）",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "内墙5",
+            "layer_seq": 2
+          }
+        },
+        {
+          "material_name": "水泥砂浆",
+          "raw_text": "9厚1:3水泥砂浆打底扫毛",
+          "spec": "9厚、1:3",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "内墙5",
+            "layer_seq": 3
+          }
+        },
+        {
+          "material_name": "水泥砂浆",
+          "raw_text": "5厚1:2建筑胶水泥砂浆粘结层",
+          "spec": "5厚、1:2",
+          "quality": "needs_review",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "内墙5",
+            "layer_seq": 4
+          }
+        },
+        {
+          "material_name": "建筑胶",
+          "raw_text": "5厚1:2建筑胶水泥砂浆粘结层",
+          "spec": "5厚、1:2",
+          "quality": "needs_review",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "内墙5",
+            "layer_seq": 4
+          }
+        },
+        {
+          "material_name": "防滑地砖",
+          "raw_text": "面砖(贴前充分浸湿），白水泥擦缝",
+          "spec": "",
+          "quality": "valid",
+          "source": {
+            "file": "提取结果/做法表/做法表_Y-10号楼.json",
+            "practice_code": "内墙5",
+            "layer_seq": 5
+          }
+        }
+      ]
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-005-M01",
+        "material_id": "MAT-005",
+        "standard_name": "墙面砖",
+        "role": "主材",
+        "purchase_unit": "片/m²",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 6300m² × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "600*600",
+          "600*300"
+        ],
+        "required_specs": [
+          "长宽规格",
+          "厚度",
+          "颜色/型号",
+          "阳角收口方式",
+          "损耗率"
+        ],
+        "evidence_material_mentions": [
+          {
+            "material_name": "墙面砖",
+            "raw_text": "面砖(贴前充分浸湿），白水泥擦缝",
+            "spec": "",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "内墙5",
+              "layer_seq": 5
+            }
+          }
+        ],
+        "status": "pending_confirm"
+      },
+      {
+        "line_id": "BOQ-005-M02",
+        "material_id": "MAT-006",
+        "standard_name": "水泥砂浆",
+        "role": "辅材/配套材料",
+        "purchase_unit": "m³",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 6300m² × 厚度m × 材料用量系数 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "600*600",
+          "600*300"
+        ],
+        "required_specs": [
+          "配合比",
+          "厚度mm",
+          "用途",
+          "损耗率"
+        ],
+        "evidence_material_mentions": [
+          {
+            "material_name": "水泥砂浆",
+            "raw_text": "10mm厚1:3水泥砂浆打底扫毛或划出纹道",
+            "spec": "1:3",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_S-1号楼.json",
+              "practice_code": "内墙1",
+              "layer_seq": 2
+            }
+          },
+          {
+            "material_name": "水泥砂浆",
+            "raw_text": "20厚1:3水泥砂浆保护层",
+            "spec": "20厚、1:3",
+            "quality": "needs_review",
+            "source": {
+              "file": "提取结果/做法表/做法表_S-1号楼.json",
+              "practice_code": "内墙1",
+              "layer_seq": 4
+            }
+          },
+          {
+            "material_name": "水泥砂浆",
+            "raw_text": "9厚1:3水泥砂浆打底扫毛",
+            "spec": "9厚、1:3",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "内墙5",
+              "layer_seq": 3
+            }
+          },
+          {
+            "material_name": "水泥砂浆",
+            "raw_text": "5厚1:2建筑胶水泥砂浆粘结层",
+            "spec": "5厚、1:2",
+            "quality": "needs_review",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "内墙5",
+              "layer_seq": 4
+            }
+          }
+        ],
+        "status": "pending_confirm"
+      },
+      {
+        "line_id": "BOQ-005-M03",
+        "material_id": "MAT-007",
+        "standard_name": "美缝剂",
+        "role": "辅材/配套材料",
+        "purchase_unit": "支/kg",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 6300m² × 单位面积缝长 × 缝宽 × 缝深 × 损耗率",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "600*600",
+          "600*300"
+        ],
+        "required_specs": [
+          "缝宽mm",
+          "缝深mm",
+          "颜色",
+          "砖规格"
+        ],
+        "evidence_material_mentions": [
+          {
+            "material_name": "美缝剂",
+            "raw_text": "面砖(贴前充分浸湿），白水泥擦缝",
+            "spec": "",
+            "quality": "valid",
+            "source": {
+              "file": "提取结果/做法表/做法表_Y-10号楼.json",
+              "practice_code": "内墙6",
+              "layer_seq": 7
+            }
+          }
+        ],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "墙砖规格",
+      "粘结层做法",
+      "阳角收口",
+      "缝宽",
+      "损耗率"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-005-01",
+        "boq_item_id": "BOQ-005",
+        "type": "calculation_or_spec_input",
+        "severity": "medium",
+        "description": "粘结层做法",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-005-02",
+        "boq_item_id": "BOQ-005",
+        "type": "calculation_or_spec_input",
+        "severity": "medium",
+        "description": "阳角收口",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-005-03",
+        "boq_item_id": "BOQ-005",
+        "type": "calculation_or_spec_input",
+        "severity": "medium",
+        "description": "缝宽",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-005-04",
+        "boq_item_id": "BOQ-005",
+        "type": "calculation_or_spec_input",
+        "severity": "medium",
+        "description": "损耗率",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-005-QUALITY",
+        "boq_item_id": "BOQ-005",
+        "type": "source_quality",
+        "severity": "medium",
+        "description": "候选图纸做法存在 8 个质量问题，需要复核后再参与计算",
+        "suggested_owner": "人工复核/图纸解析优化"
+      }
+    ],
+    "risk_notes": [
+      "墙砖规格可能有多种，需要按区域或图纸材料表确认",
+      "图纸候选做法存在 OCR/拼接/占位问题，不能作为 A 级计算依据",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 9
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-006",
+    "boq_item_id": "BOQ-006",
+    "boq_name": "吊顶",
+    "boq_description": "公共区域吊顶",
+    "boq_unit": "m²",
+    "boq_quantity": 2100,
+    "boq_category": "天花材料",
+    "matched_rule_id": "RULE-CEILING",
+    "matched_rule_name": "吊顶系统拆解",
+    "quantity_grade": "C",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [
+      {
+        "link_id": "LINK-86be1f9e0d",
+        "practice_id": "PR-b572a3522b",
+        "building": "Y-10号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚2",
+        "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+        "confidence": 0.62,
+        "status": "candidate_needs_review",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：吊顶",
+          "BOQ为公共区域，做法部位属于公共/交通空间"
+        ]
+      },
+      {
+        "link_id": "LINK-1036e4be1a",
+        "practice_id": "PR-46ebc52b0f",
+        "building": "Y-11号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚2",
+        "location": "地下电梯厅、地下大堂",
+        "confidence": 0.62,
+        "status": "candidate_needs_review",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：吊顶",
+          "BOQ为公共区域，做法部位属于公共/交通空间"
+        ]
+      },
+      {
+        "link_id": "LINK-b733f768a1",
+        "practice_id": "PR-c0aa2419b5",
+        "building": "Y-1号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚2",
+        "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+        "confidence": 0.62,
+        "status": "candidate_needs_review",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：吊顶",
+          "BOQ为公共区域，做法部位属于公共/交通空间"
+        ]
+      },
+      {
+        "link_id": "LINK-f805aeebd3",
+        "practice_id": "PR-58f7f18209",
+        "building": "Y-2号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚2",
+        "location": "地下电梯厅、地下大堂",
+        "confidence": 0.62,
+        "status": "candidate_needs_review",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：吊顶",
+          "BOQ为公共区域，做法部位属于公共/交通空间"
+        ]
+      },
+      {
+        "link_id": "LINK-5a3576497a",
+        "practice_id": "PR-af7cdfd639",
+        "building": "Y-3号楼",
+        "practice_category": "顶棚做法",
+        "practice_code": "顶棚2",
+        "location": "地下封闭楼梯间、过道、配电间、地下交通核内设备用房、风机房",
+        "confidence": 0.62,
+        "status": "candidate_needs_review",
+        "match_basis": [
+          "BOQ类别为天花材料，做法类别为顶棚",
+          "BOQ与做法层共同命中关键词：吊顶",
+          "BOQ为公共区域，做法部位属于公共/交通空间"
+        ]
+      }
+    ],
+    "drawing_evidence_summary": {
+      "candidate_count": 20,
+      "top_link_statuses": {
+        "candidate_needs_review": 5
+      },
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": []
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-006-M01",
+        "material_id": "MAT-008",
+        "standard_name": "纸面石膏板",
+        "role": "主材",
+        "purchase_unit": "张/m²",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 2100m² × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [],
+        "required_specs": [
+          "厚度mm",
+          "板材规格",
+          "层数",
+          "防水/普通"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      },
+      {
+        "line_id": "BOQ-006-M02",
+        "material_id": "MAT-009",
+        "standard_name": "轻钢龙骨",
+        "role": "辅材/配套材料",
+        "purchase_unit": "m",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 2100m² × 龙骨排布系数；需确认主副龙骨间距",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [],
+        "required_specs": [
+          "主龙骨规格",
+          "副龙骨规格",
+          "龙骨间距",
+          "吊杆间距"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "吊顶构造",
+      "石膏板层数",
+      "板材规格",
+      "龙骨间距",
+      "吊杆间距"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-006-01",
+        "boq_item_id": "BOQ-006",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "吊顶构造",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-006-02",
+        "boq_item_id": "BOQ-006",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "石膏板层数",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-006-03",
+        "boq_item_id": "BOQ-006",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "板材规格",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-006-04",
+        "boq_item_id": "BOQ-006",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "龙骨间距",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-006-05",
+        "boq_item_id": "BOQ-006",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "吊杆间距",
+        "suggested_owner": "人工确认/项目资料补充"
+      }
+    ],
+    "risk_notes": [
+      "只有吊顶面积时，无法可靠拆出龙骨、吊杆、螺丝等辅材",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 10
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-007",
+    "boq_item_id": "BOQ-007",
+    "boq_name": "楼梯扶手栏杆",
+    "boq_description": "900高度",
+    "boq_unit": "m",
+    "boq_quantity": 1250,
+    "boq_category": "栏杆材料",
+    "matched_rule_id": "RULE-RAILING",
+    "matched_rule_name": "栏杆成品拆解",
+    "quantity_grade": "C",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [],
+    "drawing_evidence_summary": {
+      "candidate_count": 0,
+      "top_link_statuses": {},
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": []
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-007-M01",
+        "material_id": "MAT-010",
+        "standard_name": "成品栏杆",
+        "role": "主材",
+        "purchase_unit": "m",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 1250m × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "900高度"
+        ],
+        "required_specs": [
+          "高度",
+          "材质",
+          "表面处理",
+          "立杆间距",
+          "扶手规格"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "栏杆高度",
+      "材质",
+      "节点详图",
+      "表面处理",
+      "安装方式"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-007-01",
+        "boq_item_id": "BOQ-007",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "材质",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-007-02",
+        "boq_item_id": "BOQ-007",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "节点详图",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-007-03",
+        "boq_item_id": "BOQ-007",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "表面处理",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-007-04",
+        "boq_item_id": "BOQ-007",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "安装方式",
+        "suggested_owner": "人工确认/项目资料补充"
+      }
+    ],
+    "risk_notes": [
+      "BOQ 长度可用，但成品深化参数不足时不能形成采购规格",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 11
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-008",
+    "boq_item_id": "BOQ-008",
+    "boq_name": "空调平台栏杆",
+    "boq_description": "500高度",
+    "boq_unit": "m",
+    "boq_quantity": 2396,
+    "boq_category": "栏杆材料",
+    "matched_rule_id": "RULE-RAILING",
+    "matched_rule_name": "栏杆成品拆解",
+    "quantity_grade": "C",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [],
+    "drawing_evidence_summary": {
+      "candidate_count": 0,
+      "top_link_statuses": {},
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": []
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-008-M01",
+        "material_id": "MAT-010",
+        "standard_name": "成品栏杆",
+        "role": "主材",
+        "purchase_unit": "m",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 2396m × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "500高度"
+        ],
+        "required_specs": [
+          "高度",
+          "材质",
+          "表面处理",
+          "立杆间距",
+          "扶手规格"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "栏杆高度",
+      "材质",
+      "节点详图",
+      "表面处理",
+      "安装方式"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-008-01",
+        "boq_item_id": "BOQ-008",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "材质",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-008-02",
+        "boq_item_id": "BOQ-008",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "节点详图",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-008-03",
+        "boq_item_id": "BOQ-008",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "表面处理",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-008-04",
+        "boq_item_id": "BOQ-008",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "安装方式",
+        "suggested_owner": "人工确认/项目资料补充"
+      }
+    ],
+    "risk_notes": [
+      "BOQ 长度可用，但成品深化参数不足时不能形成采购规格",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 12
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-009",
+    "boq_item_id": "BOQ-009",
+    "boq_name": "护窗栏杆",
+    "boq_description": "900高度",
+    "boq_unit": "m",
+    "boq_quantity": 1430,
+    "boq_category": "栏杆材料",
+    "matched_rule_id": "RULE-RAILING",
+    "matched_rule_name": "栏杆成品拆解",
+    "quantity_grade": "C",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [],
+    "drawing_evidence_summary": {
+      "candidate_count": 0,
+      "top_link_statuses": {},
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": []
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-009-M01",
+        "material_id": "MAT-010",
+        "standard_name": "成品栏杆",
+        "role": "主材",
+        "purchase_unit": "m",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 1430m × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "900高度"
+        ],
+        "required_specs": [
+          "高度",
+          "材质",
+          "表面处理",
+          "立杆间距",
+          "扶手规格"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "栏杆高度",
+      "材质",
+      "节点详图",
+      "表面处理",
+      "安装方式"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-009-01",
+        "boq_item_id": "BOQ-009",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "材质",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-009-02",
+        "boq_item_id": "BOQ-009",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "节点详图",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-009-03",
+        "boq_item_id": "BOQ-009",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "表面处理",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-009-04",
+        "boq_item_id": "BOQ-009",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "安装方式",
+        "suggested_owner": "人工确认/项目资料补充"
+      }
+    ],
+    "risk_notes": [
+      "BOQ 长度可用，但成品深化参数不足时不能形成采购规格",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 13
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-010",
+    "boq_item_id": "BOQ-010",
+    "boq_name": "屋面栏杆",
+    "boq_description": "1200高度",
+    "boq_unit": "m",
+    "boq_quantity": 1030,
+    "boq_category": "栏杆材料",
+    "matched_rule_id": "RULE-RAILING",
+    "matched_rule_name": "栏杆成品拆解",
+    "quantity_grade": "C",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [],
+    "drawing_evidence_summary": {
+      "candidate_count": 0,
+      "top_link_statuses": {},
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": []
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-010-M01",
+        "material_id": "MAT-010",
+        "standard_name": "成品栏杆",
+        "role": "主材",
+        "purchase_unit": "m",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 1030m × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "1200高度"
+        ],
+        "required_specs": [
+          "高度",
+          "材质",
+          "表面处理",
+          "立杆间距",
+          "扶手规格"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "栏杆高度",
+      "材质",
+      "节点详图",
+      "表面处理",
+      "安装方式"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-010-01",
+        "boq_item_id": "BOQ-010",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "材质",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-010-02",
+        "boq_item_id": "BOQ-010",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "节点详图",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-010-03",
+        "boq_item_id": "BOQ-010",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "表面处理",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-010-04",
+        "boq_item_id": "BOQ-010",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "安装方式",
+        "suggested_owner": "人工确认/项目资料补充"
+      }
+    ],
+    "risk_notes": [
+      "BOQ 长度可用，但成品深化参数不足时不能形成采购规格",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 14
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-011",
+    "boq_item_id": "BOQ-011",
+    "boq_name": "阳台栏杆",
+    "boq_description": "1100高度",
+    "boq_unit": "m",
+    "boq_quantity": 2030,
+    "boq_category": "栏杆材料",
+    "matched_rule_id": "RULE-RAILING",
+    "matched_rule_name": "栏杆成品拆解",
+    "quantity_grade": "C",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [],
+    "drawing_evidence_summary": {
+      "candidate_count": 0,
+      "top_link_statuses": {},
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": []
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-011-M01",
+        "material_id": "MAT-010",
+        "standard_name": "成品栏杆",
+        "role": "主材",
+        "purchase_unit": "m",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 2030m × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "1100高度"
+        ],
+        "required_specs": [
+          "高度",
+          "材质",
+          "表面处理",
+          "立杆间距",
+          "扶手规格"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "栏杆高度",
+      "材质",
+      "节点详图",
+      "表面处理",
+      "安装方式"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-011-01",
+        "boq_item_id": "BOQ-011",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "材质",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-011-02",
+        "boq_item_id": "BOQ-011",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "节点详图",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-011-03",
+        "boq_item_id": "BOQ-011",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "表面处理",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-011-04",
+        "boq_item_id": "BOQ-011",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "安装方式",
+        "suggested_owner": "人工确认/项目资料补充"
+      }
+    ],
+    "risk_notes": [
+      "BOQ 长度可用，但成品深化参数不足时不能形成采购规格",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 15
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-012",
+    "boq_item_id": "BOQ-012",
+    "boq_name": "窗",
+    "boq_description": "60系列塑钢平开窗",
+    "boq_unit": "m²",
+    "boq_quantity": 7000,
+    "boq_category": "门窗材料",
+    "matched_rule_id": "RULE-DOOR-WINDOW",
+    "matched_rule_name": "门窗成品拆解",
+    "quantity_grade": "C",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [],
+    "drawing_evidence_summary": {
+      "candidate_count": 0,
+      "top_link_statuses": {},
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": []
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-012-M01",
+        "material_id": "MAT-011",
+        "standard_name": "成品门窗",
+        "role": "主材",
+        "purchase_unit": "m²/樘",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 7000m² × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "60系列"
+        ],
+        "required_specs": [
+          "系列",
+          "开启方式",
+          "尺寸",
+          "玻璃配置",
+          "五金",
+          "防火等级"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "门窗表",
+      "洞口尺寸",
+      "系列",
+      "开启方式",
+      "玻璃/五金配置"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-012-01",
+        "boq_item_id": "BOQ-012",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "门窗表",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-012-02",
+        "boq_item_id": "BOQ-012",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "洞口尺寸",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-012-03",
+        "boq_item_id": "BOQ-012",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "开启方式",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-012-04",
+        "boq_item_id": "BOQ-012",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "玻璃/五金配置",
+        "suggested_owner": "人工确认/项目资料补充"
+      }
+    ],
+    "risk_notes": [
+      "面积或樘数不能替代门窗表，需按编号和尺寸归集",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 16
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-013",
+    "boq_item_id": "BOQ-013",
+    "boq_name": "门",
+    "boq_description": "90系列彩塑推拉门",
+    "boq_unit": "m²",
+    "boq_quantity": 4500,
+    "boq_category": "门窗材料",
+    "matched_rule_id": "RULE-DOOR-WINDOW",
+    "matched_rule_name": "门窗成品拆解",
+    "quantity_grade": "C",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [],
+    "drawing_evidence_summary": {
+      "candidate_count": 0,
+      "top_link_statuses": {},
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": []
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-013-M01",
+        "material_id": "MAT-011",
+        "standard_name": "成品门窗",
+        "role": "主材",
+        "purchase_unit": "m²/樘",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 4500m² × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "90系列"
+        ],
+        "required_specs": [
+          "系列",
+          "开启方式",
+          "尺寸",
+          "玻璃配置",
+          "五金",
+          "防火等级"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "门窗表",
+      "洞口尺寸",
+      "系列",
+      "开启方式",
+      "玻璃/五金配置"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-013-01",
+        "boq_item_id": "BOQ-013",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "门窗表",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-013-02",
+        "boq_item_id": "BOQ-013",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "洞口尺寸",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-013-03",
+        "boq_item_id": "BOQ-013",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "开启方式",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-013-04",
+        "boq_item_id": "BOQ-013",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "玻璃/五金配置",
+        "suggested_owner": "人工确认/项目资料补充"
+      }
+    ],
+    "risk_notes": [
+      "面积或樘数不能替代门窗表，需按编号和尺寸归集",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 17
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-014",
+    "boq_item_id": "BOQ-014",
+    "boq_name": "门",
+    "boq_description": "60系列塑钢平开门",
+    "boq_unit": "m²",
+    "boq_quantity": 90,
+    "boq_category": "门窗材料",
+    "matched_rule_id": "RULE-DOOR-WINDOW",
+    "matched_rule_name": "门窗成品拆解",
+    "quantity_grade": "C",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [],
+    "drawing_evidence_summary": {
+      "candidate_count": 0,
+      "top_link_statuses": {},
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": []
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-014-M01",
+        "material_id": "MAT-011",
+        "standard_name": "成品门窗",
+        "role": "主材",
+        "purchase_unit": "m²/樘",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 90m² × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "60系列"
+        ],
+        "required_specs": [
+          "系列",
+          "开启方式",
+          "尺寸",
+          "玻璃配置",
+          "五金",
+          "防火等级"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "门窗表",
+      "洞口尺寸",
+      "系列",
+      "开启方式",
+      "玻璃/五金配置"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-014-01",
+        "boq_item_id": "BOQ-014",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "门窗表",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-014-02",
+        "boq_item_id": "BOQ-014",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "洞口尺寸",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-014-03",
+        "boq_item_id": "BOQ-014",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "开启方式",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-014-04",
+        "boq_item_id": "BOQ-014",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "玻璃/五金配置",
+        "suggested_owner": "人工确认/项目资料补充"
+      }
+    ],
+    "risk_notes": [
+      "面积或樘数不能替代门窗表，需按编号和尺寸归集",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 18
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-015",
+    "boq_item_id": "BOQ-015",
+    "boq_name": "窗",
+    "boq_description": "锌钢百叶窗",
+    "boq_unit": "m²",
+    "boq_quantity": 2500,
+    "boq_category": "门窗材料",
+    "matched_rule_id": "RULE-DOOR-WINDOW",
+    "matched_rule_name": "门窗成品拆解",
+    "quantity_grade": "C",
+    "confidence": 0.6,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [],
+    "drawing_evidence_summary": {
+      "candidate_count": 0,
+      "top_link_statuses": {},
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": []
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-015-M01",
+        "material_id": "MAT-011",
+        "standard_name": "成品门窗",
+        "role": "主材",
+        "purchase_unit": "m²/樘",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 2500m² × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [],
+        "required_specs": [
+          "系列",
+          "开启方式",
+          "尺寸",
+          "玻璃配置",
+          "五金",
+          "防火等级"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "门窗表",
+      "洞口尺寸",
+      "系列",
+      "开启方式",
+      "玻璃/五金配置"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-015-01",
+        "boq_item_id": "BOQ-015",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "门窗表",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-015-02",
+        "boq_item_id": "BOQ-015",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "洞口尺寸",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-015-03",
+        "boq_item_id": "BOQ-015",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "系列",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-015-04",
+        "boq_item_id": "BOQ-015",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "开启方式",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-015-05",
+        "boq_item_id": "BOQ-015",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "玻璃/五金配置",
+        "suggested_owner": "人工确认/项目资料补充"
+      }
+    ],
+    "risk_notes": [
+      "面积或樘数不能替代门窗表，需按编号和尺寸归集",
+      "原清单单位包含价格口径，已尝试归一为工程量单位，需确认是否符合业务口径"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 19
+      },
+      "knowledge_base": "项目知识库"
+    }
+  },
+  {
+    "task_id": "TASK-016",
+    "boq_item_id": "BOQ-016",
+    "boq_name": "进户门",
+    "boq_description": "钢制乙级防火门（高2160宽1060）",
+    "boq_unit": "樘",
+    "boq_quantity": 398,
+    "boq_category": "门窗材料",
+    "matched_rule_id": "RULE-DOOR-WINDOW",
+    "matched_rule_name": "门窗成品拆解",
+    "quantity_grade": "C",
+    "confidence": 0.68,
+    "task_status": "ready_for_human_confirm",
+    "candidate_drawing_links": [],
+    "drawing_evidence_summary": {
+      "candidate_count": 0,
+      "top_link_statuses": {},
+      "top_practice_quality_issue_count": 0,
+      "top_material_mentions": []
+    },
+    "proposed_materials": [
+      {
+        "line_id": "BOQ-016-M01",
+        "material_id": "MAT-011",
+        "standard_name": "成品门窗",
+        "role": "主材",
+        "purchase_unit": "m²/樘",
+        "quantity_formula_status": "formula_template_only",
+        "quantity_formula": "采购量 = 398樘 × 损耗率/排版系数；需按规格换算采购单位",
+        "loss_rate_status": "needs_rule_or_manual_input",
+        "specs_found_in_boq": [
+          "乙级防火门"
+        ],
+        "required_specs": [
+          "系列",
+          "开启方式",
+          "尺寸",
+          "玻璃配置",
+          "五金",
+          "防火等级"
+        ],
+        "evidence_material_mentions": [],
+        "status": "pending_confirm"
+      }
+    ],
+    "required_human_inputs": [
+      "门窗表",
+      "洞口尺寸",
+      "系列",
+      "开启方式",
+      "玻璃/五金配置"
+    ],
+    "missing_inputs": [
+      {
+        "missing_id": "MISS-BOQ-016-01",
+        "boq_item_id": "BOQ-016",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "门窗表",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-016-02",
+        "boq_item_id": "BOQ-016",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "洞口尺寸",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-016-03",
+        "boq_item_id": "BOQ-016",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "开启方式",
+        "suggested_owner": "人工确认/项目资料补充"
+      },
+      {
+        "missing_id": "MISS-BOQ-016-04",
+        "boq_item_id": "BOQ-016",
+        "type": "calculation_or_spec_input",
+        "severity": "high",
+        "description": "玻璃/五金配置",
+        "suggested_owner": "人工确认/项目资料补充"
+      }
+    ],
+    "risk_notes": [
+      "面积或樘数不能替代门窗表，需按编号和尺寸归集"
+    ],
+    "source_trace": {
+      "boq_source": {
+        "file": "原始输入/BOQ_宿州302.xlsx",
+        "sheet": "Sheet1",
+        "row": 20
+      },
+      "knowledge_base": "项目知识库"
+    }
+  }
+]
