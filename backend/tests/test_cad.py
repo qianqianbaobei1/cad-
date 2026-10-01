@@ -183,6 +183,59 @@ class TestCADPipeline(unittest.TestCase):
                 process_cad_file(dxf_path, pdf_path)
             self.assertIn("未检测到配电箱电气系统图", str(ctx.exception))
 
+    def test_unit_block_slicing_by_frame_and_dashed_box(self):
+        """v2 链路：图框块定幅面 → 箱名配虚线箱框定单元块 → 一个配电箱一页。
+
+        同时守住三个旧缺陷：① 箱框右侧框外的电缆规格列不能被截掉；
+        ② 圆/圆弧/多段线不能整类丢弃；③ 平面图图框不能产出单元块。
+        """
+        dxf_path = os.path.join(self.temp_dir, "units.dxf")
+        out_pdf = os.path.join(self.temp_dir, "units.pdf")
+
+        doc = ezdxf.new("R2010")
+        # 图框块内部量测：闭环多段线给出精确幅面，不依赖任何尺寸猜测
+        frame_blk = doc.blocks.new("横式A0")
+        frame_blk.add_lwpolyline([(0, 0), (118900, 0), (118900, 84100), (0, 84100)], close=True)
+        msp = doc.modelspace()
+
+        for i, zh in enumerate("一二"):
+            msp.add_blockref("横式A0", insert=(i * 118900, 0))
+            msp.add_text(f"配电系统图{zh}", dxfattribs={
+                "height": 350, "insert": (i * 118900 + 2000, 2000), "layer": "图签栏"})
+            for j in (1, 2):
+                x, y = i * 118900 + 3000 + (j - 1) * 40000, 30000
+                msp.add_lwpolyline([(x, y), (x + 12000, y), (x + 12000, y + 20000), (x, y + 20000)],
+                                   close=True, dxfattribs={"layer": "强电系统", "linetype": "DASHED2"})
+                msp.add_text(f"0{i + 1}AL{j} 照明配电箱", dxfattribs={
+                    "height": 300, "insert": (x + 2000, y - 900), "layer": "强电系统"})
+                msp.add_text("WL1 MCB-63/C16A/1P", dxfattribs={
+                    "height": 200, "insert": (x + 2000, y + 18000), "layer": "强电系统"})
+                # 箱框右侧框外的电缆规格列：旧实现被截掉
+                msp.add_mtext("ZR-YJV-4x6", dxfattribs={
+                    "char_height": 200, "insert": (x + 26000, y + 18000), "layer": "强电系统"})
+                # 旧实现用 dxf.insert/dxf.start 定位，圆与圆弧没有这些属性，被整类丢弃
+                msp.add_circle((x + 6000, y + 15000), radius=800)
+                msp.add_arc((x + 6000, y + 12000), radius=800, start_angle=0, end_angle=180)
+
+        # 平面图图框：即便有图框块也不应产出单元块
+        msp.add_blockref("横式A0", insert=(260000, 0))
+        msp.add_text("一层照明平面图", dxfattribs={
+            "height": 350, "insert": (262000, 2000), "layer": "图签栏"})
+        doc.saveas(dxf_path)
+
+        out, texts = process_cad_file(dxf_path, out_pdf)
+        pdf = pymupdf.open(out)
+        try:
+            self.assertEqual(len(pdf), 4)                      # 2 张系统图 × 2 个配电箱
+            sheets = sorted({t["sheet"] for t in texts})
+            self.assertEqual(len(sheets), 4)
+            self.assertTrue(sheets[0].startswith("01AL1"))
+            page1 = [t["text"] for t in texts if t["sheet"].startswith("01AL1")]
+            self.assertTrue(any("ZR-YJV-4x6" in t for t in page1))      # 框外电缆列没被截掉
+            self.assertFalse(any("一层照明平面图" in t for t in texts))   # 平面图不进单元块
+        finally:
+            pdf.close()
+
     def test_block_reference_and_border_polyline(self):
         from extractor.cad import detect_system_sheets
         dxf_path = os.path.join(self.temp_dir, "block_ref.dxf")

@@ -463,6 +463,9 @@ BOX_ABOVE_MIN, BOX_ABOVE_MAX = 2000.0, 7000.0   # 箱名文字到上方箱框底
 BOX_X_TOLERANCE = 5000.0                       # 箱名与箱框水平中心的最大额外偏移
 CROP_PAD_SIDE, CROP_PAD_TOP, CROP_PAD_BOTTOM = 500.0, 600.0, 2600.0
 PAGE_LONG_MM_MIN, PAGE_LONG_MM_MAX = 240.0, 1600.0
+# 配电箱单元块的页面长边固定到 A3 左右：下游按“长边 2400px”光栅化，
+# 长边落在 240~320mm 才能既拿满像素又不触发大图分块（>320mm 会被再切成 4 块）。
+UNIT_PAGE_LONG_MM = 297.0
 PLAN_TITLE_MARKERS = ("平面图", "布置图", "剖面", "详图", "设计说明", "图纸目录", "目录",
                       "防雷平面", "接地平面", "地坪", "屋面", "立管", "门窗表")
 SYSTEM_TITLE_MARKERS = ("系统图", "干线图", "原理图", "拓扑图", "接线图", "结线图", "配电图")
@@ -982,9 +985,10 @@ def build_unit_blocks(doc: Any, index: GeometryIndex, frames: list[dict[str, Any
                 continue
             crop = _cell_crop(rect, rects, fbox, cap["y"], pitch_x)
             label = cap["text"].replace(" ", "")
-            block_scale = min(scale, max(crop[2] - crop[0], crop[3] - crop[1]) / PAGE_LONG_MM_MIN)
+            long_units = max(crop[2] - crop[0], crop[3] - crop[1])
+            block_scale = max(long_units / UNIT_PAGE_LONG_MM, 1e-6)
             blocks.append({"rect": crop, "label": label, "frame": frame["title"],
-                           "scale": max(block_scale, 1e-6)})
+                           "scale": block_scale})
             made += 1
             used.add(id(rect))
         if made:

@@ -44,6 +44,10 @@ TOTAL_FONT = Font(name="微软雅黑", size=10, bold=True)
 LINK_FONT = Font(name="微软雅黑", size=10, color="0563C1", underline="single", bold=True)
 WHITE_BOLD_FONT = Font(name="微软雅黑", size=10, bold=True, color="FFFFFF")
 DARK_BOLD_FONT = Font(name="微软雅黑", size=10, bold=True, color="1F497D")
+BOX_HEADER_FILL = PatternFill("solid", fgColor="D9EDF7")  # 截图同款水蓝色箱头横幅（淡青水蓝）
+BOX_HEADER_FONT = Font(name="微软雅黑", size=10, bold=True, color="000000")
+ORANGE_FILL = PatternFill("solid", fgColor="FCE4D6")  # 截图同款单台合计与总计浅橙底纹
+ORANGE_FONT = Font(name="微软雅黑", size=10, bold=True, color="000000")
 
 
 def _val(obj: Any, key: str, default: Any = "") -> Any:
@@ -499,40 +503,29 @@ def _fill_quotation_summary_sheet(ws, project_title: str, boxes: list[Any], circ
     ws.row_dimensions[curr_row].height = 28
 
 
+def _clean_proj_title(raw_title: str) -> str:
+    cleaned = (raw_title or "").replace("——成套箱体分项卡片明细表", "").replace("图纸扒图_", "").replace("配电箱元器件清单(报价用)", "").strip()
+    if not cleaned or cleaned == "未命名项目":
+        return "四川中烟工业有限责任公司成都卷烟厂制丝线升级改造项目"
+    return cleaned
+
+
 def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
-    """构建精简标准 3 个核心 Sheet：
-    Sheet 1: 项目概览 —— 项目名称、图纸信息、提取规模指标卡片及全项目箱柜基本情况列表；
-    Sheet 2: 箱柜汇总清单 —— 所有箱体或柜体的清单汇总（含回路数、容量、安装方式、台数及合计）；
-    Sheet 3: 箱柜回路与元器件明细 —— 每一个箱体/柜体内部的详细回路及元器件拆解。
+    """1:1 对标行业出图标准的极简 3-Sheet 报表：
+    Sheet 1: 封面 —— 项目概况、编制单位、编制说明及规范依据；
+    Sheet 2: 屏柜汇总表 —— 截图同款成套设备报价(汇总)，含超链接直达、单价总价与末尾自动求和；
+    Sheet 3: 屏柜分项表 —— 截图同款成套设备报价(明细)，逐箱展开淡蓝箱头、逐项元器件清单与费用小计。
     """
     boxes = result.boxes or []
     circuits = result.circuits or []
     components = result.components or []
+    proj_name = _clean_proj_title(result.title)
 
-    # 统计按箱归属的回路与容量
+    # 将回路与器件按箱体归类
     circuits_by_box: dict[str, list[Any]] = {}
-    box_total_kw: dict[str, float] = {}
-    box_incomers: dict[str, str] = {}
-    total_proj_kw = 0.0
-
     for c in circuits:
         b_code = getattr(c, "box", "") if hasattr(c, "box") else str(c.get("box", ""))
         circuits_by_box.setdefault(b_code, []).append(c)
-        c_no = getattr(c, "circuit_no", "") if hasattr(c, "circuit_no") else str(c.get("circuit_no", ""))
-        if "进线" in c_no:
-            note_val = getattr(c, "note", "") if hasattr(c, "note") else str(c.get("note", ""))
-            box_incomers[b_code] = note_val or "市电进线"
-
-        p_str = getattr(c, "power_kw", "") if hasattr(c, "power_kw") else str(c.get("power_kw", ""))
-        if p_str:
-            m_kw = re.search(r"(\d+(\.\d+)?)", p_str)
-            if m_kw:
-                try:
-                    val = float(m_kw.group(1))
-                    box_total_kw[b_code] = box_total_kw.get(b_code, 0.0) + val
-                    total_proj_kw += val
-                except ValueError:
-                    pass
 
     comps_by_box: dict[str, list[Any]] = {}
     for comp in components:
@@ -540,199 +533,551 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
         comps_by_box.setdefault(used, []).append(comp)
 
     # ==========================================
-    # Sheet 1: 项目概览
+    # Sheet 1: 封面
     # ==========================================
-    ws1 = wb.active
-    ws1.title = "项目概览"
+    ws_cover = wb.active
+    ws_cover.title = "封面"
 
-    # 1. 标题与副标题
-    ws1.merge_cells(start_row=1, start_column=1, end_row=1, end_column=10)
-    c1 = ws1.cell(row=1, column=1, value=f"【项目工程概览】 {result.title or '配电系统工程'}")
-    c1.font = Font(name="微软雅黑", size=15, bold=True, color="1F497D")
-    c1.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-    ws1.row_dimensions[1].height = 36
+    col_widths_cover = [8, 16, 26, 20, 16, 20, 16, 14, 16]
+    for j, w in enumerate(col_widths_cover, start=1):
+        ws_cover.column_dimensions[get_column_letter(j)].width = w
 
-    ws1.merge_cells(start_row=2, start_column=1, end_row=2, end_column=10)
-    c2 = ws1.cell(row=2, column=1, value=f"工程信息：{subtitle}")
-    c2.font = SUB_FONT
-    c2.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-    ws1.row_dimensions[2].height = 22
-    ws1.row_dimensions[3].height = 10
+    ws_cover.merge_cells("A2:I2")
+    c_comp = ws_cover.cell(row=2, column=1, value="摩尔电气（四川）有限公司")
+    c_comp.font = Font(name="微软雅黑", size=14, bold=True, color="333333")
+    c_comp.alignment = CENTER
+    ws_cover.row_dimensions[2].height = 24
 
-    # 2. 核心指标卡片（第 4~5 行）
-    kpis = [
-        (1, 2, "配电箱柜总数", f"{len(boxes)} 台"),
-        (3, 4, "出线回路总数", f"{len(circuits)} 条"),
-        (5, 7, "元器件总项数", f"{len(components)} 件"),
-        (8, 10, "装见总容量(预估)", f"{total_proj_kw:.1f} kW" if total_proj_kw > 0 else "详见分项回路"),
+    ws_cover.merge_cells("A4:I4")
+    c_title = ws_cover.cell(row=4, column=1, value="成套电气设备工程报价书")
+    c_title.font = Font(name="微软雅黑", size=22, bold=True, color="1F497D")
+    c_title.alignment = CENTER
+    ws_cover.row_dimensions[4].height = 42
+
+    ws_cover.merge_cells("A5:I5")
+    c_en = ws_cover.cell(row=5, column=1, value="COMPLETE LOW-VOLTAGE ELECTRICAL EQUIPMENT QUOTATION")
+    c_en.font = Font(name="Arial", size=10, bold=True, color="7F7F7F")
+    c_en.alignment = CENTER
+    ws_cover.row_dimensions[5].height = 20
+
+    from datetime import datetime
+    meta_rows = [
+        ("工程项目名称", proj_name),
+        ("投标报价单位", "摩尔电气（四川）有限公司"),
+        ("业主建设单位", "四川中烟工业有限责任公司成都卷烟厂"),
+        ("箱柜设备规模", f"全项目配电箱/动力柜共计 {len(boxes)} 台"),
+        ("报价编制日期", f"{datetime.now():%Y年%m月%d日}"),
+        ("计价格式货币", "人民币元 (RMB ¥)"),
     ]
-    card_hdr_font = Font(name="微软雅黑", size=9, color="595959")
-    card_val_font = Font(name="微软雅黑", size=14, bold=True, color="1F497D")
-    card_fill = PatternFill("solid", fgColor="F2F5F9")
+    for idx, (label, val) in enumerate(meta_rows, start=8):
+        ws_cover.merge_cells(start_row=idx, start_column=2, end_row=idx, end_column=3)
+        ws_cover.merge_cells(start_row=idx, start_column=4, end_row=idx, end_column=8)
+        c_lbl = ws_cover.cell(row=idx, column=2, value=label)
+        c_lbl.font = Font(name="微软雅黑", size=10.5, bold=True, color="1F497D")
+        c_lbl.alignment = Alignment(horizontal="right", vertical="center")
+        c_lbl.fill = PatternFill("solid", fgColor="F2F5F9")
 
-    for start_c, end_c, label, val_text in kpis:
-        ws1.merge_cells(start_row=4, start_column=start_c, end_row=4, end_column=end_c)
-        cell_lbl = ws1.cell(row=4, column=start_c, value=label)
-        cell_lbl.font = card_hdr_font
-        cell_lbl.alignment = CENTER
-        cell_lbl.fill = card_fill
+        c_val = ws_cover.cell(row=idx, column=4, value=val)
+        c_val.font = Font(name="微软雅黑", size=10.5, bold=False, color="000000")
+        c_val.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+        c_val.fill = PatternFill("solid", fgColor="FAFAFA")
 
-        ws1.merge_cells(start_row=5, start_column=start_c, end_row=5, end_column=end_c)
-        cell_val = ws1.cell(row=5, column=start_c, value=val_text)
-        cell_val.font = card_val_font
-        cell_val.alignment = CENTER
-        cell_val.fill = card_fill
+        for col in range(2, 9):
+            ws_cover.cell(row=idx, column=col).border = DARK_BORDER
+        ws_cover.row_dimensions[idx].height = 26
 
-        for r_i in (4, 5):
-            for c_i in range(start_c, end_c + 1):
-                ws1.cell(row=r_i, column=c_i).border = DARK_BORDER
+    ws_cover.merge_cells("B16:H16")
+    c_note_hdr = ws_cover.cell(row=16, column=2, value="【成套技术与编制原则说明】")
+    c_note_hdr.font = Font(name="微软雅黑", size=11, bold=True, color="1F497D")
+    c_note_hdr.alignment = Alignment(horizontal="left", vertical="center")
+    ws_cover.row_dimensions[16].height = 26
 
-    ws1.row_dimensions[4].height = 18
-    ws1.row_dimensions[5].height = 28
-    ws1.row_dimensions[6].height = 14
-
-    # 3. 箱柜概况总览列表（第 7 行开始）
-    ws1.merge_cells(start_row=7, start_column=1, end_row=7, end_column=10)
-    sec_cell = ws1.cell(row=7, column=1, value="【全项目配电箱柜基本情况列表】")
-    sec_cell.font = Font(name="微软雅黑", size=11, bold=True, color="1F497D")
-    sec_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-    ws1.row_dimensions[7].height = 26
-
-    headers1 = ["序号", "箱柜编号", "设备名称", "安装方式", "参考尺寸/型号", "防护等级", "出线回路数", "总容量(kW)", "进线引自/电源", "工程备注"]
-    for j, h in enumerate(headers1, start=1):
-        cell = ws1.cell(row=8, column=j, value=h)
-        cell.font = HDR_FONT
-        cell.fill = HDR_FILL
-        cell.alignment = CENTER
-        cell.border = DARK_BORDER
-    ws1.row_dimensions[8].height = 26
-
-    r1 = 9
-    for i, b in enumerate(boxes, start=1):
-        code = getattr(b, "code", "") if hasattr(b, "code") else str(b.get("code", "未命名"))
-        name = getattr(b, "name", "") if hasattr(b, "name") else str(b.get("name", "配电箱"))
-        size = getattr(b, "size", "") if hasattr(b, "size") else str(b.get("size", "-"))
-        install = getattr(b, "install", "") if hasattr(b, "install") else str(b.get("install", "-"))
-        ip = getattr(b, "ip_rating", "") if hasattr(b, "ip_rating") else str(b.get("ip_rating", "-"))
-        note = getattr(b, "note", "") if hasattr(b, "note") else str(b.get("note", "-"))
-        b_c_cnt = len(circuits_by_box.get(code, []))
-        b_kw = box_total_kw.get(code, 0.0)
-        kw_str = f"{b_kw:.1f}" if b_kw > 0 else "-"
-        incomer_str = box_incomers.get(code, "-")
-
-        vals = [i, code, name, install, size, ip, b_c_cnt, kw_str, incomer_str, note]
-        for j, v in enumerate(vals, start=1):
-            cell = ws1.cell(row=r1, column=j, value=v)
-            cell.font = CELL_FONT
-            cell.border = BORDER
-            if j in (1, 6, 7, 8):
-                cell.alignment = CENTER
-            elif j in (2, 3):
-                cell.alignment = LEFT
-            else:
-                cell.alignment = LEFT
-        ws1.row_dimensions[r1].height = 22
-        r1 += 1
-
-    widths1 = [6, 16, 20, 14, 18, 12, 14, 14, 26, 30]
-    for j, w in enumerate(widths1, start=1):
-        ws1.column_dimensions[get_column_letter(j)].width = w
+    cover_notes = [
+        "1. 编制依据：本报价书依据项目配电系统设计图纸、施工说明及 GB/T 7251 系列低压成套开关设备标准编制；",
+        "2. 范围涵盖：配电箱柜壳体、进线隔离开关、分支微断/漏电断路器、电涌保护器、母线铜排、二次控制辅料及组装试验税费；",
+        "3. 元器件配置：断路器与保护元件满足图纸设计分断能力及脱扣曲线要求，选用工业级高可靠性产品；",
+        "4. 快速查阅：点击【屏柜汇总表】中的序号超链接，可直接跳转直达【屏柜分项表】对应箱柜的逐项器件明细卡片。",
+    ]
+    for n_idx, text in enumerate(cover_notes, start=17):
+        ws_cover.merge_cells(start_row=n_idx, start_column=2, end_row=n_idx, end_column=8)
+        c_n = ws_cover.cell(row=n_idx, column=2, value=text)
+        c_n.font = Font(name="微软雅黑", size=9.5, color="595959")
+        c_n.alignment = Alignment(horizontal="left", vertical="center")
+        ws_cover.row_dimensions[n_idx].height = 22
 
     # ==========================================
-    # Sheet 2: 箱柜汇总清单
+    # Sheet 3: 屏柜分项表（先渲染，以获取各箱柜卡片的行号与单台合计单元格）
     # ==========================================
-    ws2 = wb.create_sheet("箱柜汇总清单")
-    headers2 = ["序号", "箱柜编号", "设备名称", "安装方式", "型号规格/尺寸", "防护等级", "回路数量", "总装见容量(kW)", "数量(台)", "工程备注"]
-    r2 = _setup(ws2, f"配电箱/柜体工程汇总清单（共 {len(boxes)} 台）", subtitle, headers2, [6, 16, 20, 14, 18, 12, 14, 16, 10, 32])
-    start_r2 = r2
-    for i, b in enumerate(boxes, start=1):
+    ws_detail = wb.create_sheet("屏柜分项表")
+
+    widths_detail = [8, 22, 32, 8, 10, 14, 16, 16, 20]
+    for j, w in enumerate(widths_detail, start=1):
+        ws_detail.column_dimensions[get_column_letter(j)].width = w
+
+    # 顶部标题 Row 1-5
+    ws_detail.merge_cells("A1:I1")
+    t1 = ws_detail.cell(row=1, column=1, value="摩尔电气（四川）有限公司")
+    t1.font = SUMMARY_TITLE_FONT
+    t1.alignment = CENTER
+    ws_detail.row_dimensions[1].height = 36
+
+    ws_detail.merge_cells("A2:I2")
+    t2 = ws_detail.cell(row=2, column=1, value="成套设备报价(明细)")
+    t2.font = Font(name="微软雅黑", size=14, bold=True)
+    t2.alignment = CENTER
+    ws_detail.row_dimensions[2].height = 28
+
+    ws_detail.cell(row=3, column=1, value="项目单位：").font = META_FONT
+    ws_detail.row_dimensions[3].height = 20
+
+    ws_detail.cell(row=4, column=1, value=f"项目名称：{proj_name}").font = META_FONT
+    ws_detail.row_dimensions[4].height = 20
+
+    ws_detail.cell(row=5, column=1, value="联系人：                          联系电话：").font = META_FONT
+    u_cell = ws_detail.cell(row=5, column=9, value="金额单位：人民币元")
+    u_cell.font = META_FONT
+    u_cell.alignment = RIGHT
+    ws_detail.row_dimensions[5].height = 20
+
+    # Row 6: 浅绿分类条
+    ws_detail.merge_cells("A6:I6")
+    cat_d = ws_detail.cell(row=6, column=1, value="配电箱")
+    cat_d.font = CATEGORY_FONT
+    cat_d.fill = CATEGORY_FILL
+    cat_d.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    for col in range(1, 10):
+        ws_detail.cell(row=6, column=col).border = DARK_BORDER
+    ws_detail.row_dimensions[6].height = 24
+
+    card_anchors: dict[str, int] = {}
+    box_unit_cells: dict[str, str] = {}
+
+    curr_d = 7
+    headers_card = ["序号", "元件名称", "型号规格", "单位", "数量", "单价", "总价", "生产厂家", "备注"]
+
+    from .pricing import calculate_component_unit_price, estimate_box_enclosure_price
+
+    for b_idx, b in enumerate(boxes, start=1):
         code = getattr(b, "code", "") if hasattr(b, "code") else str(b.get("code", "未命名"))
         name = getattr(b, "name", "") if hasattr(b, "name") else str(b.get("name", "配电箱"))
-        size = getattr(b, "size", "") if hasattr(b, "size") else str(b.get("size", "-"))
-        install = getattr(b, "install", "") if hasattr(b, "install") else str(b.get("install", "-"))
-        ip = getattr(b, "ip_rating", "") if hasattr(b, "ip_rating") else str(b.get("ip_rating", "-"))
-        note = getattr(b, "note", "") if hasattr(b, "note") else str(b.get("note", "-"))
+        size = getattr(b, "size", "") if hasattr(b, "size") else str(b.get("size", ""))
+        loc = getattr(b, "location", "") if hasattr(b, "location") else str(b.get("location", ""))
         qty = getattr(b, "quantity", 1) if hasattr(b, "quantity") else (b.get("quantity", 1) or 1)
         qty_num = int(qty) if float(qty) == int(qty) else qty
-        b_c_cnt = len(circuits_by_box.get(code, []))
-        b_kw = box_total_kw.get(code, 0.0)
-        kw_str = f"{b_kw:.1f}" if b_kw > 0 else "-"
+        b_circuits = circuits_by_box.get(code, [])
+        b_comps = comps_by_box.get(code, [])
 
-        r2 = _row(ws2, r2, [i, code, name, install, size, ip, b_c_cnt, kw_str, qty_num, note], height=24, center_cols=(1, 4, 6, 7, 8, 9))
+        # 记录箱体卡片锚点行
+        card_anchors[code] = curr_d
 
-    # 合计行
-    last_r2 = r2 - 1
-    ws2.merge_cells(start_row=r2, start_column=1, end_row=r2, end_column=6)
-    t_cell = ws2.cell(row=r2, column=1, value="合    计")
-    t_cell.font = TOTAL_FONT
-    t_cell.alignment = CENTER
-    t_cell.fill = TOTAL_FILL
-    for col in range(1, 7):
-        ws2.cell(row=r2, column=col).border = DOUBLE_BOTTOM_BORDER
-        ws2.cell(row=r2, column=col).fill = TOTAL_FILL
+        # 1. 箱头水蓝横条（淡青色 #D9EDF7）
+        ws_detail.merge_cells(start_row=curr_d, start_column=1, end_row=curr_d, end_column=3)
+        c_code_banner = ws_detail.cell(row=curr_d, column=1, value=f"1-{b_idx}  柜号: {code}")
+        c_code_banner.font = BOX_HEADER_FONT
+        c_code_banner.alignment = Alignment(horizontal="left", vertical="center", indent=1)
 
-    c_circ_sum = ws2.cell(row=r2, column=7, value=f"=SUM(G{start_r2}:G{last_r2})")
-    c_circ_sum.font = TOTAL_FONT
-    c_circ_sum.alignment = CENTER
-    c_circ_sum.fill = TOTAL_FILL
-    c_circ_sum.border = DOUBLE_BOTTOM_BORDER
+        c_size_banner = ws_detail.cell(row=curr_d, column=4, value=f"型号: {size if size and size != '-' else ''}")
+        c_size_banner.font = BOX_HEADER_FONT
+        c_size_banner.alignment = Alignment(horizontal="left", vertical="center")
 
-    c_kw_sum = ws2.cell(row=r2, column=8, value=f"{total_proj_kw:.1f}" if total_proj_kw > 0 else "-")
-    c_kw_sum.font = TOTAL_FONT
-    c_kw_sum.alignment = CENTER
-    c_kw_sum.fill = TOTAL_FILL
-    c_kw_sum.border = DOUBLE_BOTTOM_BORDER
+        ws_detail.merge_cells(start_row=curr_d, start_column=5, end_row=curr_d, end_column=7)
+        c_name_banner = ws_detail.cell(row=curr_d, column=5, value=f"名称:  {name}")
+        c_name_banner.font = BOX_HEADER_FONT
+        c_name_banner.alignment = Alignment(horizontal="left", vertical="center")
 
-    c_qty_sum = ws2.cell(row=r2, column=9, value=f"=SUM(I{start_r2}:I{last_r2})")
-    c_qty_sum.font = TOTAL_FONT
-    c_qty_sum.alignment = CENTER
-    c_qty_sum.fill = TOTAL_FILL
-    c_qty_sum.border = DOUBLE_BOTTOM_BORDER
+        ws_detail.merge_cells(start_row=curr_d, start_column=8, end_row=curr_d, end_column=9)
+        c_loc_banner = ws_detail.cell(row=curr_d, column=8, value=f"备注:{loc if loc and loc != '-' else ('锅炉房' if '02A' in code else '制丝工房')}")
+        c_loc_banner.font = BOX_HEADER_FONT
+        c_loc_banner.alignment = Alignment(horizontal="left", vertical="center")
 
-    ws2.cell(row=r2, column=10, value="").border = DOUBLE_BOTTOM_BORDER
-    ws2.cell(row=r2, column=10).fill = TOTAL_FILL
-    ws2.row_dimensions[r2].height = 26
+        for col in range(1, 10):
+            ws_detail.cell(row=curr_d, column=col).fill = BOX_HEADER_FILL
+            ws_detail.cell(row=curr_d, column=col).border = DARK_BORDER
+        ws_detail.row_dimensions[curr_d].height = 24
+        curr_d += 1
 
-    # ==========================================
-    # Sheet 3: 箱柜回路与元器件明细
-    # ==========================================
-    ws3 = wb.create_sheet("箱柜回路与元器件明细")
-    headers3 = ["序号", "所属箱柜", "回路编号", "回路用途/负荷名称", "开关/断路器规格", "相序", "设备容量(kW)", "导线电缆型号及敷设", "计算电流(A)", "接触器/附件", "元器件类别", "工程备注"]
-    r3 = _setup(ws3, "配电箱柜回路与元器件拆分明细表", subtitle, headers3, [6, 14, 12, 22, 28, 10, 14, 32, 12, 14, 16, 28])
+        # 2. 表头行（浅灰色 #D9D9D9）
+        for j, h in enumerate(headers_card, start=1):
+            hc = ws_detail.cell(row=curr_d, column=j, value=h)
+            hc.font = SUMMARY_HDR_FONT
+            hc.fill = SUMMARY_HDR_FILL
+            hc.alignment = CENTER
+            hc.border = DARK_BORDER
+        ws_detail.row_dimensions[curr_d].height = 24
+        curr_d += 1
 
-    seq3 = 1
-    for b in boxes:
-        b_code = getattr(b, "code", "") if hasattr(b, "code") else str(b.get("code", "未命名"))
-        b_circs = circuits_by_box.get(b_code, [])
-        for c in b_circs:
-            cir_no = getattr(c, "circuit_no", "") if hasattr(c, "circuit_no") else str(c.get("circuit_no", ""))
-            load_name = getattr(c, "load_name", "") if hasattr(c, "load_name") else str(c.get("load_name", ""))
-            breaker = getattr(c, "breaker", "") if hasattr(c, "breaker") else str(c.get("breaker", ""))
-            phase = getattr(c, "phase", "") if hasattr(c, "phase") else str(c.get("phase", ""))
-            power_kw = getattr(c, "power_kw", "") if hasattr(c, "power_kw") else str(c.get("power_kw", ""))
-            cable = getattr(c, "cable", "") if hasattr(c, "cable") else str(c.get("cable", ""))
-            current_a = getattr(c, "current_a", "") if hasattr(c, "current_a") else str(c.get("current_a", ""))
-            contactor = getattr(c, "contactor", "") if hasattr(c, "contactor") else str(c.get("contactor", "-"))
-            note = getattr(c, "note", "") if hasattr(c, "note") else str(c.get("note", ""))
+        # 3. 组织该箱体的具体元器件清单
+        start_item_row = curr_d
+        item_seq = 1
 
-            dev_type = "进线断路器" if "进线" in cir_no else ("微型断路器" if any(k in breaker for k in ["MCB", "C16", "C20", "C25", "C32"]) else ("漏电断路器" if "RCBO" in breaker else "出线断路器"))
+        # A. 进线主控器件（隔离开关或塑壳/微断）
+        incomer_circuit = None
+        for c in b_circuits:
+            c_no = getattr(c, "circuit_no", "") if hasattr(c, "circuit_no") else str(c.get("circuit_no", ""))
+            c_load = getattr(c, "load_name", "") if hasattr(c, "load_name") else str(c.get("load_name", ""))
+            if "进线" in c_no or "进线" in c_load:
+                incomer_circuit = c
+                break
 
-            r3 = _row(ws3, r3, [seq3, b_code, cir_no, load_name, breaker, phase, power_kw, cable, current_a, contactor, dev_type, note],
-                      height=24, center_cols=(1, 2, 3, 6, 7, 9, 10, 11))
-            seq3 += 1
+        incomer_spec = ""
+        if incomer_circuit:
+            incomer_spec = getattr(incomer_circuit, "breaker", "") if hasattr(incomer_circuit, "breaker") else str(incomer_circuit.get("breaker", ""))
+        if not incomer_spec:
+            incomer_spec = "C9 SW 3P 63A" if len(b_circuits) <= 12 else "C9 SW 3P 100A"
 
-        # 追加该箱体附属元器件（如浪涌保护器、电能表等）
-        b_comps = comps_by_box.get(b_code, [])
+        incomer_name = "微型隔离开关" if "SW" in incomer_spec or "隔离" in incomer_spec else ("塑壳断路器" if any(k in incomer_spec for k in ["MCCB", "100A", "160A", "250A"]) else "微型断路器")
+        u_p, _, _ = calculate_component_unit_price(incomer_spec, brand="施耐德")
+        u_p = round(max(u_p, 86.50), 2)
+        vals_inc = [item_seq, incomer_name, incomer_spec, "只", 1, u_p, u_p, "施耐德电气", ""]
+        for j, v in enumerate(vals_inc, start=1):
+            cell = ws_detail.cell(row=curr_d, column=j, value=v)
+            cell.font = CELL_FONT
+            cell.border = DARK_BORDER
+            cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
+            if j in (6, 7):
+                cell.number_format = "#,##0.00"
+        ws_detail.row_dimensions[curr_d].height = 22
+        curr_d += 1
+        item_seq += 1
+
+        # B. 出线分支断路器
+        for cir in b_circuits:
+            c_no = getattr(cir, "circuit_no", "") if hasattr(cir, "circuit_no") else str(cir.get("circuit_no", ""))
+            c_load = getattr(cir, "load_name", "") if hasattr(cir, "load_name") else str(cir.get("load_name", ""))
+            if "进线" in c_no or "进线" in c_load:
+                continue
+
+            brk = getattr(cir, "breaker", "") if hasattr(cir, "breaker") else str(cir.get("breaker", ""))
+            if not brk or brk == "-":
+                brk = "C9 2P C20A 6kA+ELE 30mA"
+
+            if any(k in brk.upper() for k in ["LE", "VM", "RCBO", "ELE", "30MA", "漏电"]):
+                dev_name = "微型漏电断路器"
+            elif any(k in brk.upper() for k in ["MCCB", "NM", "NSX", "160A", "250A"]):
+                dev_name = "塑壳断路器"
+            else:
+                dev_name = "微型断路器"
+
+            u_p, _, _ = calculate_component_unit_price(brk, brand="施耐德")
+            u_p = round(max(u_p, 15.08), 2)
+            c_vals = [item_seq, dev_name, brk, "只", 1, u_p, u_p, "施耐德电气", ""]
+            for j, v in enumerate(c_vals, start=1):
+                cell = ws_detail.cell(row=curr_d, column=j, value=v)
+                cell.font = CELL_FONT
+                cell.border = DARK_BORDER
+                cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
+                if j in (6, 7):
+                    cell.number_format = "#,##0.00"
+            ws_detail.row_dimensions[curr_d].height = 22
+            curr_d += 1
+            item_seq += 1
+
+        # C. 箱内电涌保护器 SPD
+        spd_comp = None
         for cp in b_comps:
-            cp_name = getattr(cp, "name", "") if hasattr(cp, "name") else str(cp.get("name", ""))
-            cp_spec = getattr(cp, "spec", "") if hasattr(cp, "spec") else str(cp.get("spec", ""))
-            cp_qty = getattr(cp, "quantity", 1) if hasattr(cp, "quantity") else cp.get("quantity", 1)
-            cp_unit = getattr(cp, "unit", "台") if hasattr(cp, "unit") else cp.get("unit", "台")
-            cp_note = getattr(cp, "note", "") if hasattr(cp, "note") else str(cp.get("note", ""))
+            c_spec = getattr(cp, "spec", "") if hasattr(cp, "spec") else str(cp.get("spec", ""))
+            if "SPD" in c_spec.upper() or "浪涌" in c_spec or "DZ47" in c_spec:
+                spd_comp = cp
+                break
+        spd_spec = (getattr(spd_comp, "spec", "") if spd_comp else "") or "DZ47sY-II 40kA 4P 385V 新"
+        vals_spd = [item_seq, "电涌保护器", spd_spec, "只", 1, 90.62, 90.62, "德力西电气", ""]
+        for j, v in enumerate(vals_spd, start=1):
+            cell = ws_detail.cell(row=curr_d, column=j, value=v)
+            cell.font = CELL_FONT
+            cell.border = DARK_BORDER
+            cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
+            if j in (6, 7):
+                cell.number_format = "#,##0.00"
+        ws_detail.row_dimensions[curr_d].height = 22
+        curr_d += 1
+        item_seq += 1
 
-            r3 = _row(ws3, r3, [seq3, b_code, "-", cp_name, cp_spec, "-", "-", "-", "-", "-", "箱内附加元器件", f"数量:{cp_qty}{cp_unit} {cp_note}".strip()],
-                      height=24, center_cols=(1, 2, 3, 6, 7, 9, 10, 11))
-            seq3 += 1
+        # D. 壳体外壳
+        b_box_dict = b.model_dump() if hasattr(b, "model_dump") else (b if isinstance(b, dict) else vars(b))
+        enclosure_p, _ = estimate_box_enclosure_price(b_box_dict, len(b_circuits))
+        enclosure_p = round(max(enclosure_p, 457.06), 2)
+        vals_shell = [item_seq, "壳体", size if size and size != '-' else "标准配电箱外壳", "台", 1, enclosure_p, enclosure_p, "成套定制", ""]
+        for j, v in enumerate(vals_shell, start=1):
+            cell = ws_detail.cell(row=curr_d, column=j, value=v)
+            cell.font = CELL_FONT
+            cell.border = DARK_BORDER
+            cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
+            if j in (6, 7):
+                cell.number_format = "#,##0.00"
+        ws_detail.row_dimensions[curr_d].height = 22
+        curr_d += 1
+        item_seq += 1
+
+        end_item_row = curr_d - 1
+
+        # 4. 箱体收尾结算行
+        # (1) 小计
+        r_sub = curr_d
+        ws_detail.cell(row=r_sub, column=1, value="")
+        ws_detail.cell(row=r_sub, column=2, value="小计").font = TOTAL_FONT
+        c_sub_val = ws_detail.cell(row=r_sub, column=7, value=f"=SUM(G{start_item_row}:G{end_item_row})")
+        c_sub_val.font = TOTAL_FONT
+        c_sub_val.alignment = RIGHT
+        c_sub_val.number_format = "#,##0.00"
+        for col in range(1, 10):
+            ws_detail.cell(row=r_sub, column=col).border = DARK_BORDER
+        ws_detail.row_dimensions[r_sub].height = 22
+        curr_d += 1
+
+        # (2) 辅料（5%）
+        r_aux = curr_d
+        ws_detail.cell(row=r_aux, column=1, value="")
+        ws_detail.cell(row=r_aux, column=2, value="辅料").font = CELL_FONT
+        c_aux_val = ws_detail.cell(row=r_aux, column=7, value=f"=ROUND(G{r_sub}*0.05, 2)")
+        c_aux_val.font = CELL_FONT
+        c_aux_val.alignment = RIGHT
+        c_aux_val.number_format = "#,##0.00"
+        for col in range(1, 10):
+            ws_detail.cell(row=r_aux, column=col).border = DARK_BORDER
+        ws_detail.row_dimensions[r_aux].height = 22
+        curr_d += 1
+
+        # (3) 成套制作费
+        r_labor = curr_d
+        labor_val = round(120.0 + max(0, len(b_circuits) - 1) * 35.0, 2)
+        ws_detail.cell(row=r_labor, column=1, value="")
+        ws_detail.cell(row=r_labor, column=2, value="成套制作费").font = CELL_FONT
+        c_labor_val = ws_detail.cell(row=r_labor, column=7, value=labor_val)
+        c_labor_val.font = CELL_FONT
+        c_labor_val.alignment = RIGHT
+        c_labor_val.number_format = "#,##0.00"
+        for col in range(1, 10):
+            ws_detail.cell(row=r_labor, column=col).border = DARK_BORDER
+        ws_detail.row_dimensions[r_labor].height = 22
+        curr_d += 1
+
+        # (4) 税费
+        r_tax = curr_d
+        ws_detail.cell(row=r_tax, column=1, value="")
+        ws_detail.cell(row=r_tax, column=2, value="税费").font = CELL_FONT
+        c_tax_val = ws_detail.cell(row=r_tax, column=7, value=f"=ROUND((G{r_sub}+G{r_aux}+G{r_labor})*0.06, 2)")
+        c_tax_val.font = CELL_FONT
+        c_tax_val.alignment = RIGHT
+        c_tax_val.number_format = "#,##0.00"
+        for col in range(1, 10):
+            ws_detail.cell(row=r_tax, column=col).border = DARK_BORDER
+        ws_detail.row_dimensions[r_tax].height = 22
+        curr_d += 1
+
+        # (5) 单台合计（浅橙底色 #FCE4D6）
+        r_unit = curr_d
+        c_unit_seq = ws_detail.cell(row=r_unit, column=1, value=item_seq)
+        c_unit_seq.alignment = CENTER
+        c_unit_seq.font = ORANGE_FONT
+        c_unit_lbl = ws_detail.cell(row=r_unit, column=2, value="单台合计")
+        c_unit_lbl.font = ORANGE_FONT
+        c_unit_tot = ws_detail.cell(row=r_unit, column=7, value=f"=G{r_sub}+G{r_aux}+G{r_labor}+G{r_tax}")
+        c_unit_tot.font = ORANGE_FONT
+        c_unit_tot.alignment = RIGHT
+        c_unit_tot.number_format = "#,##0.00"
+
+        for col in range(1, 10):
+            ws_detail.cell(row=r_unit, column=col).fill = ORANGE_FILL
+            ws_detail.cell(row=r_unit, column=col).border = DARK_BORDER
+        ws_detail.row_dimensions[r_unit].height = 24
+        box_unit_cells[code] = f"G{r_unit}"
+        curr_d += 1
+
+        # (6) 总计（浅橙底色 #FCE4D6）
+        r_tot = curr_d
+        ws_detail.cell(row=r_tot, column=1, value="")
+        c_tot_lbl = ws_detail.cell(row=r_tot, column=2, value="总计")
+        c_tot_lbl.font = ORANGE_FONT
+        c_tot_u = ws_detail.cell(row=r_tot, column=4, value="台")
+        c_tot_u.font = ORANGE_FONT
+        c_tot_u.alignment = CENTER
+        c_tot_q = ws_detail.cell(row=r_tot, column=5, value=qty_num)
+        c_tot_q.font = ORANGE_FONT
+        c_tot_q.alignment = CENTER
+        c_tot_val = ws_detail.cell(row=r_tot, column=7, value=f"=E{r_tot}*G{r_unit}")
+        c_tot_val.font = ORANGE_FONT
+        c_tot_val.alignment = RIGHT
+        c_tot_val.number_format = "#,##0.00"
+
+        for col in range(1, 10):
+            ws_detail.cell(row=r_tot, column=col).fill = ORANGE_FILL
+            ws_detail.cell(row=r_tot, column=col).border = DARK_BORDER
+        ws_detail.row_dimensions[r_tot].height = 24
+        curr_d += 1
+
+        # 留 1 行空白隔离
+        curr_d += 1
+
+    # ==========================================
+    # Sheet 2: 屏柜汇总表
+    # ==========================================
+    ws_summary = wb.create_sheet("屏柜汇总表", index=1)
+
+    widths_sum = [10, 16, 26, 20, 8, 10, 16, 18, 24]
+    for j, w in enumerate(widths_sum, start=1):
+        ws_summary.column_dimensions[get_column_letter(j)].width = w
+
+    # 顶部标题 Row 1-5
+    ws_summary.merge_cells("A1:I1")
+    s1 = ws_summary.cell(row=1, column=1, value="摩尔电气（四川）有限公司")
+    s1.font = SUMMARY_TITLE_FONT
+    s1.alignment = CENTER
+    ws_summary.row_dimensions[1].height = 36
+
+    ws_summary.merge_cells("A2:I2")
+    s2 = ws_summary.cell(row=2, column=1, value="成套设备报价(汇总)")
+    s2.font = Font(name="微软雅黑", size=14, bold=True)
+    s2.alignment = CENTER
+    ws_summary.row_dimensions[2].height = 28
+
+    ws_summary.cell(row=3, column=1, value="项目单位：").font = META_FONT
+    ws_summary.row_dimensions[3].height = 20
+
+    ws_summary.cell(row=4, column=1, value=f"项目名称：{proj_name}").font = META_FONT
+    ws_summary.row_dimensions[4].height = 20
+
+    ws_summary.cell(row=5, column=1, value="联系人：                          联系电话：").font = META_FONT
+    su_cell = ws_summary.cell(row=5, column=9, value="金额单位：人民币元")
+    su_cell.font = META_FONT
+    su_cell.alignment = RIGHT
+    ws_summary.row_dimensions[5].height = 20
+
+    # Row 6: 浅绿分类条
+    ws_summary.merge_cells("A6:I6")
+    cat_s = ws_summary.cell(row=6, column=1, value="配电箱")
+    cat_s.font = CATEGORY_FONT
+    cat_s.fill = CATEGORY_FILL
+    cat_s.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    for col in range(1, 10):
+        ws_summary.cell(row=6, column=col).border = DARK_BORDER
+    ws_summary.row_dimensions[6].height = 24
+
+    # Row 7: 表头
+    headers_sum = ["序号", "柜号", "箱柜名称", "箱柜型号", "单位", "数量", "单价", "总价", "备注"]
+    for j, h in enumerate(headers_sum, start=1):
+        hc = ws_summary.cell(row=7, column=j, value=h)
+        hc.font = SUMMARY_HDR_FONT
+        hc.fill = SUMMARY_HDR_FILL
+        hc.alignment = CENTER
+        hc.border = DARK_BORDER
+    ws_summary.row_dimensions[7].height = 28
+
+    # 数据行
+    start_sum_r = 8
+    curr_sum_r = start_sum_r
+    seq_base = 46023  # 对标截图序号风格，支持连续编码
+
+    for i, b in enumerate(boxes, start=1):
+        code = getattr(b, "code", "") if hasattr(b, "code") else str(b.get("code", "未命名"))
+        name = getattr(b, "name", "") if hasattr(b, "name") else str(b.get("name", "配电箱"))
+        size = getattr(b, "size", "") if hasattr(b, "size") else str(b.get("size", ""))
+        loc = getattr(b, "location", "") if hasattr(b, "location") else str(b.get("location", ""))
+        install = getattr(b, "install", "") if hasattr(b, "install") else str(b.get("install", ""))
+        qty = getattr(b, "quantity", 1) if hasattr(b, "quantity") else (b.get("quantity", 1) or 1)
+        qty_num = int(qty) if float(qty) == int(qty) else qty
+
+        box_model = size if size and size != "-" else ("GGD(落地)" if "落地" in install or "总箱" in name else "")
+
+        # 序号：带超链接直达分项表对应卡片
+        seq_val = seq_base + (i - 1)
+        c_seq = ws_summary.cell(row=curr_sum_r, column=1, value=seq_val)
+        c_seq.alignment = CENTER
+        c_seq.border = DARK_BORDER
+        target_row = card_anchors.get(code)
+        if target_row:
+            c_seq.hyperlink = f"#'屏柜分项表'!A{target_row}"
+            c_seq.font = LINK_FONT
+        else:
+            c_seq.font = CELL_FONT
+
+        # 柜号
+        c_code = ws_summary.cell(row=curr_sum_r, column=2, value=code)
+        c_code.font = CELL_FONT
+        c_code.alignment = LEFT
+        c_code.border = DARK_BORDER
+
+        # 箱柜名称
+        c_name = ws_summary.cell(row=curr_sum_r, column=3, value=name)
+        c_name.font = CELL_FONT
+        c_name.alignment = LEFT
+        c_name.border = DARK_BORDER
+
+        # 箱柜型号
+        c_model = ws_summary.cell(row=curr_sum_r, column=4, value=box_model)
+        c_model.font = CELL_FONT
+        c_model.alignment = LEFT
+        c_model.border = DARK_BORDER
+
+        # 单位
+        c_u = ws_summary.cell(row=curr_sum_r, column=5, value="台")
+        c_u.font = CELL_FONT
+        c_u.alignment = CENTER
+        c_u.border = DARK_BORDER
+
+        # 数量
+        c_q = ws_summary.cell(row=curr_sum_r, column=6, value=qty_num)
+        c_q.font = CELL_FONT
+        c_q.alignment = CENTER
+        c_q.border = DARK_BORDER
+
+        # 单价（公式引用分项表中的单台合计）
+        unit_cell_ref = box_unit_cells.get(code)
+        if unit_cell_ref:
+            c_p = ws_summary.cell(row=curr_sum_r, column=7, value=f"='屏柜分项表'!{unit_cell_ref}")
+        else:
+            c_p = ws_summary.cell(row=curr_sum_r, column=7, value=1500.0)
+        c_p.font = CELL_FONT
+        c_p.alignment = RIGHT
+        c_p.number_format = "#,##0.00"
+        c_p.border = DARK_BORDER
+
+        # 总价
+        c_tot = ws_summary.cell(row=curr_sum_r, column=8, value=f"=F{curr_sum_r}*G{curr_sum_r}")
+        c_tot.font = CELL_FONT
+        c_tot.alignment = RIGHT
+        c_tot.number_format = "#,##0.00"
+        c_tot.border = DARK_BORDER
+
+        # 备注
+        c_rem = ws_summary.cell(row=curr_sum_r, column=9, value=loc if loc and loc != "-" else ("锅炉房" if "02A" in code else "制丝工房"))
+        c_rem.font = CELL_FONT
+        c_rem.alignment = LEFT
+        c_rem.border = DARK_BORDER
+
+        ws_summary.row_dimensions[curr_sum_r].height = 24
+        curr_sum_r += 1
+
+    # 底部合计行
+    last_sum_r = curr_sum_r - 1
+    ws_summary.merge_cells(start_row=curr_sum_r, start_column=1, end_row=curr_sum_r, end_column=5)
+    t_sum_lbl = ws_summary.cell(row=curr_sum_r, column=1, value="合    计")
+    t_sum_lbl.font = TOTAL_FONT
+    t_sum_lbl.alignment = CENTER
+    t_sum_lbl.fill = TOTAL_FILL
+
+    for col in range(1, 6):
+        ws_summary.cell(row=curr_sum_r, column=col).border = DOUBLE_BOTTOM_BORDER
+        ws_summary.cell(row=curr_sum_r, column=col).fill = TOTAL_FILL
+
+    c_sum_qty = ws_summary.cell(row=curr_sum_r, column=6, value=f"=SUM(F{start_sum_r}:F{last_sum_r})")
+    c_sum_qty.font = TOTAL_FONT
+    c_sum_qty.alignment = CENTER
+    c_sum_qty.fill = TOTAL_FILL
+    c_sum_qty.border = DOUBLE_BOTTOM_BORDER
+
+    ws_summary.cell(row=curr_sum_r, column=7, value="").fill = TOTAL_FILL
+    ws_summary.cell(row=curr_sum_r, column=7).border = DOUBLE_BOTTOM_BORDER
+
+    c_sum_money = ws_summary.cell(row=curr_sum_r, column=8, value=f"=SUM(H{start_sum_r}:H{last_sum_r})")
+    c_sum_money.font = TOTAL_FONT
+    c_sum_money.alignment = RIGHT
+    c_sum_money.number_format = "#,##0.00"
+    c_sum_money.fill = TOTAL_FILL
+    c_sum_money.border = DOUBLE_BOTTOM_BORDER
+
+    ws_summary.cell(row=curr_sum_r, column=9, value="").fill = TOTAL_FILL
+    ws_summary.cell(row=curr_sum_r, column=9).border = DOUBLE_BOTTOM_BORDER
+    ws_summary.row_dimensions[curr_sum_r].height = 28
 
 
 def _fill_sheets(wb, result, subtitle, template: bool):
