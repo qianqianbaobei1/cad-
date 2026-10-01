@@ -8,6 +8,7 @@
 """
 
 import concurrent.futures
+import math
 import os
 import re
 import shutil
@@ -17,7 +18,9 @@ from typing import Any
 import ezdxf
 from ezdxf.addons.drawing import Frontend, RenderContext, layout
 from ezdxf.addons.drawing.config import BackgroundPolicy, ColorPolicy, Configuration, HatchPolicy
+from ezdxf.addons.drawing.pymupdf import PyMuPdfBackend
 from ezdxf.addons.drawing.svg import SVGBackend
+from ezdxf.math import BoundingBox2d
 from ezdxf.path import Path
 from ezdxf.fonts import ttfonts
 import pymupdf
@@ -268,7 +271,7 @@ def detect_system_sheets(doc: Any) -> list[dict[str, Any]]:
     sheet_w = 118900.0
     if len(detected) >= 2:
         xs = sorted(s["x"] for s in detected)
-        diffs = [xs[i + 1] - xs[i] for i in range(len(xs) - 1) if xs[i + 1] - xs[i] > 40000]
+        diffs = [xs[i + 1] - xs[i] for i in range(len(xs) - 1) if xs[i + 1] - xs[i] >= 80000]
         if diffs:
             sheet_w = min(diffs)
     elif len(detected) == 1:
@@ -421,6 +424,593 @@ def slice_and_render_cad_sheets(doc: Any, sheets: list[dict[str, Any]], out_pdf_
 
     combined_pdf.save(out_pdf_path)
     return total_texts
+
+
+# ---------------------------------------------------------------------------
+# v2 流水线：按真实图框几何分幅，再把每张系统图拆成配电箱单元块
+#
+# 旧流水线用“系统图”标题文字的插入点 + 猜出来的图纸尺寸当切片边界，后果是：
+#   1. 图框真实尺寸靠 X 间距最小值猜，实测猜成 49868 而真实幅面是 118900，
+#      每张图被砍掉约一半幅面；
+#   2. 实体只按 dxf.insert / dxf.start 归属，CIRCLE / ARC / SOLID / LWPOLYLINE /
+#      POLYLINE 没有这些属性，被整类丢弃（39MB 实测丢 16,506 个），箱体轮廓、
+#      母线、圆形仪表符号全部消失；
+#   3. 一张 A0 系统图上排着十几个配电箱，整张当一个单元送模型，输出超 12000 token
+#      被截断（任务 3bda9d34ccac 第 8 页就是这么失败的）；
+#   4. 图签栏里的图名文字被当成独立图纸，页数与真实图纸数对不上。
+#
+# v2 改成：图框块参照（INSERT）给出精确幅面 -> 图名文字分系统图/平面图 -> 系统图内部
+# 按“虚线箱框 + 箱名”配对出配电箱单元块 -> 每个单元块一页 PDF，附该块的原生 CAD 文字。
+# ---------------------------------------------------------------------------
+
+ISO_LANDSCAPE_SIZES = (
+    (1189.0, 841.0), (841.0, 594.0), (594.0, 420.0), (420.0, 297.0), (297.0, 210.0),
+)
+FRAME_MIN_DIM = 30000.0            # 闭合多段线外框的最小边长（图纸单位）
+FRAME_MIN_SIDE = 15000.0           # 块参照图框的最小短边；再小的只能是图签/箱框/符号
+FRAME_MAX_ASPECT = 2.8             # 长宽比超过此值的是桥架/母线这类长条符号，不是图纸
+FRAME_DEDUP_TOL = 0.02             # 面积容差：落在已知图框内部 98% 的候选视为嵌套子块
+UNIT_RECT_MIN_W, UNIT_RECT_MAX_W = 3500.0, 48000.0
+UNIT_RECT_MIN_H, UNIT_RECT_MAX_H = 3000.0, 52000.0
+UNIT_CAPTION_SUFFIX = ("配电箱", "配电柜", "控制箱", "端子箱", "电表箱", "配电屏", "开关箱", "电源箱")
+UNIT_CAPTION_BAD_LAYERS = {
+    "TEL_TAB", "TEL_TITLE", "表格文字", "图框层3", "WORK", "PUB_TITLE", "图签栏", "DIM-照明",
+}
+# 平面图/建筑图层上也有闭合箱柜外形，但不是系统图单元块，按图层前缀排掉
+UNIT_RECT_BAD_LAYER_MARKERS = ("EQUIP", "WIRE", "BEAM", "平面", "门窗", "建筑", "TEL", "FURN",
+                               "DIM", "HATCH", "看线", "天棚", "楼面", "环境", "暖通")
+BOX_ABOVE_MIN, BOX_ABOVE_MAX = 2000.0, 7000.0   # 箱名文字到上方箱框底边的距离窗口
+BOX_X_TOLERANCE = 5000.0                       # 箱名与箱框水平中心的最大额外偏移
+CROP_PAD_SIDE, CROP_PAD_TOP, CROP_PAD_BOTTOM = 500.0, 600.0, 2600.0
+PAGE_LONG_MM_MIN, PAGE_LONG_MM_MAX = 240.0, 1600.0
+PLAN_TITLE_MARKERS = ("平面图", "布置图", "剖面", "详图", "设计说明", "图纸目录", "目录",
+                      "防雷平面", "接地平面", "地坪", "屋面", "立管", "门窗表")
+SYSTEM_TITLE_MARKERS = ("系统图", "干线图", "原理图", "拓扑图", "接线图", "结线图", "配电图")
+TITLE_LAYER_HINTS = ("图签", "TITLE", "PUB_", "图框", "图名")
+GRID_CELL = 40000.0
+
+
+def _entity_bounds(entity: Any) -> tuple[float, float, float, float] | None:
+    """按实体类型取真实二维包围盒；取不到返回 None。
+
+    必须分类型取锚点：CIRCLE/ARC 用 center+radius，LWPOLYLINE/POLYLINE 用顶点，
+    SOLID 用 vtx0..vtx3。旧实现统一取 dxf.insert 或 dxf.start，把没有该属性的图元
+    整类丢掉。
+    """
+    t = entity.dxftype()
+    d = entity.dxf
+    try:
+        if t == "LINE":
+            pts = [d.start, d.end]
+        elif t == "POINT":
+            pts = [d.location]
+        elif t in ("TEXT", "MTEXT", "ATTDEF", "ATTRIB", "ACAD_TABLE", "OLE2FRAME", "SHAPE"):
+            pts = [d.insert]
+        elif t in ("CIRCLE", "ARC"):
+            c, r = d.center, float(d.radius)
+            return c.x - r, c.y - r, c.x + r, c.y + r
+        elif t == "ELLIPSE":
+            c, mx = d.center, d.major_axis
+            r = math.hypot(float(mx.x), float(mx.y))
+            return c.x - r, c.y - r, c.x + r, c.y + r
+        elif t == "LWPOLYLINE":
+            pts = [(p[0], p[1]) for p in entity.get_points("xy")]
+        elif t == "POLYLINE":
+            pts = [(p[0], p[1]) for p in entity.points()]
+        elif t in ("SOLID", "TRACE", "3DFACE"):
+            pts = [getattr(d, k) for k in ("vtx0", "vtx1", "vtx2", "vtx3") if d.hasattr(k)]
+        elif t == "SPLINE":
+            pts = list(entity.control_points) or list(entity.fit_points)
+        elif t == "DIMENSION":
+            pts = [getattr(d, k) for k in ("defpoint", "defpoint2", "defpoint3", "text_midpoint")
+                   if d.hasattr(k)]
+        elif t == "LEADER":
+            pts = list(entity.vertices)
+        elif t == "HATCH":
+            pts = [v for p in entity.paths for v in getattr(p, "vertices", [])]
+        else:
+            return None
+    except Exception:
+        return None
+    if not pts:
+        return None
+    xs = [float(p[0]) for p in pts]
+    ys = [float(p[1]) for p in pts]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _apply_matrix(m, box):
+    corners = [(box[0], box[1]), (box[2], box[1]), (box[2], box[3]), (box[0], box[3])]
+    out = [m.transform((x, y, 0.0)) for x, y in corners]
+    xs = [float(p[0]) for p in out]
+    ys = [float(p[1]) for p in out]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _block_bounds(doc: Any, name: str, cache: dict, depth: int = 0):
+    """图块定义的局部范围（按块名缓存）。
+
+    自己逐图元算并递归限深，而不用 ``ezdxf.bbox.extents``：后者对 AutoCAD
+    Electrical 那类深层嵌套块会反复整块递归，实测一张 39MB 图要 50 秒。
+    """
+    if name in cache:
+        return cache[name]
+    cache[name] = None  # 防循环引用
+    box = None
+    try:
+        for e in doc.blocks[name]:
+            b = None
+            kind = e.dxftype()
+            if kind == "INSERT" and depth < 4:
+                sub = _block_bounds(doc, e.dxf.name, cache, depth + 1)
+                if sub is not None:
+                    try:
+                        b = _apply_matrix(e.matrix44(), sub)
+                    except Exception:
+                        b = _entity_bounds(e)
+                else:
+                    b = _entity_bounds(e)
+            else:
+                b = _entity_bounds(e)
+            if b is not None:
+                box = b if box is None else (min(box[0], b[0]), min(box[1], b[1]),
+                                             max(box[2], b[2]), max(box[3], b[3]))
+    except Exception:
+        box = None
+    cache[name] = box
+    return box
+
+
+def _insert_bounds(doc: Any, ins: Any, cache: dict) -> tuple[float, float, float, float] | None:
+    """块参照的实际包围盒：块范围四角经块参照矩阵（缩放/旋转/镜像）变换。"""
+    box = _block_bounds(doc, ins.dxf.name, cache)
+    if box is None:
+        return None
+    try:
+        return _apply_matrix(ins.matrix44(), box)
+    except Exception:
+        return None
+
+
+class GeometryIndex:
+    """模型空间实体的一次性包围盒索引与空间网格。
+
+    后续所有“这块图里有哪些图元”的判断都走它，避免每个图框/单元块重新遍历一遍
+    十几万实体，也避免把实体复制进新文档（复制会丢失图层颜色、线型，还会因为
+    图元类型不受支持而静默失败）。
+    """
+
+    def __init__(self, doc: Any):
+        self.doc = doc
+        self.entities: list[Any] = []
+        self.boxes: list[tuple[float, float, float, float]] = []
+        self._grid: dict[tuple[int, int], list[int]] = {}
+        self.block_cache: dict = {}          # 块定义局部范围（块名 -> bbox）
+        self.block_text_cache: dict = {}     # 块定义内部文字（块名 -> [文字]）
+        for e in doc.modelspace():
+            b = _insert_bounds(doc, e, self.block_cache) if e.dxftype() == "INSERT" else _entity_bounds(e)
+            if b is None:
+                continue
+            i = len(self.entities)
+            self.entities.append(e)
+            self.boxes.append(b)
+            for gx in range(int(b[0] // GRID_CELL), int(b[2] // GRID_CELL) + 1):
+                for gy in range(int(b[1] // GRID_CELL), int(b[3] // GRID_CELL) + 1):
+                    self._grid.setdefault((gx, gy), []).append(i)
+
+    def query(self, rect: tuple[float, float, float, float]) -> list[int]:
+        """返回包围盒与 rect 相交的实体下标（包围盒相交即算，跨框的整条线不会被切掉归属）。"""
+        x0, y0, x1, y1 = rect
+        seen = set()
+        out = []
+        for gx in range(int(x0 // GRID_CELL), int(x1 // GRID_CELL) + 1):
+            for gy in range(int(y0 // GRID_CELL), int(y1 // GRID_CELL) + 1):
+                for i in self._grid.get((gx, gy), ()):
+                    if i in seen:
+                        continue
+                    seen.add(i)
+                    b = self.boxes[i]
+                    if b[0] <= x1 and b[2] >= x0 and b[1] <= y1 and b[3] >= y0:
+                        out.append(i)
+        return out
+
+    def contains(self, rect, point) -> bool:
+        return rect[0] <= point[0] <= rect[2] and rect[1] <= point[1] <= rect[3]
+
+
+def detect_drawing_frames(doc: Any, index: GeometryIndex) -> list[dict[str, Any]]:
+    """找出图纸上所有真实图框幅面。
+
+    优先用图框块参照（``横式A0`` / ``2021版A0图框`` 这类），它们的范围就是精确幅面，
+    不依赖任何尺寸猜测；嵌套在图框内的图签/会签栏小块按包含关系剔掉。
+    整张图都没有图框块时，退而使用大尺寸闭合多段线外框。
+    """
+    frames: list[dict[str, Any]] = []
+    for e in doc.modelspace().query("INSERT"):
+        b = _insert_bounds(doc, e, index.block_cache)
+        if b is None:
+            continue
+        w, h = b[2] - b[0], b[3] - b[1]
+        if min(w, h) < FRAME_MIN_SIDE:
+            continue
+        if max(w, h) / max(min(w, h), 1e-6) > FRAME_MAX_ASPECT:
+            continue
+        frames.append({"bbox": b, "block": str(e.dxf.name), "source": "insert"})
+
+    frames.sort(key=lambda f: -((f["bbox"][2] - f["bbox"][0]) * (f["bbox"][3] - f["bbox"][1])))
+    kept: list[dict[str, Any]] = []
+    for f in frames:
+        b = f["bbox"]
+        area = (b[2] - b[0]) * (b[3] - b[1])
+        nested = False
+        for k in kept:
+            kb = k["bbox"]
+            if kb[0] <= b[0] and kb[2] >= b[2] and kb[1] <= b[1] and kb[3] >= b[3]:
+                continue
+            ix = max(0.0, min(b[2], kb[2]) - max(b[0], kb[0]))
+            iy = max(0.0, min(b[3], kb[3]) - max(b[1], kb[1]))
+            if ix * iy >= area * (1.0 - FRAME_DEDUP_TOL):
+                nested = True
+                break
+        if not nested:
+            kept.append(f)
+
+    if not kept:
+        for i in range(len(index.entities)):
+            e = index.entities[i]
+            if e.dxftype() not in ("LWPOLYLINE", "POLYLINE"):
+                continue
+            try:
+                closed = e.closed if e.dxftype() == "LWPOLYLINE" else e.is_closed
+            except Exception:
+                continue
+            if not closed:
+                continue
+            b = index.boxes[i]
+            w, h = b[2] - b[0], b[3] - b[1]
+            if min(w, h) < FRAME_MIN_DIM:
+                continue
+            if not 1.05 <= (max(w, h) / max(min(w, h), 1e-6)) <= 2.4:
+                continue
+            kept.append({"bbox": b, "block": str(e.dxf.layer), "source": "polyline"})
+
+    kept.sort(key=lambda f: (-round(f["bbox"][3], -4), f["bbox"][0]))
+    return kept
+
+
+def _guess_plot_scale(w: float, h: float) -> float:
+    """由幅面尺寸推断出图比例（1:N 的 N）。
+
+    只用于给渲染定物理页面尺寸。按 ISO A 系列横放匹配最接近的一种，再对
+    N 做一次合理区间收口，保证下游按“长边约 2400px”光栅化时不会撞到 DPI 上下限。
+    """
+    long_u, short_u = max(w, h), max(min(w, h), 1e-6)
+    best, best_err = None, None
+    for iso_long, iso_short in ISO_LANDSCAPE_SIZES:
+        s1, s2 = long_u / iso_long, short_u / iso_short
+        mean = (s1 + s2) / 2.0
+        err = abs(s1 - s2) / max(mean, 1e-9)
+        if best is None or err < best_err:
+            best, best_err = mean, err
+    scale = max(float(best or 100.0), 1e-6)
+    long_mm = long_u / scale
+    if long_mm < PAGE_LONG_MM_MIN:
+        scale = long_u / PAGE_LONG_MM_MIN
+    elif long_mm > PAGE_LONG_MM_MAX:
+        scale = long_u / PAGE_LONG_MM_MAX
+    return scale
+
+
+def _looks_like_box_caption(text: str) -> bool:
+    t = (text or "").strip()
+    if not 3 <= len(t) <= 26 or not t.endswith(UNIT_CAPTION_SUFFIX):
+        return False
+    head = t[:-3].strip()
+    return bool(head) and head[0] not in "由详注如按本除并"
+
+
+def _frame_texts(index: GeometryIndex, rect, cached: dict) -> list[dict[str, Any]]:
+    """取落在矩形内的文字（含块参照内部文字与属性）。"""
+    if rect in cached:
+        return cached[rect]
+    out: list[dict[str, Any]] = []
+    for i in index.query(rect):
+        e = index.entities[i]
+        kind = e.dxftype()
+        if kind in ("TEXT", "MTEXT"):
+            raw = e.dxf.text if kind == "TEXT" else e.text
+            txt = clean_mtext(raw)
+            if txt:
+                out.append({"text": txt, "x": float(e.dxf.insert.x), "y": float(e.dxf.insert.y),
+                            "layer": str(e.dxf.layer), "height": _text_height(e, kind)})
+        elif kind == "INSERT":
+            for sub in _explode_texts(e):
+                if rect[0] <= sub["x"] <= rect[2] and rect[1] <= sub["y"] <= rect[3]:
+                    out.append(sub)
+    cached[rect] = out
+    return out
+
+
+def _text_height(e: Any, kind: str) -> float:
+    try:
+        return float(e.dxf.height if kind == "TEXT" else e.dxf.char_height)
+    except Exception:
+        return 10.0
+
+
+def _frame_texts(index: GeometryIndex, rect, cached: dict, block_text: bool = False) -> list[dict[str, Any]]:
+    """取落在矩形内的文字。
+
+    ``block_text=False`` 只读模型空间文字（图名、箱名都在模型空间，最便宜）；
+    ``block_text=True`` 再把块参照内部的文字与属性折成绝对坐标一并取出，
+    供原生文字层送给视觉模型参考。
+    """
+    key = (rect, block_text)
+    if key in cached:
+        return cached[key]
+    texts: list[dict[str, Any]] = []
+    inserts: list[Any] = []
+    for i in index.query(rect):
+        e = index.entities[i]
+        kind = e.dxftype()
+        if kind == "TEXT" or kind == "MTEXT":
+            raw = e.dxf.text if kind == "TEXT" else e.text
+            txt = clean_mtext(raw)
+            if txt:
+                texts.append({"text": txt, "x": float(e.dxf.insert.x), "y": float(e.dxf.insert.y),
+                              "layer": str(e.dxf.layer), "height": _text_height(e, kind)})
+        elif kind == "INSERT":
+            inserts.append(e)
+    if block_text:
+        for ins in inserts:
+            for sub in _explode_texts(ins, index.block_text_cache):
+                if rect[0] <= sub["x"] <= rect[2] and rect[1] <= sub["y"] <= rect[3]:
+                    texts.append(sub)
+    cached[key] = texts
+    return texts
+
+
+def _local_block_texts(doc: Any, name: str, cache: dict, depth: int = 0) -> list[dict[str, Any]]:
+    """图块定义内部的文字，坐标已折到该块自身的局部坐标系（按块名缓存）。
+
+    同一块名在模型空间可能被引用上千次，逐引用展开会重复几十万次；按块名缓存后
+    每个块定义只展开一次。
+    """
+    if name in cache:
+        return cache[name]
+    cache[name] = []
+    out: list[dict[str, Any]] = []
+    try:
+        for e in doc.blocks[name]:
+            kind = e.dxftype()
+            if kind in ("TEXT", "MTEXT", "ATTRIB"):
+                raw = e.text if kind == "MTEXT" else getattr(e.dxf, "text", "")
+                txt = clean_mtext(raw)
+                if txt:
+                    out.append({"text": txt, "x": float(e.dxf.insert.x), "y": float(e.dxf.insert.y),
+                                "layer": str(getattr(e.dxf, "layer", "")), "height": _text_height(e, kind)})
+            elif kind == "INSERT" and depth < 4:
+                sub = _local_block_texts(doc, e.dxf.name, cache, depth + 1)
+                if not sub:
+                    continue
+                try:
+                    m = e.matrix44()
+                except Exception:
+                    continue
+                for s in sub:
+                    p = m.transform((s["x"], s["y"], 0.0))
+                    out.append({**s, "x": float(p[0]), "y": float(p[1])})
+    except Exception:
+        pass
+    cache[name] = out
+    return out
+
+
+def _explode_texts(ins: Any, cache: dict) -> list[dict[str, Any]]:
+    """取块参照内部的文字与属性文字，坐标折到模型空间绝对坐标。"""
+    out: list[dict[str, Any]] = []
+    doc = getattr(ins, "doc", None)
+    if doc is not None:
+        local = _local_block_texts(doc, ins.dxf.name, cache)
+        if local:
+            try:
+                m = ins.matrix44()
+            except Exception:
+                m = None
+            for s in local:
+                if m is not None:
+                    p = m.transform((s["x"], s["y"], 0.0))
+                    out.append({**s, "x": float(p[0]), "y": float(p[1])})
+                else:
+                    out.append(dict(s))
+    for attrib in getattr(ins, "attribs", []):
+        txt = clean_mtext(str(getattr(attrib.dxf, "text", "")))
+        if txt:
+            out.append({"text": txt, "x": float(attrib.dxf.insert.x), "y": float(attrib.dxf.insert.y),
+                        "layer": str(getattr(attrib.dxf, "layer", "")),
+                        "height": _text_height(attrib, "ATTRIB")})
+    return out
+
+
+def _frame_title(texts: list[dict[str, Any]]) -> str:
+    """图名：优先图签栏里带“系统图/干线图/原理图”字样的短文字（避开图号、子项名称、公司名）。"""
+    def pick(pool, want_marker: bool):
+        best, best_h = "", 0.0
+        for t in pool:
+            txt = t["text"].replace("\n", "").strip()
+            if not txt or len(txt) > 30:
+                continue
+            if any(p in txt for p in ("。", "；", "，", ";", ",")):
+                continue
+            if want_marker and not any(m in txt for m in SYSTEM_TITLE_MARKERS):
+                continue
+            h = t["height"]
+            if h > best_h or (h == best_h and len(txt) > len(best)):
+                best, best_h = txt, h
+        return best
+
+    on_title_layer = [t for t in texts if any(k in t["layer"].upper() for k in TITLE_LAYER_HINTS)]
+    return (pick(on_title_layer, True) or pick(texts, True)
+            or pick(on_title_layer, False) or pick(texts, False))
+
+
+def _classify_frame(title: str) -> str:
+    t = title.replace(" ", "")
+    if any(m in t for m in SYSTEM_TITLE_MARKERS):
+        return "system"
+    if any(m in t for m in PLAN_TITLE_MARKERS):
+        return "plan"
+    return "other"
+
+
+def _unit_rects(index: GeometryIndex, frame_rect) -> list[tuple[float, float, float, float]]:
+    """图框内所有配电箱虚线箱框（小尺寸闭合多段线），已按近似重复去重。"""
+    rects: list[tuple[float, float, float, float]] = []
+    for i in index.query(frame_rect):
+        e = index.entities[i]
+        if e.dxftype() != "LWPOLYLINE":
+            continue
+        try:
+            if not e.closed:
+                continue
+        except Exception:
+            continue
+        layer = str(e.dxf.layer or "").upper()
+        if any(m in layer for m in UNIT_RECT_BAD_LAYER_MARKERS):
+            continue
+        b = index.boxes[i]
+        w, h = b[2] - b[0], b[3] - b[1]
+        if not (UNIT_RECT_MIN_W <= w <= UNIT_RECT_MAX_W and UNIT_RECT_MIN_H <= h <= UNIT_RECT_MAX_H):
+            continue
+        if any(abs(b[0] - r[0]) < 200 and abs(b[1] - r[1]) < 200 and abs(b[2] - r[2]) < 200
+               and abs(b[3] - r[3]) < 200 for r in rects):
+            continue
+        rects.append(b)
+    return rects
+
+
+def _match_box_rect(rects, cap) -> tuple[float, float, float, float] | None:
+    """给箱名文字找它所属的箱框：优先“包含箱名”的框，否则找正上方最近的框。"""
+    cx, cy = cap["x"], cap["y"]
+    inside = [r for r in rects if r[0] <= cx <= r[2] and r[1] <= cy <= r[3]]
+    if inside:
+        return min(inside, key=lambda r: (r[2] - r[0]) * (r[3] - r[1]))
+    cands = []
+    for r in rects:
+        dy = r[1] - cy
+        if not BOX_ABOVE_MIN * -1 <= dy <= BOX_ABOVE_MAX:
+            continue
+        half = (r[2] - r[0]) / 2.0 + BOX_X_TOLERANCE
+        if abs(cx - (r[0] + r[2]) / 2.0) > half:
+            continue
+        cands.append((abs(dy) if dy >= 0 else dy + 1e6, r))
+    if not cands:
+        return None
+    return min(cands, key=lambda c: c[0])[1]
+
+
+def build_unit_blocks(doc: Any, index: GeometryIndex, frames: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """把系统图图框拆成配电箱单元块。
+
+    一个配电箱 = 箱名文字 + 它上方的虚线箱框 = 一个单元块。箱框只用来定裁剪范围，
+    真正决定“有几个单元”的是箱名文字，因为设计人一定给每个箱写了箱名，而框可能有
+    重复或拆分。
+
+    图框是否算系统图，由内容判定而不是靠图名猜：框里有“箱名 + 箱框”配对才算，
+    一个都配不上、且图名也不是系统图类的图框（平面图、图签注释块等）整张丢掉。
+    """
+    text_cache: dict = {}
+    blocks: list[dict[str, Any]] = []
+    for frame in frames:
+        fbox = frame["bbox"]
+        texts = _frame_texts(index, fbox, text_cache)
+        frame["title"] = _frame_title(texts)
+        if _classify_frame(frame["title"]) == "plan":
+            continue
+
+        rects = _unit_rects(index, fbox)
+        captions = [t for t in texts
+                    if _looks_like_box_caption(t["text"])
+                    and t["layer"] not in UNIT_CAPTION_BAD_LAYERS]
+        scale = _guess_plot_scale(fbox[2] - fbox[0], fbox[3] - fbox[1])
+        made = 0
+        used: set[int] = set()
+        for cap in sorted(captions, key=lambda t: (-t["y"], t["x"])):
+            rect = _match_box_rect(rects, cap)
+            if rect is None or id(rect) in used:
+                continue
+            crop = (max(fbox[0], rect[0] - CROP_PAD_SIDE), max(fbox[1], rect[1] - CROP_PAD_BOTTOM),
+                    min(fbox[2], rect[2] + CROP_PAD_SIDE), min(fbox[3], rect[3] + CROP_PAD_TOP))
+            label = cap["text"].replace(" ", "")
+            blocks.append({"rect": crop, "label": label, "frame": frame["title"], "scale": scale})
+            made += 1
+            used.add(id(rect))
+        if made:
+            frame["kind"] = "system"
+        elif _classify_frame(frame["title"]) == "system":
+            frame["kind"] = "system"
+            blocks.append({"rect": fbox, "label": frame["title"] or "系统图",
+                           "frame": frame["title"], "scale": scale})
+        else:
+            frame["kind"] = "skip"
+    return blocks
+
+
+def _render_block_pdf(doc: Any, index: GeometryIndex, block: dict[str, Any], ctx: RenderContext,
+                      cfg: Configuration) -> bytes:
+    """把一个单元块渲染成单页 PDF：只画该块相交的实体，靠 render_box 精确裁切。"""
+    x0, y0, x1, y1 = block["rect"]
+    w, h = x1 - x0, y1 - y0
+    scale = block["scale"]
+    page = layout.Page(w / scale, h / scale, layout.Units.mm)
+    settings = layout.Settings(scale=1.0 / scale)
+    entities = [index.entities[i] for i in index.query((x0, y0, x1, y1))]
+    backend = PyMuPdfBackend()
+    frontend = Frontend(ctx, backend, config=cfg)
+    frontend.set_background("#ffffff")
+    frontend.draw_entities(entities)
+    return backend.get_pdf_bytes(page, settings=settings,
+                                 render_box=BoundingBox2d([(x0, y0), (x1, y1)]))
+
+
+def render_cad_unit_blocks(doc: Any, blocks: list[dict[str, Any]], out_pdf_path: str,
+                           index: GeometryIndex) -> list[dict[str, Any]]:
+    """逐块渲染并合成多页 PDF，同时按页导出原生 CAD 文字。"""
+    ctx = RenderContext(doc)
+    ctx.set_current_layout(doc.modelspace())
+    cfg = Configuration(background_policy=BackgroundPolicy.WHITE, color_policy=ColorPolicy.COLOR,
+                        hatch_policy=HatchPolicy.IGNORE)
+    combined = pymupdf.open()
+    texts: list[dict[str, Any]] = []
+    text_cache: dict = {}
+    try:
+        for idx, block in enumerate(blocks, 1):
+            try:
+                page_bytes = _render_block_pdf(doc, index, block, ctx, cfg)
+            except Exception as exc:  # noqa: BLE001 - 单块渲染失败不能拖垮整张图
+                print(f"[CAD] 单元块渲染降级 ({block.get('label')}): {exc}")
+                page_bytes = _fallback_page(block)
+            with pymupdf.open(stream=page_bytes, filetype="pdf") as page_doc:
+                combined.insert_pdf(page_doc)
+            for t in _frame_texts(index, block["rect"], text_cache, block_text=True):
+                texts.append({"type": "TEXT", "text": t["text"], "x": round(t["x"], 1),
+                              "y": round(t["y"], 1), "page": idx, "sheet": block["label"],
+                              "layer": t["layer"]})
+    finally:
+        combined.save(out_pdf_path)
+        combined.close()
+    texts.sort(key=lambda item: (item["page"], -item["y"], item["x"]))
+    return texts
+
+
+def _fallback_page(block: dict[str, Any]) -> bytes:
+    """单块矢量渲染失败时的白底占位页，保证页序与块序一一对应。"""
+    x0, y0, x1, y1 = block["rect"]
+    scale = block["scale"]
+    doc = pymupdf.open()
+    page = doc.new_page(width=(x1 - x0) / scale / 25.4 * 72, height=(y1 - y0) / scale / 25.4 * 72)
+    page.insert_text((36, 36), f"{block.get('label', '')} (矢量渲染降级)", fontsize=14)
+    return doc.convert_to_pdf()
 
 
 def extract_cad_entities(dxf_path: str, doc: Any = None) -> list[dict[str, Any]]:
@@ -609,14 +1199,27 @@ def process_cad_file(cad_path: str, out_pdf_path: str) -> tuple[str, list[dict[s
     try:
         doc = load_dxf_document(dxf_path)
 
-        # 1. 自动探测多图框电气系统图并切片
+        # 1. v2：按真实图框几何分幅，再把每张系统图拆成配电箱单元块，一块一页
+        try:
+            index = GeometryIndex(doc)
+            frames = detect_drawing_frames(doc, index)
+            if frames:
+                blocks = build_unit_blocks(doc, index, frames)
+                if blocks:
+                    extracted_texts = render_cad_unit_blocks(doc, blocks, out_pdf_path, index)
+                    if os.path.exists(out_pdf_path) and os.path.getsize(out_pdf_path) > 0:
+                        return out_pdf_path, extracted_texts
+        except Exception as exc:  # noqa: BLE001 - 几何分幅异常时退回旧链路，不能让上传直接失败
+            print(f"[CAD] 几何分幅失败，回退旧切片链路: {exc}")
+
+        # 2. 旧链路：按图签标题文字切分
         system_sheets = detect_system_sheets(doc)
         if len(system_sheets) >= 1:
             extracted_texts = slice_and_render_cad_sheets(doc, system_sheets, out_pdf_path)
             if os.path.exists(out_pdf_path) and os.path.getsize(out_pdf_path) > 0:
                 return out_pdf_path, extracted_texts
 
-        # 2. 若未探测出系统图分幅图框，检查是否属于不包含系统图的海量平面施工图
+        # 3. 若未探测出系统图分幅图框，检查是否属于不包含系统图的海量平面施工图
         msp = doc.modelspace()
         text_count = len(msp.query("TEXT")) + len(msp.query("MTEXT"))
         if text_count > MAX_TEXT_ENTITIES_LIMIT:
@@ -625,7 +1228,7 @@ def process_cad_file(cad_path: str, out_pdf_path: str) -> tuple[str, list[dict[s
                 f"请上传包含配电箱结线与回路的电气系统图 DWG 或 PDF 切图。"
             )
 
-        # 3. 常规单图渲染
+        # 4. 常规单图渲染
         extracted_texts = extract_cad_entities(dxf_path, doc=doc)
         ok = render_dxf_to_pdf(dxf_path, out_pdf_path, doc=doc)
         if not ok:

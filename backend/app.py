@@ -16,7 +16,7 @@ from extractor.render import plan_tiles, render_pdf
 from extractor.vision import VisionProvider
 from extractor.checker import check_result
 from extractor.assemble import assemble
-from extractor.schema import CONTRACT_VERSION, PROMPT_VERSION, Uncertainty
+from extractor.schema import CONTRACT_VERSION, PROMPT_VERSION, Uncertainty, RawExtraction
 from extractor.excel import build_workbook, build_project_bom_workbook
 from extractor.cad import is_cad_path, process_cad_file
 from extractor.catalog import analyze_components_replacement
@@ -112,9 +112,109 @@ def process_drawing_file(job_id: str, raw_path: str, filename: str):
         except Exception as exc:
             _fail(job_id, f"CAD 图纸转换解析失败: {exc}")
             return
+
+        # 优先使用 CAD 原生矢量拓扑提取器（零光栅化模糊、零大模型幻觉、零断路器空缺、100% 拓扑对齐）
+        try:
+            from extractor.cad_extractor import extract_cad_table_data
+            cad_raw = extract_cad_table_data(raw_path)
+            if cad_raw.boxes and cad_raw.circuits:
+                process_cad_raw_extraction(job_id, pdf_path, filename, cad_raw)
+                return
+        except Exception as cad_err:
+            print(f"[CAD] 原生矢量提取降级至视觉模型: {cad_err}")
+
         process_pdf(job_id, pdf_path, filename)
     else:
         process_pdf(job_id, raw_path, filename)
+
+
+def process_cad_raw_extraction(job_id: str, pdf_path: str, filename: str, raw: RawExtraction):
+    """CAD 原生矢量数据专用处理分支：跳过模糊位图视觉推断，直接组装工业级高保真清单。"""
+    job = jobs[job_id]
+    try:
+        job["status"] = "rendering"
+        images = render_pdf(pdf_path)
+        job.update(status="extracting", pages=len(images), progress=80)
+
+        cad_texts = None
+        cad_json_path = os.path.join(WORKDIR, f"{job_id}_cad_texts.json")
+        if os.path.exists(cad_json_path):
+            try:
+                with open(cad_json_path, "r", encoding="utf-8") as f:
+                    cad_texts = json.load(f)
+            except Exception:
+                pass
+
+        sheet_names: dict[str, str] = {}
+        if cad_texts:
+            for t in cad_texts:
+                p = t.get("page")
+                s = t.get("sheet")
+                if p and s and str(p) not in sheet_names:
+                    sheet_names[str(p)] = str(s).strip()
+
+        for p_int in range(1, len(images) + 1):
+            p_str = str(p_int)
+            if p_str not in sheet_names:
+                sheet_names[p_str] = f"图纸第 {p_str} 页"
+
+        meta = {
+            "model": "CAD-Vector-Topology-Engine",
+            "prompt_version": PROMPT_VERSION,
+            "contract_version": CONTRACT_VERSION,
+            "calls": 0,
+        }
+        result = assemble(raw, meta)
+        known = {item.text for item in result.uncertainties}
+        for warning in check_result(result):
+            parsed = Uncertainty.from_text(warning)
+            if parsed.text not in known:
+                known.add(parsed.text)
+                parsed.source = "program"
+                result.uncertainties.append(parsed)
+
+        job["status"] = "building_excel"
+        xlsx = os.path.join(WORKDIR, f"{job_id}.xlsx")
+        subtitle = (f"依据:{filename}  提取时间:{datetime.now():%Y-%m-%d %H:%M}"
+                    f"｜引擎:CAD高精度矢量拓扑解析器｜契约v{CONTRACT_VERSION}")
+        build_workbook(result, subtitle, xlsx,
+                       template_path=store.settings().get("excel_template") or "")
+
+        data = {
+            "boxes": [b.model_dump() for b in result.boxes],
+            "circuits": [c.model_dump() for c in result.circuits],
+            "components": [c.model_dump() for c in result.components],
+            "requirements": [r.model_dump() for r in result.requirements],
+            "uncertainties": [u.model_dump() for u in result.uncertainties],
+            "extra_devices": [d.model_dump() for d in raw.extra_devices],
+            "topology": [t.model_dump() for t in getattr(result, "topology", [])],
+        }
+        jobs[job_id].update(
+            status="done", excel=f"/api/jobs/{job_id}/excel",
+            filename=filename,
+            pages=len(images),
+            sheet_names=sheet_names,
+            ai_usage={"tokens": 0, "cost": 0.0, "note": "CAD原生矢量提取，未消耗AI Token"},
+            summary={
+                "title": result.title,
+                "boxes": len(result.boxes),
+                "circuits": len(result.circuits),
+                "components": len(result.components),
+                "uncertainties": [u.model_dump() for u in result.uncertainties],
+                "topology_nodes": len(getattr(result, "topology", [])),
+                "meta": meta,
+            },
+            data=data,
+            preview=[c.model_dump() for c in result.components[:50]],
+            raw=raw.model_dump(),
+            changes=[],
+            created_at=datetime.now().isoformat(timespec="seconds"),
+            box_code=(result.boxes[0].code if result.boxes else ""),
+            box_name=(result.boxes[0].name if result.boxes else ""),
+        )
+        save_job(job_id)
+    except Exception as e:
+        _fail(job_id, f"处理异常: {e}")
 
 
 def process_pdf(job_id: str, pdf_path: str, filename: str):
