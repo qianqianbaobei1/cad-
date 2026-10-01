@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配电箱报价工作台</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%232E5CE6'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- ===== 顶栏 ===== -->
+<header class="topbar">
+  <div class="brand"><span class="mark"></span>配电箱报价工作台</div>
+  <nav class="nav">
+    <button data-p="projects" onclick="navGo('projects')">项目</button>
+    <button data-p="upload" onclick="navGo('upload')">上传</button>
+    <button data-p="workbench" onclick="navGo('workbench')">工作台<span class="bdg" id="navbdg" hidden>0</span></button>
+    <button data-p="history" onclick="navGo('history')">历史记录</button>
+    <button data-p="settings" onclick="navGo('settings')">设置</button>
+  </nav>
+  <div class="sp"></div>
+  <button class="tbtn warn" id="ubadge" onclick="navGo('workbench');openReview()">待核对 0</button>
+  <button class="btn primary sm" onclick="navGo('upload')">上传 PDF</button>
+</header>
+
+<!-- ===== 工作台 ===== -->
+<main class="page" id="page-workbench" hidden>
+<div class="workspace">
+  <section class="viewer">
+    <div class="vbar">
+      <div class="crumb" id="crumb"><span class="mut2">未打开图纸</span></div>
+      <div class="vtools">
+        <button id="sheetCatalogBtn" onclick="toggleSheetCatalog()" title="查看多图切块目录与重命名">📑 切图目录 (<span id="sheetCount">1</span>)</button>
+        <span class="vsep"></span>
+        <button id="cropbtn" onclick="toggleCropMode()" title="开启/关闭框选解析">⛶ 框选识图</button>
+        <span class="vsep"></span>
+        <button id="linkbtn" class="on" onclick="toggleLink()" title="点表格行在图纸上定位">联动</button>
+        <span class="vsep"></span>
+        <button onclick="zoom(-1)" title="缩小">−</button>
+        <span class="pct" id="zpct">适应</span>
+        <button onclick="zoom(1)" title="放大">＋</button>
+        <button onclick="fitView()">适应窗口</button>
+        <span class="vsep"></span>
+        <button id="prevpage" onclick="setPage(S.page-1)" title="上一页">‹</button>
+        <span class="pct" id="ppct">1/1</span>
+        <button id="nextpage" onclick="setPage(S.page+1)" title="下一页">›</button>
+      </div>
+    </div>
+    <div class="canvas" id="canvas">
+      <!-- 多图切块浮动目录滑块 -->
+      <div class="sheet-catalog collapsed" id="sheetCatalog">
+        <div class="sheet-catalog-header">
+          <div class="sc-title">
+            <span class="sc-icon">📑</span>
+            <b>切图图块目录</b>
+            <span class="sc-badge" id="scTotalBadge">共 1 块</span>
+          </div>
+          <button class="icon-btn" onclick="toggleSheetCatalog()" title="收起目录">◀</button>
+        </div>
+        <div class="sheet-search-box">
+          <input type="text" id="sheetSearchInput" placeholder="搜索图块名或箱号..." oninput="filterSheetCatalog()">
+        </div>
+        <div class="sheet-catalog-list" id="sheetCatalogList">
+          <!-- 动态渲染图块卡片 -->
+        </div>
+      </div>
+      <button class="sheet-catalog-tab-btn" id="sheetCatalogTabBtn" onclick="toggleSheetCatalog()" title="展开切图目录">
+        📑 图块目录
+      </button>
+
+      <div class="placeholder" id="canvasEmpty">还没有打开图纸<br><span class="mut2">去「项目」里打开一个图纸，或在「上传」里新增</span></div>
+      <div class="stage" id="stage" hidden>
+        <div id="zones"></div>
+        <div id="hlbox"></div>
+        <div id="cropmarquee" class="cropbox" hidden><span class="crop-tag" id="croptag">选区</span></div>
+        <img id="dwg" alt="配电系统图" onerror="onDrawingError()">
+      </div>
+    </div>
+  </section>
+
+  <div class="splitter" id="splitter" title="拖动调整图纸区与工作区的宽度（双击恢复默认）"></div>
+
+  <aside class="aiwork">
+    <div class="aistatus">
+      <span class="dot" id="aistatedot"></span><span id="aistatetext">未连接</span>
+      <span class="mut" id="aistatemeta"></span>
+    </div>
+    <div class="atabs">
+      <button class="active" data-t="list" onclick="atab('list')">清单</button>
+      <button data-t="review" onclick="atab('review')">核对<span class="bdg" id="rvbdg" hidden>0</span></button>
+      <button data-t="crop" id="croptab" onclick="atab('crop')">框选解析<span class="bdg" id="cropbdg" hidden>0</span></button>
+      <button data-t="chat" onclick="atab('chat')">对话</button>
+      <div class="sp"></div>
+      <button class="linklike" id="chgcount" onclick="openLog()" title="查看修改记录">修改 0</button>
+    </div>
+
+    <div class="apane" id="pane-list">
+      <div class="boxstrip" id="boxstrip" hidden></div>
+      <div class="subtabs" id="seg"></div>
+      <div class="twrap"><table class="grid"><thead id="th"></thead><tbody id="tb"></tbody></table></div>
+      <div class="boxstrip" id="extraswrap" hidden>
+        <div class="bs-h"><span>非回路设备（模型容易漏，可人工补录）</span>
+          <button class="linklike" onclick="addExtra()">＋ 补充设备</button></div>
+        <table class="grid"><thead><tr><th>#</th><th>名称</th><th>规格</th><th>数量</th><th>用于</th><th></th></tr></thead>
+          <tbody id="extrasbody"></tbody></table>
+      </div>
+      <div class="panefoot" id="listfoot">双击带虚线的单元格即可修改 · 修改先留在本地，点「保存」写入服务端</div>
+    </div>
+
+    <div class="apane" id="pane-review" hidden>
+      <div class="rvscroll" id="rvlist"></div>
+      <div class="panefoot">逐项确认后方可导出</div>
+    </div>
+
+    <div class="apane" id="pane-crop" hidden>
+      <div class="crop-header">
+        <div class="crop-title"><b>⛶ 区域实时解析</b><span class="crop-meta" id="crop-meta">在图纸上拖拽框选</span></div>
+        <button class="btn ghost sm" onclick="clearCrop()">清除选区</button>
+      </div>
+      <div class="crop-body">
+        <div class="crop-empty" id="crop-empty">
+          <div style="font-size:26px;margin-bottom:8px">⛶</div>
+          <div style="font-weight:600;margin-bottom:4px">在图纸上框选任意区域</div>
+          <div class="mut2" style="font-size:11.5px;max-width:280px;margin:0 auto">点击左上方「框选识图」按钮开启模式，按住鼠标左键在图纸上拉框，支持精准提取元器件、回路、设计说明及箱体参数。</div>
+        </div>
+        <div class="crop-loading" id="crop-loading" hidden>
+          <div class="spinner"></div>
+          <div style="margin-top:10px;font-size:12px;color:var(--mut)">正在高清裁切并解析框选区域…</div>
+        </div>
+        <div class="crop-result" id="crop-result" hidden>
+          <div class="crop-preview-box">
+            <img id="crop-img" src="" alt="选区预览" title="点击放大查看">
+            <div class="crop-summary" id="crop-summary"></div>
+          </div>
+
+          <!-- 配电箱参数/说明卡片 -->
+          <div id="crop-boxinfo-card" class="crop-card" hidden>
+            <div class="crop-sec-title">📦 配电箱/配电柜说明与参数</div>
+            <div id="crop-boxinfo-content" class="crop-info-box"></div>
+            <div style="margin-top:8px;display:flex;gap:6px">
+              <button class="btn ghost sm" id="crop-apply-box-btn" onclick="applyCropBoxInfo()">✓ 同步至箱体说明</button>
+            </div>
+          </div>
+
+          <!-- 设计说明与技术要求卡片 -->
+          <div id="crop-req-card" class="crop-card" hidden>
+            <div class="crop-sec-title">📋 识别到技术要求与设计说明 (<span id="crop-req-count">0</span> 项)</div>
+            <div class="twrap" style="max-height:180px;overflow:auto">
+              <table class="grid sm">
+                <thead><tr><th>项目/类别</th><th>要求与说明内容</th></tr></thead>
+                <tbody id="crop-req-rows"></tbody>
+              </table>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:6px">
+              <button class="btn primary sm" id="crop-add-req-btn" onclick="applyCropRequirements()">＋ 补入技术要求</button>
+            </div>
+          </div>
+
+          <!-- 元器件及回路卡片 -->
+          <div id="crop-comp-card" class="crop-card" hidden>
+            <div class="crop-sec-title">⚡ 识别到元器件及回路 (<span id="crop-comp-count">0</span> 项)</div>
+            <div class="twrap" style="max-height:180px;overflow:auto">
+              <table class="grid sm">
+                <thead><tr><th>名称</th><th>规格型号</th><th>数量</th><th>单位</th><th>备注</th></tr></thead>
+                <tbody id="crop-comp-rows"></tbody>
+              </table>
+            </div>
+            <div style="margin-top:8px;display:flex;gap:6px">
+              <button class="btn primary sm" id="crop-add-btn" onclick="applyCropComponents()">＋ 补入器件清单</button>
+            </div>
+          </div>
+
+          <!-- 未检出任何内容时的提示 -->
+          <div id="crop-none-hint" class="mut" style="text-align:center;padding:16px 0;font-size:12px" hidden>
+            该区域未检出明确的元器件型号、回路或技术说明
+          </div>
+
+          <!-- 底部快捷动作 -->
+          <div class="crop-actions" style="margin-top:12px;display:flex;gap:8px">
+            <button class="btn primary sm" id="crop-add-all-btn" style="flex:1" onclick="applyCropAll()" hidden>＋ 全部补入 (器件+说明+要求)</button>
+            <button class="btn ghost sm" style="flex:1" onclick="sendCropToChat()">转入对话深入分析</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="apane" id="pane-chat" hidden>
+      <div class="msgs" id="msgs"></div>
+      <details class="manual" id="vmanual">
+        <summary>可用的语音 / 文字指令<span class="mut2">展开</span></summary>
+        <div id="vmanual-body"></div>
+      </details>
+    </div>
+
+    <div class="afoot">
+      <div class="vresult" id="vresult"><span class="qq" id="vtext"></span><span class="an" id="vintent"></span><div class="oo" id="vout"></div></div>
+      <div class="inputrow">
+        <button class="micbtn" id="vmic" onclick="toggleListen()" title="语音输入">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg>
+        </button>
+        <input id="cin" placeholder="问点什么，或按麦克风说话…" onkeydown="if(event.key==='Enter')sendQ()">
+        <button class="btn ghost sm" id="savebtn" onclick="saveNow()" disabled>保存 0</button>
+        <button class="btn primary sm" onclick="sendQ()">发送</button>
+      </div>
+      <div class="vstat" id="vstatus"></div>
+      <div class="row2" style="display:flex;align-items:center;gap:8px;margin-top:9px">
+        <button class="btn success block" style="width:100%" onclick="openExport()">导出 Excel 清单</button>
+      </div>
+      <div class="ver" id="verline"></div>
+    </div>
+  </aside>
+</div>
+</main>
+
+<!-- ===== 项目 ===== -->
+<main class="page" id="page-projects" hidden>
+  <div class="pg-head"><h2>项目</h2><div class="sp"></div>
+    <button class="btn primary sm" onclick="newProject()">新建项目</button>
+  </div>
+  <div class="pg-wrap"><div class="card"><table class="ptable">
+    <thead><tr><th>项目名称</th><th>图纸</th><th>箱体</th><th>回路</th><th>AI 识别费用</th><th>待核对</th><th>状态</th><th>更新时间</th><th></th></tr></thead>
+    <tbody id="projrows"></tbody>
+  </table></div>
+  <div class="empty" id="projempty" hidden>还没有项目<br>去「上传」新增一张配电系统图 PDF</div>
+  </div>
+</main>
+
+<!-- ===== 上传 ===== -->
+<main class="page" id="page-upload" hidden>
+  <div class="pg-head"><h2>上传图纸</h2><div class="sp"></div>
+    <label style="font-size:12.5px;color:var(--mut)">归入项目
+      <select id="uploadProject" style="border:1px solid var(--line2);padding:5px 8px;font:inherit;font-size:12.5px;background:#fff">
+        <option value="">未分组</option>
+      </select>
+    </label>
+  </div>
+  <div class="pg-wrap">
+    <div class="card"><div class="dropzone slim" id="dropzone">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2E5CE6" stroke-width="1.4"><path d="M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#E9EFFD"/><path d="M14 2v4h4"/></svg>
+      <div class="dz-t">点击选择 PDF / DWG / DXF，或把文件拖到这里</div>
+      <div class="dz-s">支持 PDF、AutoCAD DWG、DXF · 建议单张系统图一个文件</div>
+      <input type="file" id="fileinput" accept=".pdf,.dwg,.dxf,application/pdf" multiple hidden>
+    </div></div>
+    <div class="card">
+      <div class="ch"><span>待提取队列</span><button class="btn primary sm" onclick="startExtract()">开始提取</button></div>
+      <table class="ptable"><thead><tr><th>文件名</th><th>大小</th><th>状态</th><th></th></tr></thead>
+        <tbody id="upqueue"><tr><td colspan="4" class="mut2" style="text-align:center;padding:22px">队列为空</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- ===== 历史记录 ===== -->
+<main class="page" id="page-history" hidden>
+  <div class="pg-head"><h2>历史记录</h2><div class="sp"></div><span class="mut" id="histcount" style="font-size:12px"></span></div>
+  <div class="pg-wrap"><div class="card"><table class="ptable">
+    <thead><tr><th>导出时间</th><th>项目</th><th>图纸</th><th>回路</th><th>存疑</th><th>人工修改</th><th></th></tr></thead>
+    <tbody id="histrows"></tbody>
+  </table></div>
+  <div class="empty" id="histempty" hidden>还没有导出记录<br>核对完成后导出一次 Excel 清单，这里会留下记录</div>
+  </div>
+</main>
+
+<!-- ===== 设置 ===== -->
+<main class="page" id="page-settings" hidden>
+  <div class="pg-head"><h2>设置</h2></div>
+  <div class="pg-wrap">
+    <div class="card"><div class="ch"><span>视觉模型（识图提取）</span></div>
+      <div class="formrow"><label>模型</label><input id="set-model" placeholder="如 qwen-vl-max / deepseek-flash"></div>
+      <div class="formrow"><label>Base URL</label><input id="set-baseurl" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"></div>
+      <div class="formrow"><label>API Key</label><input id="set-apikey" type="password" placeholder="留空表示沿用 .env，不覆盖">
+        <span class="mut2" id="set-keyhint" style="font-size:11px"></span></div>
+      <div class="formrow"><label>温度 temperature</label><input id="set-temp" type="number" step="0.1" min="0" max="2" style="max-width:120px">
+        <span class="mut" style="font-size:11px">识图建议 0，保证同一图纸多次输出一致</span></div>
+      <div class="formrow"><label>随机种子 seed</label><input id="set-seed" type="number" style="max-width:120px">
+        <span class="mut" style="font-size:11px">DeepSeek 接口不支持 seed，该项只对支持它的兼容接口生效</span></div>
+      <div class="formrow"><label>助手模型</label><input id="set-assistant" placeholder="留空则复用上面的视觉模型"></div>
+    </div>
+    <div class="card"><div class="ch"><span>提示词与契约</span></div>
+      <div class="formrow"><label>提取提示词</label><span class="mono" id="set-prompt">extract.txt</span></div>
+      <div class="formrow"><label>输出契约</label><span class="mono" id="set-contract">OUTPUT_CONTRACT</span></div>
+    </div>
+    <div class="card"><div class="ch"><span>导出</span></div>
+      <div class="formrow"><label>Excel 模板</label><input id="set-template" placeholder="留空使用内置版式；也可填模板 .xlsx 的绝对路径">
+        <span class="mut" style="font-size:11px">模板中存在同名工作表时，沿用其标题与样式，只覆盖第 4 行起的数据</span></div>
+      <div class="formrow"><label>大图自动分块</label><input type="checkbox" id="set-tiling">
+        <span class="mut" style="font-size:11px">长边超过 500mm（A2/A1）的图纸切成带重叠的块逐块识别。
+          整张大图会被模型服务端缩到固定尺寸，小字就是在那一步丢的；分块等于把小字放大几倍。<br>
+          A4 等小图不受影响，不会多花调用。</span></div>
+      <div class="formrow"><label>附带变更记录</label><input type="checkbox" id="set-changes">
+        <span class="mut" style="font-size:11px">人工/语音/AI 修改随清单导出为「变更记录」sheet</span></div>
+    </div>
+    <div style="padding:2px 0 20px;display:flex;gap:10px;align-items:center">
+      <button class="btn primary" onclick="saveSettings()">保存设置</button>
+      <span class="mut2" id="set-status" style="font-size:11.5px"></span>
+    </div>
+  </div>
+</main>
+
+<footer class="statusbar">
+  <span id="sb-left">未打开图纸</span>
+  <span id="sb-mid"></span>
+  <span class="kdb">
+    <span><kbd>双击</kbd>编辑</span><span><kbd>↑↓</kbd>切换回路</span><span><kbd>空格+拖拽</kbd>平移</span><span><kbd>⌘Z</kbd>撤销</span><span><kbd>E</kbd>导出</span><span><kbd>⌘S</kbd>保存</span>
+  </span>
+</footer>
+
+<!-- 修改记录 -->
+<div class="logdrawer" id="logdrawer">
+  <header>修改记录<button onclick="closeLog()">✕</button></header>
+  <div class="loglist" id="loglist"></div>
+</div>
+
+<!-- 核对弹窗 -->
+<div class="overlay" id="rvoverlay">
+  <button class="rv-exit" onclick="closeReview()">退出核对</button>
+  <div class="rv-view" id="rv-view">
+    <div class="stage" id="rvstage"><div id="rvhl"></div><img id="rvdwg" alt="图纸"></div>
+  </div>
+  <div class="rv-card">
+    <div class="prog"><span id="rvprog-t">存疑 0 / 0</span><span id="rvpageno" class="mut2"></span><div class="bar"><i id="rvbar" style="width:0%"></i></div></div>
+    <h3 id="rvtitle"></h3>
+    <div class="desc" id="rvdesc"></div>
+    <div class="sug" id="rvsugwrap"><b>处理建议</b><span id="rvsug"></span></div>
+    <div class="rv-actions" style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn ghost" onclick="resolveIssue(true)">确认无误</button>
+      <button class="btn primary" onclick="resolveIssue(false)">改了清单</button>
+      <button class="btn sm" onclick="triggerAiReview()" style="background:#4f46e5;color:#fff;border:none">🤖 让AI帮我想想(深度复核)</button>
+      <button class="btn sm" onclick="resolveAllIssues()" style="background:#16a34a;color:#fff;border:none">✅ 一键全部通过</button>
+    </div>
+    <div class="rv-note">支持语音：“确认无误” / “下一项”</div>
+  </div>
+</div>
+
+<!-- 导出弹窗 -->
+<div class="modal" id="expmodal">
+  <div class="mbox">
+    <h3>导出 Excel 报价清单</h3>
+    <div class="sub" id="expsub"></div>
+    <div id="expchecks"></div>
+    <div class="ver" id="expver"></div>
+    <div class="mactions">
+      <button class="btn ghost sm" onclick="closeExport()">取消</button>
+      <button class="btn primary sm" id="expok" onclick="doExport()">确认导出</button>
+    </div>
+  </div>
+</div>
+
+<!-- 全项目采购总清单弹窗 -->
+<div class="modal" id="projBomModal">
+  <div class="mbox wide">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:10px;">
+      <div>
+        <h3 id="projBomTitle" style="margin:0">全项目采购总清单 (BOM)</h3>
+        <div class="sub" id="projBomSub" style="margin:4px 0 0 0">跨箱体汇总采购统计</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="font-size:12px;color:var(--mut);">清单模式：</span>
+        <select id="projBomModeSelect" class="sm" onchange="switchProjBomMode(this.value)" style="padding:4px 8px;font-size:12px;border:1px solid var(--line);border-radius:4px;background:var(--bg)">
+          <option value="raw">原设计采购清单</option>
+          <option value="正泰">正泰一键平替方案</option>
+          <option value="德力西">德力西一键平替方案</option>
+          <option value="良信">良信一键平替方案</option>
+        </select>
+        <a id="projBomExportBtn" class="btn primary sm" href="#" download>导出采购四联表 (Excel)</a>
+        <button class="btn ghost sm" onclick="closeProjBom()">✕ 关闭</button>
+      </div>
+    </div>
+    <div id="projBomStats" style="display:flex;gap:16px;margin-bottom:14px;background:var(--inset);padding:10px 14px;font-size:12px;border:1px solid var(--line);flex-wrap:wrap"></div>
+    <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--line);">
+      <table class="grid sm" style="width:100%;margin:0">
+        <thead id="projBomHead">
+          <tr>
+            <th style="width:40px">#</th>
+            <th>元器件名称</th>
+            <th>规格型号</th>
+            <th style="width:60px">单位</th>
+            <th style="width:80px">采购总量</th>
+            <th>各配电箱分布明细</th>
+          </tr>
+        </thead>
+        <tbody id="projBomTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- AI 费用明细账单弹窗 -->
+<div class="modal" id="modalAiLog" hidden>
+  <div class="modal-card" style="max-width:880px;width:92%">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
+      <div>
+        <h3 id="aiLogProjTitle" style="margin:0">项目 AI 识别费用与 Token 账单</h3>
+        <div class="sub" id="aiLogProjSub" style="margin:4px 0 0 0">记录每次识图模型、输入/输出 Token 与实际计费明细</div>
+      </div>
+      <button class="btn ghost sm" onclick="closeAiLogs()">✕ 关闭</button>
+    </div>
+    <div id="aiLogSummaryCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
+      <!-- 动态统计卡片 -->
+    </div>
+    <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--line);">
+      <table class="grid sm" style="width:100%;margin:0">
+        <thead>
+          <tr>
+            <th style="width:130px">调用时间</th>
+            <th>图纸文件 / 来源</th>
+            <th style="width:110px">模型</th>
+            <th style="width:50px">切片</th>
+            <th style="width:90px">输入 Token</th>
+            <th style="width:90px">输出 Token</th>
+            <th style="width:80px">本次费用</th>
+          </tr>
+        </thead>
+        <tbody id="aiLogTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 启动屏 -->
+<div class="startscreen" id="startscreen" hidden>
+  <div class="startcard">
+    <div class="brand" style="font-size:15px;margin-bottom:6px"><span class="mark"></span>配电箱报价工作台</div>
+    <div class="mut" style="font-size:12.5px;margin-bottom:18px">上传配电箱 / 配电柜系统图，AI 识图提取元器件，生成报价清单</div>
+    <div class="dropzone" id="startdrop">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2E5CE6" stroke-width="1.4"><path d="M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#E9EFFD"/><path d="M14 2v4h4"/></svg>
+      <div class="dz-t">点击选择 PDF / DWG / DXF，或把文件拖到这里</div>
+      <div class="dz-s">支持 PDF、AutoCAD DWG、DXF · 建议单张系统图一个文件</div>
+      <input type="file" id="startfile" accept=".pdf,.dwg,.dxf,application/pdf" multiple hidden>
+    </div>
+    <div class="startbtn">
+      <button class="btn ghost" onclick="hideStart()">先看看已有项目</button>
+    </div>
+    <div class="mut2" style="font-size:11.5px;text-align:center;margin-top:14px" id="startcfg"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
