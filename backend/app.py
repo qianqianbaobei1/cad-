@@ -178,7 +178,8 @@ def process_cad_raw_extraction(job_id: str, pdf_path: str, filename: str, raw: R
         subtitle = (f"依据:{filename}  提取时间:{datetime.now():%Y-%m-%d %H:%M}"
                     f"｜引擎:CAD高精度矢量拓扑解析器｜契约v{CONTRACT_VERSION}")
         build_workbook(result, subtitle, xlsx,
-                       template_path=store.settings().get("excel_template") or "")
+                       template_path=store.settings().get("excel_template") or "",
+                       layout="3_sheets")
 
         data = {
             "boxes": [b.model_dump() for b in result.boxes],

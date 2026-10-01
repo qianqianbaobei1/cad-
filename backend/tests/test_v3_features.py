@@ -40,7 +40,7 @@ class TestV3Features(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             out_file = os.path.join(tmpdir, "test_two_level.xlsx")
-            build_workbook(res, "工程造价测试副标题", out_file)
+            build_workbook(res, "工程造价测试副标题", out_file, layout="quotation")
             self.assertTrue(os.path.exists(out_file))
 
             wb = openpyxl.load_workbook(out_file)

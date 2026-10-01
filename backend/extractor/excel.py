@@ -2,6 +2,7 @@
 """Build the quotation workbook from an ExtractionResult."""
 import openpyxl
 import os
+import re
 from typing import Any
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -498,6 +499,242 @@ def _fill_quotation_summary_sheet(ws, project_title: str, boxes: list[Any], circ
     ws.row_dimensions[curr_row].height = 28
 
 
+def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
+    """构建精简标准 3 个核心 Sheet：
+    Sheet 1: 项目概览 —— 项目名称、图纸信息、提取规模指标卡片及全项目箱柜基本情况列表；
+    Sheet 2: 箱柜汇总清单 —— 所有箱体或柜体的清单汇总（含回路数、容量、安装方式、台数及合计）；
+    Sheet 3: 箱柜回路与元器件明细 —— 每一个箱体/柜体内部的详细回路及元器件拆解。
+    """
+    boxes = result.boxes or []
+    circuits = result.circuits or []
+    components = result.components or []
+
+    # 统计按箱归属的回路与容量
+    circuits_by_box: dict[str, list[Any]] = {}
+    box_total_kw: dict[str, float] = {}
+    box_incomers: dict[str, str] = {}
+    total_proj_kw = 0.0
+
+    for c in circuits:
+        b_code = getattr(c, "box", "") if hasattr(c, "box") else str(c.get("box", ""))
+        circuits_by_box.setdefault(b_code, []).append(c)
+        c_no = getattr(c, "circuit_no", "") if hasattr(c, "circuit_no") else str(c.get("circuit_no", ""))
+        if "进线" in c_no:
+            note_val = getattr(c, "note", "") if hasattr(c, "note") else str(c.get("note", ""))
+            box_incomers[b_code] = note_val or "市电进线"
+
+        p_str = getattr(c, "power_kw", "") if hasattr(c, "power_kw") else str(c.get("power_kw", ""))
+        if p_str:
+            m_kw = re.search(r"(\d+(\.\d+)?)", p_str)
+            if m_kw:
+                try:
+                    val = float(m_kw.group(1))
+                    box_total_kw[b_code] = box_total_kw.get(b_code, 0.0) + val
+                    total_proj_kw += val
+                except ValueError:
+                    pass
+
+    comps_by_box: dict[str, list[Any]] = {}
+    for comp in components:
+        used = getattr(comp, "used_in", "") if hasattr(comp, "used_in") else str(comp.get("used_in", ""))
+        comps_by_box.setdefault(used, []).append(comp)
+
+    # ==========================================
+    # Sheet 1: 项目概览
+    # ==========================================
+    ws1 = wb.active
+    ws1.title = "项目概览"
+
+    # 1. 标题与副标题
+    ws1.merge_cells(start_row=1, start_column=1, end_row=1, end_column=10)
+    c1 = ws1.cell(row=1, column=1, value=f"【项目工程概览】 {result.title or '配电系统工程'}")
+    c1.font = Font(name="微软雅黑", size=15, bold=True, color="1F497D")
+    c1.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws1.row_dimensions[1].height = 36
+
+    ws1.merge_cells(start_row=2, start_column=1, end_row=2, end_column=10)
+    c2 = ws1.cell(row=2, column=1, value=f"工程信息：{subtitle}")
+    c2.font = SUB_FONT
+    c2.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws1.row_dimensions[2].height = 22
+    ws1.row_dimensions[3].height = 10
+
+    # 2. 核心指标卡片（第 4~5 行）
+    kpis = [
+        (1, 2, "配电箱柜总数", f"{len(boxes)} 台"),
+        (3, 4, "出线回路总数", f"{len(circuits)} 条"),
+        (5, 7, "元器件总项数", f"{len(components)} 件"),
+        (8, 10, "装见总容量(预估)", f"{total_proj_kw:.1f} kW" if total_proj_kw > 0 else "详见分项回路"),
+    ]
+    card_hdr_font = Font(name="微软雅黑", size=9, color="595959")
+    card_val_font = Font(name="微软雅黑", size=14, bold=True, color="1F497D")
+    card_fill = PatternFill("solid", fgColor="F2F5F9")
+
+    for start_c, end_c, label, val_text in kpis:
+        ws1.merge_cells(start_row=4, start_column=start_c, end_row=4, end_column=end_c)
+        cell_lbl = ws1.cell(row=4, column=start_c, value=label)
+        cell_lbl.font = card_hdr_font
+        cell_lbl.alignment = CENTER
+        cell_lbl.fill = card_fill
+
+        ws1.merge_cells(start_row=5, start_column=start_c, end_row=5, end_column=end_c)
+        cell_val = ws1.cell(row=5, column=start_c, value=val_text)
+        cell_val.font = card_val_font
+        cell_val.alignment = CENTER
+        cell_val.fill = card_fill
+
+        for r_i in (4, 5):
+            for c_i in range(start_c, end_c + 1):
+                ws1.cell(row=r_i, column=c_i).border = DARK_BORDER
+
+    ws1.row_dimensions[4].height = 18
+    ws1.row_dimensions[5].height = 28
+    ws1.row_dimensions[6].height = 14
+
+    # 3. 箱柜概况总览列表（第 7 行开始）
+    ws1.merge_cells(start_row=7, start_column=1, end_row=7, end_column=10)
+    sec_cell = ws1.cell(row=7, column=1, value="【全项目配电箱柜基本情况列表】")
+    sec_cell.font = Font(name="微软雅黑", size=11, bold=True, color="1F497D")
+    sec_cell.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws1.row_dimensions[7].height = 26
+
+    headers1 = ["序号", "箱柜编号", "设备名称", "安装方式", "参考尺寸/型号", "防护等级", "出线回路数", "总容量(kW)", "进线引自/电源", "工程备注"]
+    for j, h in enumerate(headers1, start=1):
+        cell = ws1.cell(row=8, column=j, value=h)
+        cell.font = HDR_FONT
+        cell.fill = HDR_FILL
+        cell.alignment = CENTER
+        cell.border = DARK_BORDER
+    ws1.row_dimensions[8].height = 26
+
+    r1 = 9
+    for i, b in enumerate(boxes, start=1):
+        code = getattr(b, "code", "") if hasattr(b, "code") else str(b.get("code", "未命名"))
+        name = getattr(b, "name", "") if hasattr(b, "name") else str(b.get("name", "配电箱"))
+        size = getattr(b, "size", "") if hasattr(b, "size") else str(b.get("size", "-"))
+        install = getattr(b, "install", "") if hasattr(b, "install") else str(b.get("install", "-"))
+        ip = getattr(b, "ip_rating", "") if hasattr(b, "ip_rating") else str(b.get("ip_rating", "-"))
+        note = getattr(b, "note", "") if hasattr(b, "note") else str(b.get("note", "-"))
+        b_c_cnt = len(circuits_by_box.get(code, []))
+        b_kw = box_total_kw.get(code, 0.0)
+        kw_str = f"{b_kw:.1f}" if b_kw > 0 else "-"
+        incomer_str = box_incomers.get(code, "-")
+
+        vals = [i, code, name, install, size, ip, b_c_cnt, kw_str, incomer_str, note]
+        for j, v in enumerate(vals, start=1):
+            cell = ws1.cell(row=r1, column=j, value=v)
+            cell.font = CELL_FONT
+            cell.border = BORDER
+            if j in (1, 6, 7, 8):
+                cell.alignment = CENTER
+            elif j in (2, 3):
+                cell.alignment = LEFT
+            else:
+                cell.alignment = LEFT
+        ws1.row_dimensions[r1].height = 22
+        r1 += 1
+
+    widths1 = [6, 16, 20, 14, 18, 12, 14, 14, 26, 30]
+    for j, w in enumerate(widths1, start=1):
+        ws1.column_dimensions[get_column_letter(j)].width = w
+
+    # ==========================================
+    # Sheet 2: 箱柜汇总清单
+    # ==========================================
+    ws2 = wb.create_sheet("箱柜汇总清单")
+    headers2 = ["序号", "箱柜编号", "设备名称", "安装方式", "型号规格/尺寸", "防护等级", "回路数量", "总装见容量(kW)", "数量(台)", "工程备注"]
+    r2 = _setup(ws2, f"配电箱/柜体工程汇总清单（共 {len(boxes)} 台）", subtitle, headers2, [6, 16, 20, 14, 18, 12, 14, 16, 10, 32])
+    start_r2 = r2
+    for i, b in enumerate(boxes, start=1):
+        code = getattr(b, "code", "") if hasattr(b, "code") else str(b.get("code", "未命名"))
+        name = getattr(b, "name", "") if hasattr(b, "name") else str(b.get("name", "配电箱"))
+        size = getattr(b, "size", "") if hasattr(b, "size") else str(b.get("size", "-"))
+        install = getattr(b, "install", "") if hasattr(b, "install") else str(b.get("install", "-"))
+        ip = getattr(b, "ip_rating", "") if hasattr(b, "ip_rating") else str(b.get("ip_rating", "-"))
+        note = getattr(b, "note", "") if hasattr(b, "note") else str(b.get("note", "-"))
+        qty = getattr(b, "quantity", 1) if hasattr(b, "quantity") else (b.get("quantity", 1) or 1)
+        qty_num = int(qty) if float(qty) == int(qty) else qty
+        b_c_cnt = len(circuits_by_box.get(code, []))
+        b_kw = box_total_kw.get(code, 0.0)
+        kw_str = f"{b_kw:.1f}" if b_kw > 0 else "-"
+
+        r2 = _row(ws2, r2, [i, code, name, install, size, ip, b_c_cnt, kw_str, qty_num, note], height=24, center_cols=(1, 4, 6, 7, 8, 9))
+
+    # 合计行
+    last_r2 = r2 - 1
+    ws2.merge_cells(start_row=r2, start_column=1, end_row=r2, end_column=6)
+    t_cell = ws2.cell(row=r2, column=1, value="合    计")
+    t_cell.font = TOTAL_FONT
+    t_cell.alignment = CENTER
+    t_cell.fill = TOTAL_FILL
+    for col in range(1, 7):
+        ws2.cell(row=r2, column=col).border = DOUBLE_BOTTOM_BORDER
+        ws2.cell(row=r2, column=col).fill = TOTAL_FILL
+
+    c_circ_sum = ws2.cell(row=r2, column=7, value=f"=SUM(G{start_r2}:G{last_r2})")
+    c_circ_sum.font = TOTAL_FONT
+    c_circ_sum.alignment = CENTER
+    c_circ_sum.fill = TOTAL_FILL
+    c_circ_sum.border = DOUBLE_BOTTOM_BORDER
+
+    c_kw_sum = ws2.cell(row=r2, column=8, value=f"{total_proj_kw:.1f}" if total_proj_kw > 0 else "-")
+    c_kw_sum.font = TOTAL_FONT
+    c_kw_sum.alignment = CENTER
+    c_kw_sum.fill = TOTAL_FILL
+    c_kw_sum.border = DOUBLE_BOTTOM_BORDER
+
+    c_qty_sum = ws2.cell(row=r2, column=9, value=f"=SUM(I{start_r2}:I{last_r2})")
+    c_qty_sum.font = TOTAL_FONT
+    c_qty_sum.alignment = CENTER
+    c_qty_sum.fill = TOTAL_FILL
+    c_qty_sum.border = DOUBLE_BOTTOM_BORDER
+
+    ws2.cell(row=r2, column=10, value="").border = DOUBLE_BOTTOM_BORDER
+    ws2.cell(row=r2, column=10).fill = TOTAL_FILL
+    ws2.row_dimensions[r2].height = 26
+
+    # ==========================================
+    # Sheet 3: 箱柜回路与元器件明细
+    # ==========================================
+    ws3 = wb.create_sheet("箱柜回路与元器件明细")
+    headers3 = ["序号", "所属箱柜", "回路编号", "回路用途/负荷名称", "开关/断路器规格", "相序", "设备容量(kW)", "导线电缆型号及敷设", "计算电流(A)", "接触器/附件", "元器件类别", "工程备注"]
+    r3 = _setup(ws3, "配电箱柜回路与元器件拆分明细表", subtitle, headers3, [6, 14, 12, 22, 28, 10, 14, 32, 12, 14, 16, 28])
+
+    seq3 = 1
+    for b in boxes:
+        b_code = getattr(b, "code", "") if hasattr(b, "code") else str(b.get("code", "未命名"))
+        b_circs = circuits_by_box.get(b_code, [])
+        for c in b_circs:
+            cir_no = getattr(c, "circuit_no", "") if hasattr(c, "circuit_no") else str(c.get("circuit_no", ""))
+            load_name = getattr(c, "load_name", "") if hasattr(c, "load_name") else str(c.get("load_name", ""))
+            breaker = getattr(c, "breaker", "") if hasattr(c, "breaker") else str(c.get("breaker", ""))
+            phase = getattr(c, "phase", "") if hasattr(c, "phase") else str(c.get("phase", ""))
+            power_kw = getattr(c, "power_kw", "") if hasattr(c, "power_kw") else str(c.get("power_kw", ""))
+            cable = getattr(c, "cable", "") if hasattr(c, "cable") else str(c.get("cable", ""))
+            current_a = getattr(c, "current_a", "") if hasattr(c, "current_a") else str(c.get("current_a", ""))
+            contactor = getattr(c, "contactor", "") if hasattr(c, "contactor") else str(c.get("contactor", "-"))
+            note = getattr(c, "note", "") if hasattr(c, "note") else str(c.get("note", ""))
+
+            dev_type = "进线断路器" if "进线" in cir_no else ("微型断路器" if any(k in breaker for k in ["MCB", "C16", "C20", "C25", "C32"]) else ("漏电断路器" if "RCBO" in breaker else "出线断路器"))
+
+            r3 = _row(ws3, r3, [seq3, b_code, cir_no, load_name, breaker, phase, power_kw, cable, current_a, contactor, dev_type, note],
+                      height=24, center_cols=(1, 2, 3, 6, 7, 9, 10, 11))
+            seq3 += 1
+
+        # 追加该箱体附属元器件（如浪涌保护器、电能表等）
+        b_comps = comps_by_box.get(b_code, [])
+        for cp in b_comps:
+            cp_name = getattr(cp, "name", "") if hasattr(cp, "name") else str(cp.get("name", ""))
+            cp_spec = getattr(cp, "spec", "") if hasattr(cp, "spec") else str(cp.get("spec", ""))
+            cp_qty = getattr(cp, "quantity", 1) if hasattr(cp, "quantity") else cp.get("quantity", 1)
+            cp_unit = getattr(cp, "unit", "台") if hasattr(cp, "unit") else cp.get("unit", "台")
+            cp_note = getattr(cp, "note", "") if hasattr(cp, "note") else str(cp.get("note", ""))
+
+            r3 = _row(ws3, r3, [seq3, b_code, "-", cp_name, cp_spec, "-", "-", "-", "-", "-", "箱内附加元器件", f"数量:{cp_qty}{cp_unit} {cp_note}".strip()],
+                      height=24, center_cols=(1, 2, 3, 6, 7, 9, 10, 11))
+            seq3 += 1
+
+
 def _fill_sheets(wb, result, subtitle, template: bool):
     """构建成套设备高精度多级报表：
     Sheet 1: 成套设备报价(汇总) —— 截图同款汇总表头与超链接直达；
@@ -711,7 +948,8 @@ def _fill_topology_sheet(wb, topology: list, title: str, subtitle: str):
 
 def build_workbook(result: ExtractionResult, subtitle: str, out_path: str,
                    changes=None, include_changes: bool = True,
-                   template_path: str = "", target_brand: str = "正泰") -> str:
+                   template_path: str = "", target_brand: str = "正泰",
+                   layout: str = "all") -> str:
     template = bool(template_path) and os.path.exists(template_path)
     if template:
         try:
@@ -722,13 +960,17 @@ def build_workbook(result: ExtractionResult, subtitle: str, out_path: str,
     else:
         wb = _blank_workbook()
 
-    _fill_sheets(wb, result, subtitle, template)
-    if getattr(result, "topology", None):
-        _fill_topology_sheet(wb, result.topology, f"{result.title}——配电拓扑架构树", subtitle)
-    if result.components:
-        _fill_replacements(wb, result.components, target_brand=target_brand or "正泰")
-    if include_changes and changes:
-        _fill_changes(wb, changes)
+    if layout == "3_sheets" and not template:
+        _fill_three_sheets(wb, result, subtitle)
+    else:
+        _fill_sheets(wb, result, subtitle, template)
+        if getattr(result, "topology", None):
+            _fill_topology_sheet(wb, result.topology, f"{result.title}——配电拓扑架构树", subtitle)
+        if result.components:
+            _fill_replacements(wb, result.components, target_brand=target_brand or "正泰")
+        if include_changes and changes:
+            _fill_changes(wb, changes)
+
     wb.save(out_path)
     return out_path
 

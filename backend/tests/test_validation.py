@@ -917,7 +917,7 @@ class DistributionTopologyAndExcelTests(unittest.TestCase):
 
         # 1. 验证单图任务 Excel 输出包含“配电系统拓扑树”
         xlsx_single = os.path.join(self.temp_dir, "single.xlsx")
-        build_workbook(result, "subtitle", xlsx_single)
+        build_workbook(result, "subtitle", xlsx_single, layout="all")
         wb1 = openpyxl.load_workbook(xlsx_single)
         self.assertIn("配电系统拓扑树", wb1.sheetnames)
         ws1 = wb1["配电系统拓扑树"]

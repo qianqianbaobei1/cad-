@@ -909,6 +909,46 @@ def _match_box_rect(rects, cap) -> tuple[float, float, float, float] | None:
     return min(cands, key=lambda c: c[0])[1]
 
 
+def _column_pitch(rects) -> float:
+    """箱框按列平铺的列距（相邻列左边距的中位数），用于推最右一列单元块的右边。"""
+    xs = sorted({round(r[0], -2) for r in rects})
+    diffs = [xs[i + 1] - xs[i] for i in range(len(xs) - 1) if xs[i + 1] - xs[i] > 1000]
+    if not diffs:
+        return 0.0
+    diffs.sort()
+    return diffs[len(diffs) // 2]
+
+
+def _cell_crop(rect, rects, frame, caption_y: float, pitch_x: float) -> tuple[float, float, float, float]:
+    """把箱框撑成完整的单元块。
+
+    图纸上的虚线箱框只圈住断路器那一列，右侧的电缆规格栏和负荷名称栏画在框外（实测
+    每页被截掉两列），箱框左侧反而是内容起点。所以：
+      左边界 = 箱框左边 - 少量留白（箱框左就是内容起点）；
+      右边界 = 右邻箱框的左边（相邻箱内容首尾相接，没有空带可依靠）；
+      右邻不存在时用整张图的列距推。
+    """
+    x0, y0, x1, y1 = rect
+    w, h = x1 - x0, y1 - y0
+
+    def v_overlap(r):
+        return min(r[3], y1) - max(r[1], y0) > 0.25 * min(h, r[3] - r[1])
+
+    def h_overlap(r):
+        return min(r[2], x1) - max(r[0], x0) > 0.25 * min(w, r[2] - r[0])
+
+    right_gaps = [r[0] - x1 for r in rects if r is not rect and v_overlap(r) and r[0] >= x1]
+    top_gaps = [r[1] - y1 for r in rects if r is not rect and h_overlap(r) and r[1] >= y1]
+    if right_gaps:
+        right = x1 + min(right_gaps)
+    else:
+        right = x0 + (pitch_x if pitch_x > w else w * 1.6)
+    right = min(right, x1 + w * 1.6, frame[2])
+    top = min(y1 + (min(top_gaps) / 2 if top_gaps else min(h * 0.25, 6000.0)), frame[3])
+    return (max(frame[0], x0 - CROP_PAD_SIDE), max(frame[1], min(y0 - CROP_PAD_BOTTOM, caption_y - 200.0)),
+            right, top)
+
+
 def build_unit_blocks(doc: Any, index: GeometryIndex, frames: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """把系统图图框拆成配电箱单元块。
 
@@ -933,16 +973,18 @@ def build_unit_blocks(doc: Any, index: GeometryIndex, frames: list[dict[str, Any
                     if _looks_like_box_caption(t["text"])
                     and t["layer"] not in UNIT_CAPTION_BAD_LAYERS]
         scale = _guess_plot_scale(fbox[2] - fbox[0], fbox[3] - fbox[1])
+        pitch_x = _column_pitch(rects)
         made = 0
         used: set[int] = set()
         for cap in sorted(captions, key=lambda t: (-t["y"], t["x"])):
             rect = _match_box_rect(rects, cap)
             if rect is None or id(rect) in used:
                 continue
-            crop = (max(fbox[0], rect[0] - CROP_PAD_SIDE), max(fbox[1], rect[1] - CROP_PAD_BOTTOM),
-                    min(fbox[2], rect[2] + CROP_PAD_SIDE), min(fbox[3], rect[3] + CROP_PAD_TOP))
+            crop = _cell_crop(rect, rects, fbox, cap["y"], pitch_x)
             label = cap["text"].replace(" ", "")
-            blocks.append({"rect": crop, "label": label, "frame": frame["title"], "scale": scale})
+            block_scale = min(scale, max(crop[2] - crop[0], crop[3] - crop[1]) / PAGE_LONG_MM_MIN)
+            blocks.append({"rect": crop, "label": label, "frame": frame["title"],
+                           "scale": max(block_scale, 1e-6)})
             made += 1
             used.add(id(rect))
         if made:
