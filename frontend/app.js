@@ -1645,14 +1645,13 @@ function openExport() {
     if (un > 0) {
       mactions.innerHTML = `
         <button class="btn ghost sm" onclick="closeExport()">取消</button>
-        <button class="btn sm" onclick="triggerAiReviewAndExport()" title="让 AI 全盘复核并消除存疑后立即导出" style="background:#4f46e5;color:#fff;border:none">🤖 AI复核并导出</button>
-        <button class="btn primary sm" onclick="resolveAllAndExport()" title="一键将剩余 ${un} 处待核对项全部标记为已确认并直接下载" style="background:#16a34a;border:none">✅ 一键确认并导出</button>
-        <button class="btn ghost sm" onclick="doExport(true)" title="保留存疑项记录，强制放行并下载 Excel 报表">⚠️ 强制放行导出</button>
+        <button class="btn sm" onclick="triggerAiReviewAndExport()" title="让 AI 全盘复核存疑项，复核后自动尝试导出；若仍有存疑未确认，导出会被中止" style="background:#4f46e5;color:#fff;border:none">🤖 AI复核并导出</button>
+        <button class="btn primary sm" onclick="resolveAllAndExport()" title="一键将剩余 ${un} 处待核对项全部标记为已确认并直接下载（由你担责确认）" style="background:#16a34a;border:none">✅ 一键确认并导出</button>
       `;
     } else {
       mactions.innerHTML = `
         <button class="btn ghost sm" onclick="closeExport()">取消</button>
-        <button class="btn primary sm" id="expok" onclick="doExport(false)">确认导出</button>
+        <button class="btn primary sm" id="expok" onclick="doExport()">确认导出</button>
       `;
     }
   }
@@ -1663,27 +1662,30 @@ function closeExport() {
   $('expmodal').classList.remove('show');
 }
 
-async function doExport(force = false) {
+async function doExport() {
   try {
-    const url = `/api/jobs/${S.jobId}/excel${force ? '?force=true' : ''}`;
-    const res = await fetch(url);
+    const res = await fetch(`/api/jobs/${S.jobId}/excel`);
     if (res.status === 409) {
-      const err = await res.json().catch(() => ({}));
-      toast('导出已阻断：' + (err.detail || '存在待确认存疑项，请先核对或点击强制放行导出'));
+      // 后端门禁：存疑未确认完不许导出
+      let n = '?';
+      try { const j = await res.json(); if (j && j.detail && j.detail.unresolved_count != null) n = j.detail.unresolved_count; } catch (e) {}
+      closeExport();
+      toast(`导出已中止：还有 ${n} 处存疑未确认`);
+      addMsg('sys', `导出被拦截：还有 ${n} 处存疑未确认。请先逐项核对、用 AI 复核，或点「一键确认并导出」由你担责确认后再导出。`);
       return;
     }
     if (!res.ok) throw new Error('服务端没有生成 Excel');
     const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = blobUrl;
+    a.href = url;
     a.download = `配电箱元器件清单(报价用)-${S.jobId}.xlsx`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
     closeExport();
-    addMsg('sys', `Excel 报价清单已下载（含 ${S.changes.length} 处修改记录${force ? '，已强制放行存疑' : ''}）`);
+    addMsg('sys', `Excel 报价清单已下载（含 ${S.changes.length} 处修改记录）`);
     toast('Excel 报价清单已开始下载');
   } catch (e) {
     toast('导出失败：' + e.message);

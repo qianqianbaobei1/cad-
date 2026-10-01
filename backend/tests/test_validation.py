@@ -178,7 +178,12 @@ class VisionRetryTests(unittest.TestCase):
                 provider.extract([("page1.png", 1, None)])
         self.assertEqual(call.call_count, 3)
 
-    def test_length_truncation_repaired_successfully(self):
+    def test_length_truncation_fails_fast_without_partial_excel(self):
+        """截断是确定性的：直接失败，不拿残缺数据"自愈"继续（旧行为已删除）。
+
+        输出契约：模型返回长度截断 → 任务失败，不生成 Excel。
+        上游 process_pdf 会经 _fail 展示该报错。
+        """
         truncated_content = (
             '{"boxes": [{"code": "01AL1", "name": "动力箱"}], '
             '"circuits": [{"circuit_no": "WL1", "breaker": "C16A"}, {"circuit_no": "WL2"'
@@ -189,12 +194,10 @@ class VisionRetryTests(unittest.TestCase):
              patch.object(provider, "_call", return_value={
                  "choices": [{"finish_reason": "length", "message": {"content": truncated_content}}]
              }) as call:
-            result = provider.extract([("page1.png", 1, None)])
-        self.assertEqual(len(result.boxes), 1)
-        self.assertEqual(result.boxes[0].code, "01AL1")
-        self.assertEqual(len(result.circuits), 1)
-        self.assertEqual(result.circuits[0].circuit_no, "WL1")
-        self.assertTrue(any("长度上限" in u.text for u in result.uncertainties))
+            with self.assertRaisesRegex(ValueError, "截断"):
+                provider.extract([("page1.png", 1, None)])
+        # 确定性失败：不浪费重试
+        self.assertEqual(call.call_count, 1)
 
 
 class PageAndTileTests(unittest.TestCase):

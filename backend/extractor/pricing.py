@@ -164,6 +164,7 @@ def calculate_component_unit_price(
     
     key = f"{cat}-{poles}-{matched_curr}A"
     list_price = CATALOG_PRICE_BASE.get(key)
+    exact_match = list_price is not None  # 只有精确命中才算"标准库匹配"
     
     # 若无直接匹配，使用类别规则估价
     if not list_price:
@@ -196,7 +197,10 @@ def calculate_component_unit_price(
 
     # 乘以品牌系数计算最终到厂采购单价
     cost_price = round(list_price * discount * tier_info["multiplier"], 2)
-    basis = f"标准库匹配[{key}] 面价￥{list_price} 折扣率{discount:.2f}"
+    if exact_match:
+        basis = f"标准库匹配[{key}] 面价￥{list_price} 折扣率{discount:.2f}"
+    else:
+        basis = f"规则估算（待核）[{key}] 面价￥{list_price} 折扣率{discount:.2f}"
     return cost_price, round(list_price, 2), basis
 
 

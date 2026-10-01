@@ -23,7 +23,10 @@ from typing import Any
 
 # 常见品牌识别模式
 BRAND_PATTERNS = [
-    ("施耐德", re.compile(r"(?:Schneider|施耐德|iC65|Acti9|NSX|NSC|C65|EA9|EasyPact|GV2|LC1D)", re.IGNORECASE)),
+    # 注意：不收录裸 "C65"——无品牌标注的 C65N 等是通用/国标写法，
+    # 若判给施耐德会导致"一键平替降本"的降本比例虚高（45% vs 15%）。
+    # 施耐德专有词保留 iC65/Acti9/NSX 等。
+    ("施耐德", re.compile(r"(?:Schneider|施耐德|iC65|Acti9|NSX|NSC|EA9|EasyPact|GV2|LC1D)", re.IGNORECASE)),
     ("ABB", re.compile(r"(?:ABB|S20\d|S200|Tmax|XT[1-4]|A9|AF\d|AX\d|OT160)", re.IGNORECASE)),
     ("西门子", re.compile(r"(?:Siemens|西门子|5SY|5SL|5SU|3VM|3VA|3VT|3TF|3RT)", re.IGNORECASE)),
     ("正泰", re.compile(r"(?:CHINT|正泰|NXB|NM8|NM1|NM5|NXBLE|CJX2|NXZ)", re.IGNORECASE)),

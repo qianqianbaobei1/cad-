@@ -6,7 +6,7 @@ from collections import defaultdict
 from math import isfinite
 import re
 
-from .assemble import PREFIXES, _parse_devices
+from .assemble import PREFIXES, _parse_devices, is_incoming_circuit
 from .schema import ExtractionResult
 
 # 回路 breaker 字段能汇总出的元器件名称，必须与 assemble 保持一致，否则一改分类
@@ -138,8 +138,9 @@ def check_result(result: ExtractionResult) -> list[str]:
     for c in result.circuits:
         breaker_spec = c.breaker or ""
         amp = _extract_amp(breaker_spec)
-        note_str = (c.note or "") + (c.load_name or "")
-        is_incoming = "进线" in note_str or "总开" in note_str or ("MCCB" in breaker_spec and "进线" in note_str)
+        # 进线判定与 assemble 共用 is_incoming_circuit（原先这里还看 note 里的
+        # "总开"/"进线"自由文本，与排序口径不一致，已统一）
+        is_incoming = is_incoming_circuit(c)
         if is_incoming and amp:
             incoming_amps.append(amp)
         elif amp and not is_incoming:

@@ -155,7 +155,11 @@ def concat_results(results: list) -> RawExtraction:
 
 
 def repair_truncated_json(s: str) -> dict | None:
-    """尝试从因 Token 长度限制截断的 JSON 文本中挽救所有已完整生成的回路与箱体。"""
+    """诊断工具：从因 Token 长度限制截断的 JSON 文本中挽救已完整生成的前半截。
+
+    仅供人工诊断/排查看截断点前识别了多少内容。**禁止**用于"自愈继续"——
+    用残缺数据生成 Excel 会静默丢回路，违反"宁可标疑、不许编造"与输出契约
+    （截断 → 任务失败，不生成 Excel）。"""
     s = s.strip()
     if not s.startswith("{"):
         idx = s.find("{")
@@ -383,17 +387,11 @@ class VisionProvider:
             self._record_usage(data)
             choice = data["choices"][0]
             raw_text = choice["message"]["content"]
+            if choice.get("finish_reason") == "length":
+                # 截断是确定性的：不浪费重试。残缺数据绝不流入 assemble/Excel，
+                # 直接失败；上游 process_pdf 会经 _fail 置 job 失败并展示该报错。
+                raise ValueError("模型输出因长度限制被截断，数据不完整，未生成 Excel；请缩小图纸分块后重试")
             try:
-                if choice.get("finish_reason") == "length":
-                    # 优先尝试从截断数据中恢复已生成的有效回路与箱体
-                    repaired = repair_truncated_json(raw_text)
-                    if repaired:
-                        raw_ext = RawExtraction.model_validate(repaired)
-                        u = Uncertainty.from_text("系统告警：图纸元器件密集导致模型输出触及长度上限截断，已恢复前半部分有效数据，但尾部回路存在缺失！请采用局部裁切解析重试，切勿直接用于工程决算")
-                        u.source = "program"
-                        raw_ext.uncertainties.append(u)
-                        return raw_ext
-                    raise ValueError("模型输出因长度限制而截断")
                 raw = json.loads(raw_text)
                 if not isinstance(raw, dict):
                     raise ValueError("顶层必须是 JSON 对象")
@@ -403,14 +401,6 @@ class VisionProvider:
                 return RawExtraction.model_validate(raw)
             except (json.JSONDecodeError, ValidationError, ValueError) as e:
                 if attempt == 2:
-                    if choice.get("finish_reason") == "length":
-                        repaired = repair_truncated_json(raw_text)
-                        if repaired:
-                            raw_ext = RawExtraction.model_validate(repaired)
-                            u = Uncertainty.from_text("系统告警：图纸元器件密集导致模型输出触及长度上限截断，已恢复前半部分有效数据，但尾部回路存在缺失！请采用局部裁切解析重试，切勿直接用于工程决算")
-                            u.source = "program"
-                            raw_ext.uncertainties.append(u)
-                            return raw_ext
                     raise ValueError(f"模型输出格式校验失败，已重试 2 次: {e}") from e
                 payload["messages"] = [
                     *payload["messages"],

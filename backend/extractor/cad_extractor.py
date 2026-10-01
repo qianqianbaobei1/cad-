@@ -37,12 +37,15 @@ RE_BREAKER_FALLBACK = re.compile(
 
 PANEL_CODE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9\-])(?:消防)?("
-    r"[0-9]{1,2}(?:SAL|ALE|AL|AP|AT|AC|AK|DT|LB|SG|EL|KT|KY|PM|XF)[A-Za-z0-9\-_/]*|"
-    r"(?:SAL|ALE|AL|AP|AT|AC|AK|DT|LB|SG|EL|KT|KY|PM|XF|AW|CDX|JLM)[0-9]{1,3}[A-Za-z0-9\-_/]*"
-    r")(?![A-Za-z0-9])",
-    re.I
+    r"01[A-Za-z][A-Za-z0-9\-]+|CDX[0-9\-]+|JLM[0-9\-]+"
+    # 通用柜号形态：字母数字混排且至少含一位数字（如 2SAL2/2ALE/2AT/2SAL3/AW1）。
+    # 纯字母的器件词（MCB/SPD/MCCB/RCBO/ATSE）不含数字，不会被误判为柜号。
+    # 两处排除：数字+字母形排除常见单位（6kA/220V/63A）；
+    # 字母+数字形排除常见规格前缀（IP65/DZ47/SC25/NM1）。
+    r"|\d+(?!(?i:kA|kW|VA|V|A|W|Hz)\b)[A-Za-z]{2,6}\d*"
+    r"|(?!(?i:IP|DZ|SC|MC|BV|YJV|NM|PE|PC)\d)[A-Za-z]{2,6}\d+"
+    r")(?![A-Za-z0-9])"
 )
-EXCLUDE_CODE_PATTERN = re.compile(r"^(GB\d+|JGJ\d+|[0-9]{2}(?:D\d{3}|DX\d+)|.*SD-|\d{6,}|图号|S\d+-\d+)", re.I)
 
 GENERIC_DISCARD_TERMS = {
     "控制箱", "配电箱", "动力箱", "照明箱", "照明配电箱", "动力配电箱", "排烟风机控制箱",
@@ -90,6 +93,24 @@ def _extract_box_metadata(header_text: str, nearby_texts: list[tuple]) -> dict[s
         if "消防" in t and "消防标志" in t:
             meta["note"] = "明显消防标志,并作防火处理"
 
+    # 台数识别：共N台 / N台 / ×N（N 为数字）。
+    # "×N" 加前后断言，避免把尺寸"450×350×120"误认成台数；
+    # "N台"排除"第N台"（那是序号不是台数）。
+    # 识别不到时保持 quantity=1，由调用方记 uncertainties 交人工核对。
+    qty_recognized = False
+    m_qty = (re.search(r"共\s*(\d+)\s*台", header_text)
+             or re.search(r"(?<!第)(\d+)\s*台", header_text)
+             or re.search(r"(?<![\d×xX])[×xX]\s*(\d+)(?![\d×xX])", header_text))
+    if m_qty:
+        try:
+            n = int(m_qty.group(1))
+            if n > 0:
+                meta["quantity"] = n
+                qty_recognized = True
+        except ValueError:
+            pass
+    meta["quantity_recognized"] = qty_recognized
+
     return meta
 
 
@@ -124,13 +145,16 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
     # 2. 检测所有配电箱标头
     candidates = []
     for t, x, y, h in all_texts:
-        # 排除回路出线引用、规范、图纸编号与干线附注
-        if any(k in t for k in [":", "：", "引", "配出", "备用", "市电", "规范", "图集", "SD-", "图号", "干线"]):
+        # 排除回路出线引用、规范、图纸编号与干线附注。
+        # 含冒号的标头（如"2ALE：应急照明配电箱"）不整行丢弃，
+        # 取冒号前的部分做柜号匹配。
+        if any(k in t for k in ["引", "配出", "备用", "市电", "规范", "图集", "SD-", "图号", "干线"]):
             continue
-        m = PANEL_CODE_PATTERN.search(t)
+        t_head = re.split(r"[:：]", t, maxsplit=1)[0]
+        m = PANEL_CODE_PATTERN.search(t_head)
         if m:
             code = m.group(1).upper()
-            if code in GENERIC_DISCARD_TERMS or EXCLUDE_CODE_PATTERN.search(code):
+            if code in GENERIC_DISCARD_TERMS:
                 continue
             # 判断是否为箱体标头
             is_header = (
@@ -185,6 +209,7 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
     extracted_circuits: list[Circuit] = []
     extracted_devices: list[ExtraDevice] = []
     extracted_reqs: list[Requirement] = []
+    extracted_uncertainties: list[Uncertainty] = []
 
     for code in sorted(best_headers.keys()):
         title, hx, hy, hh = best_headers[code]
@@ -208,6 +233,10 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
 
         # 提取箱体属性元数据
         meta = _extract_box_metadata(title, panel_texts)
+        if not meta.get("quantity_recognized"):
+            # 台数未识别：暂按 1 台计，如实标疑，不编造
+            extracted_uncertainties.append(Uncertainty.from_text(
+                f"{code}：箱体台数未识别，暂按 1 台计，请核对"))
         extracted_boxes.append(Box(
             code=code,
             name=meta["name"] or "配电箱",
@@ -221,6 +250,9 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
         # 针对每个回路锚点，以水平 Y 轴带（tolerance ±550）提取该回路全部字段
         c_anchors.sort(key=lambda item: -item[2])
         seen_circ_no = set()
+        # 被回路 breaker 字段实际消费的文本：SPD 收集时跳过这些，
+        # 防止同一文本既进回路又进元器件造成双计
+        consumed_breaker_texts: set[str] = set()
         for cno, ax, ay in c_anchors:
             if cno in seen_circ_no:
                 continue
@@ -253,6 +285,7 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                     # 避免把电缆规格中的 SC25 误当成 C25 断路器
                     if not (RE_CABLE.match(t) or ("SC" in t and any(cb in t for cb in ["BV", "YJV", "RVV"]))):
                         circuit.breaker = t
+                        consumed_breaker_texts.add(t)
                 elif any("\u4e00" <= ch <= "\u9fa5" for ch in t) and not circuit.load_name:
                     if not any(k in t for k in ["过载", "报警", "标志", "防火", "图", "箱", "试验", "保护器", "内配"]):
                         circuit.load_name = t
@@ -277,21 +310,32 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                 note=inc_t,
             ))
 
-        # 提取浪涌保护器等非回路器件
-        spds = [t for t in panel_texts if "SPD" in t[0] or "电涌" in t[0] or "浪涌" in t[0]]
+        # 提取浪涌保护器等非回路器件。
+        # 防双计：已被某回路 breaker 实际消费的文本不再收为 ExtraDevice
+        # （该文本只出现在回路带内时保留 breaker 侧）。
+        # 规格用图纸真实文本，不硬编码。
+        spds = [t for t in panel_texts
+                if ("SPD" in t[0] or "电涌" in t[0] or "浪涌" in t[0])
+                and t[0] not in consumed_breaker_texts]
         if spds:
+            spd_specs = sorted({clean_mtext(t[0]).strip() for t in spds
+                                if clean_mtext(t[0]).strip()})
             extracted_devices.append(ExtraDevice(
                 name="浪涌保护器",
-                spec="SPD 4P In≥20kA Up≤1.5kV",
+                spec="；".join(spd_specs) if spd_specs else "(规格未标注)",
                 unit="套",
                 quantity=1.0,
                 used_in=f"{code} 进线侧",
             ))
+
+    # CAD 矢量路径不提取技术要求：不编造，如实记一条待核对交人工核对图纸说明
+    extracted_uncertainties.append(Uncertainty.from_text(
+        "CAD矢量解析：技术要求未提取，请人工核对图纸说明"))
 
     return RawExtraction(
         boxes=extracted_boxes,
         circuits=extracted_circuits,
         extra_devices=extracted_devices,
         requirements=extracted_reqs,
-        uncertainties=[],
+        uncertainties=extracted_uncertainties,
     )

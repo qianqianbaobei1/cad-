@@ -100,8 +100,20 @@ def _circuit_label(circuit) -> str:
     return circuit.load_name or "未编号回路"
 
 
+def is_incoming_circuit(circuit) -> bool:
+    """进线回路统一判定：assemble 排序与 checker 级配核验共用。
+
+    口径：circuit_no == "进线"，或 load_name 以"进线"开头。
+    刻意不看 note 里的"总开"等自由文本——自由文本误判会导致排序错位
+    与级配核验误告警；拿不准的进线应进 uncertainties 由人工确认。
+    """
+    cno = (getattr(circuit, "circuit_no", "") or "").strip()
+    lname = (getattr(circuit, "load_name", "") or "").strip()
+    return cno == "进线" or lname.startswith("进线")
+
+
 def _circuit_order(circuit) -> int:
-    if circuit.circuit_no == "进线" or circuit.load_name.startswith("进线"):
+    if is_incoming_circuit(circuit):
         return 0
     if circuit.load_name == "备用" and not circuit.circuit_no:
         return 2
@@ -332,15 +344,23 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
     merged_boxes = list(dedup_boxes_dict.values())
     boxes = {box.code: box for box in merged_boxes if box.code}
 
-    # 2. 回路跨切片去重：同一箱体内完全一致的回路编号与断路器
+    # 2. 回路跨切片去重：同一箱体内完全一致的回路（编号+断路器+负荷名+导线+功率）。
+    # 导线/功率不同也算不同回路——只按前四项去重会静默丢真实回路（少算钱）。
+    # 被去重丢弃的回路记入 warnings（转 uncertainties），不得静默丢。
     seen_circs = set()
     dedup_circuits = []
     for c in raw.circuits:
         if c.box and not _is_real_box_code(c.box):
             continue
         c_copy = c.model_copy(deep=True)
-        sig = (c_copy.box.strip(), c_copy.circuit_no.strip(), c_copy.breaker.strip(), c_copy.load_name.strip())
-        if sig != ("", "", "", "") and sig in seen_circs:
+        sig = (c_copy.box.strip(), c_copy.circuit_no.strip(), c_copy.breaker.strip(),
+               c_copy.load_name.strip(), c_copy.cable.strip(), c_copy.power_kw.strip())
+        if sig != ("", "", "", "", "", "") and sig in seen_circs:
+            label = c_copy.circuit_no.strip() or c_copy.load_name.strip() or "（无编号）"
+            warnings.append(
+                f"疑似重复回路 {c_copy.box.strip()} {label}（断路器 {c_copy.breaker.strip()}）"
+                f"已去重保留一条，请核对"
+            )
             continue
         seen_circs.add(sig)
         dedup_circuits.append(c_copy)

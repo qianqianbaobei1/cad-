@@ -151,6 +151,40 @@ def _find_device(extras: list[dict], target: str) -> dict | None:
     return None
 
 
+def _circuit_uids(circuits: list[dict]) -> dict[int, str]:
+    """回路唯一键：f"{box}#{index}"。
+
+    不用 circuit_no / load_name 做键——两条回路同负荷名（如都叫"照明"）
+    且编号为空时，旧的 setdefault 映射会把第二条指向第一条，
+    AI 补丁按负荷名定位就会改错目标。
+    """
+    return {i: f"{c.get('box', '')}#{i}" for i, c in enumerate(circuits)}
+
+
+def _resolve_circuit_target(circuits: list[dict], target: str):
+    """按 target 找唯一回路。返回 (index, 拒绝原因)。
+
+    优先 circuit_no 精确匹配；load_name 命中多条时报歧义，
+    请调用方把拒绝原因告知用户（宁可标疑、不许改错）。
+    """
+    target = (target or "").strip()
+    if not target:
+        return None, "没有指定回路"
+    cands_no = [i for i, c in enumerate(circuits)
+                if (c.get("circuit_no") or "").strip() == target]
+    if len(cands_no) == 1:
+        return cands_no[0], ""
+    if len(cands_no) > 1:
+        return None, f"清单里有多条回路编号都是“{target}”，请补充箱体信息后重试"
+    cands_name = [i for i, c in enumerate(circuits)
+                  if (c.get("load_name") or "").strip() == target]
+    if len(cands_name) == 1:
+        return cands_name[0], ""
+    if len(cands_name) > 1:
+        return None, f"清单里有多条回路叫“{target}”，请用回路编号指定"
+    return None, f"清单里没有回路“{target}”"
+
+
 def validate_patch(patch, data: dict) -> tuple[list[dict], list[str]]:
     """只接受清单里真实存在且字段合法的修改，返回 (可用修改, 被拒绝的说明)。
 
@@ -159,12 +193,8 @@ def validate_patch(patch, data: dict) -> tuple[list[dict], list[str]]:
     circuits = data.get("circuits") or []
     boxes = data.get("boxes") or []
     extras = data.get("extra_devices") or []
+    uids = _circuit_uids(circuits)
 
-    by_no: dict = {}
-    for circuit in circuits:
-        for key in (circuit.get("circuit_no"), circuit.get("load_name")):
-            if key:
-                by_no.setdefault(key, circuit)
     box_by_code = {b.get("code"): b for b in boxes if b.get("code")}
 
     accepted, rejected = [], []
@@ -247,10 +277,11 @@ def validate_patch(patch, data: dict) -> tuple[list[dict], list[str]]:
                                  "old": box.get(field, ""), "new": parsed})
             continue
 
-        circuit = by_no.get(target)
-        if circuit is None:
-            rejected.append(f"清单里没有回路“{target}”")
+        circuit_idx, why = _resolve_circuit_target(circuits, target)
+        if circuit_idx is None:
+            rejected.append(why)
             continue
+        circuit = circuits[circuit_idx]
         field = str(item.get("field", "")).strip()
         value = str(item.get("value", "")).strip()
         if field not in EDITABLE_FIELDS:
@@ -262,7 +293,8 @@ def validate_patch(patch, data: dict) -> tuple[list[dict], list[str]]:
         if str(circuit.get(field, "")) == value:
             continue
         accepted.append({"scope": "circuit",
-                         "target": circuit.get("circuit_no") or circuit.get("load_name"),
+                         "target": uids[circuit_idx],
+                         "target_label": circuit.get("circuit_no") or circuit.get("load_name"),
                          "field": field, "old": circuit.get(field, ""), "new": value})
     return accepted, rejected
 
@@ -285,11 +317,8 @@ def _coerce(field: str, value):
 def apply_patch(data: dict, accepted: list[dict]) -> dict:
     """把通过校验的修改落到数据上，供后续走与手动编辑完全相同的保存路径。"""
     circuits = data.get("circuits") or []
-    by_no: dict = {}
-    for circuit in circuits:
-        for key in (circuit.get("circuit_no"), circuit.get("load_name")):
-            if key:
-                by_no.setdefault(key, circuit)
+    # 按唯一键 f"{box}#{index}" 定位，不再用 circuit_no/load_name 做键
+    by_uid = {f"{c.get('box', '')}#{i}": c for i, c in enumerate(circuits)}
     boxes = data.get("boxes") or []
     box_by_code = {b.get("code"): b for b in boxes if b.get("code")}
     extras = data.setdefault("extra_devices", [])
@@ -312,7 +341,7 @@ def apply_patch(data: dict, accepted: list[dict]) -> dict:
             if box is not None:
                 box[item["field"]] = item["new"]
         else:
-            target = by_no.get(item["target"])
+            target = by_uid.get(item["target"])
             if target is not None:
                 target[item["field"]] = item["new"]
     return data

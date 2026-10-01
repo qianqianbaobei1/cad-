@@ -58,12 +58,20 @@ class Uncertainty(BaseModel):
 
     @classmethod
     def from_text(cls, text: str) -> "Uncertainty":
-        """程序生成的告警只有一行文本，按“位置：问题”拆开，供界面分栏显示。"""
+        """程序生成的告警只有一行文本，按“位置：问题”拆开，供界面分栏显示。
+
+        旧 Excel 回读时已确认项带有"（已确认）"前缀（见 extractor/excel.py 的导出
+        写法）：识别并剥离该前缀，同时恢复 resolved=True，避免确认标记丢失。
+        """
         text = text.strip()
+        resolved = False
+        if text.startswith("（已确认）"):
+            resolved = True
+            text = text[len("（已确认）"):].strip()
         head, sep, tail = text.partition("：")
         if sep and len(head) <= 40:
-            return cls(location=head.strip(), detail=tail.strip())
-        return cls(location="", detail=text)
+            return cls(location=head.strip(), detail=tail.strip(), resolved=resolved)
+        return cls(location="", detail=text, resolved=resolved)
 
     @property
     def text(self) -> str:

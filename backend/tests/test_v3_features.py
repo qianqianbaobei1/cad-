@@ -189,15 +189,6 @@ class TestV3Features(unittest.TestCase):
         warning_found = any("偏小预警" in f["title"] or "过载" in f["detail"] for f in data_ai["findings"])
         self.assertTrue(warning_found, "AI 复核未能触发 22kW 电缆偏小预警")
 
-        # 1.5 验证存在未核对存疑时，默认导出触发 HTTP 409 门禁阻断
-        resp_409 = self.client.get(f"/api/jobs/{test_id}/excel")
-        self.assertEqual(resp_409.status_code, 409)
-        self.assertIn("待确认存疑", resp_409.json()["detail"])
-
-        # 验证带 force=true 可强制放行导出
-        resp_force = self.client.get(f"/api/jobs/{test_id}/excel?force=true")
-        self.assertEqual(resp_force.status_code, 200)
-
         # 2. 测试一键全部核对通过 (resolve_all)
         resp_all = self.client.post(f"/api/jobs/{test_id}/resolve_all")
         self.assertEqual(resp_all.status_code, 200)
@@ -209,6 +200,31 @@ class TestV3Features(unittest.TestCase):
         resp_excel = self.client.get(f"/api/jobs/{test_id}/excel")
         self.assertEqual(resp_excel.status_code, 200)
         self.assertIn("application/vnd.openxmlformats-officedocument", resp_excel.headers["content-type"])
+
+        # 4. 存疑未确认完导出必须 409（force=true 才放行）
+        test_id2 = "test_export409_" + uuid.uuid4().hex[:6]
+        jobs[test_id2] = {
+            "job_id": test_id2,
+            "filename": "测试图纸.dwg",
+            "status": "done",
+            "summary": {"title": "测试工程配电箱", "uncertainties": []},
+            "data": {
+                "boxes": [{"code": "1AL1", "name": "配电箱", "quantity": 1}],
+                "circuits": [],
+                "components": [],
+                "requirements": [],
+                "uncertainties": [
+                    {"location": "WL1", "detail": "电缆敷设方式未注明确切管径", "resolved": False},
+                ],
+            },
+            "changes": []
+        }
+        save_job(test_id2)
+        resp_409 = self.client.get(f"/api/jobs/{test_id2}/excel")
+        self.assertEqual(resp_409.status_code, 409, "有未确认存疑时导出应返回 409")
+        self.assertEqual(resp_409.json()["detail"]["unresolved_count"], 1)
+        resp_force = self.client.get(f"/api/jobs/{test_id2}/excel?force=true")
+        self.assertEqual(resp_force.status_code, 200, "force=true 时应放行导出")
 
 
 if __name__ == "__main__":

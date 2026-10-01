@@ -9,7 +9,7 @@ import shutil
 from datetime import datetime
 
 from fastapi import (FastAPI, UploadFile, File, Form, BackgroundTasks,
-                     HTTPException)
+                     HTTPException, Query)
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from extractor.render import plan_tiles, render_pdf
@@ -43,6 +43,16 @@ IN_PROGRESS = {"queued", "rendering", "extracting", "building_excel"}
 
 def job_file(job_id: str) -> str:
     return os.path.join(WORKDIR, f"{job_id}.json")
+
+
+_JOB_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+def _validate_job_id(job_id: str) -> str:
+    """job_id 合法性校验：含 .. / 或非法字符时直接 400，阻止路径穿越拼进文件路径。"""
+    if not _JOB_ID_RE.fullmatch(job_id or ""):
+        raise HTTPException(400, "非法任务ID")
+    return job_id
 
 
 def save_job(job_id: str) -> None:
@@ -369,7 +379,7 @@ def _legacy_raw(data: dict) -> tuple[dict, list, list]:
     try:
         derived = assemble(RawExtraction.model_validate(skeleton))
     except Exception:  # noqa: BLE001 - 旧数据形状异常时宁可不反推
-        fallback = [Uncertainty(**{k: v for k, v in u.items() if k != "resolved"})
+        fallback = [Uncertainty(**{k: v for k, v in u.items() if k in Uncertainty.model_fields})
                     for u in data.get("uncertainties", [])]
         return ({**skeleton, "uncertainties": data.get("uncertainties", [])},
                 fallback, data.get("components", []))
@@ -393,6 +403,16 @@ def _legacy_raw(data: dict) -> tuple[dict, list, list]:
 
     # 重复保存时旧告警会叠进 xlsx，这里再排一次重
     seen, model_items = set(), []
+    # 旧 xlsx 回读时恢复"已确认"标记：from_text 已识别"（已确认）"前缀并置
+    # resolved=True；但下面重跑 assemble 会按文本重建 uncertainties，这里先按
+    # 文本记住哪些是已确认的，重建后再挂回去。
+    resolved_by_text = set()
+    for item in data.get("uncertainties", []):
+        if item.get("resolved"):
+            t = (item["location"] + "：" + item["detail"] if item.get("location")
+                 else item.get("detail", "")).strip()
+            if t:
+                resolved_by_text.add(t)
     for item in data.get("uncertainties", []):
         text = item["location"] + "：" + item["detail"] if item.get("location") else item.get("detail", "")
         if text.strip() in regenerated or text in seen or not text.strip():
@@ -415,6 +435,11 @@ def _legacy_raw(data: dict) -> tuple[dict, list, list]:
             known.add(parsed.text)
             parsed.source = "program"
             replayed.uncertainties.append(parsed)
+
+    # 把回读时记住的"已确认"标记挂回重建后的 uncertainties
+    for u in replayed.uncertainties:
+        if u.text.strip() in resolved_by_text:
+            u.resolved = True
 
     return ({**skeleton, "extra_devices": extra_devices, "uncertainties": model_items},
             replayed.uncertainties, replayed.components)
@@ -618,6 +643,7 @@ def create_job(background: BackgroundTasks, file: UploadFile = File(...),
 
 @app.get("/api/jobs/{job_id}")
 def job_status(job_id: str):
+    _validate_job_id(job_id)
     job = load_job_cached(job_id)
     if not job:
         raise HTTPException(404, "任务不存在")
@@ -626,6 +652,7 @@ def job_status(job_id: str):
 
 @app.get("/api/jobs/{job_id}/page/{page_num}")
 def get_page_image(job_id: str, page_num: int = 1):
+    _validate_job_id(job_id)
     img_path = os.path.join(WORKDIR, f"{job_id}.pdf.page{page_num}.png")
     if not os.path.exists(img_path):
         p1 = os.path.join(WORKDIR, f"{job_id}.pdf.page1.png")
@@ -666,6 +693,7 @@ class RegionParseRequest(BaseModel):
 @app.post("/api/jobs/{job_id}/parse_region")
 def parse_region(job_id: str, req: RegionParseRequest):
     """用户在图纸上框选局部区域，实时高清裁切并解析元器件与回路。"""
+    _validate_job_id(job_id)
     job = load_job_cached(job_id)
     if not job:
         raise HTTPException(404, "任务不存在")
@@ -771,8 +799,12 @@ def parse_region(job_id: str, req: RegionParseRequest):
 
 @app.get("/api/jobs/{job_id}/crop/{crop_name}")
 def get_crop_image(job_id: str, crop_name: str):
+    _validate_job_id(job_id)
     if not re.match(r"^[a-zA-Z0-9_-]+\.png$", crop_name):
         raise HTTPException(400, "非法文件名")
+    # 归属校验：裁切图文件名固定为 {job_id}_crop_{id}.png，不属于该任务的不暴露
+    if not crop_name.startswith(f"{job_id}_crop_"):
+        raise HTTPException(404, "裁切图片不属于该任务")
     path = os.path.join(WORKDIR, crop_name)
     if not os.path.exists(path):
         raise HTTPException(404, "裁切图片不存在")
@@ -893,6 +925,7 @@ def persist_job_data(job_id: str, job: dict, data: dict,
 
 @app.put("/api/jobs/{job_id}/data")
 def update_job_data(job_id: str, req: JobDataUpdateRequest):
+    _validate_job_id(job_id)
     job = load_job_cached(job_id)
     if not job:
         raise HTTPException(404, "任务不存在")
@@ -915,6 +948,7 @@ class ChatRequest(BaseModel):
 @app.post("/api/jobs/{job_id}/chat")
 def job_chat(job_id: str, req: ChatRequest):
     """助手问答：模型只做判断和措辞，改哪一条、字段是否合法由这里按清单校验。"""
+    _validate_job_id(job_id)
     job = load_job_cached(job_id)
     if not job:
         raise HTTPException(404, "任务不存在")
@@ -984,6 +1018,7 @@ def job_chat(job_id: str, req: ChatRequest):
 @app.post("/api/jobs/{job_id}/resolve_all")
 def resolve_all_uncertainties(job_id: str):
     """一键确认全部待核对存疑项，直接放行导出。"""
+    _validate_job_id(job_id)
     job = load_job_cached(job_id)
     if not job:
         raise HTTPException(404, "任务不存在")
@@ -1016,6 +1051,7 @@ def ai_deep_review(job_id: str):
     3. 进线保护、二次控制与成套常见漏项预警；
     4. 生成结构化复核报告并落盘。
     """
+    _validate_job_id(job_id)
     job = load_job_cached(job_id)
     if not job:
         raise HTTPException(404, "任务不存在")
@@ -1051,11 +1087,22 @@ def ai_deep_review(job_id: str):
                 reasons = ai_res.get("reasons") or {}
                 advice = ai_res.get("engineering_advice") or []
 
+                def _norm_txt(s):
+                    return re.sub(r"\s+", "", str(s or ""))
+
                 for u in unresolved:
                     loc = u.get("location", "")
                     txt = u.get("text", "")
-                    matched = any(t in loc or t in txt or loc in t for t in resolved_targets if isinstance(t, str))
-                    if matched or (len(resolved_targets) > 0 and "全部" in str(ai_res)):
+                    detail = u.get("detail", "")
+                    # 精确匹配：AI 返回的 target 必须与存疑的 location/text/detail
+                    # 去空格后完全相等。禁止双向子串匹配（"WL1" 不能命中 "WL10"），
+                    # 禁止"全部"二字消除所有（宁可标疑、不许编造）。
+                    n_loc, n_txt, n_detail = _norm_txt(loc), _norm_txt(txt), _norm_txt(detail)
+                    matched = any(
+                        isinstance(t, str) and _norm_txt(t) and _norm_txt(t) in (n_loc, n_txt, n_detail)
+                        for t in resolved_targets
+                    )
+                    if matched:
                         reason_str = reasons.get(loc) or reasons.get(txt) or "AI经CAD图纸上下文与工程规范核对无误"
                         u["resolved"] = True
                         u["detail"] = ((u.get("detail", "") or "") + f" 【AI深度复核通过: {reason_str}】").strip()
@@ -1068,14 +1115,28 @@ def ai_deep_review(job_id: str):
             print(f"[ai_review] 大模型调用降级: {e}")
 
     # 2. 工程启发式规则兜底与深度电气安全核查
+    # 只允许消除"断路器/开关规格"主题的存疑，且回路编号必须精确匹配：
+    # "电缆敷设方式不明"等问题不得以"断路器规格有效"为由消除。
+    _BREAKER_TOPIC = ("断路器", "开关", "规格", "breaker")
     for u in unresolved:
         if u.get("resolved"):
             continue
-        detail = u.get("detail", "")
-        loc = u.get("location", "")
-        matched_cir = next((c for c in circuits if c.get("circuit_no") in f"{loc} {detail}"), None)
+        detail = str(u.get("detail", "") or "")
+        loc = str(u.get("location", "") or "")
+        if not any(k in detail or k in loc for k in _BREAKER_TOPIC):
+            continue
+        hay = f"{loc} {detail}"
+        matched_cir = None
+        for c in circuits:
+            no = str(c.get("circuit_no") or "").strip()
+            if not no:
+                continue
+            # 精确匹配：编号前后不能紧邻字母数字（"WL1" 不应命中 "WL10"）
+            if re.search(r"(?<![A-Za-z0-9])" + re.escape(no) + r"(?![A-Za-z0-9])", hay):
+                matched_cir = c
+                break
         if matched_cir:
-            brk = matched_cir.get("breaker", "")
+            brk = str(matched_cir.get("breaker", "") or "")
             if any(k in brk.upper() for k in ["C65", "IC65", "NM1", "DZ47", "C16", "C20", "C25", "C32"]) and any(p in brk for p in ["1P", "2P", "3P", "4P"]):
                 u["resolved"] = True
                 u["detail"] = ((u.get("detail", "") or "") + " 【规则引擎复核: 断路器型号规格完整有效，已判定通过】").strip()
@@ -1136,19 +1197,27 @@ def ai_deep_review(job_id: str):
 
 @app.get("/api/jobs/{job_id}/excel")
 def job_excel(job_id: str, target_brand: str = "正泰", force: bool = False):
+    _validate_job_id(job_id)
     job = load_job_cached(job_id) or {}
     if not job:
         raise HTTPException(404, "任务不存在")
 
     data = job.get("data") or {}
-    uncertainties = data.get("uncertainties", []) or (job.get("summary") or {}).get("uncertainties", [])
-    unresolved = [u for u in uncertainties if not (u.get("resolved") if isinstance(u, dict) else getattr(u, "resolved", False))]
-    if unresolved and not force:
+    # 存疑未确认完不许导出（宁可标疑、不许编造）：未 resolved 的存疑存在且
+    # 未显式 force 时返回 409，不生成 Excel。force=True 为用户明确担责放行。
+    unresolved_list = [u for u in (data.get("uncertainties") or []) if not u.get("resolved")]
+    if unresolved_list and not force:
         raise HTTPException(
             status_code=409,
-            detail=f"存在 {len(unresolved)} 项待确认存疑，请先人工核对确认或传参 force=true 强制导出"
+            detail={
+                "message": f"还有 {len(unresolved_list)} 处存疑未确认，无法导出",
+                "unresolved_count": len(unresolved_list),
+                "unresolved": [
+                    {"location": u.get("location", ""), "detail": u.get("detail", "")}
+                    for u in unresolved_list
+                ],
+            },
         )
-
     xlsx = os.path.join(WORKDIR, f"{job_id}_{target_brand}.xlsx")
     result = ExtractionResult(
         title=(job.get("summary") or {}).get("title") or "配电箱元器件清单(报价用)",
@@ -1199,6 +1268,7 @@ def _extra_key(item: dict) -> str:
 @app.post("/api/jobs/{job_id}/revert")
 def revert_change(job_id: str, req: RevertRequest):
     """撤销一条修改记录。同一字段之后又改过时拒绝，避免覆盖更新的值。"""
+    _validate_job_id(job_id)
     job = load_job_cached(job_id)
     if not job:
         raise HTTPException(404, "任务不存在")
@@ -1295,6 +1365,7 @@ class SheetRenameRequest(BaseModel):
 @app.post("/api/jobs/{job_id}/rename_sheet")
 def rename_job_sheet(job_id: str, req: SheetRenameRequest):
     """自定义重命名指定切图图块并持久化。"""
+    _validate_job_id(job_id)
     job = load_job_cached(job_id)
     if not job:
         raise HTTPException(404, "任务不存在")
@@ -1551,6 +1622,7 @@ def put_settings(req: SettingsRequest):
 @app.get("/api/jobs/{job_id}/replacements")
 def get_job_replacements(job_id: str, target_brand: str = "正泰"):
     """一键国产化平替测算：分析图纸中的外资/竞品元器件并推荐高性价比替代型号。"""
+    _validate_job_id(job_id)
     job = load_job_cached(job_id)
     if not job:
         raise HTTPException(404, "任务不存在")
