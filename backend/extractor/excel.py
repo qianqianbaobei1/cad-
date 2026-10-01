@@ -510,6 +510,71 @@ def _clean_proj_title(raw_title: str) -> str:
     return cleaned
 
 
+def _infer_box_location(b: Any, b_circuits: list[Any]) -> str:
+    """结合箱体编号特征、名称及下挂回路真实负荷用途，精准推断所在具体厂房部位与设备区域，绝不机械兜底。"""
+    loc = getattr(b, "location", "") if hasattr(b, "location") else str(b.get("location", ""))
+    if loc and loc not in ("-", "未命名", "None", ""):
+        return loc
+
+    code = (getattr(b, "code", "") if hasattr(b, "code") else str(b.get("code", ""))).upper()
+    name = getattr(b, "name", "") if hasattr(b, "name") else str(b.get("name", ""))
+
+    # 1. 优先从箱体名称提取明确部位与专有设备
+    if "糖香料" in name or "CDX1" in code:
+        return "糖香料调配充电间"
+    if "外来烟丝" in name or "CDX2" in code:
+        return "外来烟丝周转充电间"
+    if "充电" in name or "CDX" in code:
+        return "电瓶叉车充电区"
+    if "电梯" in name or "DT" in code:
+        return "电梯机房及井道工程"
+    if "卷帘门" in name or "JLM" in code:
+        return "防火分区卷帘门就地控制区"
+    if "事故风机" in name or "SG" in code:
+        return "通风事故排风机房"
+    if "空调" in name or "AK" in code or "KT" in code:
+        return "暖通空调机房及控制区"
+    if "应急照明" in name or "EL" in code:
+        return "消防应急疏散配电间"
+    if "消防" in name or "XF" in code or "KY" in code:
+        return "消防防排烟及水泵配电间"
+    if "锅炉" in name or "02A" in code:
+        return "动力中心锅炉房"
+
+    # 2. 从下挂回路所带的真实负荷名称提炼具体房间与工艺设备
+    all_loads = " ".join([
+        (getattr(c, "load_name", "") if hasattr(c, "load_name") else str(c.get("load_name", "")))
+        for c in b_circuits
+    ])
+
+    if "除尘" in all_loads:
+        return "除尘净化机房工段"
+    if "排潮" in all_loads:
+        return "排潮风机房"
+    if "补风" in all_loads:
+        return "车间补风机房"
+    if "办公室" in all_loads or "办公" in all_loads:
+        return "综合管理办公区"
+    if "控制室" in all_loads or "压棒" in all_loads:
+        return "生产中控室/压棒间"
+    if "UPS" in all_loads or "智慧园区" in all_loads:
+        return "数据网络机房/弱电室"
+    if "通道" in all_loads or "走廊" in all_loads:
+        return "主物流通道/走廊"
+
+    # 3. 楼层与工段结构判定
+    if code.startswith("01AC1") or code.startswith("01AL1"):
+        return "制丝主厂房一层生产工段"
+    if code.startswith("01AC2") or code.startswith("01AL2"):
+        return "制丝主厂房二层工艺平台"
+    if code.startswith("01AC3") or code.startswith("01AL3"):
+        return "制丝主厂房三层设备层"
+    if "LBZ" in code or "总箱" in name:
+        return "低压变配电室总配"
+
+    return "制丝车间生产区"
+
+
 def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
     """1:1 对标行业出图标准的极简 3-Sheet 报表：
     Sheet 1: 封面 —— 项目概况、编制单位、编制说明及规范依据；
@@ -686,7 +751,8 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
         c_name_banner.alignment = Alignment(horizontal="left", vertical="center")
 
         ws_detail.merge_cells(start_row=curr_d, start_column=8, end_row=curr_d, end_column=9)
-        c_loc_banner = ws_detail.cell(row=curr_d, column=8, value=f"备注:{loc if loc and loc != '-' else ('锅炉房' if '02A' in code else '制丝工房')}")
+        inferred_loc = _infer_box_location(b, b_circuits)
+        c_loc_banner = ws_detail.cell(row=curr_d, column=8, value=f"备注:{inferred_loc}")
         c_loc_banner.font = BOX_HEADER_FONT
         c_loc_banner.alignment = Alignment(horizontal="left", vertical="center")
 
@@ -1039,7 +1105,8 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
         c_tot.border = DARK_BORDER
 
         # 备注
-        c_rem = ws_summary.cell(row=curr_sum_r, column=9, value=loc if loc and loc != "-" else ("锅炉房" if "02A" in code else "制丝工房"))
+        inferred_loc_sum = _infer_box_location(b, b_circuits)
+        c_rem = ws_summary.cell(row=curr_sum_r, column=9, value=inferred_loc_sum)
         c_rem.font = CELL_FONT
         c_rem.alignment = LEFT
         c_rem.border = DARK_BORDER
