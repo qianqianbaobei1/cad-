@@ -389,7 +389,7 @@ class VisionProvider:
                     repaired = repair_truncated_json(raw_text)
                     if repaired:
                         raw_ext = RawExtraction.model_validate(repaired)
-                        u = Uncertainty.from_text("系统告警：该图纸/切块元器件数量密集，模型输出触及长度上限，系统已自动自愈截断并保留全部已识别元器件")
+                        u = Uncertainty.from_text("系统告警：图纸元器件密集导致模型输出触及长度上限截断，已恢复前半部分有效数据，但尾部回路存在缺失！请采用局部裁切解析重试，切勿直接用于工程决算")
                         u.source = "program"
                         raw_ext.uncertainties.append(u)
                         return raw_ext
@@ -407,7 +407,7 @@ class VisionProvider:
                         repaired = repair_truncated_json(raw_text)
                         if repaired:
                             raw_ext = RawExtraction.model_validate(repaired)
-                            u = Uncertainty.from_text("系统告警：模型输出长度受限，系统已最大化保全已提取事实")
+                            u = Uncertainty.from_text("系统告警：图纸元器件密集导致模型输出触及长度上限截断，已恢复前半部分有效数据，但尾部回路存在缺失！请采用局部裁切解析重试，切勿直接用于工程决算")
                             u.source = "program"
                             raw_ext.uncertainties.append(u)
                             return raw_ext

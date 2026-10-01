@@ -88,19 +88,6 @@ def _estimate_box_costs(box: Any, box_circuits: list[Any], box_components: list[
             "quantity": _val(comp, "quantity", 1),
         })
 
-    # 领域智能推断：双电源箱柜(AT* / ALE*)若进线漏标ATS，依据容量自动补入双电源切换开关
-    code_upper = b_dict["box_code"].upper()
-    name_upper = b_dict["box_name"].upper()
-    is_dual = code_upper.startswith("AT") or code_upper.startswith("ALE") or "双电源" in name_upper or "应急" in name_upper
-    has_ats = any("ATS" in c.get("breaker_spec", "").upper() for c in circ_dicts) or any("ATS" in comp.get("spec", "").upper() for comp in comp_dicts)
-    if is_dual and not has_ats:
-        main_a = 160 if ("160" in code_upper or len(circ_dicts) > 15) else (100 if len(circ_dicts) > 6 else 63)
-        comp_dicts.append({
-            "name": "双电源自动转换开关",
-            "spec": f"ATS-4P-{main_a}A",
-            "quantity": 1,
-        })
-
     q = calculate_box_quotation(b_dict, circ_dicts, comp_dicts, brand="正泰")
     cb = q["cost_breakdown"]
     return {
@@ -388,8 +375,8 @@ def _fill_quotation_summary_sheet(ws, project_title: str, boxes: list[Any], circ
         qty = getattr(b, "quantity", 1) if hasattr(b, "quantity") else (b.get("quantity", 1) or 1)
         qty_num = int(qty) if float(qty) == int(qty) else qty
 
-        # 箱柜型号规范显示
-        box_model = size if size and size != "-" else ("GGD(落地)" if "落地" in install or "柜" in name else "XM(标准)")
+        # 箱柜型号：严格以图纸提取数据为准，不编造 XM(标准)
+        box_model = size if size and size != "-" else ""
 
         b_circuits = circuits_by_box.get(code, [])
         b_comps = comps_by_box.get(code, [])
@@ -511,7 +498,7 @@ def _clean_proj_title(raw_title: str) -> str:
 
 
 def _infer_box_location(b: Any, b_circuits: list[Any]) -> str:
-    """结合箱体编号特征、名称及下挂回路真实负荷用途，精准推断所在具体厂房部位与设备区域，绝不机械兜底。"""
+    """结合箱体编号特征、名称及下挂回路真实负荷用途推断安装部位或所属区域，绝不机械兜底。"""
     loc = getattr(b, "location", "") if hasattr(b, "location") else str(b.get("location", ""))
     if loc and loc not in ("-", "未命名", "None", ""):
         return loc
@@ -520,26 +507,26 @@ def _infer_box_location(b: Any, b_circuits: list[Any]) -> str:
     name = getattr(b, "name", "") if hasattr(b, "name") else str(b.get("name", ""))
 
     # 1. 优先从箱体名称提取明确部位与专有设备
-    if "糖香料" in name or "CDX1" in code:
-        return "糖香料调配充电间"
-    if "外来烟丝" in name or "CDX2" in code:
-        return "外来烟丝周转充电间"
-    if "充电" in name or "CDX" in code:
+    if "糖香料" in name:
+        return "糖香料调配间"
+    if "外来烟丝" in name:
+        return "外来烟丝周转间"
+    if "充电" in name:
         return "电瓶叉车充电区"
-    if "电梯" in name or "DT" in code:
-        return "电梯机房及井道工程"
-    if "卷帘门" in name or "JLM" in code:
-        return "防火分区卷帘门就地控制区"
-    if "事故风机" in name or "SG" in code:
+    if "电梯" in name:
+        return "电梯机房及井道"
+    if "卷帘门" in name:
+        return "防火卷帘门就地控制区"
+    if "事故风机" in name:
         return "通风事故排风机房"
-    if "空调" in name or "AK" in code or "KT" in code:
-        return "暖通空调机房及控制区"
-    if "应急照明" in name or "EL" in code:
-        return "消防应急疏散配电间"
-    if "消防" in name or "XF" in code or "KY" in code:
+    if "空调" in name:
+        return "暖通空调机房"
+    if "应急照明" in name:
+        return "应急疏散照明配电区"
+    if "消防" in name:
         return "消防防排烟及水泵配电间"
-    if "锅炉" in name or "02A" in code:
-        return "动力中心锅炉房"
+    if "锅炉" in name:
+        return "锅炉房"
 
     # 2. 从下挂回路所带的真实负荷名称提炼具体房间与工艺设备
     all_loads = " ".join([
@@ -548,31 +535,29 @@ def _infer_box_location(b: Any, b_circuits: list[Any]) -> str:
     ])
 
     if "除尘" in all_loads:
-        return "除尘净化机房工段"
+        return "除尘机房工段"
     if "排潮" in all_loads:
         return "排潮风机房"
     if "补风" in all_loads:
         return "车间补风机房"
     if "办公室" in all_loads or "办公" in all_loads:
         return "综合管理办公区"
-    if "控制室" in all_loads or "压棒" in all_loads:
-        return "生产中控室/压棒间"
-    if "UPS" in all_loads or "智慧园区" in all_loads:
+    if "控制室" in all_loads:
+        return "生产中控室"
+    if "UPS" in all_loads or "弱电" in all_loads:
         return "数据网络机房/弱电室"
     if "通道" in all_loads or "走廊" in all_loads:
-        return "主物流通道/走廊"
+        return "主通道/走廊"
 
-    # 3. 楼层与工段结构判定
-    if code.startswith("01AC1") or code.startswith("01AL1"):
-        return "制丝主厂房一层生产工段"
-    if code.startswith("01AC2") or code.startswith("01AL2"):
-        return "制丝主厂房二层工艺平台"
-    if code.startswith("01AC3") or code.startswith("01AL3"):
-        return "制丝主厂房三层设备层"
-    if "LBZ" in code or "总箱" in name:
-        return "低压变配电室总配"
+    # 3. 楼层与结构判定（如 2SAL2 -> 2层配电区）
+    floor_m = re.match(r"^([0-9]{1,2})[A-Za-z]", code)
+    if floor_m:
+        flr = floor_m.group(1).lstrip("0")
+        if flr:
+            return f"{flr}层配电区"
 
-    return "制丝车间生产区"
+    # 若图纸无任何信息，如实填空字符串，绝不机械编造任何车间或锅炉房
+    return ""
 
 
 def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
@@ -727,6 +712,7 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
         name = getattr(b, "name", "") if hasattr(b, "name") else str(b.get("name", "配电箱"))
         size = getattr(b, "size", "") if hasattr(b, "size") else str(b.get("size", ""))
         loc = getattr(b, "location", "") if hasattr(b, "location") else str(b.get("location", ""))
+        install = getattr(b, "install", "") if hasattr(b, "install") else str(b.get("install", ""))
         qty = getattr(b, "quantity", 1) if hasattr(b, "quantity") else (b.get("quantity", 1) or 1)
         qty_num = int(qty) if float(qty) == int(qty) else qty
         b_circuits = circuits_by_box.get(code, [])
@@ -776,7 +762,7 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
         start_item_row = curr_d
         item_seq = 1
 
-        # A. 进线主控器件（隔离开关或塑壳/微断）
+        # A. 进线主控器件（仅当图纸真实提取到进线开关时输出，坚决不无中生有）
         incomer_circuit = None
         for c in b_circuits:
             c_no = getattr(c, "circuit_no", "") if hasattr(c, "circuit_no") else str(c.get("circuit_no", ""))
@@ -788,25 +774,24 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
         incomer_spec = ""
         if incomer_circuit:
             incomer_spec = getattr(incomer_circuit, "breaker", "") if hasattr(incomer_circuit, "breaker") else str(incomer_circuit.get("breaker", ""))
-        if not incomer_spec:
-            incomer_spec = "C9 SW 3P 63A" if len(b_circuits) <= 12 else "C9 SW 3P 100A"
 
-        incomer_name = "微型隔离开关" if "SW" in incomer_spec or "隔离" in incomer_spec else ("塑壳断路器" if any(k in incomer_spec for k in ["MCCB", "100A", "160A", "250A"]) else "微型断路器")
-        u_p, _, _ = calculate_component_unit_price(incomer_spec, brand="施耐德")
-        u_p = round(max(u_p, 86.50), 2)
-        vals_inc = [item_seq, incomer_name, incomer_spec, "只", 1, u_p, u_p, "施耐德电气", ""]
-        for j, v in enumerate(vals_inc, start=1):
-            cell = ws_detail.cell(row=curr_d, column=j, value=v)
-            cell.font = CELL_FONT
-            cell.border = DARK_BORDER
-            cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
-            if j in (6, 7):
-                cell.number_format = "#,##0.00"
-        ws_detail.row_dimensions[curr_d].height = 22
-        curr_d += 1
-        item_seq += 1
+        if incomer_spec and incomer_spec != "-":
+            incomer_name = "微型隔离开关" if "SW" in incomer_spec or "隔离" in incomer_spec else ("塑壳断路器" if any(k in incomer_spec for k in ["MCCB", "100A", "160A", "250A"]) else "微型断路器")
+            u_p, _, _ = calculate_component_unit_price(incomer_spec, brand="施耐德")
+            u_p = round(u_p, 2)
+            vals_inc = [item_seq, incomer_name, incomer_spec, "只", 1, u_p, u_p, "施耐德电气", "进线主控"]
+            for j, v in enumerate(vals_inc, start=1):
+                cell = ws_detail.cell(row=curr_d, column=j, value=v)
+                cell.font = CELL_FONT
+                cell.border = DARK_BORDER
+                cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
+                if j in (6, 7):
+                    cell.number_format = "#,##0.00"
+            ws_detail.row_dimensions[curr_d].height = 22
+            curr_d += 1
+            item_seq += 1
 
-        # B. 出线分支断路器
+        # B. 出线分支断路器（忠于图纸：若图纸缺失规格如实标 -，绝不凭空生造 C20A+ELE）
         for cir in b_circuits:
             c_no = getattr(cir, "circuit_no", "") if hasattr(cir, "circuit_no") else str(cir.get("circuit_no", ""))
             c_load = getattr(cir, "load_name", "") if hasattr(cir, "load_name") else str(cir.get("load_name", ""))
@@ -815,18 +800,23 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
 
             brk = getattr(cir, "breaker", "") if hasattr(cir, "breaker") else str(cir.get("breaker", ""))
             if not brk or brk == "-":
-                brk = "C9 2P C20A 6kA+ELE 30mA"
-
-            if any(k in brk.upper() for k in ["LE", "VM", "RCBO", "ELE", "30MA", "漏电"]):
-                dev_name = "微型漏电断路器"
-            elif any(k in brk.upper() for k in ["MCCB", "NM", "NSX", "160A", "250A"]):
-                dev_name = "塑壳断路器"
+                dev_name = "出线断路器(待明确)"
+                brk_display = "-"
+                u_p = 0.0
+                note_brk = "图纸未标断路器型号"
             else:
-                dev_name = "微型断路器"
+                brk_display = brk
+                note_brk = ""
+                if any(k in brk.upper() for k in ["LE", "VM", "RCBO", "ELE", "30MA", "漏电"]):
+                    dev_name = "微型漏电断路器"
+                elif any(k in brk.upper() for k in ["MCCB", "NM", "NSX", "160A", "250A"]):
+                    dev_name = "塑壳断路器"
+                else:
+                    dev_name = "微型断路器"
+                u_p, _, _ = calculate_component_unit_price(brk, brand="施耐德")
+                u_p = round(u_p, 2) if u_p > 0 else 0.0
 
-            u_p, _, _ = calculate_component_unit_price(brk, brand="施耐德")
-            u_p = round(max(u_p, 15.08), 2)
-            c_vals = [item_seq, dev_name, brk, "只", 1, u_p, u_p, "施耐德电气", ""]
+            c_vals = [item_seq, dev_name, brk_display, "只", 1, u_p, u_p, "施耐德电气" if u_p > 0 else "-", note_brk]
             for j, v in enumerate(c_vals, start=1):
                 cell = ws_detail.cell(row=curr_d, column=j, value=v)
                 cell.font = CELL_FONT
@@ -838,31 +828,38 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
             curr_d += 1
             item_seq += 1
 
-        # C. 箱内电涌保护器 SPD
+        # C. 箱内电涌保护器 SPD（仅当图纸中该箱体明确存在 SPD / 浪涌器件时才输出，绝不强制无脑追加）
         spd_comp = None
         for cp in b_comps:
             c_spec = getattr(cp, "spec", "") if hasattr(cp, "spec") else str(cp.get("spec", ""))
-            if "SPD" in c_spec.upper() or "浪涌" in c_spec or "DZ47" in c_spec:
+            c_name = getattr(cp, "name", "") if hasattr(cp, "name") else str(cp.get("name", ""))
+            if "SPD" in c_spec.upper() or "浪涌" in c_spec or "电涌" in c_name or "避雷" in c_name or "DZ47" in c_spec:
                 spd_comp = cp
                 break
-        spd_spec = (getattr(spd_comp, "spec", "") if spd_comp else "") or "DZ47sY-II 40kA 4P 385V 新"
-        vals_spd = [item_seq, "电涌保护器", spd_spec, "只", 1, 90.62, 90.62, "德力西电气", ""]
-        for j, v in enumerate(vals_spd, start=1):
-            cell = ws_detail.cell(row=curr_d, column=j, value=v)
-            cell.font = CELL_FONT
-            cell.border = DARK_BORDER
-            cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
-            if j in (6, 7):
-                cell.number_format = "#,##0.00"
-        ws_detail.row_dimensions[curr_d].height = 22
-        curr_d += 1
-        item_seq += 1
 
-        # D. 壳体外壳
+        if spd_comp:
+            spd_spec = getattr(spd_comp, "spec", "") if hasattr(spd_comp, "spec") else str(spd_comp.get("spec", ""))
+            spd_name = getattr(spd_comp, "name", "") if hasattr(spd_comp, "name") else str(spd_comp.get("name", "电涌保护器"))
+            u_p, _, _ = calculate_component_unit_price(spd_spec or "SPD-4P-40kA", brand="德力西")
+            u_p = round(u_p, 2)
+            vals_spd = [item_seq, spd_name, spd_spec, "只", 1, u_p, u_p, "德力西电气", ""]
+            for j, v in enumerate(vals_spd, start=1):
+                cell = ws_detail.cell(row=curr_d, column=j, value=v)
+                cell.font = CELL_FONT
+                cell.border = DARK_BORDER
+                cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
+                if j in (6, 7):
+                    cell.number_format = "#,##0.00"
+            ws_detail.row_dimensions[curr_d].height = 22
+            curr_d += 1
+            item_seq += 1
+
+        # D. 壳体外壳（严格依据图纸尺寸或安装类型，绝不生造 XM(标准)）
         b_box_dict = b.model_dump() if hasattr(b, "model_dump") else (b if isinstance(b, dict) else vars(b))
         enclosure_p, _ = estimate_box_enclosure_price(b_box_dict, len(b_circuits))
-        enclosure_p = round(max(enclosure_p, 457.06), 2)
-        vals_shell = [item_seq, "壳体", size if size and size != '-' else "标准配电箱外壳", "台", 1, enclosure_p, enclosure_p, "成套定制", ""]
+        enclosure_p = round(enclosure_p, 2)
+        shell_spec = size if size and size != '-' else ("配电柜体" if "落地" in install or "柜" in name else "配电箱体")
+        vals_shell = [item_seq, "壳体", shell_spec, "台", 1, enclosure_p, enclosure_p, "成套定制", ""]
         for j, v in enumerate(vals_shell, start=1):
             cell = ws_detail.cell(row=curr_d, column=j, value=v)
             cell.font = CELL_FONT
@@ -1042,7 +1039,7 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str):
         qty = getattr(b, "quantity", 1) if hasattr(b, "quantity") else (b.get("quantity", 1) or 1)
         qty_num = int(qty) if float(qty) == int(qty) else qty
 
-        box_model = size if size and size != "-" else ("GGD(落地)" if "落地" in install or "总箱" in name else "")
+        box_model = size if size and size != "-" else ""
 
         # 序号：带超链接直达分项表对应卡片
         seq_val = seq_base + (i - 1)

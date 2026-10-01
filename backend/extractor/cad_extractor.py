@@ -36,8 +36,13 @@ RE_BREAKER_FALLBACK = re.compile(
 )
 
 PANEL_CODE_PATTERN = re.compile(
-    r"(?<![A-Za-z0-9\-])(?:消防)?(01[A-Za-z][A-Za-z0-9\-]+|CDX[0-9\-]+|JLM[0-9\-]+)(?![A-Za-z0-9])"
+    r"(?<![A-Za-z0-9\-])(?:消防)?("
+    r"[0-9]{1,2}(?:SAL|ALE|AL|AP|AT|AC|AK|DT|LB|SG|EL|KT|KY|PM|XF)[A-Za-z0-9\-_/]*|"
+    r"(?:SAL|ALE|AL|AP|AT|AC|AK|DT|LB|SG|EL|KT|KY|PM|XF|AW|CDX|JLM)[0-9]{1,3}[A-Za-z0-9\-_/]*"
+    r")(?![A-Za-z0-9])",
+    re.I
 )
+EXCLUDE_CODE_PATTERN = re.compile(r"^(GB\d+|JGJ\d+|[0-9]{2}(?:D\d{3}|DX\d+)|.*SD-|\d{6,}|图号|S\d+-\d+)", re.I)
 
 GENERIC_DISCARD_TERMS = {
     "控制箱", "配电箱", "动力箱", "照明箱", "照明配电箱", "动力配电箱", "排烟风机控制箱",
@@ -125,7 +130,7 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
         m = PANEL_CODE_PATTERN.search(t)
         if m:
             code = m.group(1).upper()
-            if code in GENERIC_DISCARD_TERMS:
+            if code in GENERIC_DISCARD_TERMS or EXCLUDE_CODE_PATTERN.search(code):
                 continue
             # 判断是否为箱体标头
             is_header = (

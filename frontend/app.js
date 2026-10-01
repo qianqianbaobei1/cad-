@@ -1647,12 +1647,12 @@ function openExport() {
         <button class="btn ghost sm" onclick="closeExport()">取消</button>
         <button class="btn sm" onclick="triggerAiReviewAndExport()" title="让 AI 全盘复核并消除存疑后立即导出" style="background:#4f46e5;color:#fff;border:none">🤖 AI复核并导出</button>
         <button class="btn primary sm" onclick="resolveAllAndExport()" title="一键将剩余 ${un} 处待核对项全部标记为已确认并直接下载" style="background:#16a34a;border:none">✅ 一键确认并导出</button>
-        <button class="btn ghost sm" onclick="doExport()" title="保留存疑项记录，不阻断直接下载 Excel 报表">⚠️ 带存疑直接导出</button>
+        <button class="btn ghost sm" onclick="doExport(true)" title="保留存疑项记录，强制放行并下载 Excel 报表">⚠️ 强制放行导出</button>
       `;
     } else {
       mactions.innerHTML = `
         <button class="btn ghost sm" onclick="closeExport()">取消</button>
-        <button class="btn primary sm" id="expok" onclick="doExport()">确认导出</button>
+        <button class="btn primary sm" id="expok" onclick="doExport(false)">确认导出</button>
       `;
     }
   }
@@ -1663,21 +1663,27 @@ function closeExport() {
   $('expmodal').classList.remove('show');
 }
 
-async function doExport() {
+async function doExport(force = false) {
   try {
-    const res = await fetch(`/api/jobs/${S.jobId}/excel`);
+    const url = `/api/jobs/${S.jobId}/excel${force ? '?force=true' : ''}`;
+    const res = await fetch(url);
+    if (res.status === 409) {
+      const err = await res.json().catch(() => ({}));
+      toast('导出已阻断：' + (err.detail || '存在待确认存疑项，请先核对或点击强制放行导出'));
+      return;
+    }
     if (!res.ok) throw new Error('服务端没有生成 Excel');
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+    const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = blobUrl;
     a.download = `配电箱元器件清单(报价用)-${S.jobId}.xlsx`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
     closeExport();
-    addMsg('sys', `Excel 报价清单已下载（含 ${S.changes.length} 处修改记录）`);
+    addMsg('sys', `Excel 报价清单已下载（含 ${S.changes.length} 处修改记录${force ? '，已强制放行存疑' : ''}）`);
     toast('Excel 报价清单已开始下载');
   } catch (e) {
     toast('导出失败：' + e.message);

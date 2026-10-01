@@ -1135,12 +1135,20 @@ def ai_deep_review(job_id: str):
 
 
 @app.get("/api/jobs/{job_id}/excel")
-def job_excel(job_id: str, target_brand: str = "正泰"):
+def job_excel(job_id: str, target_brand: str = "正泰", force: bool = False):
     job = load_job_cached(job_id) or {}
     if not job:
         raise HTTPException(404, "任务不存在")
 
     data = job.get("data") or {}
+    uncertainties = data.get("uncertainties", []) or (job.get("summary") or {}).get("uncertainties", [])
+    unresolved = [u for u in uncertainties if not (u.get("resolved") if isinstance(u, dict) else getattr(u, "resolved", False))]
+    if unresolved and not force:
+        raise HTTPException(
+            status_code=409,
+            detail=f"存在 {len(unresolved)} 项待确认存疑，请先人工核对确认或传参 force=true 强制导出"
+        )
+
     xlsx = os.path.join(WORKDIR, f"{job_id}_{target_brand}.xlsx")
     result = ExtractionResult(
         title=(job.get("summary") or {}).get("title") or "配电箱元器件清单(报价用)",

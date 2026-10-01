@@ -189,6 +189,15 @@ class TestV3Features(unittest.TestCase):
         warning_found = any("偏小预警" in f["title"] or "过载" in f["detail"] for f in data_ai["findings"])
         self.assertTrue(warning_found, "AI 复核未能触发 22kW 电缆偏小预警")
 
+        # 1.5 验证存在未核对存疑时，默认导出触发 HTTP 409 门禁阻断
+        resp_409 = self.client.get(f"/api/jobs/{test_id}/excel")
+        self.assertEqual(resp_409.status_code, 409)
+        self.assertIn("待确认存疑", resp_409.json()["detail"])
+
+        # 验证带 force=true 可强制放行导出
+        resp_force = self.client.get(f"/api/jobs/{test_id}/excel?force=true")
+        self.assertEqual(resp_force.status_code, 200)
+
         # 2. 测试一键全部核对通过 (resolve_all)
         resp_all = self.client.post(f"/api/jobs/{test_id}/resolve_all")
         self.assertEqual(resp_all.status_code, 200)
