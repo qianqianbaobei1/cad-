@@ -266,7 +266,77 @@ class TestCADPipeline(unittest.TestCase):
         bx0, by0, bx1, by1 = s["bbox"]
         self.assertEqual((bx0, by0, bx1, by1), (0.0, 0.0, 118900.0, 84100.0))
 
+    def test_row_pitch_adaptation_prevents_header_leak(self):
+        """测试上下两排配电箱自适应行间距，确保上排单元块不会切入下排箱体的安装表头。"""
+        from extractor.cad import GeometryIndex, build_unit_blocks
+        doc = ezdxf.new("R2010")
+        frame_blk = doc.blocks.new("横式A0")
+        frame_blk.add_lwpolyline([(0, 0), (118900, 0), (118900, 84100), (0, 84100)], close=True)
+        msp = doc.modelspace()
+        msp.add_blockref("横式A0", insert=(0, 0))
+        msp.add_text("配电系统图(一)", dxfattribs={"height": 400, "insert": (2000, 2000), "layer": "图签栏"})
+
+        # 上排箱体：箱框 Y: [35000, 55000]，箱名在 Y: 33800
+        x, y = 5000, 35000
+        msp.add_lwpolyline([(x, y), (x + 15000, y), (x + 15000, y + 20000), (x, y + 20000)],
+                           close=True, dxfattribs={"layer": "强电系统", "linetype": "DASHED2"})
+        msp.add_text("01AP1 动力配电箱", dxfattribs={"height": 300, "insert": (x + 2000, 33800), "layer": "强电系统"})
+
+        # 下排箱体：箱框 Y: [5000, 25000]，箱名在 Y: 3800
+        # 下排箱体顶部有安装说明表头“XRM 嵌墙安装”（Y: 26000）
+        y2 = 5000
+        msp.add_lwpolyline([(x, y2), (x + 15000, y2), (x + 15000, y2 + 20000), (x, y2 + 20000)],
+                           close=True, dxfattribs={"layer": "强电系统", "linetype": "DASHED2"})
+        msp.add_text("01AP2 照明配电箱", dxfattribs={"height": 300, "insert": (x + 2000, 3800), "layer": "强电系统"})
+        msp.add_text("XRM 嵌墙安装", dxfattribs={"height": 200, "insert": (x + 2000, 26000), "layer": "强电系统"})
+
+        index = GeometryIndex(doc)
+        frames = [{"bbox": (0.0, 0.0, 118900.0, 84100.0), "block": "横式A0", "source": "insert"}]
+        blocks = build_unit_blocks(doc, index, frames)
+        self.assertEqual(len(blocks), 2)
+
+        # 验证上排 01AP1 的底边界必须严格高于下排箱框顶部 (25000) 与表头 (26000)
+        p1_block = next(b for b in blocks if "01AP1" in b["label"])
+        crop_y0 = p1_block["rect"][1]
+        self.assertGreater(crop_y0, 26500)  # 严格高出下排表头，杜绝 3% 侵入
+
+    def test_nested_title_block_deduplication(self):
+        """测试大图框内部嵌套会签栏/子图签块时，子块被精准剔除，仅保留外侧真实图幅。"""
+        from extractor.cad import GeometryIndex, detect_drawing_frames
+        doc = ezdxf.new("R2010")
+        # 1. 大图框 A0
+        b_frame = doc.blocks.new("横式A0")
+        b_frame.add_lwpolyline([(0, 0), (118900, 0), (118900, 84100), (0, 84100)], close=True)
+        # 2. 会签栏/图签子块 (嵌套在大图框内部)
+        b_stamp = doc.blocks.new("会签栏")
+        b_stamp.add_lwpolyline([(0, 0), (18000, 0), (18000, 16000), (0, 16000)], close=True)
+
+        msp = doc.modelspace()
+        msp.add_blockref("横式A0", insert=(0, 0))
+        msp.add_blockref("会签栏", insert=(95000, 5000))  # 坐标完全落在大图框内
+
+        index = GeometryIndex(doc)
+        frames = detect_drawing_frames(doc, index)
+        self.assertEqual(len(frames), 1)
+        self.assertEqual(frames[0]["block"], "横式A0")
+
+    def test_polyline_frame_unclosed_endpoint_snapping(self):
+        """测试起终点重合但未设置 closed=True 标志的多段线外框能被准确识别为图框。"""
+        from extractor.cad import GeometryIndex, detect_drawing_frames
+        doc = ezdxf.new("R2010")
+        msp = doc.modelspace()
+        # 4 个顶点首尾坐标一致，但 close=False
+        points = [(0, 0), (118900, 0), (118900, 84100), (0, 84100), (0, 0)]
+        msp.add_lwpolyline(points, close=False, dxfattribs={"layer": "BORDER"})
+
+        index = GeometryIndex(doc)
+        frames = detect_drawing_frames(doc, index)
+        self.assertEqual(len(frames), 1)
+        self.assertEqual(frames[0]["source"], "polyline")
+        self.assertEqual(frames[0]["bbox"], (0.0, 0.0, 118900.0, 84100.0))
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

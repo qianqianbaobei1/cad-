@@ -329,10 +329,10 @@ def slice_and_render_cad_sheets(doc: Any, sheets: list[dict[str, Any]], out_pdf_
         try:
             if e.dxftype() not in ALLOWED_TYPES:
                 continue
-            pos = getattr(e.dxf, "insert", None) or getattr(e.dxf, "start", None)
-            if pos is None:
+            bounds = _entity_bounds(e)
+            if bounds is None:
                 continue
-            px, py = float(pos.x), float(pos.y)
+            px, py = (bounds[0] + bounds[2]) / 2.0, (bounds[1] + bounds[3]) / 2.0
             gx = int(px // CELL_SIZE)
             gy = int(py // CELL_SIZE)
             grid.setdefault((gx, gy), []).append((e, px, py))
@@ -625,8 +625,9 @@ def detect_drawing_frames(doc: Any, index: GeometryIndex) -> list[dict[str, Any]
     """找出图纸上所有真实图框幅面。
 
     优先用图框块参照（``横式A0`` / ``2021版A0图框`` 这类），它们的范围就是精确幅面，
-    不依赖任何尺寸猜测；嵌套在图框内的图签/会签栏小块按包含关系剔掉。
-    整张图都没有图框块时，退而使用大尺寸闭合多段线外框。
+    不依赖任何尺寸猜测；嵌套在图框内的图签/会签栏小块按包含关系与高重叠比例剔掉。
+    若无图框块，退而使用大尺寸闭合（或几何首尾重合）多段线外框；
+    若仍无，则根据标题启发式推导的系统图幅面接入，确保统一走入 v2 切片与高清渲染引擎。
     """
     frames: list[dict[str, Any]] = []
     for e in doc.modelspace().query("INSERT"):
@@ -648,8 +649,9 @@ def detect_drawing_frames(doc: Any, index: GeometryIndex) -> list[dict[str, Any]
         nested = False
         for k in kept:
             kb = k["bbox"]
-            if kb[0] <= b[0] and kb[2] >= b[2] and kb[1] <= b[1] and kb[3] >= b[3]:
-                continue
+            if kb[0] <= b[0] + 10.0 and kb[2] >= b[2] - 10.0 and kb[1] <= b[1] + 10.0 and kb[3] >= b[3] - 10.0:
+                nested = True
+                break
             ix = max(0.0, min(b[2], kb[2]) - max(b[0], kb[0]))
             iy = max(0.0, min(b[3], kb[3]) - max(b[1], kb[1]))
             if ix * iy >= area * (1.0 - FRAME_DEDUP_TOL):
@@ -659,15 +661,30 @@ def detect_drawing_frames(doc: Any, index: GeometryIndex) -> list[dict[str, Any]
             kept.append(f)
 
     if not kept:
+        polyline_cands = []
         for i in range(len(index.entities)):
             e = index.entities[i]
             if e.dxftype() not in ("LWPOLYLINE", "POLYLINE"):
                 continue
+            is_closed = False
             try:
-                closed = e.closed if e.dxftype() == "LWPOLYLINE" else e.is_closed
+                if e.dxftype() == "LWPOLYLINE":
+                    if e.closed:
+                        is_closed = True
+                    else:
+                        pts = e.get_points("xy")
+                        if len(pts) >= 4 and math.hypot(pts[0][0] - pts[-1][0], pts[0][1] - pts[-1][1]) < 100.0:
+                            is_closed = True
+                else:
+                    if e.is_closed:
+                        is_closed = True
+                    else:
+                        pts = list(e.points())
+                        if len(pts) >= 4 and math.hypot(pts[0][0] - pts[-1][0], pts[0][1] - pts[-1][1]) < 100.0:
+                            is_closed = True
             except Exception:
                 continue
-            if not closed:
+            if not is_closed:
                 continue
             b = index.boxes[i]
             w, h = b[2] - b[0], b[3] - b[1]
@@ -675,7 +692,31 @@ def detect_drawing_frames(doc: Any, index: GeometryIndex) -> list[dict[str, Any]
                 continue
             if not 1.05 <= (max(w, h) / max(min(w, h), 1e-6)) <= 2.4:
                 continue
-            kept.append({"bbox": b, "block": str(e.dxf.layer), "source": "polyline"})
+            polyline_cands.append({"bbox": b, "block": str(e.dxf.layer), "source": "polyline"})
+
+        polyline_cands.sort(key=lambda f: -((f["bbox"][2] - f["bbox"][0]) * (f["bbox"][3] - f["bbox"][1])))
+        for f in polyline_cands:
+            b = f["bbox"]
+            area = (b[2] - b[0]) * (b[3] - b[1])
+            nested = False
+            for k in kept:
+                kb = k["bbox"]
+                if kb[0] <= b[0] + 10.0 and kb[2] >= b[2] - 10.0 and kb[1] <= b[1] + 10.0 and kb[3] >= b[3] - 10.0:
+                    nested = True
+                    break
+                ix = max(0.0, min(b[2], kb[2]) - max(b[0], kb[0]))
+                iy = max(0.0, min(b[3], kb[3]) - max(b[1], kb[1]))
+                if ix * iy >= area * (1.0 - FRAME_DEDUP_TOL):
+                    nested = True
+                    break
+            if not nested:
+                kept.append(f)
+
+    if not kept:
+        # 兜底：若无标准图框块或闭合多段线，采用标题启发式推导的系统图幅面接入
+        fallback_sheets = detect_system_sheets(doc)
+        for s in fallback_sheets:
+            kept.append({"bbox": s["bbox"], "block": s.get("title", "系统图"), "source": "title_heuristic"})
 
     kept.sort(key=lambda f: (-round(f["bbox"][3], -4), f["bbox"][0]))
     return kept
@@ -929,7 +970,8 @@ def _cell_crop(rect, rects, frame, caption_y: float, pitch_x: float) -> tuple[fl
     每页被截掉两列），箱框左侧反而是内容起点。所以：
       左边界 = 箱框左边 - 少量留白（箱框左就是内容起点）；
       右边界 = 右邻箱框的左边（相邻箱内容首尾相接，没有空带可依靠）；
-      右邻不存在时用整张图的列距推。
+      右邻不存在时用整张图的列距推；
+      下边界 = 自适应上下两行配电箱间距，严格收于下邻箱框顶部之上，杜绝带进下排表头。
     """
     x0, y0, x1, y1 = rect
     w, h = x1 - x0, y1 - y0
@@ -948,8 +990,23 @@ def _cell_crop(rect, rects, frame, caption_y: float, pitch_x: float) -> tuple[fl
         right = x0 + (pitch_x if pitch_x > w else w * 1.6)
     right = min(right, x1 + w * 1.6, frame[2])
     top = min(y1 + (min(top_gaps) / 2 if top_gaps else min(h * 0.25, 6000.0)), frame[3])
-    return (max(frame[0], x0 - CROP_PAD_SIDE), max(frame[1], min(y0 - CROP_PAD_BOTTOM, caption_y - 200.0)),
-            right, top)
+
+    # 下邻箱框自适应安全裁切（同列且位于当前箱框下方）
+    bottom_cands = [r for r in rects if r is not rect and h_overlap(r) and r[3] <= y0]
+    if bottom_cands:
+        below_top = max(r[3] for r in bottom_cands)
+        # 当前箱名下边界：箱名文字下方留白 250~350
+        cap_bot = min(caption_y - 250.0, y0 - 300.0) if caption_y < y0 else y0 - 800.0
+        # 严格取箱名下沿与下排箱顶的中位线，并至少高出下排箱顶 100，坚决不切入下排进线与表头
+        bottom = max(cap_bot, (cap_bot + below_top) / 2.0, below_top + 100.0)
+    else:
+        if caption_y < y0:
+            bottom = min(y0 - 800.0, caption_y - 300.0)
+        else:
+            bottom = y0 - CROP_PAD_BOTTOM
+    bottom = max(frame[1], bottom)
+
+    return (max(frame[0], x0 - CROP_PAD_SIDE), bottom, right, top)
 
 
 def build_unit_blocks(doc: Any, index: GeometryIndex, frames: list[dict[str, Any]]) -> list[dict[str, Any]]:
