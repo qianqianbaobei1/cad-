@@ -3,15 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>配电箱报价工作台</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%232E5CE6'/%3E%3C/svg%3E">
+<title>电柜智核 · 配电箱智能工作台</title>
+<link rel="icon" href="assets/brand/02_品牌Logo/17_App图标主体.png">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 
 <!-- ===== 顶栏 ===== -->
 <header class="topbar">
-  <div class="brand"><span class="mark"></span>配电箱报价工作台</div>
+  <div class="brand" onclick="navGo('projects')" title="电柜智核 · 配电箱智能工作台">
+    <img src="assets/brand/02_品牌Logo/17_App图标主体.png" alt="电柜智核" class="brand-logo-img">
+    <div class="brand-text">
+      <span class="brand-title">电柜智核</span>
+      <span class="brand-sub">配电箱智能工作台</span>
+    </div>
+  </div>
   <nav class="nav">
     <button data-p="projects" onclick="navGo('projects')">项目</button>
     <button data-p="upload" onclick="navGo('upload')">上传</button>
@@ -68,8 +74,18 @@
       <button class="sheet-catalog-tab-btn" id="sheetCatalogTabBtn" onclick="toggleSheetCatalog()" title="展开切图目录">
         📑 图块目录
       </button>
-
-      <div class="placeholder" id="canvasEmpty">还没有打开图纸<br><span class="mut2">去「项目」里打开一个图纸，或在「上传」里新增</span></div>
+      <div class="placeholder canvas-empty-brand" id="canvasEmpty">
+        <img src="assets/brand/02_品牌Logo/17_App图标主体.png" alt="电柜智核" class="canvas-empty-logo">
+        <div class="canvas-empty-title">电柜智核 · 配电箱智能工作台</div>
+        <div class="canvas-empty-sub">
+          工业级电气图纸多模态解析引擎 · 支持 PDF / AutoCAD DWG / DXF<br>
+          从「项目」选择已解析图纸开始核对与算量，或直接上传新图纸
+        </div>
+        <div class="canvas-empty-actions">
+          <button class="btn primary sm" onclick="navGo('upload')">＋ 上传新图纸</button>
+          <button class="btn ghost sm" onclick="navGo('projects')">📂 浏览项目工程</button>
+        </div>
+      </div>
       <div class="stage" id="stage" hidden>
         <div id="zones"></div>
         <div id="hlbox"></div>
@@ -237,6 +253,59 @@
     </label>
   </div>
   <div class="pg-wrap">
+    <div class="brand-hero">
+      <div class="brand-hero-content">
+        <img src="assets/brand/02_品牌Logo/17_App图标主体.png" alt="电柜智核Logo" class="brand-hero-logo">
+        <div>
+          <div class="brand-hero-title">
+            电柜智核
+            <span class="brand-hero-tag">配电箱智能工作台</span>
+          </div>
+          <div class="brand-hero-desc">AI 识图提取 · 规则合规自检 · 铜排辅料测算 · 全项目采购平替</div>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:#94a3b8;text-align:right">
+        工业级系统图解析引擎<br>
+        <span style="color:#60a5fa">支持 PDF · DWG · DXF</span>
+      </div>
+    </div>
+
+    <!-- 四大核心流水线能力卡片 -->
+    <div class="brand-pipeline-grid">
+      <div class="brand-pipeline-card">
+        <div class="brand-pipeline-header">
+          <span class="brand-pipeline-step">01</span>
+          <img src="assets/brand/03_功能模块/06_功能模块_核图识别.png" alt="核图识别" class="brand-pipeline-img">
+        </div>
+        <div class="brand-pipeline-name">核图识别</div>
+        <div class="brand-pipeline-detail">CAD矢量图层与多模态视觉双核提取，多图块与文字表格高精度解析。</div>
+      </div>
+      <div class="brand-pipeline-card">
+        <div class="brand-pipeline-header">
+          <span class="brand-pipeline-step">02</span>
+          <img src="assets/brand/03_功能模块/07_功能模块_核对校验.png" alt="规则校验" class="brand-pipeline-img">
+        </div>
+        <div class="brand-pipeline-name">核对校验</div>
+        <div class="brand-pipeline-detail">母线载流、级联规格自检与电气规范预警，联动图纸毫秒级核对。</div>
+      </div>
+      <div class="brand-pipeline-card">
+        <div class="brand-pipeline-header">
+          <span class="brand-pipeline-step">03</span>
+          <img src="assets/brand/03_功能模块/08_功能模块_智能报价.png" alt="智能报价" class="brand-pipeline-img">
+        </div>
+        <div class="brand-pipeline-name">智能报价</div>
+        <div class="brand-pipeline-detail">元器件清单、母线铜排辅料算量与标准工业四联表一键导出。</div>
+      </div>
+      <div class="brand-pipeline-card">
+        <div class="brand-pipeline-header">
+          <span class="brand-pipeline-step">04</span>
+          <img src="assets/brand/03_功能模块/09_功能模块_选型采购.png" alt="选型采购" class="brand-pipeline-img">
+        </div>
+        <div class="brand-pipeline-name">选型采购</div>
+        <div class="brand-pipeline-detail">正泰/德力西/良信等品牌国产化平替降本测算与项目级跨箱体 BOM。</div>
+      </div>
+    </div>
+
     <div class="card"><div class="dropzone slim" id="dropzone">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2E5CE6" stroke-width="1.4"><path d="M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#E9EFFD"/><path d="M14 2v4h4"/></svg>
       <div class="dz-t">点击选择 PDF / DWG / DXF，或把文件拖到这里</div>
@@ -291,6 +360,21 @@
           A4 等小图不受影响，不会多花调用。</span></div>
       <div class="formrow"><label>附带变更记录</label><input type="checkbox" id="set-changes">
         <span class="mut" style="font-size:11px">人工/语音/AI 修改随清单导出为「变更记录」sheet</span></div>
+    </div>
+    <div class="card">
+      <div class="ch"><span>关于「电柜智核 · 配电箱智能工作台」</span></div>
+      <div style="padding:16px 20px;display:flex;align-items:center;gap:16px">
+        <img src="assets/brand/02_品牌Logo/17_App图标主体.png" alt="电柜智核" style="width:54px;height:54px;object-fit:contain;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.1)">
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700;color:var(--txt)">电柜智核 · 配电箱智能工作台 <span class="pill info" style="font-size:11px;margin-left:6px">v2.2 专业版</span></div>
+          <div class="mut" style="font-size:12px;margin-top:4px;line-height:1.5">
+            工业级成套配电电气系统图多模态解析平台。融合 CAD 矢量几何与多模态大模型视觉双核引擎，支持多图块切分、电气回路/元器件提取、母线载流校验、全项目集中采购 BOM 与国产化一键平替。
+          </div>
+          <div class="mut2" style="font-size:11px;margin-top:6px">
+            设计规范参考：GB/T 14048 · GB 50054 · IEC 61439 · 配电开关设备和控制设备标准
+          </div>
+        </div>
+      </div>
     </div>
     <div style="padding:2px 0 20px;display:flex;gap:10px;align-items:center">
       <button class="btn primary" onclick="saveSettings()">保存设置</button>
@@ -476,9 +560,17 @@
 
 <!-- 启动屏 -->
 <div class="startscreen" id="startscreen" hidden>
-  <div class="startcard">
-    <div class="brand" style="font-size:15px;margin-bottom:6px"><span class="mark"></span>配电箱报价工作台</div>
-    <div class="mut" style="font-size:12.5px;margin-bottom:18px">上传配电箱 / 配电柜系统图，AI 识图提取元器件，生成报价清单</div>
+  <div class="startcard" style="max-width:520px">
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px">
+      <img src="assets/brand/02_品牌Logo/17_App图标主体.png" alt="电柜智核Logo" style="width:38px;height:38px;object-fit:contain;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.15)">
+      <div style="text-align:left">
+        <div style="font-size:16px;font-weight:700;color:var(--txt)">电柜智核</div>
+        <div style="font-size:11px;color:var(--acc-d);font-weight:600">配电箱智能工作台</div>
+      </div>
+    </div>
+    <div class="mut" style="font-size:12px;margin-bottom:16px;line-height:1.5">
+      上传配电箱/配电柜系统图，AI 视觉与 CAD 矢量双核提取元器件，自动生成标准报价与采购清单
+    </div>
     <div class="dropzone" id="startdrop">
       <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2E5CE6" stroke-width="1.4"><path d="M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#E9EFFD"/><path d="M14 2v4h4"/></svg>
       <div class="dz-t">点击选择 PDF / DWG / DXF，或把文件拖到这里</div>
