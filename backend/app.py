@@ -1614,6 +1614,13 @@ def list_projects():
     return {"projects": out}
 
 
+@app.get("/api/ai_logs")
+def get_tenant_ai_logs_api():
+    """获取当前企业租户全部项目的 AI 识别费用流水与汇总。"""
+    from db import db_get_ai_logs
+    return db_get_ai_logs(project_name="all")
+
+
 @app.get("/api/projects/{name}/ai_logs")
 def get_project_ai_logs_api(name: str):
     """获取项目的 AI 识别费用流水及调用明细。"""

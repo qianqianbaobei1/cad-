@@ -465,36 +465,79 @@ def db_record_ai_usage(project_name: str, usage_summary: dict, job_id: str = "",
         """, (p_tokens, c_tokens, t_tokens, cost_in, cost_out, total_cost, now_str, t_id, p_name))
 
 
-def db_get_ai_logs(project_name: str, tenant_id: str | None = None) -> dict:
+def db_get_ai_logs(project_name: str | None = None, tenant_id: str | None = None) -> dict:
     t_id = tenant_id or get_current_tenant()
-    p_name = (project_name or "未分组").strip() or "未分组"
+    is_all = (project_name in ("all", "__all__", "*", None, ""))
     conn = _get_conn()
 
-    cur = conn.execute("""
-    SELECT * FROM ai_logs WHERE tenant_id = ? AND project_name = ? ORDER BY id DESC LIMIT 500;
-    """, (t_id, p_name))
+    if is_all:
+        cur = conn.execute("""
+        SELECT * FROM ai_logs WHERE tenant_id = ? ORDER BY id DESC LIMIT 500;
+        """, (t_id,))
+    else:
+        p_name = (project_name or "未分组").strip() or "未分组"
+        cur = conn.execute("""
+        SELECT * FROM ai_logs WHERE tenant_id = ? AND project_name = ? ORDER BY id DESC LIMIT 500;
+        """, (t_id, p_name))
+
     logs = []
+    tot_cost = 0.0
+    tot_tokens = 0
+    tot_prompt = 0
+    tot_comp = 0
+    tot_cost_in = 0.0
+    tot_cost_out = 0.0
+
     for r in cur.fetchall():
         try:
             dets = json.loads(r["details_json"] or "[]")
         except Exception:
             dets = []
+        c_tot = float(r["total_cost"] or 0.0)
+        c_in = float(r["cost_in"] or 0.0)
+        c_out = float(r["cost_out"] or 0.0)
+        p_tok = int(r["prompt_tokens"] or 0)
+        c_tok = int(r["completion_tokens"] or 0)
+        t_tok = int(r["total_tokens"] or (p_tok + c_tok))
+
+        tot_cost += c_tot
+        tot_cost_in += c_in
+        tot_cost_out += c_out
+        tot_tokens += t_tok
+        tot_prompt += p_tok
+        tot_comp += c_tok
+
         logs.append({
             "job_id": r["job_id"],
             "filename": r["filename"],
+            "project_name": r["project_name"] or "未分组",
             "timestamp": r["created_at"],
             "model": r["model"],
             "calls_count": r["calls_count"],
-            "prompt_tokens": r["prompt_tokens"],
-            "completion_tokens": r["completion_tokens"],
-            "total_tokens": r["total_tokens"],
-            "cost_in": r["cost_in"],
-            "cost_out": r["cost_out"],
-            "total_cost": r["total_cost"],
-            "currency": r["currency"],
+            "prompt_tokens": p_tok,
+            "completion_tokens": c_tok,
+            "total_tokens": t_tok,
+            "cost_in": c_in,
+            "cost_out": c_out,
+            "total_cost": c_tot,
+            "currency": r["currency"] or "￥",
             "details": dets,
         })
 
+    if is_all:
+        return {
+            "project_name": "全部项目总览",
+            "ai_cost_total": round(tot_cost, 5),
+            "ai_tokens_total": tot_tokens,
+            "ai_prompt_tokens": tot_prompt,
+            "ai_completion_tokens": tot_comp,
+            "ai_cost_in": round(tot_cost_in, 5),
+            "ai_cost_out": round(tot_cost_out, 5),
+            "currency": "￥",
+            "ai_logs": logs,
+        }
+
+    p_name = (project_name or "未分组").strip() or "未分组"
     p_cur = conn.execute("SELECT * FROM projects WHERE tenant_id = ? AND name = ?", (t_id, p_name))
     p_row = p_cur.fetchone()
     if p_row:
@@ -511,12 +554,12 @@ def db_get_ai_logs(project_name: str, tenant_id: str | None = None) -> dict:
         }
     return {
         "project_name": p_name,
-        "ai_cost_total": 0.0,
-        "ai_tokens_total": 0,
-        "ai_prompt_tokens": 0,
-        "ai_completion_tokens": 0,
-        "ai_cost_in": 0.0,
-        "ai_cost_out": 0.0,
+        "ai_cost_total": round(tot_cost, 5),
+        "ai_tokens_total": tot_tokens,
+        "ai_prompt_tokens": tot_prompt,
+        "ai_completion_tokens": tot_comp,
+        "ai_cost_in": round(tot_cost_in, 5),
+        "ai_cost_out": round(tot_cost_out, 5),
         "currency": "￥",
         "ai_logs": logs,
     }

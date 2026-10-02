@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>电柜智核 · 配电箱智能工作台</title>
 <link rel="icon" href="assets/brand/02_品牌Logo/17_App图标主体.png">
-<link rel="stylesheet" href="app.css?v=20261002_05">
+<link rel="stylesheet" href="app.css?v=20261002_06">
 </head>
 <body>
 
@@ -561,7 +561,7 @@
 </div>
 
 <!-- AI 费用明细账单弹窗 -->
-<div class="modal" id="modalAiLog" hidden>
+<div class="modal" id="modalAiLog" hidden onclick="if(event.target===this)closeAiLogs()">
   <div class="modal-card" style="max-width:880px;width:92%">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
       <div>
@@ -673,6 +673,6 @@
 </div>
 
 <div class="toast" id="toast"></div>
-<script src="app.js?v=20261002_05"></script>
+<script src="app.js?v=20261002_06"></script>
 </body>
 </html>

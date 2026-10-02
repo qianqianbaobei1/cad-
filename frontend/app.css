@@ -10,6 +10,7 @@
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
+[hidden]{display:none !important}
 body{background:var(--bg);color:var(--txt);font:14px/1.55 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;overflow:hidden;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:#D6D3CB;border-radius:0;border:2px solid var(--bg)}

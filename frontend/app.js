@@ -80,7 +80,9 @@ function renderUserBadge() {
 
   if (Auth.user && Auth.token) {
     btnLoginOpen.hidden = true;
+    btnLoginOpen.style.display = 'none';
     userBadge.hidden = false;
+    userBadge.style.display = 'flex';
     const name = Auth.user.display_name || Auth.user.username || '工程师';
     const tenant = Auth.user.tenant_name || '工区/企业';
     if ($('userDisplayName')) $('userDisplayName').textContent = name;
@@ -92,19 +94,35 @@ function renderUserBadge() {
     if ($('udTenant')) $('udTenant').textContent = tenant;
   } else {
     btnLoginOpen.hidden = false;
+    btnLoginOpen.style.display = 'inline-flex';
     userBadge.hidden = true;
-    if (userDropdown) userDropdown.hidden = true;
+    userBadge.style.display = 'none';
+    if (userDropdown) {
+      userDropdown.hidden = true;
+      userDropdown.style.display = 'none';
+    }
   }
 }
 
 function toggleUserDropdown() {
   const dd = $('userDropdown');
-  if (dd) dd.hidden = !dd.hidden;
+  if (!dd) return;
+  const isHidden = dd.hidden || dd.style.display === 'none';
+  if (isHidden) {
+    dd.hidden = false;
+    dd.style.display = 'block';
+  } else {
+    dd.hidden = true;
+    dd.style.display = 'none';
+  }
 }
 
 function closeUserDropdown() {
   const dd = $('userDropdown');
-  if (dd) dd.hidden = true;
+  if (dd) {
+    dd.hidden = true;
+    dd.style.display = 'none';
+  }
 }
 
 window.addEventListener('click', e => {
@@ -115,9 +133,11 @@ window.addEventListener('click', e => {
 });
 
 function openAuthModal(tab = 'login') {
+  closeUserDropdown();
   const m = $('authModal');
   if (m) {
     m.hidden = false;
+    m.style.display = 'flex';
     m.classList.add('show');
   }
   switchAuthTab(tab);
@@ -128,6 +148,7 @@ function closeAuthModal() {
   if (m) {
     m.classList.remove('show');
     m.hidden = true;
+    m.style.display = 'none';
   }
 }
 
@@ -137,8 +158,86 @@ function switchAuthTab(tab) {
   const tabReg = $('tabBtnRegister');
   if (tabLogin) tabLogin.classList.toggle('active', isLogin);
   if (tabReg) tabReg.classList.toggle('active', !isLogin);
-  if ($('formLogin')) $('formLogin').hidden = !isLogin;
-  if ($('formRegister')) $('formRegister').hidden = isLogin;
+  if ($('formLogin')) {
+    $('formLogin').hidden = !isLogin;
+    $('formLogin').style.display = isLogin ? 'block' : 'none';
+  }
+  if ($('formRegister')) {
+    $('formRegister').hidden = isLogin;
+    $('formRegister').style.display = isLogin ? 'none' : 'block';
+  }
+}
+
+async function openAiLogs() {
+  closeUserDropdown();
+  try {
+    $('aiLogProjTitle').textContent = `企业 AI 识别费用与 Token 账单总览`;
+    $('aiLogSummaryCards').innerHTML = '<span class="mut">正在获取计费记录...</span>';
+    $('aiLogTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px" class="mut">加载中...</td></tr>';
+    $('modalAiLog').classList.add('show');
+    $('modalAiLog').hidden = false;
+    $('modalAiLog').style.display = 'flex';
+
+    const res = await api('/api/ai_logs');
+    const totalCost = (res.ai_cost_total || 0).toFixed(4);
+    const costIn = (res.ai_cost_in || 0).toFixed(4);
+    const costOut = (res.ai_cost_out || 0).toFixed(4);
+    const totalTokens = (res.ai_tokens_total || 0).toLocaleString();
+    const promptTokens = (res.ai_prompt_tokens || 0).toLocaleString();
+    const compTokens = (res.ai_completion_tokens || 0).toLocaleString();
+    const logs = res.ai_logs || [];
+
+    $('aiLogSummaryCards').innerHTML = `
+      <div class="stat-card primary">
+        <div class="label">累计 AI 识别总费用</div>
+        <div class="val">￥${totalCost}</div>
+        <div class="subval">共消耗 ${totalTokens} Tokens</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">输入 Token 及费用</div>
+        <div class="val" style="font-size:14px">${promptTokens}</div>
+        <div class="subval">费用: ￥${costIn}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">输出 Token 及费用</div>
+        <div class="val" style="font-size:14px">${compTokens}</div>
+        <div class="subval">费用: ￥${costOut}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">识别任务流水记录</div>
+        <div class="val" style="font-size:14px">${logs.length} 次</div>
+        <div class="subval">企业所有图纸切片并发与全量解析</div>
+      </div>
+    `;
+
+    if (!logs.length) {
+      $('aiLogTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:26px" class="mut2">暂无 AI 调用记录（图纸解析时会自动记录流水）</td></tr>';
+      return;
+    }
+
+    $('aiLogTableBody').innerHTML = logs.map(l => {
+      const pTok = (l.prompt_tokens || 0).toLocaleString();
+      const cTok = (l.completion_tokens || 0).toLocaleString();
+      const cTot = (l.total_cost || 0).toFixed(5);
+      const cIn = (l.cost_in || 0).toFixed(5);
+      const cOut = (l.cost_out || 0).toFixed(5);
+      const model = esc(l.model || 'deepseek-flash');
+      const time = esc(l.timestamp || '').slice(5, 19).replace('T', ' ');
+      const fname = esc(l.filename || l.job_id || '未知任务');
+      const proj = esc(l.project_name || '未分组');
+      return `<tr>
+        <td class="mono" style="font-size:11px">${time}</td>
+        <td><b>${fname}</b> <span class="sub" style="font-size:11px">(${proj})</span></td>
+        <td><span class="pill" style="font-size:10.5px">${model}</span></td>
+        <td style="text-align:center">${l.calls_count || 1}</td>
+        <td class="mono" title="费用: ￥${cIn}">${pTok}</td>
+        <td class="mono" title="费用: ￥${cOut}">${cTok}</td>
+        <td class="mono" style="font-weight:700;color:var(--acc)">￥${cTot}</td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    toast('获取 AI 账单失败: ' + err.message);
+  }
 }
 
 async function handleLogin(e) {
@@ -460,7 +559,11 @@ async function openProjectAiLogs(projectName) {
 
 function closeAiLogs() {
   const modal = $('modalAiLog');
-  if (modal) modal.classList.remove('show');
+  if (modal) {
+    modal.classList.remove('show');
+    modal.hidden = true;
+    modal.style.display = 'none';
+  }
 }
 
 let currentBomProject = '';
@@ -3290,7 +3393,7 @@ function quickAsk(q) {
 function bindKeys() {
   document.addEventListener('keydown', e => {
     const typing = ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName);
-    if (e.key === 'Escape') { closeAuthModal(); closeReview(); closeExport(); closeLog(); closeProjBom(); closeProjTopology(); closeBatchProjectModal(); return; }
+    if (e.key === 'Escape') { closeAuthModal(); closeAiLogs(); closeReview(); closeExport(); closeLog(); closeProjBom(); closeProjTopology(); closeBatchProjectModal(); return; }
     if (typing) return;
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveNow(); return; }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undoLastChange(); return; }
