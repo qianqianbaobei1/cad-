@@ -28,6 +28,30 @@
   <div class="sp"></div>
   <button class="tbtn warn" id="ubadge" onclick="navGo('workbench');openReview()">待核对 0</button>
   <button class="btn primary sm" onclick="navGo('upload')">上传 PDF</button>
+
+  <!-- 用户中心 -->
+  <div class="user-menu-wrap" id="userMenuWrap">
+    <button class="btn ghost sm" id="btnLoginOpen" onclick="openAuthModal('login')">🔑 登录 / 注册</button>
+    <div class="user-badge" id="userBadge" onclick="toggleUserDropdown()" hidden>
+      <span class="user-avatar" id="userAvatar">A</span>
+      <div class="user-info">
+        <span class="user-name" id="userDisplayName">系统工程师</span>
+        <span class="user-tenant" id="userTenantName">电柜智核成套部</span>
+      </div>
+      <span class="user-arrow">▾</span>
+    </div>
+    <div class="user-dropdown" id="userDropdown" hidden>
+      <div class="ud-header">
+        <b id="udName">系统工程师</b>
+        <span class="mut" id="udUsername">admin</span>
+      </div>
+      <div class="ud-item"><span class="ud-icon">🏢</span>企业：<span id="udTenant">电柜智核成套电气工程部</span></div>
+      <div class="ud-item" onclick="openAiLogs();closeUserDropdown()"><span class="ud-icon">📊</span>AI 费用与 Token 账单</div>
+      <div class="ud-divider"></div>
+      <div class="ud-item warn" onclick="doCleanTestData()"><span class="ud-icon">🗑️</span>清空系统测试数据</div>
+      <div class="ud-item danger" onclick="doLogout()"><span class="ud-icon">🚪</span>退出当前账号</div>
+    </div>
+  </div>
 </header>
 
 <!-- ===== 工作台 ===== -->
@@ -376,6 +400,16 @@
         </div>
       </div>
     </div>
+    <div class="card">
+      <div class="ch"><span>数据维护与测试清理</span></div>
+      <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:600;font-size:13.5px;color:var(--txt)">彻底清空所有测试数据</div>
+          <div class="mut" style="font-size:12px;margin-top:2px">清空所有图纸任务、项目、AI 消费日志及临时工作文件，还原至初始纯净状态。</div>
+        </div>
+        <button class="btn ghost sm" style="color:var(--bad);border-color:#F5C6C6" onclick="doCleanTestData()">🗑️ 一键清空所有数据</button>
+      </div>
+    </div>
     <div style="padding:2px 0 20px;display:flex;gap:10px;align-items:center">
       <button class="btn primary" onclick="saveSettings()">保存设置</button>
       <span class="mut2" id="set-status" style="font-size:11.5px"></span>
@@ -555,6 +589,60 @@
         <tbody id="aiLogTableBody"></tbody>
       </table>
     </div>
+  </div>
+<!-- 账号登录与注册弹窗 -->
+<div class="modal" id="authModal" hidden>
+  <div class="mbox" style="width:440px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid var(--line);padding-bottom:12px">
+      <div class="auth-tabs" style="display:flex;gap:12px">
+        <button class="auth-tab-btn active" id="tabBtnLogin" onclick="switchAuthTab('login')">已有账号登录</button>
+        <button class="auth-tab-btn" id="tabBtnRegister" onclick="switchAuthTab('register')">新企业注册</button>
+      </div>
+      <button class="icon-btn" onclick="closeAuthModal()">✕</button>
+    </div>
+
+    <!-- 登录表单 -->
+    <form id="formLogin" onsubmit="handleLogin(event)">
+      <div class="formrow" style="padding:8px 0">
+        <label style="flex:0 0 70px">账号</label>
+        <input type="text" id="loginUsername" placeholder="用户名/工号" required style="width:100%" value="admin">
+      </div>
+      <div class="formrow" style="padding:8px 0">
+        <label style="flex:0 0 70px">密码</label>
+        <input type="password" id="loginPassword" placeholder="输入密码" required style="width:100%" value="admin123">
+      </div>
+      <div class="mut2" style="font-size:11.5px;margin:8px 0 14px">
+        💡 演示管理员账号：<b style="color:var(--txt)">admin</b> / 密码：<b style="color:var(--txt)">admin123</b>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+        <button type="button" class="btn ghost sm" onclick="closeAuthModal()">取消</button>
+        <button type="submit" class="btn primary sm" id="btnLoginSubmit">立即登录</button>
+      </div>
+    </form>
+
+    <!-- 注册表单 -->
+    <form id="formRegister" onsubmit="handleRegister(event)" hidden>
+      <div class="formrow" style="padding:8px 0">
+        <label style="flex:0 0 85px">企业/工区</label>
+        <input type="text" id="regTenant" placeholder="如：华东智能配电成套一厂" required style="width:100%">
+      </div>
+      <div class="formrow" style="padding:8px 0">
+        <label style="flex:0 0 85px">登录账号</label>
+        <input type="text" id="regUsername" placeholder="英文字母或工号" required style="width:100%">
+      </div>
+      <div class="formrow" style="padding:8px 0">
+        <label style="flex:0 0 85px">姓名/昵称</label>
+        <input type="text" id="regDisplayName" placeholder="如：张工" required style="width:100%">
+      </div>
+      <div class="formrow" style="padding:8px 0">
+        <label style="flex:0 0 85px">设置密码</label>
+        <input type="password" id="regPassword" placeholder="至少 6 位字符" required minlength="6" style="width:100%">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
+        <button type="button" class="btn ghost sm" onclick="closeAuthModal()">取消</button>
+        <button type="submit" class="btn primary sm" id="btnRegSubmit">创建企业并进入工作台</button>
+      </div>
+    </form>
   </div>
 </div>
 

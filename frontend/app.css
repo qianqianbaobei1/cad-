@@ -448,6 +448,49 @@ kbd{background:var(--inset);border:1px solid var(--line2);padding:1px 6px;font-s
   }
 }
 
+/* ===== 用户中心与登录鉴权界面 ===== */
+.user-menu-wrap{position:relative;display:flex;align-items:center;margin-left:6px}
+.user-badge{
+  display:flex;align-items:center;gap:8px;padding:4px 10px;
+  background:var(--inset);border:1px solid var(--line2);border-radius:4px;
+  cursor:pointer;user-select:none;transition:all .15s;
+}
+.user-badge:hover{background:#EDF2FD;border-color:#BACDF7}
+.user-avatar{
+  width:24px;height:24px;background:var(--acc);color:#fff;
+  border-radius:3px;display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:12px;
+}
+.user-info{display:flex;flex-direction:column;line-height:1.2}
+.user-name{font-size:12px;font-weight:650;color:var(--txt)}
+.user-tenant{font-size:10.5px;color:var(--mut);max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-arrow{font-size:10px;color:var(--mut2);margin-left:2px}
+
+.user-dropdown{
+  position:absolute;top:calc(100% + 8px);right:0;width:240px;
+  background:#fff;border:1px solid var(--line2);box-shadow:0 8px 24px rgba(26,35,51,0.12);
+  z-index:100;border-radius:4px;padding:6px 0;
+}
+.user-dropdown[hidden]{display:none}
+.ud-header{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.ud-header b{font-size:13px;color:var(--txt)}
+.ud-item{
+  padding:8px 14px;font-size:12.5px;color:var(--txt);display:flex;align-items:center;gap:8px;
+  cursor:pointer;transition:background .12s;
+}
+.ud-item:hover{background:var(--inset)}
+.ud-item.warn{color:var(--warn)}
+.ud-item.danger{color:var(--bad)}
+.ud-item.danger:hover{background:#FEF2F2}
+.ud-divider{height:1px;background:var(--line);margin:4px 0}
+
+.auth-tab-btn{
+  background:none;border:none;font-size:13.5px;font-weight:600;color:var(--mut);
+  padding:4px 8px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-13px;
+}
+.auth-tab-btn.active{color:var(--acc-d);border-bottom-color:var(--acc)}
+
+
 
 
 

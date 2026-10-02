@@ -23,7 +23,9 @@ from extractor.cad import is_cad_path, process_cad_file
 from extractor.catalog import analyze_components_replacement
 from db import (
     db_save_job, db_get_job, db_list_jobs, db_recover_interrupted_jobs,
-    set_current_tenant, get_current_tenant, get_current_user, db_ensure_tenant
+    set_current_tenant, get_current_tenant, get_current_user, db_ensure_tenant,
+    db_authenticate_user, db_register_user, db_get_user_by_token, db_logout_user,
+    db_clean_all_test_data
 )
 import store
 
@@ -46,17 +48,50 @@ store.apply_settings_to_env()
 IN_PROGRESS = {"queued", "rendering", "extracting", "building_excel", "converting"}
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    display_name: str = ""
+    tenant_name: str = ""
+
+
 @app.middleware("http")
 async def tenant_middleware(request: Request, call_next):
-    """多租户隔离上下文拦截器：自动绑定每个请求的 tenant_id 与 user_id。"""
-    t_id = (request.headers.get("x-tenant-id") or
-            request.query_params.get("tenant_id") or
-            "default").strip() or "default"
-    u_id = (request.headers.get("x-user-id") or
-            f"user_{t_id}").strip()
+    """多租户隔离上下文拦截器：自动根据 Token / Header 绑定 tenant_id 与 user_id。"""
+    token = ""
+    auth_header = request.headers.get("authorization") or ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    elif request.headers.get("x-token"):
+        token = request.headers.get("x-token").strip()
+    elif request.query_params.get("token"):
+        token = request.query_params.get("token").strip()
+
+    t_id = ""
+    u_id = ""
+    if token:
+        user_info = db_get_user_by_token(token)
+        if user_info:
+            t_id = user_info["tenant_id"]
+            u_id = user_info["id"]
+            request.state.user = user_info
+
+    if not t_id:
+        t_id = (request.headers.get("x-tenant-id") or
+                request.query_params.get("tenant_id") or
+                "default").strip() or "default"
+        u_id = (request.headers.get("x-user-id") or
+                f"user_{t_id}").strip()
+
     set_current_tenant(t_id, u_id)
     response = await call_next(request)
     return response
+
 
 
 @app.on_event("startup")
@@ -1814,10 +1849,87 @@ def get_project_replacements(name: str, target_brand: str = "正泰"):
     return {"ok": True, "project": name, "analysis": analysis}
 
 
+@app.post("/api/auth/login")
+def auth_login(req: LoginRequest):
+    """账号密码登录，获取认证 Token 与企业租户信息。"""
+    user = db_authenticate_user(req.username, req.password)
+    if not user:
+        raise HTTPException(401, "账号或密码错误，请检查输入")
+    return {"ok": True, "token": user["token"], "user": user}
+
+
+@app.post("/api/auth/register")
+def auth_register(req: RegisterRequest):
+    """注册新企业/工区租户与管理员账号。"""
+    try:
+        user = db_register_user(
+            username=req.username,
+            password=req.password,
+            display_name=req.display_name,
+            tenant_name=req.tenant_name
+        )
+        return {"ok": True, "token": user["token"], "user": user}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/auth/me")
+def auth_me(request: Request):
+    """获取当前登录会话状态与租户。"""
+    token = ""
+    auth_header = request.headers.get("authorization") or ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    elif request.headers.get("x-token"):
+        token = request.headers.get("x-token").strip()
+    elif request.query_params.get("token"):
+        token = request.query_params.get("token").strip()
+
+    user = db_get_user_by_token(token) if token else None
+    if user:
+        return {"ok": True, "authenticated": True, "user": user}
+
+    return {
+        "ok": True,
+        "authenticated": False,
+        "user": {
+            "id": get_current_user(),
+            "username": "guest",
+            "display_name": "访客",
+            "role": "guest",
+            "tenant_id": get_current_tenant(),
+            "tenant_name": "电柜智核公共工作台"
+        }
+    }
+
+
+@app.post("/api/auth/logout")
+def auth_logout(request: Request):
+    """登出并使当前 Token 失效。"""
+    token = ""
+    auth_header = request.headers.get("authorization") or ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    elif request.headers.get("x-token"):
+        token = request.headers.get("x-token").strip()
+    if token:
+        db_logout_user(token)
+    return {"ok": True}
+
+
+@app.post("/api/system/clean_test_data")
+def clean_test_data():
+    """彻底清空系统内所有测试数据，还原纯净环境。"""
+    res = db_clean_all_test_data()
+    jobs.clear()
+    return res
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "vision_configured": VisionProvider().configured}
 
 
 app.mount("/", StaticFiles(directory=os.path.join(BASE, "..", "frontend"), html=True), name="frontend")
+
 

@@ -42,9 +42,215 @@ function toast(msg, ms) {
   el._t = setTimeout(() => el.classList.remove('show'), ms || 2600);
 }
 
-async function api(path, options) {
-  const res = await fetch(path, options);
+/* ===================== 用户鉴权与多租户体系 ===================== */
+
+const Auth = {
+  token: localStorage.getItem('dgzh_auth_token') || '',
+  user: null,
+};
+
+async function checkAuth() {
+  if (!Auth.token) {
+    Auth.user = null;
+    renderUserBadge();
+    return;
+  }
+  try {
+    const res = await api('/api/auth/me');
+    if (res && res.authenticated && res.user) {
+      Auth.user = res.user;
+    } else {
+      Auth.user = null;
+      Auth.token = '';
+      localStorage.removeItem('dgzh_auth_token');
+    }
+  } catch (e) {
+    Auth.user = null;
+    Auth.token = '';
+    localStorage.removeItem('dgzh_auth_token');
+  }
+  renderUserBadge();
+}
+
+function renderUserBadge() {
+  const btnLoginOpen = $('btnLoginOpen');
+  const userBadge = $('userBadge');
+  const userDropdown = $('userDropdown');
+  if (!btnLoginOpen || !userBadge) return;
+
+  if (Auth.user && Auth.token) {
+    btnLoginOpen.hidden = true;
+    userBadge.hidden = false;
+    const name = Auth.user.display_name || Auth.user.username || '工程师';
+    const tenant = Auth.user.tenant_name || '工区/企业';
+    if ($('userDisplayName')) $('userDisplayName').textContent = name;
+    if ($('userTenantName')) $('userTenantName').textContent = tenant;
+    if ($('userAvatar')) $('userAvatar').textContent = (name[0] || 'A').toUpperCase();
+    
+    if ($('udName')) $('udName').textContent = name;
+    if ($('udUsername')) $('udUsername').textContent = Auth.user.username;
+    if ($('udTenant')) $('udTenant').textContent = tenant;
+  } else {
+    btnLoginOpen.hidden = false;
+    userBadge.hidden = true;
+    if (userDropdown) userDropdown.hidden = true;
+  }
+}
+
+function toggleUserDropdown() {
+  const dd = $('userDropdown');
+  if (dd) dd.hidden = !dd.hidden;
+}
+
+function closeUserDropdown() {
+  const dd = $('userDropdown');
+  if (dd) dd.hidden = true;
+}
+
+window.addEventListener('click', e => {
+  const wrap = $('userMenuWrap');
+  if (wrap && !wrap.contains(e.target)) {
+    closeUserDropdown();
+  }
+});
+
+function openAuthModal(tab = 'login') {
+  const m = $('authModal');
+  if (m) m.hidden = false;
+  switchAuthTab(tab);
+}
+
+function closeAuthModal() {
+  const m = $('authModal');
+  if (m) m.hidden = true;
+}
+
+function switchAuthTab(tab) {
+  const isLogin = tab === 'login';
+  const tabLogin = $('tabBtnLogin');
+  const tabReg = $('tabBtnRegister');
+  if (tabLogin) tabLogin.classList.toggle('active', isLogin);
+  if (tabReg) tabReg.classList.toggle('active', !isLogin);
+  if ($('formLogin')) $('formLogin').hidden = !isLogin;
+  if ($('formRegister')) $('formRegister').hidden = isLogin;
+}
+
+async function handleLogin(e) {
+  if (e) e.preventDefault();
+  const username = ($('loginUsername').value || '').trim();
+  const password = ($('loginPassword').value || '').trim();
+  if (!username || !password) {
+    toast('请输入账号和密码');
+    return;
+  }
+  const btn = $('btnLoginSubmit');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await postJSON('/api/auth/login', { username, password });
+    if (res && res.token) {
+      Auth.token = res.token;
+      Auth.user = res.user;
+      localStorage.setItem('dgzh_auth_token', res.token);
+      toast(`欢迎回来，${res.user.display_name || res.user.username}！`);
+      closeAuthModal();
+      renderUserBadge();
+      await loadProjects();
+    }
+  } catch (err) {
+    toast(`登录失败：${err.message || '账号或密码错误'}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function handleRegister(e) {
+  if (e) e.preventDefault();
+  const tenant_name = ($('regTenant').value || '').trim();
+  const username = ($('regUsername').value || '').trim();
+  const display_name = ($('regDisplayName').value || '').trim();
+  const password = ($('regPassword').value || '').trim();
+  if (!tenant_name || !username || !password) {
+    toast('请完整填写企业名、账号和密码');
+    return;
+  }
+  const btn = $('btnRegSubmit');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await postJSON('/api/auth/register', {
+      tenant_name,
+      username,
+      display_name: display_name || username,
+      password,
+    });
+    if (res && res.token) {
+      Auth.token = res.token;
+      Auth.user = res.user;
+      localStorage.setItem('dgzh_auth_token', res.token);
+      toast(`企业工区【${tenant_name}】创建成功！`);
+      closeAuthModal();
+      renderUserBadge();
+      await loadProjects();
+    }
+  } catch (err) {
+    toast(`注册失败：${err.message || '请重试'}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function doLogout() {
+  try {
+    await postJSON('/api/auth/logout', {});
+  } catch (e) {
+    // 忽略登出请求失败
+  }
+  Auth.token = '';
+  Auth.user = null;
+  localStorage.removeItem('dgzh_auth_token');
+  closeUserDropdown();
+  renderUserBadge();
+  toast('已安全退出账号');
+  await loadProjects();
+}
+
+async function doCleanTestData() {
+  if (!confirm('⚠️ 警告：该操作将彻底清空当前系统中的全部图纸任务、项目历史、AI 账单记录及临时工作文件，不可恢复！\n\n确认要执行彻底清空吗？')) {
+    return;
+  }
+  try {
+    const res = await postJSON('/api/system/clean_test_data', {});
+    toast(`系统测试数据已全部清空！清理了 ${res.cleared_jobs || 0} 份图纸任务。`);
+    closeUserDropdown();
+    if (S.route === 'workbench') {
+      S.jobId = null;
+      S.job = null;
+      navGo('projects');
+    }
+    await loadProjects();
+    const { projects } = await api('/api/projects');
+    const hasJobs = (projects || []).some(p => (p.jobs || []).length);
+    if (!hasJobs) {
+      $('startscreen').hidden = false;
+    }
+  } catch (err) {
+    toast(`清理失败：${err.message || '请重试'}`);
+  }
+}
+
+async function api(path, options = {}) {
+  const opts = { ...options };
+  opts.headers = { ...(opts.headers || {}) };
+  if (Auth.token) {
+    opts.headers['Authorization'] = `Bearer ${Auth.token}`;
+  }
+  const res = await fetch(path, opts);
   if (!res.ok) {
+    if (res.status === 401 && !path.includes('/api/auth/')) {
+      Auth.token = '';
+      Auth.user = null;
+      localStorage.removeItem('dgzh_auth_token');
+      renderUserBadge();
+    }
     let detail = res.statusText;
     try { detail = (await res.json()).detail || detail; } catch (e) { /* 非 JSON 错误体 */ }
     const err = new Error(detail);
@@ -1985,7 +2191,9 @@ function closeExport() {
 
 async function doExport() {
   try {
-    const res = await fetch(`/api/jobs/${S.jobId}/excel`);
+    const headers = {};
+    if (Auth.token) headers['Authorization'] = `Bearer ${Auth.token}`;
+    const res = await fetch(`/api/jobs/${S.jobId}/excel`, { headers });
     if (res.status === 409) {
       // 后端门禁：存疑未确认完不许导出
       let n = '?';
@@ -2543,9 +2751,11 @@ async function exportAiTable(tableId) {
   if (!t) return toast('未找到表格数据');
   try {
     toast('正在生成自定义 Excel 报表…');
+    const headers = { 'Content-Type': 'application/json' };
+    if (Auth.token) headers['Authorization'] = `Bearer ${Auth.token}`;
     const res = await fetch('/api/export_custom_table', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         title: t.title,
         headers: t.headers,
@@ -2981,6 +3191,7 @@ function initCanvasPan() {
 }
 
 async function boot() {
+  await checkAuth();
   bindUpload();
   bindManual();
   bindKeys();

@@ -8,8 +8,11 @@
 4. 逐笔记录 AI 识别费用与 Token 消费审计流水。
 """
 import contextvars
+import hashlib
 import json
 import os
+import secrets
+import shutil
 import sqlite3
 import threading
 from datetime import datetime
@@ -22,6 +25,10 @@ DATA_DIR = os.path.join(BASE, "data")
 DB_PATH = os.path.join(DATA_DIR, "extractor.db")
 
 _local = threading.local()
+
+def _hash_password(password: str, salt: str = "cabinet_core_salt_v2") -> str:
+    return hashlib.sha256(f"{salt}:{password}".encode("utf-8")).hexdigest()
+
 
 
 def get_db_path() -> str:
@@ -89,12 +96,27 @@ def _init_tables(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             tenant_id TEXT NOT NULL,
-            username TEXT NOT NULL,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT DEFAULT '',
+            display_name TEXT DEFAULT '',
             role TEXT DEFAULT 'admin',
+            token TEXT DEFAULT '',
             created_at TEXT NOT NULL,
             FOREIGN KEY (tenant_id) REFERENCES tenants(id)
         );
         """)
+        for col, col_def in [
+            ("password_hash", "TEXT DEFAULT ''"),
+            ("display_name", "TEXT DEFAULT ''"),
+            ("token", "TEXT DEFAULT ''"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {col} {col_def};")
+            except sqlite3.OperationalError:
+                pass
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_users_token ON users(token);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);")
+
         # 3. 项目工程表
         conn.execute("""
         CREATE TABLE IF NOT EXISTS projects (
@@ -183,15 +205,20 @@ def _init_tables(conn: sqlite3.Connection) -> None:
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_export_tenant ON export_history(tenant_id);")
 
-        # 初始化默认租户 (保证开箱即用兼容已有单机数据)
+        # 初始化默认租户与系统管理员 (开箱即用)
         conn.execute("""
         INSERT OR IGNORE INTO tenants (id, name, status, created_at)
-        VALUES ('default', '默认企业客户', 'active', datetime('now', 'localtime'));
+        VALUES ('default', '电柜智核成套电气工程部', 'active', datetime('now', 'localtime'));
         """)
+        admin_hash = _hash_password("admin123")
         conn.execute("""
-        INSERT OR IGNORE INTO users (id, tenant_id, username, role, created_at)
-        VALUES ('admin_default', 'default', 'admin', 'admin', datetime('now', 'localtime'));
-        """)
+        INSERT OR IGNORE INTO users (id, tenant_id, username, password_hash, display_name, role, created_at)
+        VALUES ('admin_default', 'default', 'admin', ?, '系统工程师', 'admin', datetime('now', 'localtime'));
+        """, (admin_hash,))
+        conn.execute("""
+        UPDATE users SET password_hash = ?, display_name = '系统工程师'
+        WHERE username = 'admin' AND (password_hash IS NULL OR password_hash = '');
+        """, (admin_hash,))
 
 
 def _now() -> str:
@@ -538,5 +565,186 @@ def db_get_history(limit: int = 100, tenant_id: str | None = None) -> list[dict]
     return out
 
 
+# ---------- 账号登录、企业租户注册与用户鉴权 ----------
+
+def db_authenticate_user(username: str, password: str) -> dict | None:
+    """账号密码登录认证，成功返回用户信息与新 Token。"""
+    username = (username or "").strip()
+    if not username:
+        return None
+    pwd_hash = _hash_password(password or "")
+    conn = _get_conn()
+    cur = conn.execute("""
+    SELECT u.id, u.tenant_id, u.username, u.display_name, u.role, u.password_hash,
+           t.name as tenant_name, t.status as tenant_status
+    FROM users u
+    JOIN tenants t ON u.tenant_id = t.id
+    WHERE u.username = ?;
+    """, (username,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    
+    db_hash = row["password_hash"]
+    if not db_hash and username == "admin":
+        db_hash = _hash_password("admin123")
+    
+    if pwd_hash != db_hash:
+        return None
+    
+    new_token = f"tk_{secrets.token_hex(24)}"
+    with conn:
+        conn.execute("UPDATE users SET token = ? WHERE id = ?", (new_token, row["id"]))
+    
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "display_name": row["display_name"] or row["username"],
+        "role": row["role"],
+        "tenant_id": row["tenant_id"],
+        "tenant_name": row["tenant_name"],
+        "token": new_token,
+    }
+
+
+def db_register_user(username: str, password: str, display_name: str = "",
+                     tenant_name: str = "", role: str = "admin") -> dict:
+    """注册新用户与对应企业/工区租户。"""
+    username = (username or "").strip()
+    password = (password or "").strip()
+    if not username or not password:
+        raise ValueError("账号与密码不能为空")
+    if len(password) < 6:
+        raise ValueError("密码长度至少需为 6 位")
+    
+    conn = _get_conn()
+    cur = conn.execute("SELECT id FROM users WHERE username = ?", (username,))
+    if cur.fetchone():
+        raise ValueError("该账号已存在，请直接登录或更换账号")
+    
+    now_str = _now()
+    t_name = (tenant_name or f"{username}的电气工坊").strip()
+    t_id = f"tenant_{secrets.token_hex(6)}"
+    u_id = f"user_{secrets.token_hex(6)}"
+    pwd_hash = _hash_password(password)
+    token = f"tk_{secrets.token_hex(24)}"
+    d_name = (display_name or username).strip()
+
+    with conn:
+        conn.execute("""
+        INSERT INTO tenants (id, name, status, created_at)
+        VALUES (?, ?, 'active', ?);
+        """, (t_id, t_name, now_str))
+        
+        conn.execute("""
+        INSERT INTO users (id, tenant_id, username, password_hash, display_name, role, token, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+        """, (u_id, t_id, username, pwd_hash, d_name, role, token, now_str))
+        
+    return {
+        "id": u_id,
+        "username": username,
+        "display_name": d_name,
+        "role": role,
+        "tenant_id": t_id,
+        "tenant_name": t_name,
+        "token": token,
+    }
+
+
+def db_get_user_by_token(token: str) -> dict | None:
+    """根据 Token 查询用户及所在租户信息。"""
+    if not token or not isinstance(token, str):
+        return None
+    token = token.strip()
+    if not token:
+        return None
+    conn = _get_conn()
+    cur = conn.execute("""
+    SELECT u.id, u.tenant_id, u.username, u.display_name, u.role,
+           t.name as tenant_name, t.status as tenant_status
+    FROM users u
+    JOIN tenants t ON u.tenant_id = t.id
+    WHERE u.token = ?;
+    """, (token,))
+    row = cur.fetchone()
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "username": row["username"],
+        "display_name": row["display_name"] or row["username"],
+        "role": row["role"],
+        "tenant_id": row["tenant_id"],
+        "tenant_name": row["tenant_name"],
+    }
+
+
+def db_logout_user(token: str) -> bool:
+    """退出登录并注销 Token。"""
+    if not token:
+        return False
+    conn = _get_conn()
+    with conn:
+        conn.execute("UPDATE users SET token = '' WHERE token = ?", (token.strip(),))
+    return True
+
+
+def db_clean_all_test_data() -> dict:
+    """清空系统内所有测试数据（jobs、projects、ai_logs、export_history、work 目录临时文件）。"""
+    conn = _get_conn()
+    with conn:
+        c1 = conn.execute("SELECT count(*) FROM jobs;").fetchone()[0]
+        c2 = conn.execute("SELECT count(*) FROM projects;").fetchone()[0]
+        c3 = conn.execute("SELECT count(*) FROM ai_logs;").fetchone()[0]
+        c4 = conn.execute("SELECT count(*) FROM export_history;").fetchone()[0]
+        
+        conn.execute("DELETE FROM jobs;")
+        conn.execute("DELETE FROM projects;")
+        conn.execute("DELETE FROM ai_logs;")
+        conn.execute("DELETE FROM export_history;")
+        
+    # 清空 projects.json 和 history.json
+    try:
+        store_mod = sys.modules.get("store")
+        target_dir = getattr(store_mod, "DATA_DIR", DATA_DIR) if store_mod else DATA_DIR
+        proj_file = os.path.join(target_dir, "projects.json")
+        hist_file = os.path.join(target_dir, "history.json")
+        if os.path.exists(proj_file):
+            with open(proj_file, "w", encoding="utf-8") as f:
+                f.write("{}")
+        if os.path.exists(hist_file):
+            with open(hist_file, "w", encoding="utf-8") as f:
+                f.write("[]")
+    except Exception:
+        pass
+
+    # 清空 backend/work 目录下的全部临时测试文件
+    work_dir = os.path.join(BASE, "work")
+    deleted_files = 0
+    if os.path.isdir(work_dir):
+        for item in os.listdir(work_dir):
+            item_path = os.path.join(work_dir, item)
+            try:
+                if os.path.isfile(item_path) or os.path.islink(item_path):
+                    os.unlink(item_path)
+                    deleted_files += 1
+                elif os.path.isdir(item_path):
+                    shutil.rmtree(item_path, ignore_errors=True)
+                    deleted_files += 1
+            except Exception:
+                pass
+
+    return {
+        "ok": True,
+        "cleared_jobs": c1,
+        "cleared_projects": c2,
+        "cleared_ai_logs": c3,
+        "cleared_export_history": c4,
+        "deleted_work_files": deleted_files,
+    }
+
+
 # 初始化
 init_db()
+
