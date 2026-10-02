@@ -98,13 +98,19 @@ async function loadProjects() {
       <button class="linklike" style="padding:1px 5px;font-size:11px" onclick="event.stopPropagation();openProjectAiLogs('${esc(p.name)}')">账单</button>
     </div>`;
 
+    const failedJob = jobs.find(j => j.status === 'failed');
+    const retryBtn = failedJob
+      ? `<span style="color:var(--line2);margin:0 3px">|</span><button class="linklike" style="color:var(--err)" onclick="event.stopPropagation();reparseJob('${failedJob.job_id}')" title="使用最新算法重试失败的图纸">重试</button>`
+      : '';
     const action = ready
       ? `<button class="linklike" onclick="event.stopPropagation();openJob('${ready.job_id}')">打开</button>
          <span style="color:var(--line2);margin:0 3px">|</span>
          <button class="linklike" onclick="event.stopPropagation();viewProjectBom('${esc(p.name)}')">总BOM</button>
          <span style="color:var(--line2);margin:0 3px">|</span>
-         <a class="linklike" href="/api/projects/${encodeURIComponent(p.name)}/export_bom" onclick="event.stopPropagation()" download>导出采购表</a>`
-      : `<button class="linklike" onclick="event.stopPropagation();navGo('upload')">上传</button>`;
+         <a class="linklike" href="/api/projects/${encodeURIComponent(p.name)}/export_bom" onclick="event.stopPropagation()" download>导出采购表</a>${retryBtn}`
+      : (failedJob
+          ? `<button class="linklike" style="color:var(--err)" onclick="event.stopPropagation();reparseJob('${failedJob.job_id}')">重试提取</button>`
+          : `<button class="linklike" onclick="event.stopPropagation();navGo('upload')">上传</button>`);
     return `<tr class="${ready ? 'clickable' : ''}" ${ready ? `onclick="openJob('${ready.job_id}')"` : ''}>
       <td><b>${esc(p.name)}</b><span class="sub">${sub}</span></td>
       <td>${jobs.length}</td>
@@ -493,6 +499,38 @@ async function openJob(jobId) {
   }
 }
 
+async function reparseJob(jobId) {
+  if (!confirm('确定要基于服务器已保存的原图纸重新执行解析与提取吗？\n（将以最新规则刷新结果，完全无需重新上传文件）')) return;
+  try {
+    toast('正在启动重新解析…');
+    const res = await api(`/api/jobs/${jobId}/reparse`, { method: 'POST' });
+    toast(res.message || '已成功启动重新解析');
+    if (S.jobId === jobId) {
+      // 保持在当前工作台，轮询最新进度
+      const pollTimer = setInterval(async () => {
+        try {
+          const j = await api(`/api/jobs/${jobId}`);
+          S.job = j;
+          renderWorkbench();
+          if (j.status === 'done') {
+            clearInterval(pollTimer);
+            openJob(jobId);
+            toast('图纸重新解析完成！');
+          } else if (j.status === 'failed') {
+            clearInterval(pollTimer);
+            toast('重新解析失败: ' + (j.error || '未知错误'));
+          }
+        } catch (_) {}
+      }, 2000);
+    } else {
+      if (S.route === 'projects') loadProjects();
+      if (S.route === 'history') loadHistory();
+    }
+  } catch (err) {
+    toast('重新解析请求失败: ' + err.message);
+  }
+}
+
 function welcome(job) {
   const t = job.summary || {};
   const parts = [];
@@ -515,7 +553,8 @@ function updateWorkbenchCrumb() {
   const box = (S.data.boxes || [])[0];
   const curSheetName = (S.sheetNames && (S.sheetNames[S.page] || S.sheetNames[String(S.page)])) || '';
   const sheetTag = curSheetName ? `<span style="background:var(--acc-t);color:var(--acc-d);padding:2px 7px;border-radius:2px;font-weight:600;margin:0 4px">${esc(curSheetName)}</span>` : '';
-  $('crumb').innerHTML = `<b>${esc(job.filename || '')}</b>　/　${sheetTag}${box ? esc(box.name || '配电箱') + ' ' + esc(box.code || '') : '未识别箱体'}　<span class="mut2">· 第 ${S.page}/${S.pages} 块</span>`;
+  const reparseBtn = `<button class="linklike" style="margin-left:12px;font-size:11px;padding:2px 7px;border:1px solid var(--line2);border-radius:3px;background:var(--card)" onclick="reparseJob('${S.jobId}')" title="无需重新上传，以最新引擎与提取规则重新解析本图纸">🔄 重新提取</button>`;
+  $('crumb').innerHTML = `<b>${esc(job.filename || '')}</b>　/　${sheetTag}${box ? esc(box.name || '配电箱') + ' ' + esc(box.code || '') : '未识别箱体'}　<span class="mut2">· 第 ${S.page}/${S.pages} 块</span>${reparseBtn}`;
 }
 
 function renderWorkbench() {
@@ -2480,7 +2519,10 @@ async function loadHistory() {
       : `<span class="pill ok">${h.uncertainties || 0} 已确认</span>`}</td>
     <td>${h.changes || 0} 处</td>
     <td><button class="linklike" onclick="openJob('${h.job_id}')">查看</button>
-        <a class="linklike" href="/api/jobs/${h.job_id}/excel">重新下载</a></td></tr>`).join('');
+        <span style="color:var(--line2);margin:0 3px">|</span>
+        <button class="linklike" onclick="reparseJob('${h.job_id}')" title="无需重新上传，以最新引擎重新提取该图纸">重新解析</button>
+        <span style="color:var(--line2);margin:0 3px">|</span>
+        <a class="linklike" href="/api/jobs/${h.job_id}/excel">下载Excel</a></td></tr>`).join('');
   $('histempty').hidden = history.length > 0;
 }
 

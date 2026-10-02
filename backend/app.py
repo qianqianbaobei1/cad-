@@ -641,6 +641,37 @@ def create_job(background: BackgroundTasks, file: UploadFile = File(...),
     return {"job_id": job_id}
 
 
+@app.post("/api/jobs/{job_id}/reparse")
+def reparse_job(job_id: str, background: BackgroundTasks):
+    """基于服务器已保存的原始图纸文件原地重新执行提取与解析，无需重新上传。"""
+    _validate_job_id(job_id)
+    raw_path = None
+    for ext in (".dwg", ".pdf", ".dxf", ".DWG", ".PDF", ".DXF"):
+        cand = os.path.join(WORKDIR, f"{job_id}{ext}")
+        if os.path.exists(cand) and os.path.getsize(cand) > 0:
+            raw_path = cand
+            break
+
+    if not raw_path:
+        raise HTTPException(404, "找不到该任务的原始图纸源文件，无法重新解析")
+
+    job_info = jobs.get(job_id) or load_job_cached(job_id) or {}
+    filename = job_info.get("filename") or os.path.basename(raw_path)
+    project = job_info.get("project") or ""
+
+    ext = os.path.splitext(raw_path)[1].lower()
+    jobs[job_id] = {
+        "status": "queued",
+        "filename": filename,
+        "project": project,
+        "file_type": ext.lstrip("."),
+        "progress": 0,
+        "error": "",
+    }
+    background.add_task(process_drawing_file, job_id, raw_path, filename)
+    return {"ok": True, "job_id": job_id, "filename": filename, "message": "已成功启动重新解析"}
+
+
 @app.get("/api/jobs/{job_id}")
 def job_status(job_id: str):
     _validate_job_id(job_id)

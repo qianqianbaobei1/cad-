@@ -180,5 +180,36 @@ class ResolvedPrefixTests(unittest.TestCase):
         self.assertFalse(us["WL2"])
 
 
+class ReparseTests(unittest.TestCase):
+    def setUp(self):
+        self.client = TestClient(fastapi_app)
+
+    def test_reparse_not_found(self):
+        tid = "not_exist_job"
+        r = self.client.post(f"/api/jobs/{tid}/reparse")
+        self.assertEqual(r.status_code, 404)
+
+    def test_reparse_success(self):
+        import app
+        tid = "test_reparse_" + uuid.uuid4().hex[:6]
+        # 在 WORKDIR 下建一个临时源文件
+        pdf_file = os.path.join(app.WORKDIR, f"{tid}.pdf")
+        with open(pdf_file, "wb") as f:
+            f.write(b"%PDF-1.4 test")
+        try:
+            with patch("app.process_drawing_file") as mock_proc:
+                r = self.client.post(f"/api/jobs/{tid}/reparse")
+                self.assertEqual(r.status_code, 200)
+                data = r.json()
+                self.assertTrue(data["ok"])
+                self.assertEqual(data["job_id"], tid)
+                self.assertEqual(jobs[tid]["status"], "queued")
+        finally:
+            if os.path.exists(pdf_file):
+                os.remove(pdf_file)
+            jobs.pop(tid, None)
+
+
 if __name__ == "__main__":
     unittest.main()
+
