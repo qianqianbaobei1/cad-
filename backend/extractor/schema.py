@@ -2,11 +2,95 @@
 """Model observations and the assembled quotation have separate schemas."""
 from __future__ import annotations
 import re
-from typing import List, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 PROMPT_VERSION = "3.0"
 CONTRACT_VERSION = "3.0"
+
+
+class EvidenceType(str, Enum):
+    TEXT = "TEXT"                      # 矢量文字或高精 OCR 文本事实
+    SYMBOL = "SYMBOL"                  # 图例符号
+    LINE = "LINE"                      # 母线或物理连接线
+    GEOMETRY = "GEOMETRY"              # 柜体/走廊几何线框
+    TABLE_CELL = "TABLE_CELL"          # 系统图表格单元格
+
+
+class InferenceType(str, Enum):
+    MODEL = "MODEL"                    # 多模态大模型推断
+    RULE = "RULE"                      # 规范规则/公式计算推断
+    HUMAN = "HUMAN"                    # 人工复核确认
+
+
+class ReviewStatus(str, Enum):
+    UNASSESSED = "UNASSESSED"          # 初始未核验状态 (Fail-Closed)
+    CONFIRMED = "CONFIRMED"            # 物理证据确凿且校验无误
+    ACCEPTED = "ACCEPTED"              # 综合证据满足规范放行
+    REVIEW = "REVIEW"                  # 存疑/缺证据/弱冲突，需人工确认
+    ERROR = "ERROR"                    # 明确结构性矛盾，系统阻断
+
+
+class Evidence(BaseModel):
+    evidence_id: str = Field(..., description="唯一证据ID")
+    evidence_type: str = Field(EvidenceType.TEXT.value, description="物理证据类别 (严禁推断)")
+    raw_content: str = Field("", description="提取的原始文字或图例类别")
+    bbox: Optional["BBox"] = Field(None, description="图元规范页面归一化坐标")
+    confidence: float = Field(1.0, ge=0.0, le=1.0, description="证据可信度")
+
+
+class GroundedField(BaseModel):
+    """带证据链支撑的结构化字段载体 (Claim)"""
+    value: Any = None
+    raw_value: str = ""
+    value_evidence_ids: List[str] = Field(default_factory=list, description="证明数值存在的物理证据ID列表")
+    relation_evidence_ids: List[str] = Field(default_factory=list, description="证明拓扑归属关系的几何/连线证据ID列表")
+    inference_ids: List[str] = Field(default_factory=list, description="推断记录引用ID列表")
+    confidence: Optional[float] = Field(None, description="未校准前为 None，严禁默认 1.0 (Fail-Closed)")
+    review_status: str = Field(ReviewStatus.UNASSESSED.value, description="默认必须为 UNASSESSED (Fail-Closed)")
+    notes: str = Field("", description="备注或核验说明")
+
+    @property
+    def evidence_ids(self) -> List[str]:
+        """向后兼容历史 evidence_ids 访问"""
+        return self.value_evidence_ids + self.relation_evidence_ids
+
+
+GroundedClaim = GroundedField  # V3.5 规范别名兼容
+
+
+# 字段级证据政策表（Field-Level Evidence Policy）：严格定义字段允许的证据类型
+# 核心原则：防凭空编造！位置、断路器、电缆型号绝对禁止纯 MODEL 推测
+FIELD_EVIDENCE_POLICY: dict[str, set[str]] = {
+    # 箱体核心字段
+    "box.code": {EvidenceType.TEXT.value, EvidenceType.TABLE_CELL.value},
+    "box.location": {EvidenceType.TEXT.value, EvidenceType.TABLE_CELL.value}, # 严禁 MODEL 编造安装位置
+    "box.ip_rating": {EvidenceType.TEXT.value, EvidenceType.TABLE_CELL.value},
+    # 回路核心字段
+    "circuit.circuit_no": {EvidenceType.TEXT.value, EvidenceType.TABLE_CELL.value}, # 回路编号严禁推测
+    "circuit.breaker": {EvidenceType.TEXT.value, EvidenceType.SYMBOL.value, EvidenceType.TABLE_CELL.value}, # 断路器规格严禁 MODEL
+    "circuit.cable": {EvidenceType.TEXT.value, EvidenceType.TABLE_CELL.value}, # 电缆型号严禁 MODEL
+    # 允许规则或模型推断的辅助字段
+    "circuit.phase": {EvidenceType.TEXT.value, EvidenceType.TABLE_CELL.value, "RULE", "RULE_INFERENCE"},
+    "circuit.power_kw": {EvidenceType.TEXT.value, EvidenceType.TABLE_CELL.value, "RULE", "RULE_INFERENCE"},
+    "circuit.current_a": {EvidenceType.TEXT.value, EvidenceType.TABLE_CELL.value, "RULE", "RULE_INFERENCE"},
+    "circuit.load_name": {EvidenceType.TEXT.value, EvidenceType.TABLE_CELL.value, "MODEL", "MODEL_INFERENCE"}, # 允许语义推断用途
+}
+
+
+def validate_field_evidence(field_path: str, evidence_type: str) -> tuple[bool, str]:
+    """校验字段是否符合证据政策要求。返回 (is_valid, violation_message)。"""
+    allowed = FIELD_EVIDENCE_POLICY.get(field_path)
+    if not allowed:
+        return True, ""
+    norm_type = str(evidence_type).upper().strip()
+    if norm_type not in allowed:
+        return False, (
+            f"字段 '{field_path}' 违反证据政策：检测到证据/推断类型 '{evidence_type}'，"
+            f"但该字段强制要求使用 [{', '.join(sorted(allowed))}] 物理事实证据，严禁无据臆测！"
+        )
+    return True, ""
 
 
 def normalize_code(value: str) -> str:
@@ -55,6 +139,7 @@ class Uncertainty(BaseModel):
     bbox: Optional[BBox] = Field(None, description="图纸上的位置，定位不到留空")
     resolved: bool = Field(False, description="用户是否已确认")
     source: str = Field("", description="model / program / 空")
+    severity: str = Field("WARNING", description="ERROR / WARNING / INFO 三级门禁分类")
 
     @classmethod
     def from_text(cls, text: str) -> "Uncertainty":
@@ -68,10 +153,15 @@ class Uncertainty(BaseModel):
         if text.startswith("（已确认）"):
             resolved = True
             text = text[len("（已确认）"):].strip()
+        severity = "WARNING"
+        if any(tag in text for tag in ("【错误】", "[ERROR]", "【严重】", "【拒识】", "【证据违规】", "【范围缺失】")):
+            severity = "ERROR"
+        elif any(tag in text for tag in ("【提示】", "[INFO]", "【建议】")):
+            severity = "INFO"
         head, sep, tail = text.partition("：")
         if sep and len(head) <= 40:
-            return cls(location=head.strip(), detail=tail.strip(), resolved=resolved)
-        return cls(location="", detail=text, resolved=resolved)
+            return cls(location=head.strip(), detail=tail.strip(), resolved=resolved, severity=severity)
+        return cls(location="", detail=text, resolved=resolved, severity=severity)
 
     @property
     def text(self) -> str:
@@ -93,6 +183,7 @@ class Box(BaseModel):
     size: str = Field("", description="参考尺寸")
     quantity: int = Field(1, description="数量(台)")
     note: str = Field("", description="备注")
+    claims: Dict[str, GroundedField] = Field(default_factory=dict, description="带证据链支撑的结构化字段字典")
 
     @field_validator("code")
     @classmethod
@@ -116,6 +207,9 @@ class Circuit(BaseModel):
     start_method: str = Field("", description="启动方式")
     note: str = Field("", description="备注")
     bbox: Optional[BBox] = Field(None, description="该回路在图纸页内的归一化位置，定位不到留空")
+    structured_breaker: Optional[Dict[str, Any]] = Field(None, description="结构化清洗后的断路器参数")
+    structured_cable: Optional[Dict[str, Any]] = Field(None, description="结构化清洗后的线缆参数")
+    claims: Dict[str, GroundedField] = Field(default_factory=dict, description="带证据链支撑的结构化字段字典")
 
     @field_validator("box")
     @classmethod
@@ -147,6 +241,26 @@ class ExtraDevice(BaseModel):
     note: str = ""
 
 
+class CatalogItem(BaseModel):
+    sheet_no: str = Field("", description="图纸编号, 如 01B-03")
+    sheet_title: str = Field("", description="图纸名称, 如 动力配电箱系统图(三)")
+    declared_panels: List[str] = Field(default_factory=list, description="本图声明包含的配电箱列表")
+    matched_panels: List[str] = Field(default_factory=list, description="实际已提取到的配电箱")
+    missing_panels: List[str] = Field(default_factory=list, description="缺失未进流水线的配电箱")
+    status: str = Field("COVERED", description="COVERED(全部覆盖) / PARTIAL(部分覆盖) / MISSING(整张图幅缺失)")
+
+
+class CatalogReconciliation(BaseModel):
+    has_catalog: bool = Field(False, description="图纸中是否检测到目录清单")
+    catalog_source: str = Field("", description="目录来源，如 CAD文字/PDF目录页")
+    total_declared_panels: int = Field(0, description="目录声明的配电箱总数")
+    covered_count: int = Field(0, description="已提取覆盖的配电箱数")
+    missing_count: int = Field(0, description="遗漏未提取的配电箱数")
+    coverage_rate: float = Field(1.0, description="覆盖率 0.0~1.0")
+    items: List[CatalogItem] = Field(default_factory=list)
+    missing_box_codes: List[str] = Field(default_factory=list, description="遗漏的配电箱编号列表")
+
+
 class RawExtraction(BaseModel):
     """Only facts observed by the model; no model-computed totals or title."""
     model_config = ConfigDict(extra="forbid")
@@ -155,6 +269,8 @@ class RawExtraction(BaseModel):
     extra_devices: List[ExtraDevice]
     requirements: List[Requirement]
     uncertainties: List[Uncertainty]
+    catalog_items: List[CatalogItem] = Field(default_factory=list)
+    reconciliation: Optional[CatalogReconciliation] = Field(default=None)
 
 
 class DistributionNode(BaseModel):
@@ -186,5 +302,7 @@ class ExtractionResult(BaseModel):
     requirements: List[Requirement] = Field(default_factory=list)
     uncertainties: List[Uncertainty] = Field(default_factory=list, description="图纸字迹不清、需人工核对的项")
     topology: List[DistributionNode] = Field(default_factory=list, description="配电系统拓扑树")
+    reconciliation: Optional[CatalogReconciliation] = Field(None, description="图纸目录对账审计结果")
+    evidence_store: Dict[str, Evidence] = Field(default_factory=dict, description="证据存储字典")
     meta: AssembledMeta = Field(default_factory=AssembledMeta)
 

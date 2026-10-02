@@ -168,10 +168,18 @@ td.changed::after{content:"";position:absolute;top:5px;right:5px;width:6px;heigh
 .rvscroll{flex:1;overflow:auto;padding-bottom:12px}
 .issue{margin:10px 14px 0;border:1px solid var(--line);padding:12px;background:var(--panel)}
 .issue h4{font-size:12.5px;margin-bottom:5px;display:flex;align-items:center;gap:7px}
-.issue h4 .tag{font-size:10px;font-weight:600;color:var(--warn);background:var(--warnbg);border:1px solid #EAD9B8;padding:1px 6px}
-.issue p{font-size:12px;color:var(--mut);margin-bottom:9px}
+.issue h4 .tag{font-size:10px;font-weight:600;color:var(--warn);background:var(--warnbg);border:1px solid #EAD9B8;padding:1px 6px;border-radius:3px}
+.issue h4 .tag.error{color:#b91c1c;background:#fef2f2;border-color:#fecaca}
+.issue h4 .tag.warn{color:#b45309;background:#fffbeb;border-color:#fde68a}
+.issue h4 .tag.info{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe}
 .issue.done{opacity:.65}
 .issue.done h4 .tag{color:var(--ok);background:var(--okbg);border-color:#BBE5C9}
+
+.recon-card{margin:10px 14px 12px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:10px 12px;font-size:12px;color:#334155}
+.recon-card.bad{background:#fff1f2;border-color:#fecdd3}
+.recon-card.ok{background:#f0fdf4;border-color:#bbf7d0}
+.recon-card-head{display:flex;justify-content:space-between;align-items:center;font-weight:600;margin-bottom:6px}
+.recon-card-body{font-size:11.5px;color:#475569;line-height:1.5}
 
 /* 对话 */
 .msgs{flex:1;overflow:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}

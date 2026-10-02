@@ -1315,6 +1315,39 @@ def _fill_topology_sheet(wb, topology: list, title: str, subtitle: str):
             ws.cell(row=curr_row, column=2).font = sec_font
 
 
+def _fill_reconciliation_sheet(wb, reconciliation, title: str, subtitle: str):
+    """图纸目录与提取覆盖对账审计表导出。"""
+    if not reconciliation or not getattr(reconciliation, "has_catalog", False):
+        return
+    sheet_name = "图纸目录对账审计"
+    if sheet_name in wb.sheetnames:
+        del wb[sheet_name]
+    ws = wb.create_sheet(sheet_name)
+    headers = ["序号", "图纸编号", "图纸名称", "目录声明箱柜", "实际覆盖提取箱柜", "缺失未提取箱柜", "对账状态"]
+    sub = (
+        f"目录声明总数: {reconciliation.total_declared_panels} 台 ｜ 实际覆盖提取: {reconciliation.covered_count} 台 "
+        f"｜ 缺失未提取: {reconciliation.missing_count} 台 ｜ 覆盖率: {int(reconciliation.coverage_rate * 100)}%"
+    )
+    r = _setup(ws, f"{title}——图纸目录对账审计表", sub, headers, [6, 16, 28, 30, 30, 30, 16])
+    items = getattr(reconciliation, "items", []) or []
+    for i, item in enumerate(items, 1):
+        status_text = "全部覆盖" if item.status == "COVERED" else ("整张图幅缺失" if item.status == "MISSING" else "部分覆盖")
+        r = _row(
+            ws, r,
+            [
+                i,
+                item.sheet_no,
+                item.sheet_title,
+                "、".join(item.declared_panels) if item.declared_panels else "(无声明)",
+                "、".join(item.matched_panels) if item.matched_panels else "(无覆盖)",
+                "、".join(item.missing_panels) if item.missing_panels else "(无缺失)",
+                status_text,
+            ],
+            height=32,
+            center_cols=(1, 2, 7)
+        )
+
+
 def build_workbook(result: ExtractionResult, subtitle: str, out_path: str,
                    changes=None, include_changes: bool = True,
                    template_path: str = "", target_brand: str = "正泰",
@@ -1331,10 +1364,14 @@ def build_workbook(result: ExtractionResult, subtitle: str, out_path: str,
 
     if layout == "3_sheets" and not template:
         _fill_three_sheets(wb, result, subtitle, bidder=bidder, owner=owner)
+        if getattr(result, "reconciliation", None) and result.reconciliation.has_catalog:
+            _fill_reconciliation_sheet(wb, result.reconciliation, result.title, subtitle)
     else:
         _fill_sheets(wb, result, subtitle, template)
         if getattr(result, "topology", None):
             _fill_topology_sheet(wb, result.topology, f"{result.title}——配电拓扑架构树", subtitle)
+        if getattr(result, "reconciliation", None) and result.reconciliation.has_catalog:
+            _fill_reconciliation_sheet(wb, result.reconciliation, result.title, subtitle)
         if result.components:
             _fill_replacements(wb, result.components, target_brand=target_brand or "正泰")
         if include_changes and changes:

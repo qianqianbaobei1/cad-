@@ -2022,13 +2022,34 @@ function selectCircuit(cid, fromTable) {
 function renderReview() {
   const items = S.data.uncertainties || [];
   const un = unresolved().length;
+  const recon = S.data.reconciliation;
+
+  let reconHtml = '';
+  if (recon && recon.has_catalog) {
+    const isBad = recon.missing_count > 0;
+    reconHtml = `
+    <div class="recon-card ${isBad ? 'bad' : 'ok'}">
+      <div class="recon-card-head">
+        <span>📋 图纸目录对账审计 ${isBad ? '⚠️ 存在范围缺失' : '✅ 100% 覆盖'}</span>
+        <span style="font-weight:700;color:${isBad ? '#b91c1c' : '#15803d'}">
+          覆盖率 ${Math.round(recon.coverage_rate * 100)}%
+        </span>
+      </div>
+      <div class="recon-card-body">
+        <div>目录声明箱柜：<b>${recon.total_declared_panels}</b> 个 ｜ 已提取：<b>${recon.covered_count}</b> 个 ｜ 缺失：<b style="color:${isBad ? '#b91c1c' : '#15803d'}">${recon.missing_count}</b> 个</div>
+        ${isBad ? `<div style="margin-top:4px;color:#b91c1c">缺失箱号：${esc(recon.missing_box_codes.join('、'))}</div>` : ''}
+      </div>
+    </div>`;
+  }
 
   let topBar = '';
   if (items.length) {
+    const errorCount = items.filter(u => !u.resolved && u.severity === 'ERROR').length;
     topBar = `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#f8fafc;border:1px solid #cbd5e1;margin-bottom:12px;border-radius:6px;gap:8px">
       <div style="font-size:12px;color:#334155;white-space:nowrap">
         待核对：<b style="color:${un ? '#e11d48' : '#16a34a'}">${un}</b> / ${items.length} 处
+        ${errorCount ? `<span style="margin-left:6px;padding:2px 6px;border-radius:3px;background:#fee2e2;color:#b91c1c;font-weight:600;font-size:11px">阻断错误 ${errorCount} 处</span>` : ''}
       </div>
       <div style="display:flex;gap:6px">
         <button class="btn sm" onclick="triggerAiReview()" title="让 AI 深度交叉复核全盘存疑项与电气设计规范" style="background:#4f46e5;color:#fff;border:none;font-size:11px;padding:3px 8px">
@@ -2041,13 +2062,27 @@ function renderReview() {
     </div>`;
   }
 
-  $('rvlist').innerHTML = items.length ? (topBar + items.map((u, i) => `
+  $('rvlist').innerHTML = reconHtml + (items.length ? (topBar + items.map((u, i) => {
+    let tagClass = 'warn';
+    let tagText = '待核对';
+    if (u.resolved) {
+      tagClass = 'ok';
+      tagText = '已确认';
+    } else if (u.severity === 'ERROR') {
+      tagClass = 'error';
+      tagText = '阻断错误';
+    } else if (u.severity === 'INFO') {
+      tagClass = 'info';
+      tagText = '规范提示';
+    }
+    return `
     <div class="issue${u.resolved ? ' done' : ''}">
-      <h4><span class="tag">${u.resolved ? '已确认' : '待核对'}</span>${esc(u.location || '待核对项 ' + (i + 1))}</h4>
+      <h4><span class="tag ${tagClass}">${tagText}</span>${esc(u.location || '待核对项 ' + (i + 1))}</h4>
       <p>${esc(u.detail || '')}</p>
       ${u.resolved ? '' : `<button class="btn ghost sm" onclick="openReviewAt(${i})">去核对</button>`}
-    </div>`).join(''))
-    : '<div class="empty">这份清单没有待核对项<br>识别结果与图纸一致</div>';
+    </div>`;
+  }).join(''))
+    : '<div class="empty">这份清单没有待核对项<br>识别结果与图纸一致</div>');
   updateBadge();
 }
 
@@ -2084,6 +2119,13 @@ async function triggerAiReview() {
 
 async function resolveAllIssues() {
   if (!S.jobId) return toast('未打开有效图纸');
+  const un = unresolved();
+  const errors = un.filter(u => u.severity === 'ERROR');
+  if (errors.length > 0) {
+    if (!confirm(`检测到 ${errors.length} 处系统级【阻断错误】（如图幅范围缺失或严重违反证据政策）。\n确定要强行人工全盘确认放行吗？`)) {
+      return;
+    }
+  }
   try {
     toast('正在一键确认所有存疑项…');
     const res = await postJSON(`/api/jobs/${S.jobId}/resolve_all`, {});
@@ -2281,6 +2323,17 @@ function openExport() {
     { ok: comps > 0 && cross === 0, title: '元器件已按回路重新汇总', note: cross ? `有 ${cross} 条回路与汇总数量存在差异，已作工程标记` : `${comps} 项，与回路逐条计数一致` },
     { ok: true, title: pending ? `还有 ${pending} 处修改没保存` : '修改已留痕', note: pending ? '点「保存」后再导出，否则未保存修改不会进入变更记录' : `${S.changes.length} 处修改，随清单导出变更记录` },
   ];
+  if (S.data.reconciliation && S.data.reconciliation.has_catalog) {
+    const recon = S.data.reconciliation;
+    const isBad = recon.missing_count > 0;
+    checks.push({
+      ok: !isBad,
+      title: '图纸目录对账审计',
+      note: isBad
+        ? `目录声明 ${recon.total_declared_panels} 个箱体，仅覆盖 ${recon.covered_count} 个，遗漏：${recon.missing_box_codes.join('、')}`
+        : `目录声明 ${recon.total_declared_panels} 个箱体 100% 覆盖提取`
+    });
+  }
   $('expsub').textContent = `${S.job ? S.job.filename : ''} · 导出前检查`;
   $('expchecks').innerHTML = checks.map(c => `<div class="chk${c.ok ? '' : ' bad'}">
     <span class="c">${c.ok ? '✓' : '!'}</span><div>${esc(c.title)}<small>${esc(c.note)}</small></div></div>`).join('');

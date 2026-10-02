@@ -14,9 +14,12 @@ from .schema import (
     DistributionNode,
     ExtractionResult,
     ExtraDevice,
+    GroundedField,
     RawExtraction,
+    ReviewStatus,
     Uncertainty,
 )
+from .normalizer import parse_breaker, parse_cable
 
 BASE_TITLE = "配电箱元器件清单(报价用)"
 AS_WRITTEN = "图纸写法无法安全拆分，按原文计入，数量待人工确认"
@@ -342,6 +345,25 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
                 exist.location = box.location
 
     merged_boxes = list(dedup_boxes_dict.values())
+    for b in merged_boxes:
+        if not b.claims:
+            b.claims = {
+                "box.code": GroundedField(
+                    value=b.code,
+                    raw_value=b.code,
+                    review_status=ReviewStatus.CONFIRMED.value if b.code else ReviewStatus.UNASSESSED.value
+                ),
+                "box.location": GroundedField(
+                    value=b.location,
+                    raw_value=b.location,
+                    review_status=ReviewStatus.UNASSESSED.value
+                ),
+                "box.ip_rating": GroundedField(
+                    value=b.ip_rating,
+                    raw_value=b.ip_rating,
+                    review_status=ReviewStatus.CONFIRMED.value if b.ip_rating else ReviewStatus.UNASSESSED.value
+                )
+            }
     boxes = {box.code: box for box in merged_boxes if box.code}
 
     # 2. 回路跨切片去重：同一箱体内完全一致的回路（编号+断路器+负荷名+导线+功率）。
@@ -363,6 +385,43 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
             )
             continue
         seen_circs.add(sig)
+
+        # 结构化清洗断路器与导线参数 (Stage 5)
+        if not c_copy.structured_breaker:
+            c_copy.structured_breaker = parse_breaker(c_copy.breaker).model_dump()
+        if not c_copy.structured_cable:
+            c_copy.structured_cable = parse_cable(c_copy.cable).model_dump()
+
+        # 沉淀证据主张 Claim 字典 (Stage 6)
+        if not c_copy.claims:
+            c_copy.claims = {
+                "circuit.circuit_no": GroundedField(
+                    value=c_copy.circuit_no,
+                    raw_value=c_copy.circuit_no,
+                    review_status=ReviewStatus.CONFIRMED.value if c_copy.circuit_no else ReviewStatus.UNASSESSED.value
+                ),
+                "circuit.breaker": GroundedField(
+                    value=c_copy.breaker,
+                    raw_value=c_copy.breaker,
+                    review_status=ReviewStatus.CONFIRMED.value if (c_copy.structured_breaker and c_copy.structured_breaker.get("rated_current")) else ReviewStatus.UNASSESSED.value
+                ),
+                "circuit.cable": GroundedField(
+                    value=c_copy.cable,
+                    raw_value=c_copy.cable,
+                    review_status=ReviewStatus.CONFIRMED.value if (c_copy.structured_cable and c_copy.structured_cable.get("section_mm2")) else ReviewStatus.UNASSESSED.value
+                ),
+                "circuit.phase": GroundedField(
+                    value=c_copy.phase,
+                    raw_value=c_copy.phase,
+                    review_status=ReviewStatus.CONFIRMED.value if c_copy.phase else ReviewStatus.UNASSESSED.value
+                ),
+                "circuit.load_name": GroundedField(
+                    value=c_copy.load_name,
+                    raw_value=c_copy.load_name,
+                    review_status=ReviewStatus.CONFIRMED.value if c_copy.load_name else ReviewStatus.UNASSESSED.value
+                )
+            }
+
         dedup_circuits.append(c_copy)
 
     # Stable sort preserves the drawing order within each group.
@@ -463,9 +522,15 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
 
     topology = build_distribution_topology(merged_boxes, circuits)
 
+    reconciliation = getattr(raw, "reconciliation", None)
+    if not reconciliation and getattr(raw, "catalog_items", None):
+        from .catalog_reconciler import DrawingCatalogReconciler
+        reconciliation = DrawingCatalogReconciler.reconcile(raw.catalog_items, merged_boxes)
+
     return ExtractionResult(
         title=title, boxes=merged_boxes, circuits=circuits, components=components,
         requirements=requirements, uncertainties=_to_uncertainties(warnings, model_texts),
         topology=topology,
+        reconciliation=reconciliation,
         meta=AssembledMeta(**(meta or {})),
     )

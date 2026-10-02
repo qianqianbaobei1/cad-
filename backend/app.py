@@ -15,12 +15,13 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from extractor.render import plan_tiles, render_pdf
 from extractor.vision import VisionProvider, is_safe_model_url
-from extractor.checker import check_result
+from extractor.checker import check_result, check_result_issues, CheckIssue
 from extractor.assemble import assemble
-from extractor.schema import CONTRACT_VERSION, PROMPT_VERSION, Uncertainty, RawExtraction
+from extractor.schema import CONTRACT_VERSION, PROMPT_VERSION, Uncertainty, RawExtraction, ExtractionResult
 from extractor.excel import build_workbook, build_project_bom_workbook
 from extractor.cad import is_cad_path, process_cad_file
 from extractor.catalog import analyze_components_replacement
+from extractor.catalog_reconciler import DrawingCatalogReconciler
 from db import (
     db_save_job, db_get_job, db_list_jobs, db_recover_interrupted_jobs,
     set_current_tenant, get_current_tenant, get_current_user, db_ensure_tenant,
@@ -236,6 +237,32 @@ def process_drawing_file(job_id: str, raw_path: str, filename: str):
         process_pdf(job_id, raw_path, filename)
 
 
+def _sync_result_issues(result: ExtractionResult, existing_uncertainties: list = None) -> None:
+    """统一同步 check_result_issues 到 result.uncertainties，精准保留三级门禁 (ERROR/WARNING/INFO)。"""
+    issues = check_result_issues(result)
+    known = {u.text for u in result.uncertainties}
+    flags = {}
+    if existing_uncertainties:
+        for u in existing_uncertainties:
+            txt = u.get("text") if isinstance(u, dict) else getattr(u, "text", "")
+            res = u.get("resolved") if isinstance(u, dict) else getattr(u, "resolved", False)
+            if txt:
+                flags[txt.strip()] = res
+
+    for issue in issues:
+        raw_text = issue.text
+        parsed = Uncertainty(
+            location=issue.target,
+            detail=issue.detail,
+            severity=issue.severity,
+            source="program",
+            resolved=flags.get(raw_text.strip(), False)
+        )
+        if parsed.text not in known:
+            known.add(parsed.text)
+            result.uncertainties.append(parsed)
+
+
 def process_cad_raw_extraction(job_id: str, pdf_path: str, filename: str, raw: RawExtraction):
     """CAD 原生矢量数据专用处理分支：跳过模糊位图视觉推断，直接组装工业级高保真清单。"""
     job = jobs[job_id]
@@ -275,13 +302,24 @@ def process_cad_raw_extraction(job_id: str, pdf_path: str, filename: str, raw: R
             "calls": 0,
         }
         result = assemble(raw, meta)
-        known = {item.text for item in result.uncertainties}
-        for warning in check_result(result):
-            parsed = Uncertainty.from_text(warning)
-            if parsed.text not in known:
-                known.add(parsed.text)
-                parsed.source = "program"
-                result.uncertainties.append(parsed)
+
+        if cad_texts and not getattr(result, "reconciliation", None):
+            seen_cat = set()
+            cat_items = []
+            for t in cad_texts:
+                txt = t.get("text", "")
+                parsed = DrawingCatalogReconciler.parse_catalog_line(txt)
+                if parsed and parsed.declared_panels:
+                    key = (parsed.sheet_no, parsed.sheet_title)
+                    if key not in seen_cat:
+                        seen_cat.add(key)
+                        cat_items.append(parsed)
+            if cat_items:
+                result.reconciliation = DrawingCatalogReconciler.reconcile(
+                    cat_items, result.boxes, source_name="CAD图纸目录"
+                )
+
+        _sync_result_issues(result)
 
         job["status"] = "building_excel"
         xlsx = os.path.join(WORKDIR, f"{job_id}.xlsx")
@@ -299,6 +337,7 @@ def process_cad_raw_extraction(job_id: str, pdf_path: str, filename: str, raw: R
             "uncertainties": [u.model_dump() for u in result.uncertainties],
             "extra_devices": [d.model_dump() for d in raw.extra_devices],
             "topology": [t.model_dump() for t in getattr(result, "topology", [])],
+            "reconciliation": result.reconciliation.model_dump() if getattr(result, "reconciliation", None) else None,
         }
         jobs[job_id].update(
             status="done", excel=f"/api/jobs/{job_id}/excel",
@@ -403,13 +442,7 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
         meta = {"model": provider.model, "prompt_version": PROMPT_VERSION,
                 "contract_version": CONTRACT_VERSION, "calls": len(items)}
         result = assemble(raw, meta)
-        known = {item.text for item in result.uncertainties}
-        for warning in check_result(result):
-            parsed = Uncertainty.from_text(warning)
-            if parsed.text not in known:
-                known.add(parsed.text)
-                parsed.source = "program"
-                result.uncertainties.append(parsed)
+        _sync_result_issues(result)
 
         job["status"] = "building_excel"
         save_job(job_id)
@@ -427,6 +460,7 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
             "uncertainties": [u.model_dump() for u in result.uncertainties],
             "extra_devices": [d.model_dump() for d in raw.extra_devices],
             "topology": [t.model_dump() for t in getattr(result, "topology", [])],
+            "reconciliation": result.reconciliation.model_dump() if getattr(result, "reconciliation", None) else None,
         }
         jobs[job_id].update(
             status="done", excel=f"/api/jobs/{job_id}/excel",
@@ -440,6 +474,7 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
                 "circuits": len(result.circuits),
                 "components": len(result.components),
                 "uncertainties": [u.model_dump() for u in result.uncertainties],
+                "reconciliation": result.reconciliation.model_dump() if getattr(result, "reconciliation", None) else None,
                 "topology_nodes": len(getattr(result, "topology", [])),
                 "meta": meta,
             },
@@ -532,13 +567,7 @@ def _legacy_raw(data: dict) -> tuple[dict, list, list]:
 
     replayed = assemble(RawExtraction.model_validate(
         {**skeleton, "extra_devices": extra_devices, "uncertainties": model_items}))
-    known = {u.text for u in replayed.uncertainties}
-    for warning in check_result(replayed):
-        parsed = Uncertainty.from_text(warning)
-        if parsed.text not in known:
-            known.add(parsed.text)
-            parsed.source = "program"
-            replayed.uncertainties.append(parsed)
+    _sync_result_issues(replayed, existing_uncertainties=data.get("uncertainties", []))
 
     # 把回读时记住的"已确认"标记挂回重建后的 uncertainties
     for u in replayed.uncertainties:
@@ -1056,13 +1085,7 @@ def persist_job_data(job_id: str, job: dict, data: dict,
     for item in result.uncertainties:
         item.resolved = flags.get(item.text, False)
 
-    known = {item.text for item in result.uncertainties}
-    for warning in check_result(result):
-        parsed = Uncertainty.from_text(warning)
-        if parsed.text not in known:
-            known.add(parsed.text)
-            parsed.source = "program"
-            result.uncertainties.append(parsed)
+    _sync_result_issues(result, existing_uncertainties=data.get("uncertainties", []))
 
     filename = job.get("filename", f"{job_id}.pdf")
     model_name = meta.get("model", "人工校准") if isinstance(meta, dict) else "人工校准"
