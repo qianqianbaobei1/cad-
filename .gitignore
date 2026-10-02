@@ -27,6 +27,7 @@ htmlcov/
 
 # Runtime workdir & large CAD / binary data
 backend/work/
+backend/data/*.db*
 *.dwg
 *.dxf
 *.log

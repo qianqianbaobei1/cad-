@@ -84,24 +84,20 @@ def apply_settings_to_env() -> None:
         os.environ.pop("VISION_SEED", None)
 
 
+from db import (
+    db_ensure_project, db_list_projects, db_record_ai_usage, db_get_ai_logs,
+    db_add_history, db_get_history, get_current_tenant
+)
+
+
 # ---------- 项目 ----------
 
 def projects() -> list[dict]:
-    return _load(PROJECTS_FILE, [])
+    return db_list_projects()
 
 
 def ensure_project(name: str) -> dict:
-    name = (name or "").strip()
-    if not name:
-        raise ValueError("项目名称不能为空")
-    items = projects()
-    for item in items:
-        if item.get("name") == name:
-            return item
-    item = {"name": name, "created_at": _now()}
-    items.append(item)
-    _save(PROJECTS_FILE, items)
-    return item
+    return db_ensure_project(name)
 
 
 def project_names() -> list[str]:
@@ -109,102 +105,65 @@ def project_names() -> list[str]:
 
 
 def record_project_ai_usage(project_name: str, usage_summary: dict, job_id: str = "", filename: str = "") -> dict:
-    """持久化记录项目的 AI 调用 token、费用汇总与详细日志。"""
-    pname = (project_name or "未分组").strip() or "未分组"
-    items = projects()
-    matched = None
-    for p in items:
-        if p.get("name") == pname:
-            matched = p
-            break
-    if not isinstance(usage_summary, dict):
-        usage_summary = {}
-    if not matched:
-        matched = {"name": pname, "created_at": _now()}
-        items.append(matched)
-
-    p_tokens = int(usage_summary.get("prompt_tokens", 0) or 0)
-    c_tokens = int(usage_summary.get("completion_tokens", 0) or 0)
-    t_tokens = int(usage_summary.get("total_tokens", p_tokens + c_tokens) or 0)
-    cost_in = float(usage_summary.get("cost_in", 0.0) or 0.0)
-    cost_out = float(usage_summary.get("cost_out", 0.0) or 0.0)
-    total_cost = float(usage_summary.get("total_cost", cost_in + cost_out) or 0.0)
-
-    matched["ai_prompt_tokens"] = int(matched.get("ai_prompt_tokens", 0)) + p_tokens
-    matched["ai_completion_tokens"] = int(matched.get("ai_completion_tokens", 0)) + c_tokens
-    matched["ai_tokens_total"] = int(matched.get("ai_tokens_total", 0)) + t_tokens
-    matched["ai_cost_in"] = round(float(matched.get("ai_cost_in", 0.0)) + cost_in, 5)
-    matched["ai_cost_out"] = round(float(matched.get("ai_cost_out", 0.0)) + cost_out, 5)
-    matched["ai_cost_total"] = round(float(matched.get("ai_cost_total", 0.0)) + total_cost, 5)
-
-    log_entry = {
-        "job_id": job_id,
-        "filename": filename,
-        "timestamp": _now(),
-        "model": usage_summary.get("model", ""),
-        "calls_count": usage_summary.get("calls_count", 1),
-        "prompt_tokens": p_tokens,
-        "completion_tokens": c_tokens,
-        "total_tokens": t_tokens,
-        "cost_in": cost_in,
-        "cost_out": cost_out,
-        "total_cost": total_cost,
-        "currency": usage_summary.get("currency", "￥"),
-        "details": usage_summary.get("logs", []),
-    }
-    if "ai_logs" not in matched:
-        matched["ai_logs"] = []
-    matched["ai_logs"].insert(0, log_entry)
-    matched["ai_logs"] = matched["ai_logs"][:500]
-
-    _save(PROJECTS_FILE, items)
-    return matched
+    """持久化记录项目的 AI 调用 token、费用汇总与详细日志（原子事务入库）。"""
+    db_record_ai_usage(project_name, usage_summary, job_id=job_id, filename=filename)
+    return get_project_ai_logs(project_name)
 
 
 def get_project_ai_logs(project_name: str) -> dict:
     """获取项目的 AI 调用费用汇总与完整流水日志。"""
-    pname = (project_name or "未分组").strip() or "未分组"
-    items = projects()
-    for p in items:
-        if p.get("name") == pname:
-            return {
-                "project_name": pname,
-                "ai_cost_total": round(float(p.get("ai_cost_total", 0.0)), 5),
-                "ai_tokens_total": int(p.get("ai_tokens_total", 0)),
-                "ai_prompt_tokens": int(p.get("ai_prompt_tokens", 0)),
-                "ai_completion_tokens": int(p.get("ai_completion_tokens", 0)),
-                "ai_cost_in": round(float(p.get("ai_cost_in", 0.0)), 5),
-                "ai_cost_out": round(float(p.get("ai_cost_out", 0.0)), 5),
-                "currency": "￥",
-                "ai_logs": p.get("ai_logs", []),
-            }
-    return {
-        "project_name": pname,
-        "ai_cost_total": 0.0,
-        "ai_tokens_total": 0,
-        "ai_prompt_tokens": 0,
-        "ai_completion_tokens": 0,
-        "ai_cost_in": 0.0,
-        "ai_cost_out": 0.0,
-        "currency": "￥",
-        "ai_logs": [],
-    }
+    return db_get_ai_logs(project_name)
 
 
 # ---------- 导出历史 ----------
 
 def history(limit: int = 100) -> list[dict]:
-    return _load(HISTORY_FILE, [])[:limit]
+    return db_get_history(limit=limit)
 
 
 def add_history(entry: dict) -> dict:
-    entry = {**entry, "exported_at": _now()}
-    items = _load(HISTORY_FILE, [])
-    items.insert(0, entry)
-    _save(HISTORY_FILE, items[:500])
-    return entry
+    return db_add_history(entry)
 
 
 def _now() -> str:
     from datetime import datetime
     return datetime.now().isoformat(timespec="seconds")
+
+
+# 自动平滑迁移老版本 JSON 数据到 SQLite 数据库 (仅当首次升级且 DB 为空时执行)
+def _migrate_json_to_db_once():
+    try:
+        current_projs = db_list_projects()
+        if not current_projs and os.path.exists(PROJECTS_FILE):
+            raw_projs = _load(PROJECTS_FILE, [])
+            for p in raw_projs:
+                pname = p.get("name")
+                if pname:
+                    db_ensure_project(pname)
+                    # 迁移历史累积账单与调用流水
+                    logs = p.get("ai_logs") or []
+                    for lg in logs:
+                        summary = {
+                            "prompt_tokens": lg.get("prompt_tokens", 0),
+                            "completion_tokens": lg.get("completion_tokens", 0),
+                            "total_tokens": lg.get("total_tokens", 0),
+                            "cost_in": lg.get("cost_in", 0.0),
+                            "cost_out": lg.get("cost_out", 0.0),
+                            "total_cost": lg.get("total_cost", 0.0),
+                            "model": lg.get("model", ""),
+                            "calls_count": lg.get("calls_count", 1),
+                            "currency": lg.get("currency", "￥"),
+                            "logs": lg.get("details", []),
+                        }
+                        db_record_ai_usage(pname, summary, job_id=lg.get("job_id", ""), filename=lg.get("filename", ""))
+
+        current_hist = db_get_history(limit=1)
+        if not current_hist and os.path.exists(HISTORY_FILE):
+            raw_hist = _load(HISTORY_FILE, [])
+            for h in reversed(raw_hist):
+                db_add_history(h)
+    except Exception as exc:
+        print(f"[migrate] 数据自动迁移提示: {exc}")
+
+
+_migrate_json_to_db_once()

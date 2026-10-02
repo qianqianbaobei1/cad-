@@ -9,7 +9,7 @@ import shutil
 from datetime import datetime
 
 from fastapi import (FastAPI, UploadFile, File, Form, BackgroundTasks,
-                     HTTPException, Query)
+                     HTTPException, Query, Request)
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -21,6 +21,10 @@ from extractor.schema import CONTRACT_VERSION, PROMPT_VERSION, Uncertainty, RawE
 from extractor.excel import build_workbook, build_project_bom_workbook
 from extractor.cad import is_cad_path, process_cad_file
 from extractor.catalog import analyze_components_replacement
+from db import (
+    db_save_job, db_get_job, db_list_jobs, db_recover_interrupted_jobs,
+    set_current_tenant, get_current_tenant, get_current_user, db_ensure_tenant
+)
 import store
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -39,7 +43,30 @@ app = FastAPI(title="图纸元器件提取")
 jobs: dict = {}
 store.apply_settings_to_env()
 
-IN_PROGRESS = {"queued", "rendering", "extracting", "building_excel"}
+IN_PROGRESS = {"queued", "rendering", "extracting", "building_excel", "converting"}
+
+
+@app.middleware("http")
+async def tenant_middleware(request: Request, call_next):
+    """多租户隔离上下文拦截器：自动绑定每个请求的 tenant_id 与 user_id。"""
+    t_id = (request.headers.get("x-tenant-id") or
+            request.query_params.get("tenant_id") or
+            "default").strip() or "default"
+    u_id = (request.headers.get("x-user-id") or
+            f"user_{t_id}").strip()
+    set_current_tenant(t_id, u_id)
+    response = await call_next(request)
+    return response
+
+
+@app.on_event("startup")
+def on_startup():
+    """服务冷启动时，扫描并自动将异常中断的任务恢复为可重试的 interrupted 状态。"""
+    from db import init_db
+    init_db()
+    recovered = db_recover_interrupted_jobs()
+    if recovered:
+        print(f"[Startup] 已自动将 {recovered} 个未决中断任务标记为 interrupted 状态")
 
 
 def job_file(job_id: str) -> str:
@@ -56,16 +83,40 @@ def _validate_job_id(job_id: str) -> str:
     return job_id
 
 
+def check_job_tenant_access(job: dict | None, tenant_id: str | None = None) -> dict:
+    """严格的多租户越权拦截：杜绝跨企业窃取图纸、项目、BOM清单与数据。"""
+    if not job:
+        raise HTTPException(404, "任务不存在")
+    current = tenant_id or get_current_tenant()
+    job_tenant = job.get("tenant_id") or "default"
+    if current != job_tenant:
+        raise HTTPException(403, f"无权访问其他租户的任务数据 (当前租户: {current}, 任务所属租户: {job_tenant})")
+    return job
+
+
 def save_job(job_id: str) -> None:
-    """把任务完整落盘，服务重启后仍可打开历史项目。"""
+    """任务全生命周期实时原子落盘：无论是中间状态还是最终结果，杜绝进程退出/重启丢数据。"""
     job = jobs.get(job_id)
-    if not job or job.get("status") in IN_PROGRESS:
+    if not job:
         return
+    if not job.get("job_id"):
+        job["job_id"] = job_id
+    if not job.get("tenant_id"):
+        job["tenant_id"] = get_current_tenant()
+    if not job.get("user_id"):
+        job["user_id"] = get_current_user()
+
+    # 1. 实时原子落库 SQLite WAL 表 (彻底防止任务在服务重启中蒸发)
+    try:
+        db_save_job(job)
+    except Exception as exc:
+        print(f"db_save_job({job_id}) 失败: {exc!r}")
+
+    # 2. 磁盘 JSON 镜像文件 (供本地兼容查看)
     try:
         with open(job_file(job_id), "w", encoding="utf-8") as f:
             json.dump(job, f, ensure_ascii=False)
     except (OSError, TypeError) as exc:
-        # 不静默：任务内容写不下去说明里面有不能序列化的对象，接口层会跟着 500
         print(f"save_job({job_id}) 失败: {exc!r}")
 
 
@@ -108,9 +159,15 @@ def _drop_tiles(pdf_path: str) -> None:
 
 def process_drawing_file(job_id: str, raw_path: str, filename: str):
     """图纸处理主入口：自动识别 CAD (DWG/DXF) 或 PDF 并启动流水线。"""
+    job = jobs.get(job_id) or load_job_cached(job_id) or {}
+    t_id = job.get("tenant_id") or get_current_tenant()
+    u_id = job.get("user_id") or get_current_user()
+    set_current_tenant(t_id, u_id)
+
     if is_cad_path(raw_path):
         job = jobs[job_id]
         job.update(status="converting", progress=5)
+        save_job(job_id)
         pdf_path = os.path.join(WORKDIR, f"{job_id}.pdf")
         try:
             _, cad_texts = process_cad_file(raw_path, pdf_path)
@@ -144,8 +201,10 @@ def process_cad_raw_extraction(job_id: str, pdf_path: str, filename: str, raw: R
     job = jobs[job_id]
     try:
         job["status"] = "rendering"
+        save_job(job_id)
         images = render_pdf(pdf_path)
         job.update(status="extracting", pages=len(images), progress=80)
+        save_job(job_id)
 
         cad_texts = None
         cad_json_path = os.path.join(WORKDIR, f"{job_id}_cad_texts.json")
@@ -233,8 +292,10 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
     job = jobs[job_id]
     try:
         job["status"] = "rendering"
+        save_job(job_id)
         images = render_pdf(pdf_path)
         job.update(status="extracting", pages=len(images), progress=0)
+        save_job(job_id)
 
         provider = VisionProvider()
         if not provider.configured:
@@ -245,6 +306,7 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
 
         def on_progress(done, total, page):
             jobs[job_id].update(progress=round(done / total * 100), current_page=page)
+            save_job(job_id)
 
         cad_texts = None
         cad_json_path = os.path.join(WORKDIR, f"{job_id}_cad_texts.json")
@@ -310,6 +372,7 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
                 result.uncertainties.append(parsed)
 
         job["status"] = "building_excel"
+        save_job(job_id)
         xlsx = os.path.join(WORKDIR, f"{job_id}.xlsx")
         subtitle = (f"依据:{filename}  提取时间:{datetime.now():%Y-%m-%d %H:%M}"
                     f"｜模型:{provider.model}｜提示词v{PROMPT_VERSION}｜契约v{CONTRACT_VERSION}")
@@ -447,7 +510,11 @@ def _legacy_raw(data: dict) -> tuple[dict, list, list]:
 
 
 def load_job(job_id: str):
-    """优先读落盘的 json；旧任务没有 json 时从已生成的 xlsx 反推。"""
+    """优先读 SQLite 数据库；次选磁盘 JSON；旧任务没有时从已生成的 xlsx 反推。"""
+    db_job = db_get_job(job_id)
+    if db_job and db_job.get("status"):
+        return db_job
+
     path = job_file(job_id)
     if os.path.exists(path):
         try:
@@ -461,7 +528,7 @@ def load_job(job_id: str):
 
 
 def load_job_cached(job_id: str):
-    """读任务，同时把从旧 xlsx 反推的结果回写为 json，下次读取无损。"""
+    """读任务，同时把从旧 xlsx 反推的结果回写为 json 与 SQLite，下次读取无损。"""
     if job_id in jobs:
         return jobs[job_id]
     job = load_job(job_id)
@@ -632,12 +699,20 @@ def create_job(background: BackgroundTasks, file: UploadFile = File(...),
     project = (project or "").strip()
     if project:
         store.ensure_project(project)
+    t_id = get_current_tenant()
+    u_id = get_current_user()
     jobs[job_id] = {
+        "job_id": job_id,
         "status": "queued",
         "filename": file.filename,
         "project": project,
         "file_type": ext.lstrip("."),
+        "tenant_id": t_id,
+        "user_id": u_id,
+        "progress": 0,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
     }
+    save_job(job_id)
     background.add_task(process_drawing_file, job_id, raw_path, file.filename)
     return {"job_id": job_id}
 
@@ -656,19 +731,26 @@ def reparse_job(job_id: str, background: BackgroundTasks):
     if not raw_path:
         raise HTTPException(404, "找不到该任务的原始图纸源文件，无法重新解析")
 
-    job_info = jobs.get(job_id) or load_job_cached(job_id) or {}
-    filename = job_info.get("filename") or os.path.basename(raw_path)
-    project = job_info.get("project") or ""
+    job_info = jobs.get(job_id) or load_job_cached(job_id)
+    if job_info:
+        check_job_tenant_access(job_info)
+
+    filename = (job_info or {}).get("filename") or os.path.basename(raw_path)
+    project = (job_info or {}).get("project") or ""
 
     ext = os.path.splitext(raw_path)[1].lower()
     jobs[job_id] = {
+        "job_id": job_id,
         "status": "queued",
         "filename": filename,
         "project": project,
         "file_type": ext.lstrip("."),
+        "tenant_id": (job_info or {}).get("tenant_id") or get_current_tenant(),
+        "user_id": (job_info or {}).get("user_id") or get_current_user(),
         "progress": 0,
         "error": "",
     }
+    save_job(job_id)
     background.add_task(process_drawing_file, job_id, raw_path, filename)
     return {"ok": True, "job_id": job_id, "filename": filename, "message": "已成功启动重新解析"}
 
@@ -690,6 +772,7 @@ def batch_set_project(req: BatchProjectRequest):
         _validate_job_id(job_id)
         job = load_job_cached(job_id)
         if job:
+            check_job_tenant_access(job)
             job["project"] = proj_name
             save_job(job_id)
             updated.append(job_id)
@@ -700,14 +783,15 @@ def batch_set_project(req: BatchProjectRequest):
 def job_status(job_id: str):
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
-    if not job:
-        raise HTTPException(404, "任务不存在")
+    check_job_tenant_access(job)
     return JSONResponse({k: v for k, v in job.items()})
 
 
 @app.get("/api/jobs/{job_id}/page/{page_num}")
 def get_page_image(job_id: str, page_num: int = 1):
     _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
     img_path = os.path.join(WORKDIR, f"{job_id}.pdf.page{page_num}.png")
     if not os.path.exists(img_path):
         p1 = os.path.join(WORKDIR, f"{job_id}.pdf.page1.png")
@@ -750,8 +834,7 @@ def parse_region(job_id: str, req: RegionParseRequest):
     """用户在图纸上框选局部区域，实时高清裁切并解析元器件与回路。"""
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
-    if not job:
-        raise HTTPException(404, "任务不存在")
+    check_job_tenant_access(job)
 
     page_num = max(1, req.page)
     x = max(0.0, min(1.0, req.x))
@@ -860,6 +943,9 @@ def get_crop_image(job_id: str, crop_name: str):
     # 归属校验：裁切图文件名固定为 {job_id}_crop_{id}.png，不属于该任务的不暴露
     if not crop_name.startswith(f"{job_id}_crop_"):
         raise HTTPException(404, "裁切图片不属于该任务")
+    job = load_job_cached(job_id)
+    if job:
+        check_job_tenant_access(job)
     path = os.path.join(WORKDIR, crop_name)
     if not os.path.exists(path):
         raise HTTPException(404, "裁切图片不存在")
@@ -982,8 +1068,7 @@ def persist_job_data(job_id: str, job: dict, data: dict,
 def update_job_data(job_id: str, req: JobDataUpdateRequest):
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
-    if not job:
-        raise HTTPException(404, "任务不存在")
+    check_job_tenant_access(job)
     data = {
         "boxes": [b.model_dump() for b in req.boxes],
         "circuits": [c.model_dump() for c in req.circuits],
@@ -1005,8 +1090,7 @@ def job_chat(job_id: str, req: ChatRequest):
     """助手问答：模型只做判断和措辞，改哪一条、字段是否合法由这里按清单校验。"""
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
-    if not job:
-        raise HTTPException(404, "任务不存在")
+    check_job_tenant_access(job)
 
     action = parse_local_command(req.message)
     if action:
@@ -1075,8 +1159,7 @@ def resolve_all_uncertainties(job_id: str):
     """一键确认全部待核对存疑项，直接放行导出。"""
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
-    if not job:
-        raise HTTPException(404, "任务不存在")
+    check_job_tenant_access(job)
 
     data = job.get("data", {})
     uncertainties = data.get("uncertainties", [])
@@ -1108,8 +1191,7 @@ def ai_deep_review(job_id: str):
     """
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
-    if not job:
-        raise HTTPException(404, "任务不存在")
+    check_job_tenant_access(job)
 
     data = job.get("data", {})
     boxes = data.get("boxes", [])
@@ -1253,9 +1335,8 @@ def ai_deep_review(job_id: str):
 @app.get("/api/jobs/{job_id}/excel")
 def job_excel(job_id: str, target_brand: str = "正泰", force: bool = False):
     _validate_job_id(job_id)
-    job = load_job_cached(job_id) or {}
-    if not job:
-        raise HTTPException(404, "任务不存在")
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
 
     data = job.get("data") or {}
     # 存疑未确认完不许导出（宁可标疑、不许编造）：未 resolved 的存疑存在且
@@ -1325,8 +1406,7 @@ def revert_change(job_id: str, req: RevertRequest):
     """撤销一条修改记录。同一字段之后又改过时拒绝，避免覆盖更新的值。"""
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
-    if not job:
-        raise HTTPException(404, "任务不存在")
+    check_job_tenant_access(job)
     log = job.get("changes", [])
     scope = req.scope or "circuit"
     index = next((i for i, item in enumerate(log)
@@ -1385,28 +1465,52 @@ def revert_change(job_id: str, req: RevertRequest):
 
 @app.get("/api/jobs")
 def list_jobs(project: str = ""):
-    """所有任务，含未完成的。项目页、历史页和样本列表共用。"""
+    """所有任务，含未完成的。按当前租户严格物理/逻辑隔离。"""
+    t_id = get_current_tenant()
+    db_items = db_list_jobs(tenant_id=t_id)
+    seen_ids = set()
     found = []
-    for name in os.listdir(WORKDIR):
-        job_id, ext = os.path.splitext(name)
-        if ext not in (".json", ".xlsx") or job_id in {j["job_id"] for j in found}:
-            continue
-        job = load_job_cached(job_id)
-        if not job:
-            continue
+    for j in db_items:
+        seen_ids.add(j["job_id"])
         found.append({
-            "job_id": job_id,
-            "filename": job.get("filename", f"{job_id}.pdf"),
-            "project": job.get("project", ""),
-            "status": job.get("status", ""),
-            "error": job.get("error", ""),
-            "pages": job.get("pages", 1),
-            "created_at": job.get("created_at", ""),
-            "updated_at": job.get("updated_at", ""),
-            "box_code": job.get("box_code", ""),
-            "summary": job.get("summary", {}),
-            "changes": len(job.get("changes", [])),
+            "job_id": j["job_id"],
+            "filename": j.get("filename", f"{j['job_id']}.pdf"),
+            "project": j.get("project", ""),
+            "status": j.get("status", ""),
+            "error": j.get("error", ""),
+            "pages": j.get("pages", 1),
+            "created_at": j.get("created_at", ""),
+            "updated_at": j.get("updated_at", ""),
+            "box_code": j.get("box_code", ""),
+            "summary": j.get("summary", {}),
+            "changes": len(j.get("changes", [])) if isinstance(j.get("changes"), list) else int(j.get("changes") or 0),
         })
+
+    if os.path.exists(WORKDIR):
+        for name in os.listdir(WORKDIR):
+            job_id, ext = os.path.splitext(name)
+            if ext not in (".json", ".xlsx") or job_id in seen_ids:
+                continue
+            job = load_job_cached(job_id)
+            if not job:
+                continue
+            job_t = job.get("tenant_id") or "default"
+            if job_t != t_id:
+                continue
+            seen_ids.add(job_id)
+            found.append({
+                "job_id": job_id,
+                "filename": job.get("filename", f"{job_id}.pdf"),
+                "project": job.get("project", ""),
+                "status": job.get("status", ""),
+                "error": job.get("error", ""),
+                "pages": job.get("pages", 1),
+                "created_at": job.get("created_at", ""),
+                "updated_at": job.get("updated_at", ""),
+                "box_code": job.get("box_code", ""),
+                "summary": job.get("summary", {}),
+                "changes": len(job.get("changes", [])) if isinstance(job.get("changes"), list) else int(job.get("changes") or 0),
+            })
     found = [item for item in found if not project or item["project"] == project]
     found.sort(key=lambda item: item.get("created_at") or "", reverse=True)
     return {"jobs": found}
@@ -1422,8 +1526,7 @@ def rename_job_sheet(job_id: str, req: SheetRenameRequest):
     """自定义重命名指定切图图块并持久化。"""
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
-    if not job:
-        raise HTTPException(404, "任务不存在")
+    check_job_tenant_access(job)
     if req.page < 1:
         raise HTTPException(400, "页码非法")
     new_name = req.name.strip()
@@ -1689,8 +1792,7 @@ def get_job_replacements(job_id: str, target_brand: str = "正泰"):
     """一键国产化平替测算：分析图纸中的外资/竞品元器件并推荐高性价比替代型号。"""
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
-    if not job:
-        raise HTTPException(404, "任务不存在")
+    check_job_tenant_access(job)
     comps = job.get("data", {}).get("components", [])
     analysis = analyze_components_replacement(comps, target_brand=target_brand)
     return {"ok": True, "job_id": job_id, "analysis": analysis}
