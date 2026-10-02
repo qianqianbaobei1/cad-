@@ -116,13 +116,19 @@ window.addEventListener('click', e => {
 
 function openAuthModal(tab = 'login') {
   const m = $('authModal');
-  if (m) m.hidden = false;
+  if (m) {
+    m.hidden = false;
+    m.classList.add('show');
+  }
   switchAuthTab(tab);
 }
 
 function closeAuthModal() {
   const m = $('authModal');
-  if (m) m.hidden = true;
+  if (m) {
+    m.classList.remove('show');
+    m.hidden = true;
+  }
 }
 
 function switchAuthTab(tab) {
@@ -3284,7 +3290,7 @@ function quickAsk(q) {
 function bindKeys() {
   document.addEventListener('keydown', e => {
     const typing = ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName);
-    if (e.key === 'Escape') { closeReview(); closeExport(); closeLog(); closeProjBom(); closeProjTopology(); closeBatchProjectModal(); return; }
+    if (e.key === 'Escape') { closeAuthModal(); closeReview(); closeExport(); closeLog(); closeProjBom(); closeProjTopology(); closeBatchProjectModal(); return; }
     if (typing) return;
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveNow(); return; }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undoLastChange(); return; }

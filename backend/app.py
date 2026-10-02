@@ -90,6 +90,11 @@ async def tenant_middleware(request: Request, call_next):
 
     set_current_tenant(t_id, u_id)
     response = await call_next(request)
+    path = request.url.path
+    if path.endswith((".html", ".js", ".css")) or path in ("", "/"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
     return response
 
 
