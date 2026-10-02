@@ -32,6 +32,7 @@ const S = {
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const safeJsArg = v => encodeURIComponent(String(v ?? '')).replace(/'/g, '%27');
 
 function toast(msg, ms) {
   const el = $('toast');
@@ -96,7 +97,7 @@ async function loadProjects() {
     const costCell = `<div style="display:flex;align-items:center;gap:6px">
       <span class="mono" style="font-weight:600;color:var(--txt)">￥${costTotal}</span>
       <span class="mut" style="font-size:11px">(${tokensTotal} tok)</span>
-      <button class="linklike" style="padding:1px 5px;font-size:11px" onclick="event.stopPropagation();openProjectAiLogs('${esc(p.name)}')">账单</button>
+      <button class="linklike" style="padding:1px 5px;font-size:11px" onclick="event.stopPropagation();openProjectAiLogs(decodeURIComponent('${safeJsArg(p.name)}'))">账单</button>
     </div>`;
 
     const failedJob = jobs.find(j => j.status === 'failed');
@@ -106,9 +107,9 @@ async function loadProjects() {
     const action = ready
       ? `<button class="linklike" onclick="event.stopPropagation();toggleProjectDrawer(${idx})">图纸列表(${jobs.length})</button>
          <span style="color:var(--line2);margin:0 3px">|</span>
-         <button class="linklike" onclick="event.stopPropagation();viewProjectBom('${esc(p.name)}')">总BOM</button>
+         <button class="linklike" onclick="event.stopPropagation();viewProjectBom(decodeURIComponent('${safeJsArg(p.name)}'))">总BOM</button>
          <span style="color:var(--line2);margin:0 3px">|</span>
-         <button class="linklike" onclick="event.stopPropagation();viewProjectTopology('${esc(p.name)}')">供电拓扑</button>
+         <button class="linklike" onclick="event.stopPropagation();viewProjectTopology(decodeURIComponent('${safeJsArg(p.name)}'))">供电拓扑</button>
          <span style="color:var(--line2);margin:0 3px">|</span>
          <a class="linklike" href="/api/projects/${encodeURIComponent(p.name)}/export_bom" onclick="event.stopPropagation()" download>导出采购表</a>${retryBtn}`
       : (failedJob
@@ -149,7 +150,7 @@ async function loadProjects() {
             <span style="color:var(--line2);margin:0 4px">|</span>
             <button class="linklike" onclick="event.stopPropagation();reparseJob('${j.job_id}')" title="无需重新上传，就地重新提取">重新解析</button>
             <span style="color:var(--line2);margin:0 4px">|</span>
-            <button class="linklike" onclick="event.stopPropagation();quickMoveJobProject('${j.job_id}', '${esc(p.name)}')">换项目</button>
+            <button class="linklike" onclick="event.stopPropagation();quickMoveJobProject('${j.job_id}', decodeURIComponent('${safeJsArg(p.name)}'))">换项目</button>
           </td>
         </tr>`;
       }).join('');

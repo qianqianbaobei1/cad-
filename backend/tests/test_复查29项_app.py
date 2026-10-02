@@ -224,6 +224,66 @@ class ReparseTests(unittest.TestCase):
         self.assertEqual(jobs[tid2]["project"], "工业厂房集中分析测试项目")
 
 
+class SecurityHardeningTests(unittest.TestCase):
+    def setUp(self):
+        self.client = TestClient(fastapi_app)
+
+    def test_ssrf_model_url_blocked(self):
+        from extractor.vision import is_safe_model_url
+        bad_urls = [
+            "http://127.0.0.1:8000/v1",
+            "http://localhost:11434/v1",
+            "http://10.0.0.5:8080/v1",
+            "http://192.168.1.1/v1",
+            "http://169.254.169.254/latest/meta-data",
+            "ftp://api.deepseek.com",
+        ]
+        for u in bad_urls:
+            safe, reason = is_safe_model_url(u)
+            self.assertFalse(safe, f"应该拦截恶意地址: {u}, 但返回了成功: {reason}")
+
+        good_urls = [
+            "https://api.deepseek.com/v1",
+            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            "https://api.openai.com/v1",
+        ]
+        for u in good_urls:
+            safe, _ = is_safe_model_url(u)
+            self.assertTrue(safe, f"合法公网地址应该放行: {u}")
+
+    def test_put_settings_ssrf_intercepted(self):
+        r = self.client.put("/api/settings", json={"vision_base_url": "http://127.0.0.1:8000/v1"})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("非法的模型服务地址", r.json()["detail"])
+
+    def test_lock_settings(self):
+        import os
+        os.environ["LOCK_SETTINGS"] = "1"
+        try:
+            r = self.client.put("/api/settings", json={"temperature": 0.5})
+            self.assertEqual(r.status_code, 403)
+            self.assertIn("系统配置已由管理员强制锁定", r.json()["detail"])
+        finally:
+            os.environ.pop("LOCK_SETTINGS", None)
+
+    def test_excel_formula_injection_sanitized(self):
+        from extractor.excel import sanitize_excel_value
+        malicious = [
+            "=cmd|' /C calc'!A0",
+            "+1+1",
+            "-2+3",
+            "@SUM(1,2)",
+            "\t=1+1",
+        ]
+        for m in malicious:
+            sanitized = sanitize_excel_value(m)
+            self.assertTrue(str(sanitized).startswith("'"), f"{m} 未被安全转义为以单引号开头: {sanitized}")
+
+        # 合法内部公式放行
+        self.assertEqual(sanitize_excel_value("=SUM(A1:A5)"), "=SUM(A1:A5)")
+        self.assertEqual(sanitize_excel_value("=ROUND(G10*2, 2)"), "=ROUND(G10*2, 2)")
+
+
 if __name__ == "__main__":
     unittest.main()
 

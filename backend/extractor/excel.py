@@ -56,6 +56,25 @@ def _val(obj: Any, key: str, default: Any = "") -> Any:
     return getattr(obj, key, default)
 
 
+def sanitize_excel_value(val: Any) -> Any:
+    """防范 Excel / CSV 公式注入与 DDE 命令执行 (Formula Injection 防御)。
+    若单元格为字符串类型且以 =、+、-、@、\t、\r 开头，且不是受信任的内部合法公式，
+    自动前置单引号进行安全转义，防止客户端被恶意利用执行外部程序。
+    """
+    if isinstance(val, str) and val:
+        if val[0] in ('=', '+', '-', '@', '\t', '\r'):
+            # 允许受信任的安全内部统计公式（如 SUM, ROUND 等受控格式），阻断命令或外部 DDE 执行
+            is_internal_formula = (
+                val.startswith("=SUM(") or 
+                val.startswith("=ROUND(") or 
+                val.startswith("='") or 
+                (val.startswith("=") and any(ch.isalpha() for ch in val[:4]) and not any(k in val.lower() for k in ("cmd", "powershell", "http", "dde", "exec", "mshta", "regsvr32", "|")))
+            )
+            if not is_internal_formula:
+                return "'" + val
+    return val
+
+
 def _estimate_box_costs(box: Any, box_circuits: list[Any], box_components: list[Any]) -> dict[str, float]:
     """成套配电箱成本构成测算模型：
     1. 箱体外壳费 (box_shell)：依据安装方式、回路数及落地/明暗装尺寸估算钣金喷塑外壳；
@@ -132,7 +151,7 @@ def _setup(ws, title, subtitle, headers, widths):
 
 def _row(ws, r, values, height=36, center_cols=(1, 2), template=False):
     for j, v in enumerate(values, start=1):
-        c = ws.cell(row=r, column=j, value=v)
+        c = ws.cell(row=r, column=j, value=sanitize_excel_value(v))
         if not template:  # 自定义模板自带样式，只填值
             c.font = CELL_FONT
             c.alignment = CENTER if j in center_cols else LEFT
@@ -702,6 +721,7 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
         # 3. 组织该箱体的具体元器件清单
         start_item_row = curr_d
         item_seq = 1
+        box_items_subtotal = 0.0
 
         # A. 进线主控器件（隔离开关或塑壳/微断）
         incomer_circuit = None
@@ -723,6 +743,7 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
             u_p, _, _ = calculate_component_unit_price(incomer_spec, brand="施耐德")
             u_p = round(max(u_p, 86.50), 2)
             vals_inc = [item_seq, incomer_name, incomer_spec, "只", 1, u_p, u_p, "施耐德电气", ""]
+        box_items_subtotal += float(vals_inc[6])
         for j, v in enumerate(vals_inc, start=1):
             cell = ws_detail.cell(row=curr_d, column=j, value=v)
             cell.font = CELL_FONT
@@ -756,6 +777,7 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
                 u_p, _, _ = calculate_component_unit_price(brk, brand="施耐德")
                 u_p = round(max(u_p, 15.08), 2)
                 c_vals = [item_seq, dev_name, brk, "只", 1, u_p, u_p, "施耐德电气", ""]
+            box_items_subtotal += float(c_vals[6])
             for j, v in enumerate(c_vals, start=1):
                 cell = ws_detail.cell(row=curr_d, column=j, value=v)
                 cell.font = CELL_FONT
@@ -779,6 +801,7 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
             spd_u_p, _, _ = calculate_component_unit_price(spd_spec, brand="施耐德")
             spd_u_p = round(spd_u_p, 2)
             vals_spd = [item_seq, "电涌保护器", spd_spec, "只", 1, spd_u_p, spd_u_p, "待确认", ""]
+            box_items_subtotal += float(vals_spd[6])
             for j, v in enumerate(vals_spd, start=1):
                 cell = ws_detail.cell(row=curr_d, column=j, value=v)
                 cell.font = CELL_FONT
@@ -795,6 +818,7 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
         enclosure_p, _ = estimate_box_enclosure_price(b_box_dict, len(b_circuits))
         enclosure_p = round(max(enclosure_p, 457.06), 2)
         vals_shell = [item_seq, "壳体", size if size and size != '-' else "标准配电箱外壳", "台", 1, enclosure_p, enclosure_p, "成套定制", ""]
+        box_items_subtotal += float(vals_shell[6])
         for j, v in enumerate(vals_shell, start=1):
             cell = ws_detail.cell(row=curr_d, column=j, value=v)
             cell.font = CELL_FONT
@@ -822,11 +846,12 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
         ws_detail.row_dimensions[r_sub].height = 22
         curr_d += 1
 
-        # (2) 辅料（5%）
+        # (2) 辅料（服务端数值化输出，避免暴露底层加价模型）
         r_aux = curr_d
         ws_detail.cell(row=r_aux, column=1, value="")
         ws_detail.cell(row=r_aux, column=2, value="辅料").font = CELL_FONT
-        c_aux_val = ws_detail.cell(row=r_aux, column=7, value=f"=ROUND(G{r_sub}*0.05, 2)")
+        aux_val = round(box_items_subtotal * 0.05, 2)
+        c_aux_val = ws_detail.cell(row=r_aux, column=7, value=aux_val)
         c_aux_val.font = CELL_FONT
         c_aux_val.alignment = RIGHT
         c_aux_val.number_format = "#,##0.00"
@@ -849,11 +874,12 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
         ws_detail.row_dimensions[r_labor].height = 22
         curr_d += 1
 
-        # (4) 税费
+        # (4) 税费（服务端数值化输出，保护税率与利润机密）
         r_tax = curr_d
         ws_detail.cell(row=r_tax, column=1, value="")
         ws_detail.cell(row=r_tax, column=2, value="税费").font = CELL_FONT
-        c_tax_val = ws_detail.cell(row=r_tax, column=7, value=f"=ROUND((G{r_sub}+G{r_aux}+G{r_labor})*0.06, 2)")
+        tax_val = round((box_items_subtotal + aux_val + labor_val) * 0.06, 2)
+        c_tax_val = ws_detail.cell(row=r_tax, column=7, value=tax_val)
         c_tax_val.font = CELL_FONT
         c_tax_val.alignment = RIGHT
         c_tax_val.number_format = "#,##0.00"
@@ -1549,7 +1575,7 @@ def build_custom_table_workbook(title: str, headers: list[str], rows: list[list[
     for r_idx, row_vals in enumerate(rows, start=4):
         ws.row_dimensions[r_idx].height = 24
         for c_idx, val in enumerate(row_vals, start=1):
-            cell = ws.cell(row=r_idx, column=c_idx, value=val)
+            cell = ws.cell(row=r_idx, column=c_idx, value=sanitize_excel_value(val))
             cell.font = CELL_FONT
             cell.border = BORDER
 

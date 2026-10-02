@@ -8,9 +8,59 @@ import threading
 import urllib.request
 from pydantic import ValidationError
 
+import ipaddress
+import socket
+from urllib.parse import urlparse
+
 from .schema import (Box, Circuit, ExtraDevice, RawExtraction, Requirement, Uncertainty)
 
 REQUIRED_SECTIONS = {"boxes", "circuits", "extra_devices", "requirements", "uncertainties"}
+
+
+def is_safe_model_url(url: str) -> tuple[bool, str]:
+    """验证模型服务地址是否安全，防御 SSRF 与内网穿透攻击。
+    严格拦截回环地址 (127.0.0.0/8, ::1)、私有内网 (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)、
+    云主机元数据地址 (169.254.169.254) 以及非法非 HTTP(S) 协议。
+    """
+    if not url or not isinstance(url, str):
+        return False, "模型服务 URL 不能为空"
+    url = url.strip()
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return False, f"不支持的协议: {parsed.scheme}，仅支持 http 或 https"
+    hostname = parsed.hostname
+    if not hostname:
+        return False, "缺少有效的主机名"
+
+    lower_host = hostname.lower()
+    if lower_host in ("localhost", "local", "internal", "intranet") or lower_host.endswith(".local") or lower_host.endswith(".internal"):
+        return False, f"安全拦截：禁止使用内网保留主机名 {hostname}"
+
+    # 允许测试模式或开发者特许标志（仅当明确设置 ALLOW_LOCAL_MODEL=1 时允许测试桩）
+    if os.environ.get("ALLOW_LOCAL_MODEL") == "1" and (lower_host == "localhost" or hostname == "127.0.0.1"):
+        return True, ""
+
+    try:
+        ip_obj = ipaddress.ip_address(hostname)
+        ips = [ip_obj]
+    except ValueError:
+        try:
+            addr_info = socket.getaddrinfo(hostname, None)
+            ips = [ipaddress.ip_address(x[4][0]) for x in addr_info]
+        except Exception as e:
+            return False, f"无法解析模型服务器域名 {hostname}: {e}"
+
+    for ip in ips:
+        if ip.is_loopback:
+            return False, f"安全拦截：禁止使用本地回环地址 {ip}"
+        if ip.is_private:
+            return False, f"安全拦截：禁止访问私有内网网段 {ip}"
+        if ip.is_link_local:
+            return False, f"安全拦截：禁止访问链路本地/云元数据网段 {ip}"
+        if ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+            return False, f"安全拦截：禁止访问特殊保留网段 {ip}"
+
+    return True, ""
 
 
 def estimate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> dict:
@@ -58,6 +108,9 @@ def _data_url(image_path: str) -> str:
 
 def post_chat(base_url: str, api_key: str, payload: dict, timeout: int = 300) -> dict:
     """OpenAI 兼容的 chat/completions 调用，视觉提取与助手问答共用。"""
+    safe, reason = is_safe_model_url(base_url)
+    if not safe:
+        raise ValueError(f"模型外联调用受阻：{reason}")
     req = urllib.request.Request(
         f"{base_url.rstrip('/')}/chat/completions", data=json.dumps(payload).encode(),
         headers={"Content-Type": "application/json",

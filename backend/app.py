@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from extractor.render import plan_tiles, render_pdf
-from extractor.vision import VisionProvider
+from extractor.vision import VisionProvider, is_safe_model_url
 from extractor.checker import check_result
 from extractor.assemble import assemble
 from extractor.schema import CONTRACT_VERSION, PROMPT_VERSION, Uncertainty, RawExtraction
@@ -1666,7 +1666,17 @@ class SettingsRequest(BaseModel):
 
 @app.put("/api/settings")
 def put_settings(req: SettingsRequest):
+    if os.environ.get("LOCK_SETTINGS") == "1":
+        raise HTTPException(403, "系统配置已由管理员强制锁定，禁止通过 Web 接口修改核心模型参数")
+
     patch = {k: v for k, v in req.model_dump().items() if v is not None}
+    if "vision_base_url" in patch:
+        url_to_check = (patch["vision_base_url"] or "").strip()
+        if url_to_check:
+            safe, reason = is_safe_model_url(url_to_check)
+            if not safe:
+                raise HTTPException(400, f"非法的模型服务地址：{reason}")
+
     if patch.get("vision_api_key") == "":
         patch.pop("vision_api_key")  # 空字符串表示不改动，不覆盖 .env
     store.save_settings(patch)
