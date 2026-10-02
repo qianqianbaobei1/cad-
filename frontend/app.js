@@ -375,6 +375,8 @@ const putJSON = (path, body) => api(path, {
 /* ===================== 路由 ===================== */
 
 function navGo(page) {
+  const sc = $('startscreen');
+  if (sc) sc.hidden = true;
   S.route = page;
   document.querySelectorAll('.page').forEach(m => { m.hidden = m.id !== 'page-' + page; });
   document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.p === page));
@@ -382,6 +384,9 @@ function navGo(page) {
   if (page === 'history') loadHistory();
   if (page === 'settings') loadSettings();
   if (page === 'upload') renderQueue();
+  if (page === 'workbench') {
+    if (S.jobId) renderWorkbench();
+  }
 }
 
 /* ===================== 项目页 ===================== */
@@ -1236,11 +1241,13 @@ function applyZoom() {
 }
 
 function zoom(d) {
+  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
   S.zoom = Math.min(3, Math.max(0.5, S.zoom + d * 0.25));
   applyZoom();
 }
 
 function fitView() {
+  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
   S.zoom = 1;
   S.panX = 0;
   S.panY = 0;
@@ -1248,6 +1255,7 @@ function fitView() {
 }
 
 function setPage(n) {
+  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
   S.page = Math.min(Math.max(1, n), S.pages);
   renderDrawing();
   updateWorkbenchCrumb();
@@ -1255,6 +1263,7 @@ function setPage(n) {
 }
 
 function toggleSheetCatalog(force) {
+  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
   const cat = $('sheetCatalog');
   const btn = $('sheetCatalogTabBtn');
   if (!cat) return;
@@ -1675,6 +1684,7 @@ function removeExtra(i) {
 }
 
 function addExtra() {
+  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
   const name = prompt('设备名称，例如：浪涌保护器 / 电能表 / N排-PE排');
   if (!name || !name.trim()) return;
   const spec = prompt('规格型号（看不清可以留空，之后补）：') || '';
@@ -1912,7 +1922,7 @@ function snapshotOrigins() {
 async function saveNow(silent) {
   const changes = pendingChanges();
   if (S.jobId && !changes.length && !silent) { toast('没有需要保存的修改'); return; }
-  if (!S.jobId) return;
+  if (!S.jobId) { if (!silent) toast('请先在项目或上传中打开一份图纸'); return; }
   try {
     const res = await putJSON(`/api/jobs/${S.jobId}/data`, {
       ...S.data, changes, reason: '手动修改',
@@ -2168,6 +2178,7 @@ function resolveIssue(ok) {
 /* ===================== 修改记录 ===================== */
 
 function openLog() {
+  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
   const list = $('loglist');
   const rows = [];
   pendingChanges().forEach(g => rows.push(logCard({ ...g, ts: '未保存', pending: true })));
@@ -2333,6 +2344,7 @@ async function doExport() {
 /* ===================== 框选解析 ===================== */
 
 function toggleCropMode() {
+  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
   S.cropMode = !S.cropMode;
   const btn = $('cropbtn');
   if (btn) btn.classList.toggle('on', S.cropMode);
@@ -2581,7 +2593,7 @@ function applyCropRequirementsInternal(reqs) {
 }
 
 async function applyCropRequirements() {
-  if (!S.lastCropResult) return;
+  if (!S.lastCropResult) { toast('请先在图纸上框选区域并等待解析完成'); return; }
   const reqs = S.lastCropResult.requirements || [];
   if (!reqs.length) { toast('没有可补入的技术要求'); return; }
   const added = applyCropRequirementsInternal(reqs);
@@ -2630,7 +2642,7 @@ function applyCropBoxInfoInternal(info) {
 }
 
 async function applyCropBoxInfo() {
-  if (!S.lastCropResult || !S.lastCropResult.box_info) return;
+  if (!S.lastCropResult || !S.lastCropResult.box_info) { toast('请先在图纸上框选包含箱体信息的区域'); return; }
   applyCropBoxInfoInternal(S.lastCropResult.box_info);
   updateChg();
   await saveNow(true);
@@ -2689,7 +2701,7 @@ function applyCropComponentsInternal(comps, circs) {
 }
 
 async function applyCropComponents() {
-  if (!S.lastCropResult) return;
+  if (!S.lastCropResult) { toast('请先在图纸上框选区域并等待解析完成'); return; }
   const comps = (S.lastCropResult.components || []).filter(c => (c.quantity ?? 1) > 0 || c.spec);
   const circs = S.lastCropResult.circuits || [];
   if (!comps.length && !circs.length) {
@@ -2705,7 +2717,7 @@ async function applyCropComponents() {
 }
 
 async function applyCropAll() {
-  if (!S.lastCropResult) return;
+  if (!S.lastCropResult) { toast('请先在图纸上框选区域并等待解析完成'); return; }
   const comps = (S.lastCropResult.components || []).filter(c => (c.quantity ?? 1) > 0 || c.spec);
   const circs = S.lastCropResult.circuits || [];
   const reqs = S.lastCropResult.requirements || [];
@@ -2736,7 +2748,7 @@ async function applyCropAll() {
 }
 
 function sendCropToChat() {
-  if (!S.lastCropResult) return;
+  if (!S.lastCropResult) { toast('请先在图纸上框选区域并等待解析完成'); return; }
   const summary = S.lastCropResult.summary || '';
   const comps = (S.lastCropResult.components || []).filter(c => (c.quantity ?? 1) > 0 || c.spec)
     .map(c => `${c.name} ${c.spec} × ${c.quantity}${c.unit}`).join('，');
@@ -3182,7 +3194,9 @@ async function saveSettings() {
 /* ===================== 启动屏 ===================== */
 
 function hideStart() {
-  $('startscreen').hidden = true;
+  const sc = $('startscreen');
+  if (sc) sc.hidden = true;
+  if (!S.route) navGo('projects');
 }
 
 const SPLIT_MIN_AI = 300;    // 工作区再窄就看不下表格了
@@ -3321,9 +3335,9 @@ async function boot() {
   await fillProjectSelect();
   const { projects } = await api('/api/projects');
   const hasJobs = projects.some(p => (p.jobs || []).length);
+  navGo('projects');
   if (hasJobs) {
     hideStart();
-    navGo('projects');
   } else {
     $('startscreen').hidden = false;
   }

@@ -263,12 +263,12 @@ kbd{background:var(--inset);border:1px solid var(--line2);padding:1px 6px;font-s
 .mbox .ver{font-size:11px;color:var(--mut2);background:var(--inset);border:1px solid var(--line);padding:8px 12px;margin:12px 0;font-family:ui-monospace,Consolas,monospace;text-align:left}
 .mactions{display:flex;gap:8px;justify-content:flex-end}
 
-.toast{position:fixed;bottom:52px;left:50%;transform:translateX(-50%) translateY(12px);background:#1A2333;color:#F5F4F2;padding:11px 20px;font-size:13px;z-index:100;opacity:0;pointer-events:none;transition:.25s;max-width:82vw}
+.toast{position:fixed;bottom:52px;left:50%;transform:translateX(-50%) translateY(12px);background:#1A2333;color:#F5F4F2;padding:11px 20px;font-size:13px;z-index:9999;opacity:0;pointer-events:none;transition:.25s;max-width:82vw;box-shadow:0 4px 16px rgba(0,0,0,0.25);border-radius:4px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* 启动屏 / 空态 */
-.startscreen{position:fixed;inset:0;background:var(--bg);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px}
-.startscreen[hidden]{display:none}
+.startscreen{position:fixed;top:52px;left:0;right:0;bottom:0;background:var(--bg);z-index:25;display:flex;align-items:center;justify-content:center;padding:24px}
+.startscreen[hidden]{display:none !important}
 .startcard{width:660px;max-width:94vw;background:#fff;box-shadow:0 16px 48px rgba(46,92,230,.12);padding:28px}
 .dropzone{border:2px dashed var(--acc);padding:34px 20px;text-align:center;cursor:pointer;background:#FBFCFE;transition:.15s}
 .dropzone:hover,.dropzone.over{background:#F1F6FE}
