@@ -209,7 +209,22 @@ class ReparseTests(unittest.TestCase):
                 os.remove(pdf_file)
             jobs.pop(tid, None)
 
+    def test_batch_set_project(self):
+        tid1 = _mk_job([])
+        tid2 = _mk_job([])
+        r = self.client.post("/api/jobs/batch_set_project", json={
+            "job_ids": [tid1, tid2],
+            "project": "工业厂房集中分析测试项目"
+        })
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["updated"], 2)
+        self.assertEqual(jobs[tid1]["project"], "工业厂房集中分析测试项目")
+        self.assertEqual(jobs[tid2]["project"], "工业厂房集中分析测试项目")
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

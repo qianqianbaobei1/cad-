@@ -76,7 +76,8 @@ function navGo(page) {
 
 async function loadProjects() {
   const { projects } = await api('/api/projects');
-  const rows = projects.map(p => {
+  const rows = [];
+  projects.forEach((p, idx) => {
     const jobs = p.jobs || [];
     const t = p.totals;
     const ready = jobs.find(j => j.status === 'done');
@@ -103,16 +104,21 @@ async function loadProjects() {
       ? `<span style="color:var(--line2);margin:0 3px">|</span><button class="linklike" style="color:var(--err)" onclick="event.stopPropagation();reparseJob('${failedJob.job_id}')" title="使用最新算法重试失败的图纸">重试</button>`
       : '';
     const action = ready
-      ? `<button class="linklike" onclick="event.stopPropagation();openJob('${ready.job_id}')">打开</button>
+      ? `<button class="linklike" onclick="event.stopPropagation();toggleProjectDrawer(${idx})">图纸列表(${jobs.length})</button>
          <span style="color:var(--line2);margin:0 3px">|</span>
          <button class="linklike" onclick="event.stopPropagation();viewProjectBom('${esc(p.name)}')">总BOM</button>
+         <span style="color:var(--line2);margin:0 3px">|</span>
+         <button class="linklike" onclick="event.stopPropagation();viewProjectTopology('${esc(p.name)}')">供电拓扑</button>
          <span style="color:var(--line2);margin:0 3px">|</span>
          <a class="linklike" href="/api/projects/${encodeURIComponent(p.name)}/export_bom" onclick="event.stopPropagation()" download>导出采购表</a>${retryBtn}`
       : (failedJob
           ? `<button class="linklike" style="color:var(--err)" onclick="event.stopPropagation();reparseJob('${failedJob.job_id}')">重试提取</button>`
           : `<button class="linklike" onclick="event.stopPropagation();navGo('upload')">上传</button>`);
-    return `<tr class="${ready ? 'clickable' : ''}" ${ready ? `onclick="openJob('${ready.job_id}')"` : ''}>
-      <td><b>${esc(p.name)}</b><span class="sub">${sub}</span></td>
+    
+    const hasJobs = jobs.length > 0;
+    const arrow = hasJobs ? `<span id="proj-arrow-${idx}" style="display:inline-block;width:14px;cursor:pointer;color:var(--mut);transition:transform 0.15s">▶</span> ` : '';
+    rows.push(`<tr class="${hasJobs ? 'clickable' : ''}" onclick="toggleProjectDrawer(${idx})">
+      <td>${arrow}<b>${esc(p.name)}</b><span class="sub">${sub}</span></td>
       <td>${jobs.length}</td>
       <td>${t.boxes}</td>
       <td>${t.circuits}</td>
@@ -120,7 +126,54 @@ async function loadProjects() {
       <td>${t.unresolved ? `<span class="pill warn">${t.unresolved}</span>` : '<span class="pill">0</span>'}</td>
       <td>${state}</td>
       <td class="mono" style="font-size:11px">${esc((p.updated_at || '').replace('T', ' ').slice(0, 16) || '—')}</td>
-      <td>${action}</td></tr>`;
+      <td>${action}</td></tr>`);
+
+    if (hasJobs) {
+      const jobRows = jobs.map(j => {
+        const jStatus = j.status === 'done' ? '<span class="pill ok" style="font-size:10.5px">已完成</span>'
+          : (j.status === 'failed' ? '<span class="pill bad" style="font-size:10.5px">失败</span>' : '<span class="pill info" style="font-size:10.5px">解析中</span>');
+        const jBoxes = j.summary?.boxes ?? 0;
+        const jCircuits = j.summary?.circuits ?? 0;
+        const jComponents = j.summary?.components ?? 0;
+        const jPages = j.pages || 1;
+        const ext = (j.filename || '').split('.').pop().toUpperCase();
+        return `<tr>
+          <td style="padding:6px 10px"><span class="pill" style="font-size:10px;margin-right:6px">${ext}</span><b>${esc(j.filename || j.job_id)}</b></td>
+          <td style="padding:6px 10px;text-align:center">${jPages} 页</td>
+          <td style="padding:6px 10px;text-align:right">${jBoxes} 台</td>
+          <td style="padding:6px 10px;text-align:right">${jCircuits} 条</td>
+          <td style="padding:6px 10px;text-align:right">${jComponents} 种</td>
+          <td style="padding:6px 10px;text-align:center">${jStatus}</td>
+          <td style="padding:6px 10px;text-align:right">
+            <button class="linklike" onclick="event.stopPropagation();openJob('${j.job_id}')">进入工作台</button>
+            <span style="color:var(--line2);margin:0 4px">|</span>
+            <button class="linklike" onclick="event.stopPropagation();reparseJob('${j.job_id}')" title="无需重新上传，就地重新提取">重新解析</button>
+            <span style="color:var(--line2);margin:0 4px">|</span>
+            <button class="linklike" onclick="event.stopPropagation();quickMoveJobProject('${j.job_id}', '${esc(p.name)}')">换项目</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      rows.push(`<tr id="proj-drawer-${idx}" style="display:none;background:#f8f9fc">
+        <td colspan="9" style="padding:10px 16px 14px 28px;border-top:none">
+          <div style="font-size:11.5px;font-weight:600;color:var(--mut);margin-bottom:6px">📂 该工程所辖图纸清单 (${jobs.length} 份)：</div>
+          <table class="grid sm" style="width:100%;margin:0;background:#fff;border:1px solid var(--line2)">
+            <thead>
+              <tr style="background:var(--inset)">
+                <th>图纸文件名</th>
+                <th style="width:60px;text-align:center">切片页数</th>
+                <th style="width:70px;text-align:right">配电箱</th>
+                <th style="width:70px;text-align:right">回路数</th>
+                <th style="width:70px;text-align:right">元器件</th>
+                <th style="width:70px;text-align:center">状态</th>
+                <th style="width:170px;text-align:right">操作</th>
+              </tr>
+            </thead>
+            <tbody>${jobRows}</tbody>
+          </table>
+        </td>
+      </tr>`);
+    }
   });
   $('projrows').innerHTML = rows.join('');
   $('projempty').hidden = projects.length > 0;
@@ -338,6 +391,212 @@ async function newProject() {
   fillProjectSelect();
 }
 
+function toggleProjectDrawer(idx) {
+  const drawer = $(`proj-drawer-${idx}`);
+  const arrow = $(`proj-arrow-${idx}`);
+  if (!drawer) return;
+  const isHidden = drawer.style.display === 'none';
+  drawer.style.display = isHidden ? 'table-row' : 'none';
+  if (arrow) {
+    arrow.textContent = isHidden ? '▼' : '▶';
+  }
+}
+
+let currentTopologyData = null;
+
+async function viewProjectTopology(projectName) {
+  try {
+    $('projTopologyTitle').textContent = `全项目供电系统层级拓扑树 · ${projectName}`;
+    $('projTopologySub').textContent = `跨所有系统图合并分析：一级总配电柜 → 二级配电分箱 → 一次末端回路 / 二次原理图控制关系`;
+    $('projTopologyStats').innerHTML = '<span class="mut">正在聚合全项目配电系统拓扑网络...</span>';
+    $('projTopologyContainer').innerHTML = '<div style="text-align:center;padding:30px" class="mut">正在计算拓扑关系...</div>';
+    $('projTopologyFilter').value = '';
+    $('projTopologyModal').classList.add('show');
+
+    const res = await api(`/api/projects/${encodeURIComponent(projectName)}/topology`);
+    if (!res.ok) throw new Error(res.error || '获取拓扑失败');
+    currentTopologyData = res.topology || [];
+
+    let totalCabinets = 0;
+    let totalSecondaries = 0;
+    let totalCircuits = 0;
+    function countNodes(list) {
+      for (const n of list) {
+        if (n.node_type === 'secondary') totalSecondaries++;
+        else totalCabinets++;
+        totalCircuits += (n.circuits_count || 0);
+        if (n.children && n.children.length) countNodes(n.children);
+      }
+    }
+    countNodes(currentTopologyData);
+
+    $('projTopologyStats').innerHTML = `
+      <div><b>覆盖图纸：</b><span class="mono">${res.job_count}</span> 份</div>
+      <div><b>配电箱/柜节点：</b><span class="mono">${totalCabinets}</span> 台</div>
+      <div><b>二次控制原理图：</b><span class="mono">${totalSecondaries}</span> 幅</div>
+      <div><b>聚合总回路：</b><span class="mono" style="font-weight:700;color:var(--acc)">${totalCircuits}</span> 条</div>
+      <div style="color:var(--mut)">提示：供电关系已根据系统图一次进线、出线回路及箱体编号自动关联拓扑层级</div>
+    `;
+
+    renderTopologyView('');
+  } catch (err) {
+    toast('获取项目拓扑失败：' + err.message);
+    closeProjTopology();
+  }
+}
+
+function renderTopologyView(filter) {
+  const container = $('projTopologyContainer');
+  if (!container) return;
+  const list = currentTopologyData || [];
+  if (!list.length) {
+    container.innerHTML = '<div style="text-align:center;padding:30px" class="mut2">该项目暂未发现配电箱或拓扑关联数据</div>';
+    return;
+  }
+
+  const q = (filter || '').trim().toLowerCase();
+  
+  function renderNode(node) {
+    const isSec = node.node_type === 'secondary';
+    const match = !q || (node.code && node.code.toLowerCase().includes(q)) || (node.name && node.name.toLowerCase().includes(q));
+    const childHtml = (node.children || []).map(renderNode).join('');
+    if (q && !match && !childHtml) return '';
+
+    const icon = isSec ? '⚡' : '🗄️';
+    const typeBadge = isSec ? '<span class="pill warn" style="font-size:10px;margin-right:4px">二次原理图</span>'
+      : '<span class="pill ok" style="font-size:10px;margin-right:4px">箱柜</span>';
+    const power = node.power_kw ? `<span class="pill" style="font-size:10.5px;background:#eef2ff;color:#2e5ce6">功率: ${esc(node.power_kw)}</span>` : '';
+    const circuits = node.circuits_count ? `<span class="pill" style="font-size:10.5px">出线回路: ${node.circuits_count}条</span>` : '';
+    const note = node.note ? `<span class="mut" style="font-size:11px">(${esc(node.note)})</span>` : '';
+
+    return `
+      <div style="margin-left:20px;border-left:2px solid var(--line2);padding-left:14px;margin-top:8px;margin-bottom:8px">
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
+          <span style="font-size:14px">${icon}</span>
+          ${typeBadge}
+          <b style="font-size:12.5px">${esc(node.code || '未编号')}</b>
+          <span style="color:var(--txt);font-size:12px">${esc(node.name || '')}</span>
+          ${power}
+          ${circuits}
+          ${note}
+        </div>
+        ${childHtml ? `<div style="margin-top:4px">${childHtml}</div>` : ''}
+      </div>
+    `;
+  }
+
+  const html = list.map(renderNode).join('');
+  container.innerHTML = html || '<div style="text-align:center;padding:24px" class="mut2">未匹配到符合过滤条件的配电箱</div>';
+}
+
+function filterTopologyTree(val) {
+  renderTopologyView(val);
+}
+
+function closeProjTopology() {
+  const modal = $('projTopologyModal');
+  if (modal) modal.classList.remove('show');
+}
+
+let batchJobsCache = [];
+
+async function openBatchProjectModal(preSelectedJobId) {
+  try {
+    $('batchProjectModal').classList.add('show');
+    $('batchProjectTable').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px" class="mut">加载图纸列表中...</td></tr>';
+    
+    const [{ projects }, { jobs }] = await Promise.all([
+      api('/api/projects'),
+      api('/api/jobs')
+    ]);
+
+    batchJobsCache = jobs || [];
+
+    const sel = $('batchTargetProject');
+    sel.innerHTML = '<option value="">-- 选择已有项目 --</option>' +
+      projects.filter(p => p.name !== '未分组').map(p => `<option value="${esc(p.name)}">${esc(p.name)} (${p.totals?.drawings || 0} 份图纸)</option>`).join('');
+    $('batchNewProject').value = '';
+
+    const rows = batchJobsCache.map(j => {
+      const isDefaultChecked = preSelectedJobId ? (j.job_id === preSelectedJobId) : (!j.project || j.project === '未分组');
+      const ext = (j.filename || '').split('.').pop().toUpperCase();
+      const statusPill = j.status === 'done' ? '<span class="pill ok" style="font-size:10px">已完成</span>'
+        : (j.status === 'failed' ? '<span class="pill bad" style="font-size:10px">失败</span>' : '<span class="pill info" style="font-size:10px">处理中</span>');
+      return `<tr>
+        <td style="text-align:center"><input type="checkbox" class="batch-chk" data-jobid="${j.job_id}" ${isDefaultChecked ? 'checked' : ''}></td>
+        <td><span class="pill" style="font-size:10px;margin-right:4px">${ext}</span><b>${esc(j.filename || j.job_id)}</b></td>
+        <td><span class="mut" style="font-size:11px">${esc(j.project || '未分组')}</span></td>
+        <td style="text-align:right">${j.summary?.boxes ?? 0}</td>
+        <td style="text-align:right">${j.summary?.circuits ?? 0}</td>
+        <td style="text-align:center">${statusPill}</td>
+      </tr>`;
+    });
+
+    $('batchProjectTable').innerHTML = rows.join('') || '<tr><td colspan="6" style="text-align:center;padding:20px" class="mut2">暂无已上传图纸</td></tr>';
+    $('batchSelectAll').checked = false;
+  } catch (err) {
+    toast('打开批量归类失败：' + err.message);
+  }
+}
+
+function closeBatchProjectModal() {
+  const modal = $('batchProjectModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function toggleSelectAllBatch(checked) {
+  document.querySelectorAll('.batch-chk').forEach(el => el.checked = checked);
+}
+
+async function submitBatchProject() {
+  const selectedBoxes = Array.from(document.querySelectorAll('.batch-chk:checked'));
+  const jobIds = selectedBoxes.map(el => el.getAttribute('data-jobid')).filter(Boolean);
+  if (!jobIds.length) {
+    toast('请先勾选需要归入项目的图纸');
+    return;
+  }
+
+  let targetProj = $('batchNewProject').value.trim();
+  if (!targetProj) {
+    targetProj = $('batchTargetProject').value.trim();
+  }
+  if (!targetProj) {
+    toast('请选择已有项目或输入新项目名称');
+    return;
+  }
+
+  try {
+    const res = await postJSON('/api/jobs/batch_set_project', {
+      job_ids: jobIds,
+      project: targetProj
+    });
+    if (!res.ok) throw new Error(res.error || '移动失败');
+    toast(`已成功将 ${res.updated} 份图纸归入工程「${targetProj}」`);
+    closeBatchProjectModal();
+    loadProjects();
+    fillProjectSelect();
+  } catch (err) {
+    toast('归入项目失败：' + err.message);
+  }
+}
+
+async function quickMoveJobProject(jobId, currentProject) {
+  const target = prompt(`将图纸移动到哪个项目？当前项目：${currentProject || '未分组'}`, currentProject || '');
+  if (!target || !target.trim()) return;
+  try {
+    const res = await postJSON('/api/jobs/batch_set_project', {
+      job_ids: [jobId],
+      project: target.trim()
+    });
+    if (!res.ok) throw new Error(res.error || '移动失败');
+    toast(`已将图纸移动到「${target.trim()}」`);
+    loadProjects();
+    fillProjectSelect();
+  } catch (err) {
+    toast('移动失败：' + err.message);
+  }
+}
+
 /* ===================== 上传页 ===================== */
 
 function renderQueue() {
@@ -357,7 +616,19 @@ function renderQueue() {
            <div class="progress"><i style="width:${f.progress}%"></i></div>`
         : '<span class="pill">等待提取</span>'}</td>
     <td>${f.jobId && f.state === 'done' ? `<button class="linklike" onclick="openJob('${f.jobId}')">进入工作台</button>`
-      : `<button class="linklike" onclick="removeQueued(${i})">移除</button>`}</td></tr>`).join('');
+      : f.state === 'failed'
+        ? `<button class="linklike" style="color:var(--acc);margin-right:10px;font-weight:600" onclick="retryQueued(${i})">重试</button><button class="linklike" onclick="removeQueued(${i})">移除</button>`
+        : `<button class="linklike" onclick="removeQueued(${i})">移除</button>`}</td></tr>`).join('');
+}
+
+function retryQueued(i) {
+  const item = S.queue[i];
+  if (!item) return;
+  item.state = 'queued';
+  item.error = '';
+  item.progress = 0;
+  renderQueue();
+  startExtract();
 }
 
 function fmtSize(n) {
@@ -381,8 +652,18 @@ function removeQueued(i) {
 }
 
 async function startExtract() {
-  const pending = S.queue.filter(f => f.state === 'queued');
-  if (!pending.length) { toast('队列里没有等待提取的文件'); return; }
+  let pending = S.queue.filter(f => f.state === 'queued');
+  if (!pending.length) {
+    const failed = S.queue.filter(f => f.state === 'failed');
+    if (failed.length) {
+      failed.forEach(f => { f.state = 'queued'; f.error = ''; f.progress = 0; });
+      renderQueue();
+      pending = failed;
+    } else {
+      toast('队列里没有等待提取的文件');
+      return;
+    }
+  }
   const project = $('uploadProject').value;
   for (const item of pending) {
     try {
@@ -2520,6 +2801,8 @@ async function loadHistory() {
     <td>${h.changes || 0} 处</td>
     <td><button class="linklike" onclick="openJob('${h.job_id}')">查看</button>
         <span style="color:var(--line2);margin:0 3px">|</span>
+        <button class="linklike" onclick="openBatchProjectModal('${h.job_id}')" title="将此图纸归入或移动到指定项目">归入项目</button>
+        <span style="color:var(--line2);margin:0 3px">|</span>
         <button class="linklike" onclick="reparseJob('${h.job_id}')" title="无需重新上传，以最新引擎重新提取该图纸">重新解析</button>
         <span style="color:var(--line2);margin:0 3px">|</span>
         <a class="linklike" href="/api/jobs/${h.job_id}/excel">下载Excel</a></td></tr>`).join('');
@@ -2789,7 +3072,7 @@ function quickAsk(q) {
 function bindKeys() {
   document.addEventListener('keydown', e => {
     const typing = ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName);
-    if (e.key === 'Escape') { closeReview(); closeExport(); closeLog(); closeProjBom(); return; }
+    if (e.key === 'Escape') { closeReview(); closeExport(); closeLog(); closeProjBom(); closeProjTopology(); closeBatchProjectModal(); return; }
     if (typing) return;
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveNow(); return; }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undoLastChange(); return; }

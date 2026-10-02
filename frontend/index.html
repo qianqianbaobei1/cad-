@@ -216,6 +216,7 @@
 <!-- ===== 项目 ===== -->
 <main class="page" id="page-projects" hidden>
   <div class="pg-head"><h2>项目</h2><div class="sp"></div>
+    <button class="btn ghost sm" onclick="openBatchProjectModal()" style="margin-right:8px" title="批量勾选图纸并集中归入指定项目">📦 批量归入项目</button>
     <button class="btn primary sm" onclick="newProject()">新建项目</button>
   </div>
   <div class="pg-wrap"><div class="card"><table class="ptable">
@@ -381,6 +382,61 @@
           </tr>
         </thead>
         <tbody id="projBomTable"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- 全项目供电系统拓扑弹窗 -->
+<div class="modal" id="projTopologyModal">
+  <div class="mbox wide" style="width:960px;max-width:96vw">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:10px;">
+      <div>
+        <h3 id="projTopologyTitle" style="margin:0">全项目配电系统层级拓扑树</h3>
+        <div class="sub" id="projTopologySub" style="margin:4px 0 0 0">总配电柜 → 二级配电分箱 → 一次出线支路 / 二次控制原理图供电关系</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="projTopologyFilter" type="text" placeholder="快速过滤箱体编号/名称..." oninput="filterTopologyTree(this.value)" style="padding:4px 8px;font-size:12px;border:1px solid var(--line);border-radius:4px;width:190px">
+        <button class="btn ghost sm" onclick="closeProjTopology()">✕ 关闭</button>
+      </div>
+    </div>
+    <div id="projTopologyStats" style="display:flex;gap:16px;margin-bottom:14px;background:var(--inset);padding:10px 14px;font-size:12px;border:1px solid var(--line);flex-wrap:wrap"></div>
+    <div id="projTopologyContainer" style="max-height:60vh;overflow-y:auto;border:1px solid var(--line);padding:14px;background:#fcfcfd"></div>
+  </div>
+</div>
+
+<!-- 批量图纸归入项目弹窗 -->
+<div class="modal" id="batchProjectModal">
+  <div class="mbox wide" style="width:780px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:10px;">
+      <div>
+        <h3 style="margin:0">批量归入 / 移动项目</h3>
+        <div class="sub" style="margin:4px 0 0 0">勾选图纸，一键移动至目标工程集中进行项目级 BOM 与拓扑分析</div>
+      </div>
+      <button class="btn ghost sm" onclick="closeBatchProjectModal()">✕ 关闭</button>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;background:var(--inset);padding:10px 14px;border:1px solid var(--line)">
+      <span style="font-size:12.5px;font-weight:600">目标项目：</span>
+      <select id="batchTargetProject" style="padding:4px 8px;font-size:12.5px;border:1px solid var(--line);border-radius:4px;background:#fff;min-width:160px">
+        <option value="">-- 选择已有项目 --</option>
+      </select>
+      <span style="font-size:12px;color:var(--mut)">或输入新项目名：</span>
+      <input id="batchNewProject" type="text" placeholder="例如：动力车间强电工程" style="padding:4px 8px;font-size:12px;border:1px solid var(--line);border-radius:4px;width:180px">
+      <button class="btn primary sm" onclick="submitBatchProject()">确认归入</button>
+    </div>
+    <div style="max-height:50vh;overflow-y:auto;border:1px solid var(--line);">
+      <table class="grid sm" style="width:100%;margin:0">
+        <thead>
+          <tr>
+            <th style="width:36px;text-align:center"><input type="checkbox" id="batchSelectAll" onchange="toggleSelectAllBatch(this.checked)"></th>
+            <th>图纸文件</th>
+            <th style="width:110px">当前归属</th>
+            <th style="width:60px;text-align:right">箱体</th>
+            <th style="width:60px;text-align:right">回路</th>
+            <th style="width:70px;text-align:center">状态</th>
+          </tr>
+        </thead>
+        <tbody id="batchProjectTable"></tbody>
       </table>
     </div>
   </div>

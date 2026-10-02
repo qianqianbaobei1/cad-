@@ -12,6 +12,7 @@ from fastapi import (FastAPI, UploadFile, File, Form, BackgroundTasks,
                      HTTPException, Query)
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from extractor.render import plan_tiles, render_pdf
 from extractor.vision import VisionProvider
 from extractor.checker import check_result
@@ -670,6 +671,29 @@ def reparse_job(job_id: str, background: BackgroundTasks):
     }
     background.add_task(process_drawing_file, job_id, raw_path, filename)
     return {"ok": True, "job_id": job_id, "filename": filename, "message": "已成功启动重新解析"}
+
+
+class BatchProjectRequest(BaseModel):
+    job_ids: list[str]
+    project: str
+
+
+@app.post("/api/jobs/batch_set_project")
+def batch_set_project(req: BatchProjectRequest):
+    """支持批量勾选已上传的多份图纸，一键移动/归属到指定项目进行集中聚合分析。"""
+    proj_name = req.project.strip()
+    if not proj_name:
+        raise HTTPException(400, "项目名称不能为空")
+    store.ensure_project(proj_name)
+    updated = []
+    for job_id in req.job_ids:
+        _validate_job_id(job_id)
+        job = load_job_cached(job_id)
+        if job:
+            job["project"] = proj_name
+            save_job(job_id)
+            updated.append(job_id)
+    return {"ok": True, "updated": len(updated), "project": proj_name}
 
 
 @app.get("/api/jobs/{job_id}")
