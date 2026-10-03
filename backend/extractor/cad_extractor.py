@@ -37,7 +37,7 @@ RE_BREAKER_FALLBACK = re.compile(
 
 PANEL_CODE_PATTERN = re.compile(
     r"(?<![A-Za-z0-9\-])(?:消防)?("
-    r"01[A-Za-z][A-Za-z0-9\-]+|CDX[0-9\-]+|JLM[0-9\-]+"
+    r"01[A-Za-z][A-Za-z0-9\-]+"
     # 通用柜号形态：字母数字混排且至少含一位数字（如 2SAL2/2ALE/2AT/2SAL3/AW1）。
     # 纯字母的器件词（MCB/SPD/MCCB/RCBO/ATSE）不含数字，不会被误判为柜号。
     # 两处排除：数字+字母形排除常见单位（6kA/220V/63A）；
@@ -80,9 +80,13 @@ def _extract_box_metadata(header_text: str, nearby_texts: list[tuple]) -> dict[s
         elif any(k in t for k in ["落地式", "落地安装"]):
             meta["install"] = "落地式"
 
-        if any(m in t for m in ["XRM", "JXF", "GGD", "XXM", "PZ30"]):
+        # 优先匹配真实物理尺寸 (如 800x600x200 或 600*400*160)
+        m_dim = re.search(r"\b\d{2,4}\s*[xX*×]\s*\d{2,4}(?:\s*[xX*×]\s*\d{2,4})?\b", t)
+        if m_dim and not meta["size"]:
+            meta["size"] = m_dim.group(0).replace(" ", "")
+        elif any(m in t for m in ["XRM", "JXF", "GGD", "XXM", "PZ30"]):
             for m in ["XRM", "JXF", "GGD", "XXM", "PZ30"]:
-                if m in t:
+                if m in t and not meta["size"]:
                     meta["size"] = m
                     break
 
@@ -90,8 +94,9 @@ def _extract_box_metadata(header_text: str, nearby_texts: list[tuple]) -> dict[s
         if m_ip:
             meta["ip_rating"] = m_ip.group(0).upper()
 
-        if "消防" in t and "消防标志" in t:
-            meta["note"] = "明显消防标志,并作防火处理"
+        # 忠实摘录图纸原文备注，绝不凭空创作文学描述
+        if any(k in t for k in ["消防标志", "防火", "防腐", "室外", "防爆", "特别要求", "备注"]):
+            meta["note"] = t.strip()
 
     # 台数识别：共N台 / N台 / ×N（N 为数字）。
     # "×N" 加前后断言，避免把尺寸"450×350×120"误认成台数；
@@ -153,7 +158,7 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
         # 排除回路出线引用、规范、图纸编号与干线附注。
         # 含冒号的标头（如"2ALE：应急照明配电箱"）不整行丢弃，
         # 取冒号前的部分做柜号匹配。
-        if any(k in t for k in ["引", "配出", "备用", "市电", "规范", "图集", "SD-", "图号", "干线"]):
+        if any(k in t for k in ["引至", "配出", "备用", "市电", "规范", "图集", "图号", "图纸编号", "干线"]):
             continue
         t_head = re.split(r"[:：]", t, maxsplit=1)[0]
         m = PANEL_CODE_PATTERN.search(t_head)

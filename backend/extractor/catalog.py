@@ -148,9 +148,9 @@ def recommend_replacements(name: str, spec: str, target_brand: str = "正泰") -
     parsed = parse_component_spec(name, spec)
     current_brand = parsed["brand"]
     category = parsed["category"]
-    amp = parsed["rated_amp"] or 16
-    poles = parsed["poles"]
-    curve = parsed["curve"]
+    amp = parsed["rated_amp"]
+    poles = parsed["poles"] or "1P"
+    curve = parsed["curve"] or "C"
     leakage = parsed["leakage_ma"]
 
     # 判定替代降本空间：外资一线品牌平替通常可节约 35%~50% 采购成本
@@ -177,9 +177,15 @@ def recommend_replacements(name: str, spec: str, target_brand: str = "正泰") -
                 target_series = "NDB1LE-63"
             else:
                 target_series = "CDB6LE-63"
+            
             leak_val = leakage or 30
-            replaced_model = f"{target_series} {curve}{int(amp)}/{poles} {leak_val}mA"
-            matching_notes = f"电气性能参数完全对标：额定电流 {int(amp)}A, 极数 {poles}, 特性曲线 {curve} 型, 漏电动作 {leak_val}mA"
+            leak_note = f"漏电动作 {leak_val}mA" if leakage else f"按常规人身防护默认 {leak_val}mA (待核)"
+            if amp is not None:
+                replaced_model = f"{target_series} {curve}{int(amp)}/{poles} {leak_val}mA"
+                matching_notes = f"电气性能参数对标：额定电流 {int(amp)}A, 极数 {poles}, 特性曲线 {curve} 型, {leak_note}（请核对厂商样本）"
+            else:
+                replaced_model = f"{target_series}系列（待核定电流）"
+                matching_notes = f"原图纸未标注额定电流，推荐选用{target_brand} {target_series}系列漏电微断，需核对负荷计算书定型"
         else:
             if target_brand == "正泰":
                 target_series = "NXB-63"
@@ -187,18 +193,33 @@ def recommend_replacements(name: str, spec: str, target_brand: str = "正泰") -
                 target_series = "NDB1-63"
             else:
                 target_series = "CDB6i-63"
-            replaced_model = f"{target_series} {curve}{int(amp)}/{poles}"
-            matching_notes = f"电气性能参数完全对标：额定电流 {int(amp)}A, 极数 {poles}, 特性曲线 {curve} 型"
+            
+            if amp is not None:
+                replaced_model = f"{target_series} {curve}{int(amp)}/{poles}"
+                matching_notes = f"电气性能参数对标：额定电流 {int(amp)}A, 极数 {poles}, 特性曲线 {curve} 型（请核对厂商样本）"
+            else:
+                replaced_model = f"{target_series}系列（待核定电流）"
+                matching_notes = f"原图纸未标注额定电流，推荐选用{target_brand} {target_series}系列微断，需核对负荷计算书定型"
     elif "塑壳断路器" in category:
-        frame = 125 if amp <= 125 else (250 if amp <= 250 else (400 if amp <= 400 else 630))
-        if target_brand == "正泰":
-            target_series = f"NM8N-{frame}S"
-        elif target_brand == "良信":
-            target_series = f"NDM1-{frame}S"
+        if amp is not None:
+            frame = 125 if amp <= 125 else (250 if amp <= 250 else (400 if amp <= 400 else 630))
+            if target_brand == "正泰":
+                target_series = f"NM8N-{frame}S"
+            elif target_brand == "良信":
+                target_series = f"NDM1-{frame}S"
+            else:
+                target_series = f"CDM3-{frame}S"
+            replaced_model = f"{target_series}/3300 {int(amp)}A {poles}"
+            matching_notes = f"电气性能参数对标：壳架等级 {frame}A, 额定电流 {int(amp)}A, 极数 {poles}（请核对厂商样本）"
         else:
-            target_series = f"CDM3-{frame}S"
-        replaced_model = f"{target_series}/3300 {int(amp)}A {poles}"
-        matching_notes = f"电气性能参数完全对标：壳架等级 {frame}A, 额定电流 {int(amp)}A, 极数 {poles}"
+            if target_brand == "正泰":
+                target_series = "NM8N系列"
+            elif target_brand == "良信":
+                target_series = "NDM1系列"
+            else:
+                target_series = "CDM3系列"
+            replaced_model = f"{target_series}（壳架与电流待核定）"
+            matching_notes = f"原图纸未标注额定电流，推荐选用{target_brand} {target_series}塑壳，需核对负荷计算书定型"
     elif "框架断路器" in category:
         if target_brand == "正泰":
             target_series = "NXA"
@@ -206,8 +227,12 @@ def recommend_replacements(name: str, spec: str, target_brand: str = "正泰") -
             target_series = "NDW1"
         else:
             target_series = "CDW3"
-        replaced_model = f"{target_series} 智能型框架断路器 {int(amp)}A {poles}"
-        matching_notes = f"电气性能参数完全对标：额定电流 {int(amp)}A, 极数 {poles} 智能控制器"
+        if amp is not None:
+            replaced_model = f"{target_series} 智能型框架断路器 {int(amp)}A {poles}"
+            matching_notes = f"电气性能参数对标：额定电流 {int(amp)}A, 极数 {poles} 智能控制器（请核对厂商样本）"
+        else:
+            replaced_model = f"{target_series}系列智能型框架断路器（电流待核）"
+            matching_notes = f"原图纸未标注框架电流，推荐选用{target_brand} {target_series}系列"
     elif "电涌保护器" in category:
         if target_brand == "正泰":
             target_series = "NU6-II"

@@ -62,7 +62,7 @@ def public_settings() -> dict:
     return {
         **{k: v for k, v in current.items() if k != "vision_api_key"},
         "vision_api_key_set": bool(key),
-        "vision_api_key_hint": f"***{key[-4:]}" if len(key) > 8 else ("***" if key else ""),
+        "vision_api_key_hint": "***" if key else "",
     }
 
 
@@ -86,7 +86,7 @@ def apply_settings_to_env() -> None:
 
 from db import (
     db_ensure_project, db_list_projects, db_record_ai_usage, db_get_ai_logs,
-    db_add_history, db_get_history, get_current_tenant
+    db_add_history, db_get_history
 )
 
 
@@ -123,11 +123,6 @@ def history(limit: int = 100) -> list[dict]:
 
 def add_history(entry: dict) -> dict:
     return db_add_history(entry)
-
-
-def _now() -> str:
-    from datetime import datetime
-    return datetime.now().isoformat(timespec="seconds")
 
 
 # 自动平滑迁移老版本 JSON 数据到 SQLite 数据库 (仅当首次升级且 DB 为空时执行)

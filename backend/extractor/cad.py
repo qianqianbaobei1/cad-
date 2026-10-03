@@ -233,9 +233,10 @@ def detect_system_sheets(doc: Any) -> list[dict[str, Any]]:
     for c in filtered:
         name = c["title"]
         score = 0
-        if any(k in c["layer"] for k in ["图签", "图框", "TITLE", "PUB_TITLE", "BORDER"]):
+        layer_upper = (c.get("layer") or "").upper()
+        if any(k in layer_upper for k in ["图签", "图框", "TITLE", "PUB_TITLE", "BORDER"]):
             score += 20
-        elif any(k in c["layer"] for k in ["PUB_TEXT", "01"]):
+        elif any(k in layer_upper for k in ["PUB_TEXT", "TEXT", "TXT", "NOTE"]):
             score += 10
         if c["height"] >= 300:
             score += 5

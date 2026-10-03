@@ -1934,8 +1934,12 @@ async function saveNow(silent) {
   }
 }
 
-function applyServerData(res) {
+function applyServerData(res, expectedJobId = null) {
   if (!res || !res.data) return;
+  if (expectedJobId && S.jobId !== expectedJobId) {
+    console.warn(`[applyServerData] 任务已切换 (当前 ${S.jobId} != 期望 ${expectedJobId})，丢弃旧数据更新`);
+    return;
+  }
   S.data = res.data;
   S.changes = res.changes || [];
   snapshotOrigins();
@@ -3052,23 +3056,30 @@ async function ask(text) {
   $('msgs').appendChild(thinking);
   $('msgs').scrollTop = $('msgs').scrollHeight;
 
+  const targetJobId = S.jobId;
   try {
-    const res = await postJSON(`/api/jobs/${S.jobId}/chat`, { message: text, history: S.chat.slice(-6) });
+    const res = await postJSON(`/api/jobs/${targetJobId}/chat`, { message: text, history: S.chat.slice(-6) });
     thinking.remove();
+    // 竞态防御：用户在等待响应期间切换了图纸，丢弃数据变更，防止污染当前新图纸
+    if (S.jobId !== targetJobId) {
+      console.warn(`[chat] 图纸已从 ${targetJobId} 切换至 ${S.jobId}，忽略旧 AI 响应以防覆盖清单`);
+      return;
+    }
     S.chat.push({ role: 'user', content: text });
-    handleAnswer(res, text);
+    handleAnswer(res, text, targetJobId);
   } catch (e) {
     thinking.remove();
+    if (S.jobId !== targetJobId) return;
     $('vintent').textContent = '调用失败';
     $('vout').textContent = e.message;
     addMsg('err', esc(e.message));
     // 失败时把问题放回输入框，直接回车就能重试
     if ($('cin') && !$('cin').value) $('cin').value = text;
-    speak('助手这次没返回结果，可以再试一次');
   }
 }
 
-function handleAnswer(res, text) {
+function handleAnswer(res, text, sourceJobId = null) {
+  if (sourceJobId && S.jobId !== sourceJobId) return;
   if (res.action) { runLocalAction(res.action); return; }
   const reply = res.reply || '（模型没有返回内容）';
   S.chat.push({ role: 'assistant', content: reply });
@@ -3085,7 +3096,7 @@ function handleAnswer(res, text) {
       addMsg('sys', `已修改 <b>${esc(c.target)}</b> · ${esc(what)}：${diff}`);
     });
   }
-  if (res.data) applyServerData(res);
+  if (res.data) applyServerData(res, sourceJobId);
   const TAB_SUB = { circuits: 'circuits', components: 'devices', boxes: 'boxes', requirements: 'reqs', replace: 'replace' };
   if (res.tab && TAB_SUB[res.tab]) { switchPane('list'); renderSub(TAB_SUB[res.tab]); }
   if (res.focus) {
@@ -3175,9 +3186,6 @@ function toggleListen() {
 if ('speechSynthesis' in window) {
   try { speechSynthesis.cancel(); } catch (_) {}
 }
-
-function toggleSpeak() {}
-function speak() {}
 
 /* ===================== 历史记录 ===================== */
 

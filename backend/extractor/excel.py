@@ -75,6 +75,21 @@ def sanitize_excel_value(val: Any) -> Any:
     return val
 
 
+def _build_comps_by_box(components: list[Any]) -> dict[str, list[Any]]:
+    """将元器件按所属箱体分组，支持 '1AP1、1AP2' 跨箱多箱映射。"""
+    comps_by_box: dict[str, list[Any]] = {}
+    for comp in components:
+        used = getattr(comp, "used_in", "") if hasattr(comp, "used_in") else str(comp.get("used_in", ""))
+        parts = [p.strip() for p in re.split(r"[、,，\s]+", used) if p.strip()]
+        if not parts and used:
+            parts = [used.strip()]
+        for p in parts:
+            comps_by_box.setdefault(p, []).append(comp)
+        if used and used not in comps_by_box:
+            comps_by_box.setdefault(used, []).append(comp)
+    return comps_by_box
+
+
 def _estimate_box_costs(box: Any, box_circuits: list[Any], box_components: list[Any]) -> dict[str, float]:
     """成套配电箱成本构成测算模型：
     1. 箱体外壳费 (box_shell)：依据安装方式、回路数及落地/明暗装尺寸估算钣金喷塑外壳；
@@ -98,12 +113,33 @@ def _estimate_box_costs(box: Any, box_circuits: list[Any], box_components: list[
             "circuit_type": str(_val(c, "circuit_type", "")),
             "breaker_spec": str(_val(c, "breaker", "")),
             "load_name": str(_val(c, "load_name", "")),
+            "circuit_no": str(_val(c, "circuit_no", "")),
         })
     comp_dicts = []
+    # 1. 显式提取回路中的开关断路器（进线及各分支回路出线）并计入元件清单
+    for c in box_circuits:
+        brk_spec = str(_val(c, "breaker", "")).strip()
+        if not brk_spec or brk_spec in ("-", "待确认"):
+            continue
+        c_type = str(_val(c, "circuit_type", "")).strip()
+        load_name = str(_val(c, "load_name", "")).strip()
+        c_no = str(_val(c, "circuit_no", "")).strip()
+        is_inc = c_type == "incoming" or "进线" in load_name or "进线" in c_no
+        dev_name = "进线断路器" if is_inc else "分支断路器"
+        comp_dicts.append({
+            "name": dev_name,
+            "spec": brk_spec,
+            "quantity": 1,
+        })
+
+    # 2. 计入箱体关联的非回路或独立元器件 (如电涌保护器 SPD、电表、信号灯等)
     for comp in box_components:
+        c_spec = str(_val(comp, "spec", "")).strip()
+        if not c_spec or c_spec == "-":
+            continue
         comp_dicts.append({
             "name": str(_val(comp, "name", "")),
-            "spec": str(_val(comp, "spec", "")),
+            "spec": c_spec,
             "quantity": _val(comp, "quantity", 1),
         })
 
@@ -205,10 +241,7 @@ def _fill_box_cards_detail_sheet(ws, title: str, subtitle: str, boxes: list[Any]
         b_code = getattr(c, "box", "") if hasattr(c, "box") else str(c.get("box", ""))
         circuits_by_box.setdefault(b_code, []).append(c)
 
-    comps_by_box: dict[str, list[Any]] = {}
-    for comp in components:
-        used = getattr(comp, "used_in", "") if hasattr(comp, "used_in") else str(comp.get("used_in", ""))
-        comps_by_box.setdefault(used, []).append(comp)
+    comps_by_box = _build_comps_by_box(components)
 
     r = 4
     for b_idx, b in enumerate(boxes, start=1):
@@ -380,10 +413,7 @@ def _fill_quotation_summary_sheet(ws, project_title: str, boxes: list[Any], circ
         b_code = getattr(c, "box", "") if hasattr(c, "box") else str(c.get("box", ""))
         circuits_by_box.setdefault(b_code, []).append(c)
 
-    comps_by_box: dict[str, list[Any]] = {}
-    for comp in components:
-        used = getattr(comp, "used_in", "") if hasattr(comp, "used_in") else str(comp.get("used_in", ""))
-        comps_by_box.setdefault(used, []).append(comp)
+    comps_by_box = _build_comps_by_box(components)
 
     start_data_row = 8
     curr_row = start_data_row
@@ -540,10 +570,7 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
         b_code = getattr(c, "box", "") if hasattr(c, "box") else str(c.get("box", ""))
         circuits_by_box.setdefault(b_code, []).append(c)
 
-    comps_by_box: dict[str, list[Any]] = {}
-    for comp in components:
-        used = getattr(comp, "used_in", "") if hasattr(comp, "used_in") else str(comp.get("used_in", ""))
-        comps_by_box.setdefault(used, []).append(comp)
+    comps_by_box = _build_comps_by_box(components)
 
     # ==========================================
     # Sheet 1: 封面

@@ -9,13 +9,13 @@ import shutil
 from datetime import datetime
 
 from fastapi import (FastAPI, UploadFile, File, Form, BackgroundTasks,
-                     HTTPException, Query, Request)
+                     HTTPException, Request)
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from extractor.render import plan_tiles, render_pdf
 from extractor.vision import VisionProvider, is_safe_model_url
-from extractor.checker import check_result, check_result_issues, CheckIssue
+from extractor.checker import check_result, check_result_issues
 from extractor.assemble import assemble
 from extractor.schema import CONTRACT_VERSION, PROMPT_VERSION, Uncertainty, RawExtraction, ExtractionResult, Box
 from extractor.excel import build_workbook, build_project_bom_workbook
@@ -24,9 +24,9 @@ from extractor.catalog import analyze_components_replacement
 from extractor.catalog_reconciler import DrawingCatalogReconciler, CatalogItem
 from db import (
     db_save_job, db_get_job, db_list_jobs, db_recover_interrupted_jobs,
-    set_current_tenant, get_current_tenant, get_current_user, db_ensure_tenant,
+    set_current_tenant, get_current_tenant, get_current_user,
     db_authenticate_user, db_register_user, db_get_user_by_token, db_logout_user,
-    db_clean_all_test_data
+    db_clean_all_test_data, db_get_job_tenant_by_id
 )
 import store
 
@@ -45,8 +45,6 @@ app = FastAPI(title="图纸元器件提取")
 
 jobs: dict = {}
 store.apply_settings_to_env()
-
-IN_PROGRESS = {"queued", "rendering", "extracting", "building_excel", "converting"}
 
 
 class LoginRequest(BaseModel):
@@ -75,19 +73,30 @@ async def tenant_middleware(request: Request, call_next):
 
     t_id = ""
     u_id = ""
-    if token:
+    has_token = bool(token)
+    token_valid = False
+    if has_token:
         user_info = db_get_user_by_token(token)
         if user_info:
             t_id = user_info["tenant_id"]
             u_id = user_info["id"]
             request.state.user = user_info
+            token_valid = True
+        else:
+            # 令牌失效/伪造：标记并绝对阻止其回退信任客户端伪造的 x-tenant-id
+            request.state.invalid_token = True
 
     if not t_id:
-        t_id = (request.headers.get("x-tenant-id") or
-                request.query_params.get("tenant_id") or
-                "default").strip() or "default"
-        u_id = (request.headers.get("x-user-id") or
-                f"user_{t_id}").strip()
+        if has_token and not token_valid:
+            # 携带了无效 Token，直接降级为受限匿名访客，阻止客户端伪造目标企业
+            t_id = "guest"
+            u_id = "guest_user"
+        else:
+            t_id = (request.headers.get("x-tenant-id") or
+                    request.query_params.get("tenant_id") or
+                    "default").strip() or "default"
+            u_id = (request.headers.get("x-user-id") or
+                    f"user_{t_id}").strip()
 
     set_current_tenant(t_id, u_id)
     response = await call_next(request)
@@ -787,6 +796,9 @@ def _load_from_xlsx(job_id: str):
             "box_code": data["boxes"][0]["code"] if data["boxes"] else "",
             "box_name": data["boxes"][0]["name"] if data["boxes"] else "",
         }
+        orig_tenant = db_get_job_tenant_by_id(job_id)
+        if orig_tenant:
+            job_info["tenant_id"] = orig_tenant
         return job_info
     except Exception as e:
         print(f"Error loading {job_id} from workdir: {e}")
@@ -913,21 +925,16 @@ def get_page_image(job_id: str, page_num: int = 1):
     return FileResponse(img_path, media_type="image/png")
 
 
-@app.get("/api/samples")
-def get_samples():
-    return {"samples": list_jobs()["jobs"]}
-
-
 from typing import Any
 from pydantic import BaseModel
 from extractor.schema import (
-    Box, Circuit, Component, ExtraDevice, Requirement, ExtractionResult, AssembledMeta,
+    Box, Circuit, Component, ExtraDevice, Requirement, ExtractionResult,
     RawExtraction, Uncertainty,
 )
 from extractor.assistant import (
     TABS, Assistant, apply_patch, parse_local_command, validate_patch,
 )
-from extractor.excel import build_workbook, uncertainty_texts
+from extractor.excel import build_workbook
 
 
 SUBTITLE_RE = re.compile(r"模型[:：](?P<model>[^｜|]*)(?:｜|\|)提示词v?(?P<prompt>[\d.]+)(?:｜|\|)契约v?(?P<contract>[\d.]+)")
@@ -1116,14 +1123,39 @@ def persist_job_data(job_id: str, job: dict, data: dict,
         result = assemble(validated, meta)
         extras_out = [d.model_dump() for d in validated.extra_devices]
     else:
-        result = ExtractionResult.model_validate({
-            "title": title, "boxes": data["boxes"], "circuits": data["circuits"],
-            "components": data["components"], "requirements": data["requirements"],
-            "uncertainties": data["uncertainties"],
-            "topology": data.get("topology", []),
-            "reconciliation": data.get("reconciliation") or (job.get("data") or {}).get("reconciliation"),
-        })
-        extras_out = extras_in or []
+        # 重启后或无 raw 缓存时：
+        # 若存在回路，由最新的回路与箱体结构重新构造并调用 assemble 重算元器件汇总；
+        # 若回路为空而用户显式维护元器件清单，则尊重用户直接传入的 components
+        should_recalculate = bool(data.get("circuits"))
+        if should_recalculate:
+            reconstructed_raw = {
+                "boxes": data.get("boxes", []),
+                "circuits": data.get("circuits", []),
+                "requirements": data.get("requirements", []),
+                "extra_devices": extras_in or [],
+                "uncertainties": [
+                    {k: v for k, v in u.items() if k != "resolved"}
+                    for u in (data.get("uncertainties") or [])
+                    if isinstance(u, dict) and u.get("source") != "program"
+                ] if isinstance(data.get("uncertainties"), list) else [],
+            }
+            try:
+                validated = RawExtraction.model_validate(reconstructed_raw)
+                result = assemble(validated, meta)
+                extras_out = [d.model_dump() for d in validated.extra_devices]
+                job["raw"] = reconstructed_raw
+            except Exception:
+                should_recalculate = False
+
+        if not should_recalculate:
+            result = ExtractionResult.model_validate({
+                "title": title, "boxes": data["boxes"], "circuits": data["circuits"],
+                "components": data["components"], "requirements": data["requirements"],
+                "uncertainties": data["uncertainties"],
+                "topology": data.get("topology", []),
+                "reconciliation": data.get("reconciliation") or (job.get("data") or {}).get("reconciliation"),
+            })
+            extras_out = extras_in or []
 
     flags = _resolved_flags(job.get("data", {}).get("uncertainties"))
     flags.update(_resolved_flags(data.get("uncertainties")))
@@ -1138,7 +1170,9 @@ def persist_job_data(job_id: str, job: dict, data: dict,
                 f"｜模型:{model_name}｜提示词v{PROMPT_VERSION}｜契约v{CONTRACT_VERSION}")
 
     if changes:
-        log = job.setdefault("changes", [])
+        if not isinstance(job.get("changes"), list):
+            job["changes"] = []
+        log = job["changes"]
         for entry in changes:
             log.append({**entry, "reason": reason,
                         "ts": entry.get("ts") or datetime.now().isoformat(timespec="seconds")})
@@ -1973,7 +2007,16 @@ class SettingsRequest(BaseModel):
 
 
 @app.put("/api/settings")
-def put_settings(req: SettingsRequest):
+def put_settings(req: SettingsRequest, request: Request = None):
+    if request is not None:
+        if getattr(request.state, "invalid_token", False):
+            raise HTTPException(401, "无效或过期的登录凭证")
+        if get_current_tenant() == "guest":
+            raise HTTPException(403, "访客身份无权修改系统配置")
+        user = getattr(request.state, "user", None)
+        if user and user.get("role") not in ("admin", "engineer"):
+            raise HTTPException(403, "权限不足：仅系统工程师/管理员有权修改配置")
+
     if os.environ.get("LOCK_SETTINGS") == "1":
         raise HTTPException(403, "系统配置已由管理员强制锁定，禁止通过 Web 接口修改核心模型参数")
 
@@ -2088,8 +2131,23 @@ def auth_logout(request: Request):
 
 
 @app.post("/api/system/clean_test_data")
-def clean_test_data():
-    """彻底清空系统内所有测试数据，还原纯净环境。"""
+def clean_test_data(request: Request = None):
+    """彻底清空系统内所有测试数据，还原纯净环境（受管理员鉴权与生产保护拦截）。"""
+    if request is not None:
+        if getattr(request.state, "invalid_token", False):
+            raise HTTPException(401, "无效或过期的登录凭证")
+        if get_current_tenant() == "guest":
+            raise HTTPException(403, "访客身份无权执行数据清空")
+
+    if os.environ.get("ENV") == "production":
+        raise HTTPException(403, "生产环境保护：禁止调用全系统数据清理接口")
+
+    user = getattr(request.state, "user", None) if request is not None else None
+    is_admin = user and user.get("role") == "admin"
+    is_test_mode = os.environ.get("ALLOW_TEST_CLEANUP", "1") == "1"
+    if not is_admin and not is_test_mode:
+        raise HTTPException(403, "权限不足：仅系统管理员角色可执行数据清空")
+
     res = db_clean_all_test_data()
     jobs.clear()
     return res

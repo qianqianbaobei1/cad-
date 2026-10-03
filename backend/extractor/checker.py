@@ -49,10 +49,6 @@ class CheckIssue(BaseModel):
     @property
     def text(self) -> str:
         """返回单行文本，便于向后兼容现有 Uncertainty.from_text 与测试断言。"""
-        prefix = ""
-        if self.severity == CheckSeverity.ERROR.value and not self.detail.startswith("【错误】"):
-            # 兼容既有未加前缀测试：如果是旧规则，由 detail 自身主导
-            pass
         return self.detail
 
 
@@ -121,12 +117,6 @@ def clean_rated_amp(val: Any) -> Optional[float]:
     return None
 
 
-def is_plausible_breaker_model(spec: str) -> bool:
-    """判定规格字符串是否符合低压断路器标准命名规范 (支持 [CD] 脱扣与极数)。"""
-    if not spec:
-        return False
-    s = re.sub(r"\s+", "", spec).upper()
-    return bool(BREAKER_MODEL_REGEX.match(s))
 
 
 def _is_valid_phase(phase: str) -> bool:

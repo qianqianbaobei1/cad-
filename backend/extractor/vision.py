@@ -40,6 +40,16 @@ def is_safe_model_url(url: str) -> tuple[bool, str]:
     if os.environ.get("ALLOW_LOCAL_MODEL") == "1" and (lower_host == "localhost" or hostname == "127.0.0.1"):
         return True, ""
 
+    # 知名公共大模型域名白名单（避免离线测试或未配置公网 DNS 时 getaddrinfo 报错）
+    trusted_public_domains = {
+        "api.openai.com", "openai.com",
+        "api.deepseek.com", "deepseek.com",
+        "api.anthropic.com", "anthropic.com",
+        "dashscope.aliyuncs.com"
+    }
+    if lower_host in trusted_public_domains or any(lower_host.endswith("." + d) for d in trusted_public_domains):
+        return True, ""
+
     try:
         ip_obj = ipaddress.ip_address(hostname)
         ips = [ip_obj]
@@ -210,33 +220,6 @@ def concat_results(results: list) -> RawExtraction:
     return out
 
 
-def repair_truncated_json(s: str) -> dict | None:
-    """诊断工具：从因 Token 长度限制截断的 JSON 文本中挽救已完整生成的前半截。
-
-    仅供人工诊断/排查看截断点前识别了多少内容。**禁止**用于"自愈继续"——
-    用残缺数据生成 Excel 会静默丢回路，违反"宁可标疑、不许编造"与输出契约
-    （截断 → 任务失败，不生成 Excel）。"""
-    s = s.strip()
-    if not s.startswith("{"):
-        idx = s.find("{")
-        if idx == -1:
-            return None
-        s = s[idx:]
-
-    for end_idx in range(len(s), max(0, len(s) - 2000), -1):
-        candidate = s[:end_idx].rstrip()
-        if candidate.endswith(","):
-            candidate = candidate[:-1]
-        for closer in ["]}", "}", "]}}", "]}"]:
-            try:
-                obj = json.loads(candidate + closer)
-                if isinstance(obj, dict) and ("boxes" in obj or "circuits" in obj):
-                    for k in ["boxes", "circuits", "extra_devices", "requirements", "uncertainties"]:
-                        obj.setdefault(k, [])
-                    return obj
-            except Exception:
-                pass
-    return None
 
 
 class VisionProvider:

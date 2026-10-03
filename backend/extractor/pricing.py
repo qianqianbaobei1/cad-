@@ -86,11 +86,21 @@ BUSBAR_SPECS = [
 def parse_component_features(raw_spec: str, category: str = "") -> dict:
     """从元器件规格字符串中提取特征向量 (极数、额定电流、分断能力、曲线类型)"""
     text = (raw_spec or "").upper().replace(" ", "")
+    # 3. 识别电流 (如 16A, C20, 100MA/80A, 125A/3P)
+    current_val = None
+    curr_m = re.search(r"(?:/|C|D|M|-)?(\d{1,4})A", text)
+    if curr_m:
+        current_val = int(curr_m.group(1))
+    else:
+        num_m = re.search(r"[CD](\d{1,3})", text)
+        if num_m:
+            current_val = int(num_m.group(1))
+
     features = {
         "raw": raw_spec,
         "category": category.upper() if category else "OTHER",
         "poles": "1P",
-        "current_a": 16,
+        "current_a": current_val,
         "breaking_ka": 6,
         "curve": "C",
         "has_leakage": False,
@@ -122,15 +132,6 @@ def parse_component_features(raw_spec: str, category: str = "") -> dict:
     elif features["category"] in ("ATS", "SPD"):
         features["poles"] = "4P"
 
-    # 3. 识别电流 (如 16A, C20, 100MA/80A, 125A/3P)
-    curr_m = re.search(r"(?:/|C|D|M|-)?(\d{1,4})A", text)
-    if curr_m:
-        features["current_a"] = int(curr_m.group(1))
-    else:
-        num_m = re.search(r"[CD](\d{1,3})", text)
-        if num_m:
-            features["current_a"] = int(num_m.group(1))
-
     # 4. 识别分断能力 (如 6kA, 10kA, 35kA, 50kA)
     ka_m = re.search(r"(\d{1,3})KA", text)
     if ka_m:
@@ -153,10 +154,17 @@ def calculate_component_unit_price(
     category: str = ""
 ) -> Tuple[float, float, str]:
     """计算单个元器件的 (实际采购单价, 目录面价, 计价判定依据)"""
+    if not raw_spec or str(raw_spec).strip() in ("-", "待确认", "待定"):
+        return 0.0, 0.0, "规格参数缺失（待确认）"
+
     feats = parse_component_features(raw_spec, category)
     cat = feats["category"]
     poles = feats["poles"]
     curr = feats["current_a"]
+
+    # 规格未标注额定电流时，如实标疑，严禁默认套用 16A 冒充准确计价
+    if curr is None:
+        return 0.0, 0.0, "规格电流缺失（待核）"
     
     # 查找离电流最近的标准电流档位
     standard_currs = [10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 400, 630]
@@ -236,14 +244,9 @@ def estimate_box_enclosure_price(box: dict, circuits_count: int) -> Tuple[float,
 
 
 def estimate_copper_busbar_cost(main_current_a: int, box_width_m: float = 0.8) -> Tuple[float, float, str]:
-    """根据进线主开关电流计算母排铜排重量与成本
-    
-    公式:
-    单相母排长度约 = 进线跨接(0.6m) + 柜宽水平母线(box_width_m) + 出线支排
-    三相 + N排 + PE排共需约 4.5 倍柜宽母排用量
-    """
+    """根据进线主开关电流计算母排铜排重量与成本。若电流未提供或 <=0，绝不默认 63A，返回待核定。"""
     if main_current_a <= 0:
-        main_current_a = 63
+        return 0.0, 0.0, "主回路额定电流未标注（未计入主铜排费用，待核定）"
 
     matched_spec = BUSBAR_SPECS[0]
     for spec in BUSBAR_SPECS:
@@ -271,12 +274,29 @@ def calculate_box_quotation(
     tax_rate: float = 0.13
 ) -> dict:
     """计算单个成套配电箱柜的完整工业造价明细"""
-    # 1. 元器件造价合计
+    # 1. 元器件造价合计 (全面覆盖传入元器件与回路中断路器开关，防止正常回路元件漏算)
     comp_total = 0.0
     comp_list_total = 0.0
     priced_components = []
     
-    for comp in components:
+    effective_components = list(components)
+    has_breakers = any(
+        "断路器" in comp.get("name", "") or "开关" in comp.get("name", "") or "微断" in comp.get("name", "")
+        for comp in effective_components
+    )
+    if not has_breakers and circuits:
+        for c in circuits:
+            brk = (c.get("breaker_spec") or c.get("breaker") or "").strip()
+            if not brk or brk in ("-", "待确认"):
+                continue
+            is_inc = c.get("circuit_type") == "incoming" or "进线" in str(c.get("load_name") or "") or "进线" in str(c.get("circuit_no") or "")
+            effective_components.append({
+                "name": "进线断路器" if is_inc else "分支断路器",
+                "spec": brk,
+                "quantity": 1,
+            })
+
+    for comp in effective_components:
         spec = comp.get("spec") or ""
         qty = int(comp.get("quantity") or 1)
         unit_price, list_price, basis = calculate_component_unit_price(spec, brand=brand, category=comp.get("category", ""))
@@ -298,19 +318,24 @@ def calculate_box_quotation(
     circuits_count = len(circuits)
     enclosure_cost, enclosure_desc = estimate_box_enclosure_price(box, circuits_count)
 
-    # 3. 铜排母线成本 (按最大进线断路器或总回路估算额定电流)
-    main_curr = 63
+    # 3. 铜排母线成本 (按最大进线断路器或总回路估算额定电流，未明确标注时不凭空捏造 63A)
+    main_curr = 0
     for c in circuits:
-        if c.get("circuit_type") == "incoming" or "进线" in str(c.get("load_name") or ""):
-            feat = parse_component_features(c.get("breaker_spec", ""))
-            main_curr = max(main_curr, feat["current_a"])
-    busbar_cost, copper_weight_kg, busbar_desc = estimate_copper_busbar_cost(main_curr)
+        if c.get("circuit_type") == "incoming" or "进线" in str(c.get("load_name") or "") or "进线" in str(c.get("circuit_no") or ""):
+            feat = parse_component_features(c.get("breaker_spec", "") or c.get("breaker", ""))
+            if feat.get("current_a"):
+                main_curr = max(main_curr, feat["current_a"])
+
+    if main_curr > 0:
+        busbar_cost, copper_weight_kg, busbar_desc = estimate_copper_busbar_cost(main_curr)
+    else:
+        busbar_cost, copper_weight_kg, busbar_desc = 0.0, 0.0, "进线规格待确认（主母排暂未计价）"
 
     # 4. 二次线及辅材 (接线端子、号码管、扎带、线鼻)
     auxiliary_cost = round(comp_total * AUXILIARY_RATE, 2)
 
-    # 5. 人工组装调试费
-    incoming_count = max(1, sum(1 for c in circuits if c.get("circuit_type") == "incoming"))
+    # 5. 人工组装调试费（只有在存在进线时才计入进线人工费，无回路不盲目收费）
+    incoming_count = sum(1 for c in circuits if c.get("circuit_type") == "incoming" or "进线" in str(c.get("load_name") or "") or "进线" in str(c.get("circuit_no") or ""))
     outgoing_count = max(0, circuits_count - incoming_count)
     labor_cost = round(incoming_count * LABOR_INCOMING_RATE + outgoing_count * LABOR_OUTGOING_RATE, 2)
 

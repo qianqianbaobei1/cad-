@@ -74,6 +74,60 @@ class TestAuthAndCleanup(unittest.TestCase):
         self.assertIn("cleared_jobs", data)
         self.assertIn("deleted_work_files", data)
 
+    def test_system_clean_production_lock(self):
+        import os
+        old_env = os.environ.get("ENV")
+        try:
+            os.environ["ENV"] = "production"
+            res = self.client.post("/api/system/clean_test_data")
+            self.assertEqual(res.status_code, 403)
+            self.assertIn("生产环境保护", res.json()["detail"])
+        finally:
+            if old_env is not None:
+                os.environ["ENV"] = old_env
+            else:
+                os.environ.pop("ENV", None)
+
+    def test_pbkdf2_hash_and_legacy_upgrade(self):
+        import hashlib
+        from db import _hash_password, _verify_password, _get_conn
+        # 1. 验证新密码哈希采用 PBKDF2 强哈希格式
+        pwd_hash = _hash_password("mypassword")
+        self.assertTrue(pwd_hash.startswith("pbkdf2:sha256:100000$"))
+        valid, needs_rehash = _verify_password("mypassword", pwd_hash)
+        self.assertTrue(valid)
+        self.assertFalse(needs_rehash)
+
+        # 2. 模拟旧版单轮 SHA-256 哈希
+        legacy_hash = hashlib.sha256("cabinet_core_salt_v2:legacy_pass".encode("utf-8")).hexdigest()
+        valid_legacy, needs_rehash_legacy = _verify_password("legacy_pass", legacy_hash)
+        self.assertTrue(valid_legacy)
+        self.assertTrue(needs_rehash_legacy)
+
+        # 3. 验证通过旧哈希登录后数据库自动平滑升级为 PBKDF2
+        conn = _get_conn()
+        with conn:
+            conn.execute("""
+            INSERT OR REPLACE INTO users (id, tenant_id, username, password_hash, display_name, role, created_at)
+            VALUES ('test_legacy_user_id', 'default', 'legacy_user', ?, '旧员工', 'operator', datetime('now', 'localtime'))
+            """, (legacy_hash,))
+
+        res = self.client.post("/api/auth/login", json={"username": "legacy_user", "password": "legacy_pass"})
+        self.assertEqual(res.status_code, 200)
+
+        # 查询数据库内哈希是否已升级
+        cur = conn.execute("SELECT password_hash FROM users WHERE username = 'legacy_user'")
+        row = cur.fetchone()
+        self.assertTrue(row["password_hash"].startswith("pbkdf2:sha256:100000$"))
+
+    def test_api_key_public_settings_mask(self):
+        import store
+        store.save_settings({"vision_api_key": "sk-1234567890abcdef"})
+        pub = store.public_settings()
+        self.assertTrue(pub["vision_api_key_set"])
+        self.assertEqual(pub["vision_api_key_hint"], "***")
+        self.assertNotIn("cdef", pub["vision_api_key_hint"])
+
 
 if __name__ == "__main__":
     unittest.main()

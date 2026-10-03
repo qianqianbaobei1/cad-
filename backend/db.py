@@ -9,6 +9,7 @@
 """
 import contextvars
 import hashlib
+import hmac
 import json
 import os
 import secrets
@@ -26,8 +27,45 @@ DB_PATH = os.path.join(DATA_DIR, "extractor.db")
 
 _local = threading.local()
 
-def _hash_password(password: str, salt: str = "cabinet_core_salt_v2") -> str:
-    return hashlib.sha256(f"{salt}:{password}".encode("utf-8")).hexdigest()
+def _hash_password(password: str, salt: str | None = None) -> str:
+    """使用行业标准 PBKDF2-HMAC-SHA256 生成强密码哈希，采用动态随机盐。"""
+    if not salt:
+        salt = secrets.token_hex(16)
+    iterations = 100000
+    hash_bytes = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt.encode("utf-8"), iterations
+    )
+    return f"pbkdf2:sha256:{iterations}${salt}${hash_bytes.hex()}"
+
+
+def _verify_password(password: str, stored_hash: str) -> tuple[bool, bool]:
+    """验证密码是否匹配，并返回 (is_valid, needs_rehash)。
+    同时兼容旧系统的单轮 SHA-256 (cabinet_core_salt_v2)，并在验证通过后标记 needs_rehash 自动升级。
+    """
+    if not stored_hash or not password:
+        return False, False
+
+    # 1. PBKDF2 强哈希校验
+    if stored_hash.startswith("pbkdf2:sha256:"):
+        try:
+            parts = stored_hash.split("$")
+            if len(parts) == 3:
+                header, salt, expected_hex = parts
+                iterations = int(header.split(":")[-1])
+                calc_bytes = hashlib.pbkdf2_hmac(
+                    "sha256", password.encode("utf-8"), salt.encode("utf-8"), iterations
+                )
+                is_valid = hmac.compare_digest(calc_bytes.hex(), expected_hex)
+                return is_valid, False
+        except Exception:
+            return False, False
+
+    # 2. 兼容旧系统的全局固定盐 SHA-256 哈希
+    old_hash = hashlib.sha256(f"cabinet_core_salt_v2:{password}".encode("utf-8")).hexdigest()
+    if hmac.compare_digest(old_hash, stored_hash):
+        return True, True  # 密码正确，但需要升级为 PBKDF2 强哈希
+
+    return False, False
 
 
 
@@ -149,6 +187,7 @@ def _init_tables(conn: sqlite3.Connection) -> None:
             summary_json TEXT DEFAULT '{}',
             data_json TEXT DEFAULT '{}',
             changes_json TEXT DEFAULT '[]',
+            raw_json TEXT DEFAULT '{}',
             error TEXT DEFAULT '',
             changes INTEGER DEFAULT 0,
             created_at TEXT NOT NULL,
@@ -157,6 +196,10 @@ def _init_tables(conn: sqlite3.Connection) -> None:
         """)
         try:
             conn.execute("ALTER TABLE jobs ADD COLUMN changes_json TEXT DEFAULT '[]';")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            conn.execute("ALTER TABLE jobs ADD COLUMN raw_json TEXT DEFAULT '{}';")
         except sqlite3.OperationalError:
             pass
         conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_tenant ON jobs(tenant_id);")
@@ -210,14 +253,11 @@ def _init_tables(conn: sqlite3.Connection) -> None:
         INSERT OR IGNORE INTO tenants (id, name, status, created_at)
         VALUES ('default', '电柜智核成套电气工程部', 'active', datetime('now', 'localtime'));
         """)
-        admin_hash = _hash_password("admin123")
+        initial_admin_pass = os.environ.get("ADMIN_INITIAL_PASSWORD") or "admin123"
+        admin_hash = _hash_password(initial_admin_pass)
         conn.execute("""
         INSERT OR IGNORE INTO users (id, tenant_id, username, password_hash, display_name, role, created_at)
         VALUES ('admin_default', 'default', 'admin', ?, '系统工程师', 'admin', datetime('now', 'localtime'));
-        """, (admin_hash,))
-        conn.execute("""
-        UPDATE users SET password_hash = ?, display_name = '系统工程师'
-        WHERE username = 'admin' AND (password_hash IS NULL OR password_hash = '');
         """, (admin_hash,))
 
 
@@ -276,7 +316,7 @@ def db_ensure_tenant(tenant_id: str, name: str = "") -> dict:
 
 def db_save_job(job: dict) -> None:
     """持久化保存任务：无论进行中或已完成，实时原子落盘到 SQLite WAL 表。"""
-    job_id = job.get("job_id")
+    job_id = job.get("job_id") or job.get("id")
     if not job_id:
         return
     tenant_id = job.get("tenant_id") or get_current_tenant()
@@ -288,6 +328,7 @@ def db_save_job(job: dict) -> None:
 
     summary_str = _safe_json_dumps(job.get("summary") or {})
     data_str = _safe_json_dumps(job.get("data") or {})
+    raw_str = _safe_json_dumps(job.get("raw") or {})
 
     raw_changes = job.get("changes") or []
     if isinstance(raw_changes, list):
@@ -301,8 +342,8 @@ def db_save_job(job: dict) -> None:
     with conn:
         conn.execute("""
         INSERT INTO jobs (id, tenant_id, user_id, project_name, filename, status, progress,
-                          pages, box_code, summary_json, data_json, changes_json, error, changes, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                          pages, box_code, summary_json, data_json, changes_json, raw_json, error, changes, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
             tenant_id = excluded.tenant_id,
             user_id = excluded.user_id,
@@ -315,13 +356,14 @@ def db_save_job(job: dict) -> None:
             summary_json = excluded.summary_json,
             data_json = excluded.data_json,
             changes_json = excluded.changes_json,
+            raw_json = CASE WHEN excluded.raw_json != '{}' THEN excluded.raw_json ELSE jobs.raw_json END,
             error = excluded.error,
             changes = excluded.changes,
             updated_at = excluded.updated_at;
         """, (
             job_id, tenant_id, user_id, p_name, job.get("filename", ""),
             status, job.get("progress", 0), job.get("pages", 1),
-            job.get("box_code", ""), summary_str, data_str, changes_json_str,
+            job.get("box_code", ""), summary_str, data_str, changes_json_str, raw_str,
             job.get("error", ""), changes_count,
             created_at, now_str
         ))
@@ -338,6 +380,20 @@ def db_get_job(job_id: str, tenant_id: str | None = None) -> dict | None:
     if not row:
         return None
     return _row_to_job(row)
+
+
+def db_get_job_tenant_by_id(job_id: str) -> str | None:
+    """查询任务所属租户（先查 jobs 表，若没有再查 export_history 表），防止孤儿任务被恶意冒领。"""
+    conn = _get_conn()
+    cur = conn.execute("SELECT tenant_id FROM jobs WHERE id = ?", (job_id,))
+    row = cur.fetchone()
+    if row and row["tenant_id"]:
+        return str(row["tenant_id"])
+    cur = conn.execute("SELECT tenant_id FROM export_history WHERE job_id = ? ORDER BY id DESC LIMIT 1", (job_id,))
+    row = cur.fetchone()
+    if row and row["tenant_id"]:
+        return str(row["tenant_id"])
+    return None
 
 
 def db_list_jobs(tenant_id: str | None = None) -> list[dict]:
@@ -374,9 +430,16 @@ def _row_to_job(row: sqlite3.Row) -> dict:
         data = {}
     try:
         changes = json.loads(row["changes_json"] or "[]") if "changes_json" in row.keys() else []
+        if not isinstance(changes, list):
+            changes = []
     except Exception:
         changes = []
+    try:
+        raw = json.loads(row["raw_json"] or "{}") if "raw_json" in row.keys() else {}
+    except Exception:
+        raw = {}
     return {
+        "id": row["id"],
         "job_id": row["id"],
         "tenant_id": row["tenant_id"],
         "user_id": row["user_id"],
@@ -388,6 +451,7 @@ def _row_to_job(row: sqlite3.Row) -> dict:
         "box_code": row["box_code"],
         "summary": summary,
         "data": data,
+        "raw": raw,
         "error": row["error"],
         "changes": changes,
         "created_at": row["created_at"],
@@ -615,7 +679,6 @@ def db_authenticate_user(username: str, password: str) -> dict | None:
     username = (username or "").strip()
     if not username:
         return None
-    pwd_hash = _hash_password(password or "")
     conn = _get_conn()
     cur = conn.execute("""
     SELECT u.id, u.tenant_id, u.username, u.display_name, u.role, u.password_hash,
@@ -628,16 +691,18 @@ def db_authenticate_user(username: str, password: str) -> dict | None:
     if not row:
         return None
     
-    db_hash = row["password_hash"]
-    if not db_hash and username == "admin":
-        db_hash = _hash_password("admin123")
-    
-    if pwd_hash != db_hash:
+    stored_hash = row["password_hash"]
+    valid, needs_rehash = _verify_password(password or "", stored_hash)
+    if not valid:
         return None
     
     new_token = f"tk_{secrets.token_hex(24)}"
     with conn:
-        conn.execute("UPDATE users SET token = ? WHERE id = ?", (new_token, row["id"]))
+        if needs_rehash:
+            upgraded_hash = _hash_password(password)
+            conn.execute("UPDATE users SET token = ?, password_hash = ? WHERE id = ?", (new_token, upgraded_hash, row["id"]))
+        else:
+            conn.execute("UPDATE users SET token = ? WHERE id = ?", (new_token, row["id"]))
     
     return {
         "id": row["id"],

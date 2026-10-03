@@ -144,20 +144,21 @@ def build_distribution_topology(boxes: list[Box], circuits: list[Circuit]) -> li
         circuits_by_box[c.box].append(c)
 
     # 2. 判定箱体类别 (cabinet: 一级总柜, box: 二级分箱, secondary: 二次控制原理图)
-    CABINET_CODE_PATTERNS = ("ALZ", "APZ", "AA", "AZ", "1AA", "2AA", "ZAP", "GGD", "MNS", "GCK", "DT")
+    # 严格采用国家标准电气柜型与盘柜代号正则，彻底废除 loose substring 与误伤极高的 DT(电梯)/AA 等盲目特判
+    CABINET_CODE_RE = re.compile(r"^(?:\d+)?(?:AA|ALZ|APZ|ZAP|GGD|MNS|GCK|GCS)(?:\d+)?$", re.IGNORECASE)
     CABINET_NAME_PATTERNS = ("总配电", "动力总", "进线柜", "变压器出线", "低压配电屏", "主配", "总箱", "母线联络")
     SECONDARY_PATTERNS = ("二次", "控制原理", "控制电路", "原理图", "二次接线")
 
     def _judge_type(box: Box) -> str:
         name = box.name or ""
-        code = box.code or ""
+        code = (box.code or "").strip()
         if any(p in name for p in SECONDARY_PATTERNS):
             return "secondary"
         if any(p in name for p in CABINET_NAME_PATTERNS):
             return "cabinet"
-        if any(code.startswith(p) or code.endswith(p) for p in CABINET_CODE_PATTERNS):
+        if CABINET_CODE_RE.match(code):
             return "cabinet"
-        if code.endswith("Z") or code.endswith("Z1") or code.endswith("Z2"):
+        if re.search(r"^(?:[0-9A-Z]+)?(?:AL|AP)Z(?:\d+)?$", code, re.IGNORECASE):
             return "cabinet"
         return "box"
 
@@ -174,9 +175,9 @@ def build_distribution_topology(boxes: list[Box], circuits: list[Circuit]) -> li
             for target_code in all_boxes_dict:
                 if target_code == src_code or target_code in parent_map:
                     continue
-                # 精准或上下文匹配箱体代号，如 "至 01AL1", "01AL1 配电箱", "送01AL2"
-                pattern = rf"(?:^|至|送|往|引至|供|配电箱|\s){re.escape(target_code)}(?:配电箱|箱|柜|照明箱|动力箱|\b|$|\s)"
-                if re.search(pattern, search_text, re.IGNORECASE) or (len(target_code) >= 3 and target_code in search_text):
+                # 精准语义或词边界匹配箱体代号，如 "至 01AL1", "01AL1 配电箱", "送01AL2"；严禁无边界子串模糊匹配导致 AP1 误伤 AP10
+                pattern = rf"(?:^|至|送|往|引至|供|接|配电箱|\b){re.escape(target_code)}(?:配电箱|分箱|箱|柜|照明箱|动力箱|\b|$|\s)"
+                if re.search(pattern, search_text, re.IGNORECASE):
                     parent_map[target_code] = (src_code, c.circuit_no)
                     if box_types.get(src_code) != "secondary":
                         box_types[src_code] = "cabinet"
@@ -318,10 +319,11 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
     dedup_boxes_dict: dict[str, Box] = {}
     for box in raw.boxes:
         code = (box.code or "").strip()
-        if code.upper().startswith("AKPM"):
-            # 将误识为箱体的消防电源监控模块转入非回路设备
+        name = (box.name or "").strip()
+        # 通用判断：若柜号或名称为二次监控仪表/模块，转入非回路设备清单
+        if any(k in name for k in ["监控模块", "传感模块", "测控装置", "电源监控"]) or code.upper().startswith("AKPM"):
             extra_devs_from_boxes.append(
-                ExtraDevice(name="消防电源监控模块", spec=code, unit="只", quantity=1.0, used_in=box.location or "配电箱")
+                ExtraDevice(name=name or "监控模块", spec=code, unit="只", quantity=1.0, used_in=box.location or "配电箱")
             )
             continue
         if not _is_real_box(box):

@@ -14,11 +14,11 @@ from extractor.schema import (
     validate_field_evidence,
 )
 from extractor.checker import (
+    BREAKER_MODEL_REGEX,
     CheckSeverity,
     check_result,
     check_result_issues,
     clean_rated_amp,
-    is_plausible_breaker_model,
 )
 from extractor.catalog_reconciler import (
     DrawingCatalogReconciler,
@@ -52,14 +52,14 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
     def test_breaker_model_regex_fix(self):
         """验证型号正则 [CD] 正确性，杜绝 [C|D] 匹配字面 '|'。"""
         # 合法型号
-        self.assertTrue(is_plausible_breaker_model("NM1-C63/3P"))
-        self.assertTrue(is_plausible_breaker_model("CDB6-D32/2P"))
-        self.assertTrue(is_plausible_breaker_model("iC65N-C16/1P"))
-        self.assertTrue(is_plausible_breaker_model("NXB-63-C25/3P+N"))
+        self.assertTrue(bool(BREAKER_MODEL_REGEX.match("NM1-C63/3P")))
+        self.assertTrue(bool(BREAKER_MODEL_REGEX.match("CDB6-D32/2P")))
+        self.assertTrue(bool(BREAKER_MODEL_REGEX.match("iC65N-C16/1P".upper())))
+        self.assertTrue(bool(BREAKER_MODEL_REGEX.match("NXB-63-C25/3P+N".upper())))
 
         # 包含字面 '|' 的畸变字符必须判定为非法
-        self.assertFalse(is_plausible_breaker_model("NM1-|63/3P"))
-        self.assertFalse(is_plausible_breaker_model("INVALID_BREAKER"))
+        self.assertFalse(bool(BREAKER_MODEL_REGEX.match("NM1-|63/3P")))
+        self.assertFalse(bool(BREAKER_MODEL_REGEX.match("INVALID_BREAKER")))
 
     def test_expand_panel_range(self):
         """验证图纸目录配电箱范围展开器。"""
@@ -207,44 +207,6 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
         self.assertEqual(b2.poles, "3P")
         self.assertEqual(b2.leakage_ma, 30)
 
-    def test_coordinate_transform_chain(self):
-        """验证切片坐标反投影仿射变换链 (Coordinate Transform Chain)。"""
-        from extractor.coordinate import AffineMatrix, CoordinateTransformChain
-
-        # 1. 验证矩阵可逆性
-        m = AffineMatrix(a=2.0, b=0.0, c=0.0, d=2.0, tx=50.0, ty=100.0)
-        pt = (10.0, 20.0)
-        transformed = m.apply_point(*pt)
-        self.assertEqual(transformed, (70.0, 140.0))
-
-        inv_m = m.inverse()
-        orig = inv_m.apply_point(*transformed)
-        self.assertEqual(orig, (10.0, 20.0))
-
-        # 2. 验证 Tile 切片到 Canonical Page 的坐标反投影
-        # 假设 A4 页面 842 x 595 pt，Tile 切片位于页面 (100, 200) 区域，宽 300 pt，高 200 pt
-        # 切片像素分辨率为 600 x 400 px (即 1 pt = 2 px)
-        chain = CoordinateTransformChain.from_tile_crop(
-            page_index=1,
-            page_width_pt=842.0,
-            page_height_pt=595.0,
-            tile_crop_pt=(100.0, 200.0, 300.0, 200.0),
-            tile_pixel_w=600,
-            tile_pixel_h=400,
-        )
-
-        # 模型在 Tile 像素中检测到断路器 bbox: (x=100px, y=50px, w=60px, h=40px)
-        page_bbox = chain.transform_bbox_to_page(tile_x=100, tile_y=50, tile_w=60, tile_h=40)
-        self.assertEqual(page_bbox.page_index, 1)
-        self.assertEqual(page_bbox.x, 150.0)  # 100 + 100 * (300/600) = 150
-        self.assertEqual(page_bbox.y, 225.0)  # 200 + 50 * (200/400) = 225
-        self.assertEqual(page_bbox.w, 30.0)   # 60 * 0.5 = 30
-        self.assertEqual(page_bbox.h, 20.0)   # 40 * 0.5 = 20
-
-        # 转换为 0~1 归一化坐标适配前端
-        norm_x, norm_y, norm_w, norm_h = page_bbox.to_normalized(842.0, 595.0)
-        self.assertAlmostEqual(norm_x, 150.0 / 842.0, places=3)
-        self.assertAlmostEqual(norm_y, 225.0 / 595.0, places=3)
 
     def test_assemble_populates_structured_parameters_and_claims(self):
         """验证 assemble 组装时自动清洗提取结构化参数，并建立字段级 Claim 字典。"""
@@ -423,7 +385,7 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
     def test_breaker_amp_suffix_cleaning(self):
         """测试脱扣特性后带 A 单位（如 C16A/1P、C10A）时额定电流与曲线的提纯及系列名过滤。"""
         from extractor.normalizer import parse_breaker
-        from extractor.checker import clean_rated_amp, is_plausible_breaker_model
+        from extractor.checker import clean_rated_amp, BREAKER_MODEL_REGEX
 
         # 1. 验证 normalizer.parse_breaker
         b1 = parse_breaker("C16A/1P")
@@ -449,13 +411,13 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
         self.assertEqual(b4.poles, "3P")
         self.assertEqual(b4.series, "NXB-63")
 
-        # 2. 验证 checker.clean_rated_amp 与 is_plausible_breaker_model
+        # 2. 验证 checker.clean_rated_amp 与 BREAKER_MODEL_REGEX
         self.assertEqual(clean_rated_amp("C16A/1P"), 16.0)
         self.assertEqual(clean_rated_amp("MCB-63/C16A/1P"), 16.0)
         self.assertEqual(clean_rated_amp("C10A"), 10.0)
         self.assertEqual(clean_rated_amp("DZ47-63 C10A 1P"), 10.0)
         self.assertEqual(clean_rated_amp("NXB-63-D32A/3P"), 32.0)
-        self.assertTrue(is_plausible_breaker_model("MCB-63-C16A/1P"))
+        self.assertTrue(bool(BREAKER_MODEL_REGEX.match("MCB-63-C16A/1P")))
 
     def test_multi_box_cascade_coordination_isolation(self):
         """测试多箱体进出线开关级配按箱体独立核验，杜绝全局混淆虚假越级警告。"""

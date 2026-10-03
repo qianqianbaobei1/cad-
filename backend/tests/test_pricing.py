@@ -81,6 +81,36 @@ class TestPricingEngine(unittest.TestCase):
         self.assertIn("brands", cmp)
         self.assertGreater(cmp["total_saving_ratio_pct"], 10.0)
 
+    def test_missing_current_pricing_never_hallucinates_16a(self):
+        """额定电流缺失时严禁盲目默认16A计价，如实返回 0.0 元与待核备注。"""
+        feats = parse_component_features("MCB-1P")
+        self.assertIsNone(feats["current_a"])
+
+        unit_p, list_p, basis = calculate_component_unit_price("MCB-1P", brand="正泰")
+        self.assertEqual(unit_p, 0.0)
+        self.assertEqual(list_p, 0.0)
+        self.assertIn("规格电流缺失", basis)
+
+        unit_p2, list_p2, basis2 = calculate_component_unit_price("-", brand="正泰")
+        self.assertEqual(unit_p2, 0.0)
+        self.assertIn("规格参数缺失", basis2)
+
+    def test_zero_or_unspecified_busbar_cost(self):
+        """进线额定电流未标注时，母排费用严禁按 63A 捏造计入，如实返回 0 元。"""
+        cost, weight, desc = estimate_copper_busbar_cost(0)
+        self.assertEqual(cost, 0.0)
+        self.assertEqual(weight, 0.0)
+        self.assertIn("未标注", desc)
+
+        # 箱体无进线回路时，母排费用为 0，且不收取进线组装人工费
+        box = {"box_code": "01AL1", "box_type": "PZ30"}
+        circuits = [
+            {"circuit_type": "outgoing", "breaker_spec": "MCB-C16A/1P", "load_name": "照明1"}
+        ]
+        q = calculate_box_quotation(box, circuits, [], brand="正泰")
+        self.assertEqual(q["cost_breakdown"]["copper_busbar_cost"], 0.0)
+        self.assertEqual(q["cost_breakdown"]["labor_cost"], 45.0)  # 仅 1 个出线回路 45 元，无进线 120 元
+
 
 if __name__ == "__main__":
     unittest.main()
