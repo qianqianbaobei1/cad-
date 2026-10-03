@@ -2118,12 +2118,12 @@ async function triggerAiReview() {
 }
 
 async function resolveAllIssues() {
-  if (!S.jobId) return toast('未打开有效图纸');
+  if (!S.jobId) { toast('未打开有效图纸'); return false; }
   const un = unresolved();
   const errors = un.filter(u => u.severity === 'ERROR');
   if (errors.length > 0) {
     if (!confirm(`检测到 ${errors.length} 处系统级【阻断错误】（如图幅范围缺失或严重违反证据政策）。\n确定要强行人工全盘确认放行吗？`)) {
-      return;
+      return false;
     }
   }
   try {
@@ -2137,18 +2137,26 @@ async function resolveAllIssues() {
     toast('✅ 已一键全部确认通过！可直接导出 Excel 报表');
     addMsg('sys', '✅ 用户已一键全部核对通过，当前清单已完全解锁导出');
     closeReview();
+    return true;
   } catch (e) {
     toast('操作失败：' + e.message);
+    return false;
   }
 }
 
 async function resolveAllAndExport() {
-  await resolveAllIssues();
+  const ok = await resolveAllIssues();
+  if (!ok) return;
   await doExport();
 }
 
 async function triggerAiReviewAndExport() {
   await triggerAiReview();
+  const left = unresolved().length;
+  if (left > 0) {
+    toast(`AI 复核后仍有 ${left} 处待人工核对，请处理后再导出`);
+    return;
+  }
   await doExport();
 }
 

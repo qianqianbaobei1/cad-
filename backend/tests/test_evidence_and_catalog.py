@@ -420,6 +420,136 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
         self.assertEqual(res.reconciliation.missing_count, 1)
         self.assertEqual(res.reconciliation.missing_box_codes, ["1AL2"])
 
+    def test_breaker_amp_suffix_cleaning(self):
+        """测试脱扣特性后带 A 单位（如 C16A/1P、C10A）时额定电流与曲线的提纯及系列名过滤。"""
+        from extractor.normalizer import parse_breaker
+        from extractor.checker import clean_rated_amp, is_plausible_breaker_model
+
+        # 1. 验证 normalizer.parse_breaker
+        b1 = parse_breaker("C16A/1P")
+        self.assertEqual(b1.curve, "C")
+        self.assertEqual(b1.rated_current, 16.0)
+        self.assertEqual(b1.poles, "1P")
+        self.assertEqual(b1.series, "")
+
+        b2 = parse_breaker("C10A")
+        self.assertEqual(b2.curve, "C")
+        self.assertEqual(b2.rated_current, 10.0)
+        self.assertEqual(b2.series, "")
+
+        b3 = parse_breaker("DZ47-63 C10A 1P")
+        self.assertEqual(b3.curve, "C")
+        self.assertEqual(b3.rated_current, 10.0)
+        self.assertEqual(b3.poles, "1P")
+        self.assertEqual(b3.series, "DZ47-63")
+
+        b4 = parse_breaker("NXB-63-D32A/3P")
+        self.assertEqual(b4.curve, "D")
+        self.assertEqual(b4.rated_current, 32.0)
+        self.assertEqual(b4.poles, "3P")
+        self.assertEqual(b4.series, "NXB-63")
+
+        # 2. 验证 checker.clean_rated_amp 与 is_plausible_breaker_model
+        self.assertEqual(clean_rated_amp("C16A/1P"), 16.0)
+        self.assertEqual(clean_rated_amp("MCB-63/C16A/1P"), 16.0)
+        self.assertEqual(clean_rated_amp("C10A"), 10.0)
+        self.assertEqual(clean_rated_amp("DZ47-63 C10A 1P"), 10.0)
+        self.assertEqual(clean_rated_amp("NXB-63-D32A/3P"), 32.0)
+        self.assertTrue(is_plausible_breaker_model("MCB-63-C16A/1P"))
+
+    def test_multi_box_cascade_coordination_isolation(self):
+        """测试多箱体进出线开关级配按箱体独立核验，杜绝全局混淆虚假越级警告。"""
+        from extractor.checker import check_result_issues
+
+        # 箱体 1AP1: 进线 400A，出线 WP1 160A (不越级)
+        # 箱体 1AL1: 进线 63A，出线 WL1 16A (不越级)
+        # 全局混淆时，WP1 160A 会误与 1AL1 的 63A 比较而虚假越级报警
+        res = ExtractionResult(
+            boxes=[Box(code="1AP1"), Box(code="1AL1")],
+            circuits=[
+                Circuit(box="1AP1", circuit_no="进线", breaker="NM1-400/3P 400A", load_name="总进线"),
+                Circuit(box="1AP1", circuit_no="WP1", breaker="NM1-160/3P 160A", load_name="照明分箱供电"),
+                Circuit(box="1AL1", circuit_no="进线", breaker="MCB-63/C63/3P", load_name="箱进线"),
+                Circuit(box="1AL1", circuit_no="WL1", breaker="C16/1P", load_name="照明1"),
+            ],
+            components=[
+                Component(name="断路器（其他）", spec="NM1-400/3P 400A", quantity=1),
+                Component(name="断路器（其他）", spec="NM1-160/3P 160A", quantity=1),
+                Component(name="微型断路器", spec="MCB-63/C63/3P", quantity=1),
+                Component(name="微型断路器", spec="C16/1P", quantity=1),
+            ],
+        )
+
+        issues = check_result_issues(res)
+        cascade_issues = [i for i in issues if i.rule_code == "CASCADE_OVERCURRENT"]
+        self.assertEqual(len(cascade_issues), 0, "箱体级配独立核验时不应发生跨箱体虚假越级误报")
+
+        # 真实越级测试：向 1AL1 增加 100A 支路，应精准指出 1AL1 越级
+        res.circuits.append(Circuit(box="1AL1", circuit_no="WL2", breaker="100A/3P", load_name="超负荷设备"))
+        res.components.append(Component(name="微型断路器", spec="100A/3P", quantity=1))
+        issues_with_err = check_result_issues(res)
+        cascade_errs = [i for i in issues_with_err if i.rule_code == "CASCADE_OVERCURRENT"]
+        self.assertEqual(len(cascade_errs), 1)
+        self.assertIn("1AL1", cascade_errs[0].detail)
+        self.assertIn("WL2", cascade_errs[0].detail)
+
+    def test_job_excel_export_retains_reconciliation(self):
+        """测试从 job['data'] 字典重建 ExtractionResult 并导出 Excel 时完整保留图纸目录对账审计工作表。"""
+        import tempfile
+        import openpyxl
+        from extractor.excel import build_workbook
+
+        job_data = {
+            "title": "对账测试工程",
+            "boxes": [{"code": "1AL1", "name": "照明箱", "quantity": 1}],
+            "circuits": [{"box": "1AL1", "circuit_no": "WL1", "breaker": "C16/1P"}],
+            "components": [{"name": "微型断路器", "spec": "C16/1P", "quantity": 1, "unit": "只"}],
+            "requirements": [],
+            "uncertainties": [],
+            "topology": [],
+            "reconciliation": {
+                "has_catalog": True,
+                "catalog_source": "CAD图纸目录",
+                "total_declared_panels": 2,
+                "covered_count": 1,
+                "missing_count": 1,
+                "coverage_rate": 0.5,
+                "missing_box_codes": ["1AL2"],
+                "items": [
+                    {"sheet_no": "01", "sheet_title": "1AL1系统图", "declared_panels": ["1AL1"], "matched_panels": ["1AL1"], "missing_panels": [], "status": "COVERED"},
+                    {"sheet_no": "02", "sheet_title": "1AL2系统图", "declared_panels": ["1AL2"], "matched_panels": [], "missing_panels": ["1AL2"], "status": "MISSING"}
+                ]
+            }
+        }
+
+        # 模拟后端 /api/jobs/{job_id}/excel 中的重构与生成行为
+        recon_data = job_data.get("reconciliation")
+        topo_data = job_data.get("topology", [])
+        result = ExtractionResult(
+            title=job_data.get("title"),
+            boxes=job_data.get("boxes", []),
+            circuits=job_data.get("circuits", []),
+            components=job_data.get("components", []),
+            requirements=job_data.get("requirements", []),
+            uncertainties=job_data.get("uncertainties", []),
+            topology=topo_data,
+            reconciliation=recon_data,
+        )
+
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tf:
+            temp_path = tf.name
+
+        try:
+            build_workbook(result, "对账测试导出", temp_path, layout="3_sheets")
+            wb = openpyxl.load_workbook(temp_path)
+            self.assertIn("图纸目录对账审计", wb.sheetnames)
+            ws = wb["图纸目录对账审计"]
+            self.assertIn("目录声明总数: 2 台", ws.cell(row=2, column=1).value)
+        finally:
+            import os
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
 
 if __name__ == "__main__":
     unittest.main()

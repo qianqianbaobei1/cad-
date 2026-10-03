@@ -149,14 +149,17 @@ def parse_breaker(raw: str) -> StructuredBreaker:
     elif "4300" in s or "4308" in s:
         poles = "4P"
 
-    # 2. 提取脱扣曲线特性: B, C, D
+    # 2. 提取脱扣曲线特性: B, C, D (如 C16, C16A, C16/1P, C16A/1P, D32, D32A/3P, B10, /C63/3P)
     curve: Optional[str] = None
-    if re.search(r"(?:/|-|\b)D\s*([1-9]\d{0,2})\b", s, re.IGNORECASE) or "动力型" in s:
+    m_curve_match = re.search(r"(?:/|-|\b)([CDB])\s*([1-9]\d{0,3}(?:\.\d+)?)\s*A?(?:/[1-4]P|/|\s|\b|$)", s, re.IGNORECASE)
+    if m_curve_match:
+        curve = m_curve_match.group(1).upper()
+    elif "动力型" in s or re.search(r"\bD(?:\s*型|\s*曲线)?\b", s, re.IGNORECASE):
         curve = "D"
-    elif re.search(r"(?:/|-|\b)B\s*([1-9]\d{0,2})\b", s, re.IGNORECASE):
-        curve = "B"
-    elif re.search(r"(?:/|-|\b)C\s*([1-9]\d{0,2})\b", s, re.IGNORECASE) or "照明型" in s:
+    elif "照明型" in s or re.search(r"\bC(?:\s*型|\s*曲线)?\b", s, re.IGNORECASE):
         curve = "C"
+    elif re.search(r"\bB(?:\s*型|\s*曲线)?\b", s, re.IGNORECASE):
+        curve = "B"
 
     # 3. 提取额定电流 In (A)
     rated_amp: Optional[float] = None
@@ -170,22 +173,19 @@ def parse_breaker(raw: str) -> StructuredBreaker:
         except ValueError:
             pass
 
+    if rated_amp is None and m_curve_match:
+        try:
+            v = float(m_curve_match.group(2))
+            if isfinite(v) and v > 0:
+                rated_amp = v
+        except ValueError:
+            pass
+
     if rated_amp is None:
-        m_a = re.search(r"\b([1-9]\d{0,3}(?:\.\d+)?)\s*A\b", s, re.IGNORECASE)
+        m_a = re.search(r"(?:/|-|\b)([1-9]\d{0,3}(?:\.\d+)?)\s*A\b", s, re.IGNORECASE)
         if m_a:
             try:
                 v = float(m_a.group(1))
-                if isfinite(v) and v > 0:
-                    rated_amp = v
-            except ValueError:
-                pass
-
-    if rated_amp is None:
-        # 脱扣特性 + 电流: 如 C63, D100, B16, C16/2P, /C63/3P
-        m_curve = re.search(r"(?:/|-|\b)[CDB]([1-9]\d{0,3}(?:\.\d+)?)(?:/[1-4]P|/|\s|$)", s, re.IGNORECASE)
-        if m_curve:
-            try:
-                v = float(m_curve.group(1))
                 if isfinite(v) and v > 0:
                     rated_amp = v
             except ValueError:
@@ -226,7 +226,7 @@ def parse_breaker(raw: str) -> StructuredBreaker:
     )
     if m_series:
         candidate = m_series.group(1).strip()
-        if len(candidate) >= 3 and not candidate.isdigit() and not re.match(r"^[CDB]\d+$", candidate, re.IGNORECASE):
+        if len(candidate) >= 3 and not candidate.isdigit() and not re.match(r"^[CDB]\d+A?$", candidate, re.IGNORECASE):
             series = candidate
 
     return StructuredBreaker(

@@ -442,6 +442,23 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
         meta = {"model": provider.model, "prompt_version": PROMPT_VERSION,
                 "contract_version": CONTRACT_VERSION, "calls": len(items)}
         result = assemble(raw, meta)
+
+        if cad_texts and not getattr(result, "reconciliation", None):
+            seen_cat = set()
+            cat_items = []
+            for t in cad_texts:
+                txt = t.get("text", "")
+                parsed = DrawingCatalogReconciler.parse_catalog_line(txt)
+                if parsed and parsed.declared_panels:
+                    key = (parsed.sheet_no, parsed.sheet_title)
+                    if key not in seen_cat:
+                        seen_cat.add(key)
+                        cat_items.append(parsed)
+            if cat_items:
+                result.reconciliation = DrawingCatalogReconciler.reconcile(
+                    cat_items, result.boxes, source_name="图纸目录"
+                )
+
         _sync_result_issues(result)
 
         job["status"] = "building_excel"
@@ -1077,6 +1094,8 @@ def persist_job_data(job_id: str, job: dict, data: dict,
             "title": title, "boxes": data["boxes"], "circuits": data["circuits"],
             "components": data["components"], "requirements": data["requirements"],
             "uncertainties": data["uncertainties"],
+            "topology": data.get("topology", []),
+            "reconciliation": data.get("reconciliation") or (job.get("data") or {}).get("reconciliation"),
         })
         extras_out = extras_in or []
 
@@ -1111,6 +1130,12 @@ def persist_job_data(job_id: str, job: dict, data: dict,
         "requirements": [r.model_dump() for r in result.requirements],
         "uncertainties": [u.model_dump() for u in result.uncertainties],
         "extra_devices": extras_out,
+        "topology": [t.model_dump() for t in getattr(result, "topology", [])],
+        "reconciliation": (
+            result.reconciliation.model_dump()
+            if getattr(result, "reconciliation", None)
+            else (data.get("reconciliation") or (job.get("data") or {}).get("reconciliation"))
+        ),
     }
     job.setdefault("summary", {})
     job["summary"].update({
@@ -1418,6 +1443,8 @@ def job_excel(job_id: str, target_brand: str = "正泰", force: bool = False):
             },
         )
     xlsx = os.path.join(WORKDIR, f"{job_id}_{target_brand}.xlsx")
+    recon_data = data.get("reconciliation") or (job.get("summary") or {}).get("reconciliation")
+    topo_data = data.get("topology", []) or (job.get("summary") or {}).get("topology", [])
     result = ExtractionResult(
         title=(job.get("summary") or {}).get("title") or "配电箱元器件清单(报价用)",
         boxes=data.get("boxes", []),
@@ -1425,6 +1452,8 @@ def job_excel(job_id: str, target_brand: str = "正泰", force: bool = False):
         components=data.get("components", []),
         requirements=data.get("requirements", []),
         uncertainties=data.get("uncertainties", []),
+        topology=topo_data,
+        reconciliation=recon_data,
     )
     filename = job.get("filename", f"{job_id}.pdf")
     subtitle = (f"依据:{filename}  导出时间:{datetime.now():%Y-%m-%d %H:%M}  "

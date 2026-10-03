@@ -27,9 +27,9 @@ from .schema import (
 # 回路 breaker 字段能汇总出的元器件名称，必须与 assemble 保持一致
 BREAKER_CATEGORIES = {name for _, name in PREFIXES} | {"断路器（其他）"}
 
-# 修复型号正则：使用 [CD] 而非 [C|D]，杜绝匹配字面 '|'
+# 修复型号正则：使用 [CD] 而非 [C|D]，杜绝匹配字面 '|'，支持 C16A 等后缀
 BREAKER_MODEL_REGEX = re.compile(
-    r"^[A-Z0-9]+(?:-[A-Z0-9]+)*-[CD][0-9]{1,3}/[1-4]P(?:\+N)?$",
+    r"^[A-Z0-9]+(?:-[A-Z0-9]+)*-[CD][0-9]{1,3}A?/[1-4]P(?:\+N)?$",
     re.IGNORECASE
 )
 
@@ -65,7 +65,7 @@ def clean_rated_amp(val: Any) -> Optional[float]:
 
     支持格式：
     - 纯数值: 63, 100.5
-    - 脱扣+电流: "C63", "D100", "B16", "C16/2P"
+    - 脱扣+电流: "C63", "D100", "B16", "C16/2P", "C16A/1P", "C10A"
     - 带单位: "63A", "100安"
     - 带极数/斜杠: "100/3P", "/C63/3P", "In=63A", "In: 100A"
     """
@@ -88,17 +88,8 @@ def clean_rated_amp(val: Any) -> Optional[float]:
         except ValueError:
             pass
 
-    m_a = re.search(r"\b([1-9]\d{0,3}(?:\.\d+)?)\s*A\b", s, re.IGNORECASE)
-    if m_a:
-        try:
-            v = float(m_a.group(1))
-            if isfinite(v) and v > 0:
-                return v
-        except ValueError:
-            pass
-
-    # 2. 脱扣特性 + 电流: 如 C63, D100, B16, C16/2P, /C63/3P
-    m_curve = re.search(r"(?:/|-|\b)[CDB]([1-9]\d{0,3}(?:\.\d+)?)(?:/[1-4]P|/|\s|$)", s, re.IGNORECASE)
+    # 2. 脱扣特性 + 电流: 如 C63, D100, B16, C16/2P, /C63/3P, C16A, C16A/1P, D32A/3P
+    m_curve = re.search(r"(?:/|-|\b)[CDB]\s*([1-9]\d{0,3}(?:\.\d+)?)\s*A?(?:/[1-4]P|/|\s|\b|$)", s, re.IGNORECASE)
     if m_curve:
         try:
             v = float(m_curve.group(1))
@@ -107,7 +98,17 @@ def clean_rated_amp(val: Any) -> Optional[float]:
         except ValueError:
             pass
 
-    # 3. 开头纯数字带极数或斜杠: 如 100/3P, 63/4P, 63
+    # 3. 显式带单位 A: 如 100A, 63A, 16A/1P
+    m_a = re.search(r"(?:/|-|\b)([1-9]\d{0,3}(?:\.\d+)?)\s*A\b", s, re.IGNORECASE)
+    if m_a:
+        try:
+            v = float(m_a.group(1))
+            if isfinite(v) and v > 0:
+                return v
+        except ValueError:
+            pass
+
+    # 4. 开头纯数字带极数或斜杠: 如 100/3P, 63/4P, 63
     m_num = re.search(r"^([1-9]\d{0,3}(?:\.\d+)?)(?:/[1-4]P|/|\s|$)", s, re.IGNORECASE)
     if m_num:
         try:
@@ -232,76 +233,85 @@ def check_result_issues(result: ExtractionResult) -> list[CheckIssue]:
                 detail=f"断路器 {spec}：回路逐条计数 {count} 只，元器件汇总 {actual[spec]:g} 只，请核对"
             ))
 
-    # 5. 三相负荷平衡度校验（国标限值 15%）
-    phase_loads = {"L1": 0.0, "L2": 0.0, "L3": 0.0}
-    has_loads = False
+    # 5. 三相负荷平衡度校验（国标限值 15%，按箱体独立核验）
+    circuits_by_box: dict[str, list[Circuit]] = defaultdict(list)
     for c in result.circuits:
-        if not c.power_kw:
-            continue
-        try:
-            val_match = re.search(r"(\d+(?:\.\d+)?)", c.power_kw)
-            if not val_match:
+        box_name = (c.box or "").strip() or "未指定箱体"
+        circuits_by_box[box_name].append(c)
+
+    for box_name, b_circuits in circuits_by_box.items():
+        phase_loads = {"L1": 0.0, "L2": 0.0, "L3": 0.0}
+        has_loads = False
+        for c in b_circuits:
+            if not c.power_kw:
                 continue
-            val = float(val_match.group(1))
-            p = (c.phase or "").upper().strip()
-            if p == "L1":
-                phase_loads["L1"] += val
-                has_loads = True
-            elif p == "L2":
-                phase_loads["L2"] += val
-                has_loads = True
-            elif p == "L3":
-                phase_loads["L3"] += val
-                has_loads = True
-            elif p in ("L123", "3P", "3PH", "L1,L2,L3"):
-                phase_loads["L1"] += val / 3.0
-                phase_loads["L2"] += val / 3.0
-                phase_loads["L3"] += val / 3.0
-                has_loads = True
-        except ValueError:
-            pass
+            try:
+                val_match = re.search(r"(\d+(?:\.\d+)?)", c.power_kw)
+                if not val_match:
+                    continue
+                val = float(val_match.group(1))
+                p = (c.phase or "").upper().strip()
+                if p == "L1":
+                    phase_loads["L1"] += val
+                    has_loads = True
+                elif p == "L2":
+                    phase_loads["L2"] += val
+                    has_loads = True
+                elif p == "L3":
+                    phase_loads["L3"] += val
+                    has_loads = True
+                elif p in ("L123", "3P", "3PH", "L1,L2,L3"):
+                    phase_loads["L1"] += val / 3.0
+                    phase_loads["L2"] += val / 3.0
+                    phase_loads["L3"] += val / 3.0
+                    has_loads = True
+            except ValueError:
+                pass
 
-    if has_loads:
-        p_vals = [phase_loads["L1"], phase_loads["L2"], phase_loads["L3"]]
-        p_max, p_min = max(p_vals), min(p_vals)
-        if p_max > 1.0 and (phase_loads["L1"] > 0 and phase_loads["L2"] > 0 and phase_loads["L3"] > 0):
-            unbalance = ((p_max - p_min) / p_max) * 100.0
-            if unbalance > 15.0:
-                issues.append(CheckIssue(
-                    rule_code="PHASE_UNBALANCE",
-                    severity=CheckSeverity.WARNING.value,
-                    target="三相负荷平衡",
-                    detail=(
-                        f"三相负荷平衡核验：L1={phase_loads['L1']:.1f}kW, L2={phase_loads['L2']:.1f}kW, L3={phase_loads['L3']:.1f}kW，"
-                        f"三相负荷不平衡度达 {unbalance:.1f}%（超出国标15%限值），存在偏载风险，请核对配电分配"
-                    )
-                ))
+        if has_loads:
+            p_vals = [phase_loads["L1"], phase_loads["L2"], phase_loads["L3"]]
+            p_max, p_min = max(p_vals), min(p_vals)
+            if p_max > 1.0 and (phase_loads["L1"] > 0 and phase_loads["L2"] > 0 and phase_loads["L3"] > 0):
+                unbalance = ((p_max - p_min) / p_max) * 100.0
+                if unbalance > 15.0:
+                    box_prefix = f"（{box_name}）" if box_name != "未指定箱体" else ""
+                    issues.append(CheckIssue(
+                        rule_code="PHASE_UNBALANCE",
+                        severity=CheckSeverity.WARNING.value,
+                        target=f"{box_name} 三相负荷平衡",
+                        detail=(
+                            f"三相负荷平衡核验{box_prefix}：L1={phase_loads['L1']:.1f}kW, L2={phase_loads['L2']:.1f}kW, L3={phase_loads['L3']:.1f}kW，"
+                            f"三相负荷不平衡度达 {unbalance:.1f}%（超出国标15%限值），存在偏载风险，请核对配电分配"
+                        )
+                    ))
 
-    # 6. 进出线开关级配防越级跳闸核验（使用 clean_rated_amp 杜绝崩溃）
-    incoming_amps = []
-    outgoing_circuits = []
-    for c in result.circuits:
-        breaker_spec = c.breaker or ""
-        amp = clean_rated_amp(breaker_spec)
-        is_incoming = is_incoming_circuit(c)
-        if is_incoming and amp:
-            incoming_amps.append(amp)
-        elif amp and not is_incoming:
-            outgoing_circuits.append((c.circuit_no or "出线回路", breaker_spec, amp))
+    # 6. 进出线开关级配防越级跳闸核验（按箱体独立核验，杜绝跨箱体串报）
+    for box_name, b_circuits in circuits_by_box.items():
+        incoming_amps = []
+        outgoing_circuits = []
+        for c in b_circuits:
+            breaker_spec = c.breaker or ""
+            amp = clean_rated_amp(breaker_spec)
+            is_incoming = is_incoming_circuit(c)
+            if is_incoming and amp:
+                incoming_amps.append(amp)
+            elif amp and not is_incoming:
+                outgoing_circuits.append((c.circuit_no or "出线回路", breaker_spec, amp))
 
-    if incoming_amps:
-        min_incoming = min(incoming_amps)
-        for c_no, spec, amp in outgoing_circuits:
-            if amp > min_incoming:
-                issues.append(CheckIssue(
-                    rule_code="CASCADE_OVERCURRENT",
-                    severity=CheckSeverity.WARNING.value,
-                    target=f"出线回路 {c_no}",
-                    detail=(
-                        f"开关级配核验：出线 {c_no} 额定电流 {amp:g}A（{spec}）大于进线主开关 {min_incoming:g}A，"
-                        f"存在越级跳闸风险，请核对图纸"
-                    )
-                ))
+        if incoming_amps:
+            min_incoming = min(incoming_amps)
+            for c_no, spec, amp in outgoing_circuits:
+                if amp > min_incoming:
+                    box_label = f"（{box_name}）" if box_name != "未指定箱体" else ""
+                    issues.append(CheckIssue(
+                        rule_code="CASCADE_OVERCURRENT",
+                        severity=CheckSeverity.WARNING.value,
+                        target=f"{box_name} 出线回路 {c_no}",
+                        detail=(
+                            f"开关级配核验{box_label}：出线 {c_no} 额定电流 {amp:g}A（{spec}）大于进线主开关 {min_incoming:g}A，"
+                            f"存在越级跳闸风险，请核对图纸"
+                        )
+                    ))
 
     # 7. 字段级证据政策校验（防编造：安装位置、断路器、电缆型号绝对禁止纯 MODEL_INFERENCE）
     if result.evidence_store:
