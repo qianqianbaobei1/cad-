@@ -12,6 +12,8 @@ from .schema import (
     Circuit,
     Component,
     DistributionNode,
+    Evidence,
+    EvidenceType,
     ExtractionResult,
     ExtraDevice,
     GroundedField,
@@ -344,14 +346,29 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
             if not exist.location and box.location:
                 exist.location = box.location
 
+    evidence_store: dict[str, Evidence] = dict(getattr(raw, "evidence_store", {}) or {})
+
     merged_boxes = list(dedup_boxes_dict.values())
     for b in merged_boxes:
         if not b.claims:
+            b_code_ev_ids = []
+            if b.code:
+                ev_id = f"box.code.{b.code}"
+                if ev_id not in evidence_store:
+                    evidence_store[ev_id] = Evidence(
+                        evidence_id=ev_id,
+                        evidence_type=EvidenceType.TEXT.value,
+                        raw_content=b.code,
+                        bbox=getattr(b, "bbox", None),
+                    )
+                b_code_ev_ids.append(ev_id)
+
             b.claims = {
                 "box.code": GroundedField(
                     value=b.code,
                     raw_value=b.code,
-                    review_status=ReviewStatus.CONFIRMED.value if b.code else ReviewStatus.UNASSESSED.value
+                    value_evidence_ids=b_code_ev_ids,
+                    review_status=ReviewStatus.CONFIRMED.value if b_code_ev_ids else ReviewStatus.UNASSESSED.value
                 ),
                 "box.location": GroundedField(
                     value=b.location,
@@ -392,23 +409,62 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
         if not c_copy.structured_cable:
             c_copy.structured_cable = parse_cable(c_copy.cable).model_dump()
 
-        # 沉淀证据主张 Claim 字典 (Stage 6)
+        # 沉淀证据主张 Claim 字典与物理证据链 (Stage 6)
         if not c_copy.claims:
+            c_no_ev_ids = []
+            if c_copy.circuit_no:
+                ev_id = f"circuit.{c_copy.box}.{c_copy.circuit_no}.no"
+                if ev_id not in evidence_store:
+                    evidence_store[ev_id] = Evidence(
+                        evidence_id=ev_id,
+                        evidence_type=EvidenceType.TEXT.value,
+                        raw_content=c_copy.circuit_no,
+                        bbox=c_copy.bbox,
+                    )
+                c_no_ev_ids.append(ev_id)
+
+            brk_ev_ids = []
+            if c_copy.breaker:
+                ev_id = f"circuit.{c_copy.box}.{c_copy.circuit_no or 'none'}.breaker"
+                if ev_id not in evidence_store:
+                    evidence_store[ev_id] = Evidence(
+                        evidence_id=ev_id,
+                        evidence_type=EvidenceType.TEXT.value,
+                        raw_content=c_copy.breaker,
+                        bbox=c_copy.bbox,
+                    )
+                brk_ev_ids.append(ev_id)
+
+            cable_ev_ids = []
+            if c_copy.cable:
+                ev_id = f"circuit.{c_copy.box}.{c_copy.circuit_no or 'none'}.cable"
+                if ev_id not in evidence_store:
+                    evidence_store[ev_id] = Evidence(
+                        evidence_id=ev_id,
+                        evidence_type=EvidenceType.TEXT.value,
+                        raw_content=c_copy.cable,
+                        bbox=c_copy.bbox,
+                    )
+                cable_ev_ids.append(ev_id)
+
             c_copy.claims = {
                 "circuit.circuit_no": GroundedField(
                     value=c_copy.circuit_no,
                     raw_value=c_copy.circuit_no,
-                    review_status=ReviewStatus.CONFIRMED.value if c_copy.circuit_no else ReviewStatus.UNASSESSED.value
+                    value_evidence_ids=c_no_ev_ids,
+                    review_status=ReviewStatus.CONFIRMED.value if c_no_ev_ids else ReviewStatus.UNASSESSED.value
                 ),
                 "circuit.breaker": GroundedField(
                     value=c_copy.breaker,
                     raw_value=c_copy.breaker,
-                    review_status=ReviewStatus.CONFIRMED.value if (c_copy.structured_breaker and c_copy.structured_breaker.get("rated_current")) else ReviewStatus.UNASSESSED.value
+                    value_evidence_ids=brk_ev_ids,
+                    review_status=ReviewStatus.CONFIRMED.value if (brk_ev_ids and c_copy.structured_breaker and c_copy.structured_breaker.get("rated_current")) else ReviewStatus.UNASSESSED.value
                 ),
                 "circuit.cable": GroundedField(
                     value=c_copy.cable,
                     raw_value=c_copy.cable,
-                    review_status=ReviewStatus.CONFIRMED.value if (c_copy.structured_cable and c_copy.structured_cable.get("section_mm2")) else ReviewStatus.UNASSESSED.value
+                    value_evidence_ids=cable_ev_ids,
+                    review_status=ReviewStatus.CONFIRMED.value if (cable_ev_ids and c_copy.structured_cable and c_copy.structured_cable.get("section_mm2")) else ReviewStatus.UNASSESSED.value
                 ),
                 "circuit.phase": GroundedField(
                     value=c_copy.phase,
@@ -532,5 +588,6 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
         requirements=requirements, uncertainties=_to_uncertainties(warnings, model_texts),
         topology=topology,
         reconciliation=reconciliation,
+        evidence_store=evidence_store,
         meta=AssembledMeta(**(meta or {})),
     )

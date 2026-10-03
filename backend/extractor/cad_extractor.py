@@ -134,13 +134,18 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
             x = float(e.dxf.insert.x)
             y = float(e.dxf.insert.y)
             h = float(getattr(e.dxf, "height", 0) if e.dxftype() == "TEXT" else getattr(e.dxf, "char_height", 0))
-            if 150000 <= y <= 300000:
-                all_texts.append((t, x, y, h))
+            all_texts.append((t, x, y, h))
         except Exception:
             pass
 
     if not all_texts:
-        return RawExtraction(boxes=[], circuits=[], extra_devices=[], requirements=[], uncertainties=[])
+        return RawExtraction(
+            boxes=[],
+            circuits=[],
+            extra_devices=[],
+            requirements=[],
+            uncertainties=[Uncertainty.from_text("CAD模型空间未检出任何有效文字实体")],
+        )
 
     # 2. 检测所有配电箱标头
     candidates = []
@@ -327,6 +332,11 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                 quantity=1.0,
                 used_in=f"{code} 进线侧",
             ))
+
+    # 若未找到任何有效配电箱，如实记录存疑项，杜绝假装成功
+    if not extracted_boxes:
+        extracted_uncertainties.append(Uncertainty.from_text(
+            "CAD模型空间未检索到有效配电箱系统图标头，请核查图层是否关闭或包含非标标头"))
 
     # CAD 矢量路径不提取技术要求：不编造，如实记一条待核对交人工核对图纸说明
     extracted_uncertainties.append(Uncertainty.from_text(

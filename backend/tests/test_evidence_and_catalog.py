@@ -550,6 +550,187 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
             if os.path.exists(temp_path):
                 os.remove(temp_path)
 
+    def test_post_catalog_api_reconcile(self):
+        """验证 POST /api/jobs/{job_id}/catalog 接口对账与持久化。"""
+        from fastapi.testclient import TestClient
+        from app import app
+        import db
+
+        client = TestClient(app)
+        job_id = "test_catalog_api_job"
+        job_payload = {
+            "job_id": job_id,
+            "id": job_id,
+            "status": "done",
+            "tenant_id": "default",
+            "data": {
+                "boxes": [{"code": "1AP1", "name": "动力箱1"}, {"code": "1AP2", "name": "动力箱2"}],
+                "circuits": [],
+                "components": [],
+                "requirements": [],
+                "uncertainties": [],
+            }
+        }
+        db.db_save_job(job_payload)
+        import app as app_mod
+        app_mod.jobs[job_id] = job_payload
+
+        try:
+            # 提交 CSV / 文本格式目录，声明 1AP1~1AP4 (共4台，缺2台)
+            payload = {
+                "catalog_text": "01B-01 动力系统图(一) 1AP1~1AP4\n01B-02 照明系统图(二) 1AL1",
+                "source_name": "人工补录目录清单"
+            }
+            res = client.post(f"/api/jobs/{job_id}/catalog", json=payload)
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            recon = data.get("data", {}).get("reconciliation")
+            self.assertIsNotNone(recon)
+            self.assertEqual(recon["total_declared_panels"], 5)
+            self.assertEqual(recon["covered_count"], 2)
+            self.assertEqual(recon["missing_count"], 3)
+
+            # 通过 GET 端点核实
+            get_res = client.get(f"/api/jobs/{job_id}/catalog")
+            self.assertEqual(get_res.status_code, 200)
+            get_recon = get_res.json()
+            self.assertEqual(get_recon["missing_count"], 3)
+            self.assertEqual(get_recon["catalog_source"], "人工补录目录清单")
+        finally:
+            db.db_clean_all_test_data()
+
+    def test_excel_no_fabrication_location_and_ggd(self):
+        """验证 Excel 导出禁止捏造位置 '配电间/动力间' 与猜柜型 'GGD(落地)'。"""
+        import openpyxl
+        import tempfile
+        import os
+        from extractor.excel import build_workbook
+
+        box = Box(code="AP1", name="总箱", install="落地安装", location="", size="")
+        cir = Circuit(box="AP1", circuit_no="N1", breaker="C16/1P", cable="BV-3x2.5", load_name="插座")
+        result = ExtractionResult(
+            title="防编造测试",
+            boxes=[box],
+            circuits=[cir],
+            components=[],
+            requirements=[],
+            uncertainties=[],
+        )
+
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tf:
+            path = tf.name
+
+        try:
+            build_workbook(result, "subtitle", path, layout="3_sheets")
+            wb = openpyxl.load_workbook(path)
+            # 1. 检查屏柜汇总表：无尺寸时绝不猜测为 GGD(落地)
+            ws_sum = wb["屏柜汇总表"]
+            box_model_val = ws_sum.cell(row=8, column=4).value  # D列 型号规格
+            self.assertNotEqual(box_model_val, "GGD(落地)")
+            self.assertFalse(box_model_val)  # 应该为空字符串
+
+            # 2. 检查屏柜汇总表：无位置时备注写入 '待确认'，绝不能臆造为 '配电间/动力间'
+            loc_val = ws_sum.cell(row=8, column=9).value  # I列 使用部位/所属楼栋车间
+            self.assertEqual(loc_val, "待确认")
+            self.assertNotIn("配电间/动力间", str(loc_val))
+        finally:
+            if os.path.exists(path):
+                os.remove(path)
+
+    def test_excel_brand_and_floor_prices_unlocked(self):
+        """验证 Excel 导出的品牌贯穿、下限价解禁、DZ47非SPD及备注记录。"""
+        import openpyxl
+        import tempfile
+        import os
+        from extractor.excel import build_workbook
+
+        box = Box(code="AL1", name="照明箱", install="挂墙", location="车间A", size="400*500*160")
+        cir_in = Circuit(box="AL1", circuit_no="进线", breaker="SW-32A/2P", cable="", load_name="市电进线")
+        # 带有通用微断 DZ47-63
+        cir_out = Circuit(box="AL1", circuit_no="WL1", breaker="DZ47-63 C10/1P", cable="BV-2x2.5", load_name="照明")
+        result = ExtractionResult(
+            title="品牌与单价测试",
+            boxes=[box],
+            circuits=[cir_in, cir_out],
+            components=[Component(name="空开", spec="DZ47-63 C10/1P", quantity=1.0, used_in="AL1")],
+            requirements=[],
+            uncertainties=[],
+        )
+
+        with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tf:
+            path = tf.name
+
+        try:
+            # 指定目标品牌为 "正泰"
+            build_workbook(result, "subtitle", path, layout="3_sheets", target_brand="正泰")
+            wb = openpyxl.load_workbook(path)
+            ws_det = wb["屏柜分项表"]
+
+            # 查看分项表数据行 (Row 7 是箱头横幅, Row 8 是卡片表头, 数据从 row 9 开始)
+            # Row 9: 进线隔离开关
+            inc_name = ws_det.cell(row=9, column=2).value
+            inc_price = float(ws_det.cell(row=9, column=6).value)
+            inc_brand = ws_det.cell(row=9, column=8).value
+            self.assertIn("隔离开关", inc_name)
+            self.assertEqual(inc_brand, "正泰")
+            # 验证下限价 86.50 已解禁：2P 隔离开关在正泰价格库中远低于 86.50
+            self.assertLess(inc_price, 86.50)
+
+            # Row 10: 分支出线断路器
+            brk_price = float(ws_det.cell(row=10, column=6).value)
+            brk_brand = ws_det.cell(row=10, column=8).value
+            self.assertEqual(brk_brand, "正泰")
+            # 验证下限价 15.08 已解禁：正泰 1P C10 采购价远低于 15.08
+            self.assertLess(brk_price, 15.08)
+
+            # 验证 DZ47 没有被写成电涌保护器
+            all_dev_names = [ws_det.cell(row=r, column=2).value for r in range(9, 16) if ws_det.cell(row=r, column=2).value]
+            self.assertNotIn("电涌保护器", all_dev_names)
+
+            # 查找壳体外壳行
+            shell_row = None
+            for r in range(9, 16):
+                if ws_det.cell(row=r, column=2).value == "壳体":
+                    shell_row = r
+                    break
+            self.assertIsNotNone(shell_row)
+            shell_price = float(ws_det.cell(row=shell_row, column=6).value)
+            # 验证壳体下限价 457.06 已解禁：400*500*160 小型箱体测算价格低于 457.06
+            self.assertLess(shell_price, 457.06)
+        finally:
+            if os.path.exists(path):
+                os.remove(path)
+
+    def test_cad_extractor_flexible_coordinates_and_empty_guard(self):
+        """验证 CAD 提取移除 150000<=y<=300000 限制，任意坐标均可提取，且空图能生成明确存疑项。"""
+        import ezdxf
+        from extractor.cad_extractor import extract_cad_table_data
+
+        # 1. 在 y = 500 (远小于 150000) 处放置配电箱和回路
+        doc = ezdxf.new("R2010")
+        msp = doc.modelspace()
+        msp.add_text("01AP1 动力配电箱", dxfattribs={"insert": (100, 500), "height": 300})
+        msp.add_text("WL1", dxfattribs={"insert": (100, 400), "height": 100})
+        msp.add_text("C20/1P", dxfattribs={"insert": (200, 400), "height": 100})
+        msp.add_text("BV-3x2.5", dxfattribs={"insert": (300, 400), "height": 100})
+        msp.add_text("照明回路", dxfattribs={"insert": (400, 400), "height": 100})
+
+        raw = extract_cad_table_data(doc)
+        self.assertEqual(len(raw.boxes), 1)
+        self.assertEqual(raw.boxes[0].code, "01AP1")
+        self.assertEqual(len(raw.circuits), 1)
+        self.assertEqual(raw.circuits[0].circuit_no, "WL1")
+
+        # 2. 完全没有配电箱标头的图纸，验证记录明确存疑提示
+        doc_empty = ezdxf.new("R2010")
+        msp_empty = doc_empty.modelspace()
+        msp_empty.add_text("无意义的说明文字", dxfattribs={"insert": (0, 0), "height": 100})
+
+        raw_empty = extract_cad_table_data(doc_empty)
+        self.assertEqual(len(raw_empty.boxes), 0)
+        uncertainty_texts = [u.text for u in raw_empty.uncertainties]
+        self.assertTrue(any("未检索到有效配电箱系统图标头" in t for t in uncertainty_texts))
+
 
 if __name__ == "__main__":
     unittest.main()

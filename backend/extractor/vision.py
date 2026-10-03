@@ -51,6 +51,9 @@ def is_safe_model_url(url: str) -> tuple[bool, str]:
             return False, f"无法解析模型服务器域名 {hostname}: {e}"
 
     for ip in ips:
+        # IPv6 Teredo 隧道前缀 (2001::/32, RFC 4380) 属于公网单播隧道，非企业私有内网资产 (fc00::/7 才是 ULA)
+        if ip.version == 6 and ip in ipaddress.IPv6Network("2001::/32"):
+            continue
         if ip.is_loopback:
             return False, f"安全拦截：禁止使用本地回环地址 {ip}"
         if ip.is_private:

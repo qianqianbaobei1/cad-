@@ -26,6 +26,7 @@ class InferenceType(str, Enum):
 
 class ReviewStatus(str, Enum):
     UNASSESSED = "UNASSESSED"          # 初始未核验状态 (Fail-Closed)
+    PARSED_OK = "PARSED_OK"            # 格式解析有效，尚未绑定物理确凿证据
     CONFIRMED = "CONFIRMED"            # 物理证据确凿且校验无误
     ACCEPTED = "ACCEPTED"              # 综合证据满足规范放行
     REVIEW = "REVIEW"                  # 存疑/缺证据/弱冲突，需人工确认
@@ -271,6 +272,7 @@ class RawExtraction(BaseModel):
     uncertainties: List[Uncertainty]
     catalog_items: List[CatalogItem] = Field(default_factory=list)
     reconciliation: Optional[CatalogReconciliation] = Field(default=None)
+    evidence_store: Dict[str, Evidence] = Field(default_factory=dict)
 
 
 class DistributionNode(BaseModel):

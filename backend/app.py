@@ -17,11 +17,11 @@ from extractor.render import plan_tiles, render_pdf
 from extractor.vision import VisionProvider, is_safe_model_url
 from extractor.checker import check_result, check_result_issues, CheckIssue
 from extractor.assemble import assemble
-from extractor.schema import CONTRACT_VERSION, PROMPT_VERSION, Uncertainty, RawExtraction, ExtractionResult
+from extractor.schema import CONTRACT_VERSION, PROMPT_VERSION, Uncertainty, RawExtraction, ExtractionResult, Box
 from extractor.excel import build_workbook, build_project_bom_workbook
 from extractor.cad import is_cad_path, process_cad_file
 from extractor.catalog import analyze_components_replacement
-from extractor.catalog_reconciler import DrawingCatalogReconciler
+from extractor.catalog_reconciler import DrawingCatalogReconciler, CatalogItem
 from db import (
     db_save_job, db_get_job, db_list_jobs, db_recover_interrupted_jobs,
     set_current_tenant, get_current_tenant, get_current_user, db_ensure_tenant,
@@ -458,6 +458,32 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
                 result.reconciliation = DrawingCatalogReconciler.reconcile(
                     cat_items, result.boxes, source_name="图纸目录"
                 )
+
+        if not getattr(result, "reconciliation", None):
+            try:
+                import fitz
+                doc = fitz.open(pdf_path)
+                pdf_cat_items = []
+                seen_pdf_cat = set()
+                for page_idx in range(len(doc)):
+                    page_txt = doc[page_idx].get_text("text") or ""
+                    for line in page_txt.splitlines():
+                        line = line.strip()
+                        if not line:
+                            continue
+                        parsed = DrawingCatalogReconciler.parse_catalog_line(line)
+                        if parsed and parsed.declared_panels:
+                            key = (parsed.sheet_no, parsed.sheet_title)
+                            if key not in seen_pdf_cat:
+                                seen_pdf_cat.add(key)
+                                pdf_cat_items.append(parsed)
+                doc.close()
+                if pdf_cat_items:
+                    result.reconciliation = DrawingCatalogReconciler.reconcile(
+                        pdf_cat_items, result.boxes, source_name="PDF图纸目录"
+                    )
+            except Exception as e:
+                print(f"[pdf_catalog] PDF原生目录嗅探跳过: {e}")
 
         _sync_result_issues(result)
 
@@ -1362,14 +1388,23 @@ def ai_deep_review(job_id: str):
                 break
         if matched_cir:
             brk = str(matched_cir.get("breaker", "") or "")
-            if any(k in brk.upper() for k in ["C65", "IC65", "NM1", "DZ47", "C16", "C20", "C25", "C32"]) and any(p in brk for p in ["1P", "2P", "3P", "4P"]):
+            from extractor.normalizer import parse_breaker
+            b_struct = parse_breaker(brk)
+            # 严格依据电气规范参数完整性校验：必须包含明确极数(1P-4P)、额定电流且大于0，且具备有效脱扣曲线或规范断路器型号/系列
+            is_valid_spec = bool(
+                b_struct.poles
+                and b_struct.rated_current
+                and b_struct.rated_current > 0
+                and (b_struct.curve or b_struct.series or b_struct.manufacturer)
+            )
+            if is_valid_spec:
                 u["resolved"] = True
-                u["detail"] = ((u.get("detail", "") or "") + " 【规则引擎复核: 断路器型号规格完整有效，已判定通过】").strip()
+                u["detail"] = ((u.get("detail", "") or "") + " 【结构化规则复核: 断路器极数/电流/脱扣特性完整，已判定通过】").strip()
                 auto_resolved_count += 1
                 findings.append({
                     "type": "resolved",
                     "title": f"回路 {matched_cir.get('circuit_no')} 规格校验通过",
-                    "detail": f"开关 {brk} 符合低压配电规范要求。"
+                    "detail": f"开关 {brk} 参数完整（{b_struct.poles}, {b_struct.rated_current}A, 曲线{b_struct.curve or '-'}）。"
                 })
 
     # 规则 B: 电气容量与电缆过载核查
@@ -1629,6 +1664,77 @@ def rename_job_sheet(job_id: str, req: SheetRenameRequest):
     job["sheet_names"] = sheet_names
     save_job(job_id)
     return {"ok": True, "sheet_names": sheet_names}
+
+
+class CatalogUploadRequest(BaseModel):
+    catalog_text: str | None = None
+    items: list[dict[str, Any]] | None = None
+    source_name: str | None = "手工补录图纸目录"
+
+
+@app.post("/api/jobs/{job_id}/catalog")
+def upload_catalog_and_reconcile(job_id: str, req: CatalogUploadRequest):
+    """为任务上传或手工补录配电箱图纸目录清单，执行对账比对：
+    支持 CSV 或自由文本（如 '01B-03 动力配电箱系统图(三) JX1~JX21'），或直接传入 items 列表。
+    """
+    _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
+
+    catalog_items: list[CatalogItem] = []
+    if req.items:
+        catalog_items = DrawingCatalogReconciler.from_records(req.items).catalog_items
+    elif req.catalog_text:
+        lines = req.catalog_text.splitlines()
+        seen = set()
+        for raw_line in lines:
+            line = raw_line.strip()
+            if not line:
+                continue
+            # 支持 CSV 逗号分割或直接自由文本解析
+            parsed = DrawingCatalogReconciler.parse_catalog_line(line)
+            if not parsed and "," in line:
+                parts = [p.strip() for p in line.split(",", 1)]
+                if len(parts) == 2:
+                    parsed = DrawingCatalogReconciler.parse_catalog_line(f"{parts[0]} {parts[1]}")
+            if parsed and parsed.declared_panels:
+                key = (parsed.sheet_no, parsed.sheet_title)
+                if key not in seen:
+                    seen.add(key)
+                    catalog_items.append(parsed)
+
+    if not catalog_items:
+        raise HTTPException(status_code=400, detail="未解析到有效的图纸目录条目或声明的配电箱，请检查输入格式")
+
+    data = job.get("data", {})
+    boxes = [Box(**b) if isinstance(b, dict) else b for b in data.get("boxes", [])]
+    source_name = req.source_name or "手工补录图纸目录"
+    reconcil = DrawingCatalogReconciler.reconcile(catalog_items, boxes, source_name=source_name)
+    data["reconciliation"] = reconcil.model_dump()
+
+    changes = [{
+        "ts": datetime.now().isoformat(),
+        "source": "user",
+        "target": "图纸目录对账",
+        "field": "reconciliation",
+        "old": "原对账记录",
+        "new": f"已补录 {len(catalog_items)} 条目录，覆盖率 {reconcil.coverage_rate * 100:.1f}%",
+        "reason": f"用户上传/手工补录图纸目录 ({source_name})",
+    }]
+    return persist_job_data(job_id, job, data, changes=changes, reason=f"手工补录图纸目录对账 ({len(catalog_items)} 条)")
+
+
+@app.get("/api/jobs/{job_id}/catalog")
+def get_job_catalog_reconciliation(job_id: str):
+    """获取指定任务的图纸目录对账详情。"""
+    _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
+    data = job.get("data", {})
+    reconciliation = data.get("reconciliation")
+    if not reconciliation:
+        return {"has_catalog": False, "items": [], "total_declared_panels": 0, "covered_count": 0, "missing_count": 0, "coverage_rate": 0.0}
+    return reconciliation
 
 
 @app.get("/api/projects")

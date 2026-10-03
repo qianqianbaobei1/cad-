@@ -461,8 +461,9 @@ def _fill_quotation_summary_sheet(ws, project_title: str, boxes: list[Any], circ
         c_total.alignment = RIGHT
         c_total.border = DARK_BORDER
 
-        # 备注（使用部位/所属楼栋车间）
-        c_loc = ws.cell(row=curr_row, column=9, value=loc or "配电间/动力间")
+        # 备注（使用部位/所属楼栋车间，宁可标疑、绝不臆造具体房间）
+        loc_val = str(loc).strip() if loc and str(loc).strip() and str(loc).strip() != "-" else "待确认"
+        c_loc = ws.cell(row=curr_row, column=9, value=loc_val)
         c_loc.font = CELL_FONT
         c_loc.alignment = LEFT
         c_loc.border = DARK_BORDER
@@ -520,7 +521,7 @@ def _clean_proj_title(raw_title: str) -> str:
 
 
 def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
-                     bidder: str = "", owner: str = ""):
+                       bidder: str = "", owner: str = "", target_brand: str = "正泰"):
     """1:1 对标行业出图标准的极简 3-Sheet 报表：
     Sheet 1: 封面 —— 项目概况、编制单位、编制说明及规范依据；
     Sheet 2: 屏柜汇总表 —— 截图同款成套设备报价(汇总)，含超链接直达、单价总价与末尾自动求和；
@@ -668,6 +669,7 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
     headers_card = ["序号", "元件名称", "型号规格", "单位", "数量", "单价", "总价", "生产厂家", "备注"]
 
     from .pricing import calculate_component_unit_price, estimate_box_enclosure_price
+    from .catalog import identify_brand
 
     for b_idx, b in enumerate(boxes, start=1):
         code = getattr(b, "code", "") if hasattr(b, "code") else str(b.get("code", "未命名"))
@@ -737,12 +739,15 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
             incomer_spec = getattr(incomer_circuit, "breaker", "") if hasattr(incomer_circuit, "breaker") else str(incomer_circuit.get("breaker", ""))
         # 宁可标疑、不许编造：进线规格缺失时不再编造型号，标"待确认"、单价计0
         if not incomer_spec or incomer_spec == "-":
-            vals_inc = [item_seq, "进线断路器（待确认）", "待确认", "只", 1, 0.0, 0.0, "待确认", ""]
+            vals_inc = [item_seq, "进线断路器（待确认）", "待确认", "只", 1, 0.0, 0.0, "待确认", "待补充规格型号"]
         else:
             incomer_name = "微型隔离开关" if "SW" in incomer_spec or "隔离" in incomer_spec else ("塑壳断路器" if any(k in incomer_spec for k in ["MCCB", "100A", "160A", "250A"]) else "微型断路器")
-            u_p, _, _ = calculate_component_unit_price(incomer_spec, brand="施耐德")
-            u_p = round(max(u_p, 86.50), 2)
-            vals_inc = [item_seq, incomer_name, incomer_spec, "只", 1, u_p, u_p, "施耐德电气", ""]
+            spec_brand = identify_brand(incomer_spec)
+            use_brand = spec_brand if spec_brand != "通用/国标" else (target_brand or "正泰")
+            u_p, source, basis = calculate_component_unit_price(incomer_spec, brand=use_brand)
+            u_p = round(u_p, 2)
+            remark = basis if source != "EXACT" else ""
+            vals_inc = [item_seq, incomer_name, incomer_spec, "只", 1, u_p, u_p, use_brand, remark]
         box_items_subtotal += float(vals_inc[6])
         for j, v in enumerate(vals_inc, start=1):
             cell = ws_detail.cell(row=curr_d, column=j, value=v)
@@ -765,7 +770,7 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
             brk = getattr(cir, "breaker", "") if hasattr(cir, "breaker") else str(cir.get("breaker", ""))
             # 宁可标疑、不许编造：断路器规格缺失时标"待确认"、单价计0，不走下限价
             if not brk or brk == "-":
-                c_vals = [item_seq, "断路器（待确认）", "待确认", "只", 1, 0.0, 0.0, "待确认", ""]
+                c_vals = [item_seq, "断路器（待确认）", "待确认", "只", 1, 0.0, 0.0, "待确认", "待补充规格型号"]
             else:
                 if any(k in brk.upper() for k in ["LE", "VM", "RCBO", "ELE", "30MA", "漏电"]):
                     dev_name = "微型漏电断路器"
@@ -774,9 +779,12 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
                 else:
                     dev_name = "微型断路器"
 
-                u_p, _, _ = calculate_component_unit_price(brk, brand="施耐德")
-                u_p = round(max(u_p, 15.08), 2)
-                c_vals = [item_seq, dev_name, brk, "只", 1, u_p, u_p, "施耐德电气", ""]
+                spec_brand = identify_brand(brk)
+                use_brand = spec_brand if spec_brand != "通用/国标" else (target_brand or "正泰")
+                u_p, source, basis = calculate_component_unit_price(brk, brand=use_brand)
+                u_p = round(u_p, 2)
+                remark = basis if source != "EXACT" else ""
+                c_vals = [item_seq, dev_name, brk, "只", 1, u_p, u_p, use_brand, remark]
             box_items_subtotal += float(c_vals[6])
             for j, v in enumerate(c_vals, start=1):
                 cell = ws_detail.cell(row=curr_d, column=j, value=v)
@@ -789,18 +797,21 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
             curr_d += 1
             item_seq += 1
 
-        # C. 箱内电涌保护器 SPD：仅真实检出时才写行，未检出整行不写（不编造、不系统性加项）
+        # C. 箱内电涌保护器 SPD：仅真实检出时才写行，未检出整行不写（不编造、不系统性加项，禁止将 DZ47 误判为 SPD）
         spd_comp = None
         for cp in b_comps:
             c_spec = getattr(cp, "spec", "") if hasattr(cp, "spec") else str(cp.get("spec", ""))
-            if "SPD" in c_spec.upper() or "浪涌" in c_spec or "DZ47" in c_spec:
+            if "SPD" in c_spec.upper() or "浪涌" in c_spec or "防雷" in c_spec or "避雷" in c_spec:
                 spd_comp = cp
                 break
         if spd_comp:
             spd_spec = getattr(spd_comp, "spec", "") if hasattr(spd_comp, "spec") else str(spd_comp.get("spec", ""))
-            spd_u_p, _, _ = calculate_component_unit_price(spd_spec, brand="施耐德")
+            spec_brand = identify_brand(spd_spec)
+            use_brand = spec_brand if spec_brand != "通用/国标" else (target_brand or "正泰")
+            spd_u_p, source, basis = calculate_component_unit_price(spd_spec, brand=use_brand)
             spd_u_p = round(spd_u_p, 2)
-            vals_spd = [item_seq, "电涌保护器", spd_spec, "只", 1, spd_u_p, spd_u_p, "待确认", ""]
+            remark = basis if source != "EXACT" else ""
+            vals_spd = [item_seq, "电涌保护器", spd_spec, "只", 1, spd_u_p, spd_u_p, use_brand, remark]
             box_items_subtotal += float(vals_spd[6])
             for j, v in enumerate(vals_spd, start=1):
                 cell = ws_detail.cell(row=curr_d, column=j, value=v)
@@ -815,9 +826,9 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
 
         # D. 壳体外壳
         b_box_dict = b.model_dump() if hasattr(b, "model_dump") else (b if isinstance(b, dict) else vars(b))
-        enclosure_p, _ = estimate_box_enclosure_price(b_box_dict, len(b_circuits))
-        enclosure_p = round(max(enclosure_p, 457.06), 2)
-        vals_shell = [item_seq, "壳体", size if size and size != '-' else "标准配电箱外壳", "台", 1, enclosure_p, enclosure_p, "成套定制", ""]
+        enclosure_p, enc_basis = estimate_box_enclosure_price(b_box_dict, len(b_circuits))
+        enclosure_p = round(enclosure_p, 2)
+        vals_shell = [item_seq, "壳体", size if size and size != '-' else "标准配电箱外壳", "台", 1, enclosure_p, enclosure_p, "成套定制", enc_basis or ""]
         box_items_subtotal += float(vals_shell[6])
         for j, v in enumerate(vals_shell, start=1):
             cell = ws_detail.cell(row=curr_d, column=j, value=v)
@@ -1000,7 +1011,8 @@ def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
         qty = getattr(b, "quantity", 1) if hasattr(b, "quantity") else (b.get("quantity", 1) or 1)
         qty_num = int(qty) if float(qty) == int(qty) else qty
 
-        box_model = size if size and size != "-" else ("GGD(落地)" if "落地" in install or "总箱" in name else "")
+        # 宁可留空、不许编造：图纸未标明柜型尺寸时严禁脑补为 GGD(落地)
+        box_model = str(size).strip() if size and str(size).strip() and str(size).strip() != "-" else ""
 
         # 序号：带超链接直达分项表对应卡片
         seq_val = seq_base + (i - 1)
@@ -1363,7 +1375,7 @@ def build_workbook(result: ExtractionResult, subtitle: str, out_path: str,
         wb = _blank_workbook()
 
     if layout == "3_sheets" and not template:
-        _fill_three_sheets(wb, result, subtitle, bidder=bidder, owner=owner)
+        _fill_three_sheets(wb, result, subtitle, bidder=bidder, owner=owner, target_brand=target_brand or "正泰")
         if getattr(result, "reconciliation", None) and result.reconciliation.has_catalog:
             _fill_reconciliation_sheet(wb, result.reconciliation, result.title, subtitle)
     else:
