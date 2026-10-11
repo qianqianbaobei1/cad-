@@ -27,8 +27,41 @@ PANEL_PREFIX_PATTERN = _CATALOG["panel_prefix_pattern"]
 _CAD_DOMAIN = _domain()["cad"]
 
 
+_NOISE_PANEL_CODE = re.compile(
+    r"^(DN\d+|(\d+)?MM2?|RG\d+|SCB?\d*|KVA\d*)$",
+    re.IGNORECASE,
+)
+
+
+def _is_noise_panel_code(code: str) -> bool:
+    """管径/线径/灯具危险等级等不是配电箱号。"""
+    nc = normalize_code(code)
+    return bool(nc) and bool(_NOISE_PANEL_CODE.match(nc))
+
+
+def _is_noise_catalog_text(text: str) -> bool:
+    """设计说明/材料注记不是图纸目录或平面范围声明。"""
+    t = (text or "").strip()
+    if not t:
+        return True
+    if re.search(
+        r"管径|孔径|间距|长度|宽度|变压器|kVA|KVA|SCZB|"
+        r"不应|应符合|选用|也可以|灯具|铝导体|铜导体|视看距离",
+        t,
+    ):
+        return True
+    # 编号说明长句：2.道路照明由… / （5）儿童及青少年…
+    if re.match(r"^[(（]?\d+[)）．、.\s]", t) and len(t) > 28:
+        return True
+    if len(t) > 90 and not re.search(r"系统图|图纸目录|一览|配电箱|配电柜", t):
+        return True
+    return False
+
+
 def _accept_panel_code(code: str) -> bool:
     """与箱体提取同一词法：过不了 extract_panel_code 的就不是目录里的箱号。"""
+    if _is_noise_panel_code(code):
+        return False
     got = extract_panel_code(code)
     return bool(got) and normalize_code(got) == normalize_code(code)
 
@@ -47,6 +80,98 @@ def _is_schedule_line(text: str, declared: list[str]) -> bool:
         return True
     cues = list(_CAD_DOMAIN.get("unit_caption_suffix") or []) + list(_CAD_DOMAIN.get("system_keywords_include") or [])
     return any(cue and cue in text for cue in cues)
+
+
+def _title_markers() -> list[str]:
+    markers: list[str] = []
+    for key in ("system_title_markers", "plan_title_markers", "system_keywords_include", "system_keywords_exclude"):
+        markers.extend(list(_CAD_DOMAIN.get(key) or []))
+    # 稳定去重保序
+    seen: set[str] = set()
+    out: list[str] = []
+    for m in markers:
+        if m and m not in seen:
+            seen.add(m)
+            out.append(m)
+    return out
+
+
+def _is_bare_sheet_title(text: str, declared: list[str]) -> bool:
+    """图幅标题如「00AL01道路照明系统图」不是「目录声明了箱 00AL01」。
+
+    特征：全文只声明 1 个箱号，去掉该号后剩余几乎全是图名关键词（系统图/平面图等），
+    且不含箱体后缀（配电箱/控制箱…）与范围符。
+    """
+    if len(declared) != 1:
+        return False
+    if re.search(r"[~～至到]", text):
+        return False
+    suffixes = list(_CAD_DOMAIN.get("unit_caption_suffix") or [])
+    if any(s and s in text for s in suffixes):
+        return False
+    code = declared[0]
+    # 允许代号紧贴图名：00AL01道路照明系统图 / 00AL01 道路照明系统图
+    rest = re.sub(rf"^{re.escape(code)}\s*", "", text.strip(), count=1, flags=re.IGNORECASE)
+    rest = rest.strip(" \t-_./（）()【】[]")
+    if not rest:
+        return True
+    markers = _title_markers()
+    hit = [m for m in markers if m and m in rest]
+    if not hit:
+        return False
+    stripped = rest
+    for m in sorted(hit, key=len, reverse=True):
+        stripped = stripped.replace(m, "")
+    stripped = re.sub(r"[\s\-_/（）()【】\[\]一二三四五六七八九十\d]+", "", stripped)
+    # 剩余若无拉丁字母（不再含箱号词法），视为纯中文图名描述，如「道路照明」
+    if not stripped:
+        return True
+    return not re.search(r"[A-Za-z]", stripped)
+
+
+def _looks_like_plan_or_schedule(sheet_no: str, sheet_title: str, kind: str) -> bool:
+    """平面图/表栏/范围声明：对账缺失不得升为 system_unit_missing ERROR。"""
+    if kind == "range_annotation":
+        return True
+    blob = f"{sheet_no} {sheet_title}"
+    plan_markers = list(_CAD_DOMAIN.get("plan_title_markers") or [])
+    if any(m and m in blob for m in plan_markers):
+        return True
+    soft = ("一览", "表栏", "监控", "平面", "布置", "材料汇总", "设备表", "箱柜表")
+    return any(m in blob for m in soft)
+
+
+def classify_deficit_kind(kind: str, sheet_no: str = "", sheet_title: str = "") -> str:
+    """缺失项分类：system_unit_missing | plan_or_schedule_declared。"""
+    if _looks_like_plan_or_schedule(sheet_no, sheet_title, kind or ""):
+        return "plan_or_schedule_declared"
+    return "system_unit_missing"
+
+
+def _panels_key(panels: Iterable[str]) -> tuple[str, ...]:
+    return tuple(sorted({normalize_code(c) for c in panels if c and str(c).strip()}))
+
+
+def collect_catalog_items(texts: Iterable[str]) -> list[CatalogItem]:
+    """从 CAD/OCR 文字收集目录项：parse + harvest，按声明箱号集合去重。"""
+    items: list[CatalogItem] = []
+    seen: set[tuple[str, ...]] = set()
+    for raw in texts or []:
+        text = (raw or "").strip()
+        if not text:
+            continue
+        parsed = DrawingCatalogReconciler.parse_catalog_line(text)
+        if parsed and parsed.declared_panels:
+            key = _panels_key(parsed.declared_panels)
+            if key and key not in seen:
+                seen.add(key)
+                items.append(parsed)
+    for item in harvest_range_annotations(texts):
+        key = _panels_key(item.declared_panels)
+        if key and key not in seen:
+            seen.add(key)
+            items.append(item)
+    return items
 
 
 def expand_panel_range(text: str) -> list[str]:
@@ -150,6 +275,8 @@ def harvest_range_annotations(texts: Iterable[str]) -> list[CatalogItem]:
             continue
         if not re.search(r"[~～至到]", text):
             continue
+        if _is_noise_catalog_text(text):
+            continue
         # 说明长句里的范围不是目录
         if any(m in text for m in ("详见", "应符合", "不得", "采用", "敷设")):
             continue
@@ -202,6 +329,8 @@ class DrawingCatalogReconciler:
         if not line or not line.strip():
             return None
         text = line.strip()
+        if _is_noise_catalog_text(text):
+            return None
 
         # 过滤纯表头
         if any(h in text for h in ("图纸目录", "序号", "图名", "图幅", "版本", "设计阶段", "比例")):
@@ -219,13 +348,18 @@ class DrawingCatalogReconciler:
             sheet_title = m_no.group(2).strip()
 
         # 提取所声明的配电箱范围。孤立代号不是目录漏项。
-        declared = expand_panel_range(sheet_title)
+        declared = expand_panel_range(sheet_title if sheet_no else text)
+        if not declared:
+            declared = expand_panel_range(text)
         if (not declared and sheet_no and _accept_panel_code(sheet_no)
                 and _is_schedule_line(text, [normalize_code(sheet_no)])):
             declared = [normalize_code(sheet_no)]
         if declared and not _is_schedule_line(text, declared):
             declared = []
         if not declared:
+            return None
+        # 图幅标题「00AL01道路照明系统图」不是箱号目录声明
+        if _is_bare_sheet_title(text, declared):
             return None
 
         # 带图号/系统图字样 → 图纸目录；纯范围表达式 → 平面/表栏范围声明
@@ -235,6 +369,14 @@ class DrawingCatalogReconciler:
             kind = "range_annotation"
         else:
             kind = "caption"
+        # 平面/表栏图名即使带了图号，也按范围声明对待（避免升 ERROR）
+        if kind == "sheet_catalog" and _looks_like_plan_or_schedule(sheet_no, sheet_title, kind):
+            # 仍保留 sheet_catalog 语义，但 note 标明平面；deficit 在 reconcile 时分类
+            note = "平面/表栏目录行，缺失不视为系统图漏切"
+        elif kind == "range_annotation":
+            note = "平面/表栏范围声明，展开后参与对账"
+        else:
+            note = ""
         return CatalogItem(
             sheet_no=sheet_no,
             sheet_title=sheet_title,
@@ -243,7 +385,7 @@ class DrawingCatalogReconciler:
             missing_panels=list(declared),
             status="COVERED" if not declared else "MISSING",
             declaration_kind=kind,
-            note="" if kind != "range_annotation" else "平面/表栏范围声明，展开后参与对账",
+            note=note,
         )
 
     @classmethod
@@ -328,10 +470,13 @@ class DrawingCatalogReconciler:
 
             note = item.note or ""
             kind = getattr(item, "declaration_kind", "") or ""
-            if item_missing and kind == "range_annotation":
-                note = "目录声明、图面未切出单元"
-            elif item_missing and not note:
-                note = "目录声明箱号在本次提取中未命中"
+            deficit = ""
+            if item_missing:
+                deficit = classify_deficit_kind(kind, item.sheet_no, item.sheet_title)
+                if deficit == "plan_or_schedule_declared":
+                    note = "目录声明、图面未切出单元"
+                elif not note:
+                    note = "目录声明箱号在本次提取中未命中"
             updated_item = CatalogItem(
                 sheet_no=item.sheet_no,
                 sheet_title=item.sheet_title,
@@ -340,6 +485,7 @@ class DrawingCatalogReconciler:
                 missing_panels=item_missing,
                 status=item_status,
                 declaration_kind=kind,
+                deficit_kind=deficit,
                 note=note,
             )
             processed_items.append(updated_item)
@@ -348,6 +494,20 @@ class DrawingCatalogReconciler:
         covered_count = len(covered_set)
         missing_count = len(missing_set)
         coverage_rate = (covered_count / total_count) if total_count > 0 else 1.0
+
+        system_missing: set[str] = set()
+        plan_missing: set[str] = set()
+        for it in processed_items:
+            for code in it.missing_panels or []:
+                nc = normalize_code(code)
+                if not nc:
+                    continue
+                if (it.deficit_kind or "") == "plan_or_schedule_declared":
+                    plan_missing.add(nc)
+                elif (it.deficit_kind or "") == "system_unit_missing":
+                    system_missing.add(nc)
+        # 同一箱号若同时被系统图与平面声明：优先算系统图缺失
+        plan_missing -= system_missing
 
         return CatalogReconciliation(
             has_catalog=bool(catalog_items),
@@ -358,6 +518,8 @@ class DrawingCatalogReconciler:
             coverage_rate=round(coverage_rate, 4),
             items=processed_items,
             missing_box_codes=sorted(list(missing_set)),
+            system_unit_missing_count=len(system_missing),
+            plan_or_schedule_declared_count=len(plan_missing),
         )
 
     @classmethod
@@ -365,62 +527,66 @@ class DrawingCatalogReconciler:
         cls,
         reconciliation: CatalogReconciliation,
     ) -> list[Uncertainty]:
-        """根据对账结果生成 ERROR 级或 WARNING 级待核对项。"""
+        """根据对账结果生成待核对项。
+
+        - system_unit_missing → ERROR（整幅）/ WARNING（部分）
+        - plan_or_schedule_declared → WARNING（整幅）/ INFO（部分），绝不升 ERROR
+        """
         issues: list[Uncertainty] = []
         if not reconciliation.has_catalog or reconciliation.missing_count == 0:
             return issues
 
         for item in reconciliation.items:
-            if item.status == "MISSING" and item.missing_panels:
-                sample = ", ".join(item.missing_panels[:5])
-                count = len(item.missing_panels)
-                suffix = f" 等共 {count} 台" if count > 5 else f" (共 {count} 台)"
-                kind = getattr(item, "declaration_kind", "") or ""
-                if kind == "range_annotation":
+            if not item.missing_panels or item.status not in ("MISSING", "PARTIAL"):
+                continue
+            sample = ", ".join(item.missing_panels[:5])
+            count = len(item.missing_panels)
+            suffix = f" 等共 {count} 台" if count > 5 else f" (共 {count} 台)"
+            deficit = getattr(item, "deficit_kind", "") or classify_deficit_kind(
+                getattr(item, "declaration_kind", "") or "",
+                item.sheet_no,
+                item.sheet_title,
+            )
+            if deficit == "plan_or_schedule_declared":
+                if item.status == "MISSING":
                     detail = (
-                        f"【目录声明、图面未切出单元】图面范围声明 "
-                        f"《{item.sheet_title}》展开为配电箱 [{sample}{suffix}]，"
+                        f"【plan_or_schedule_declared】【目录声明、图面未切出单元】"
+                        f"平面/表栏范围声明《{item.sheet_title}》展开为配电箱 [{sample}{suffix}]，"
                         f"但未切出对应单元块（多为平面标注/监控表栏，并非独立系统图）。"
                         f"请人工确认是否另有系统图，勿当作已扒量。"
                     )
                     sev = "WARNING"
                 else:
                     detail = (
-                        f"【范围缺失】图纸目录声明图幅 {item.sheet_no or '(未标图号)'} "
+                        f"【plan_or_schedule_declared】【目录声明、图面未切出单元】"
+                        f"范围声明《{item.sheet_title}》中 [{sample}{suffix}] 未切出单元块，"
+                        f"请人工核对（勿当作已扒量）"
+                    )
+                    sev = "INFO"
+            else:
+                # system_unit_missing
+                if item.status == "MISSING":
+                    detail = (
+                        f"【system_unit_missing】【范围缺失】图纸目录声明图幅 "
+                        f"{item.sheet_no or '(未标图号)'} "
                         f"《{item.sheet_title}》包含配电箱 [{sample}{suffix}]，"
                         f"但在本次提取中全未找到！疑似系统图图幅漏传或未纳入切片范围，请核对补传！"
                     )
                     sev = "ERROR"
-                issues.append(
-                    Uncertainty(
-                        location="图纸目录对账",
-                        detail=detail,
-                        severity=sev,
-                        source="program",
-                    )
-                )
-            elif item.status == "PARTIAL" and item.missing_panels:
-                sample = ", ".join(item.missing_panels[:5])
-                count = len(item.missing_panels)
-                suffix = f" 等共 {count} 台" if count > 5 else f" (共 {count} 台)"
-                kind = getattr(item, "declaration_kind", "") or ""
-                if kind == "range_annotation":
-                    detail = (
-                        f"【目录声明、图面未切出单元】范围声明《{item.sheet_title}》中 "
-                        f"[{sample}{suffix}] 未切出单元块，请人工核对（勿当作已扒量）"
-                    )
                 else:
                     detail = (
-                        f"【部分缺失】图纸目录声明图幅 {item.sheet_no or ''} "
+                        f"【system_unit_missing】【部分缺失】图纸目录声明图幅 "
+                        f"{item.sheet_no or ''} "
                         f"《{item.sheet_title}》中部分配电箱 [{sample}{suffix}] 未提取到，请核对图纸局部"
                     )
-                issues.append(
-                    Uncertainty(
-                        location="图纸目录对账",
-                        detail=detail,
-                        severity="WARNING",
-                        source="program",
-                    )
+                    sev = "WARNING"
+            issues.append(
+                Uncertainty(
+                    location="图纸目录对账",
+                    detail=detail,
+                    severity=sev,
+                    source="program",
                 )
+            )
 
         return issues

@@ -143,7 +143,11 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
         jx_issue = [i for i in issues if "01B-03" in i.detail][0]
         self.assertEqual(jx_issue.severity, "ERROR")
         self.assertIn("【范围缺失】", jx_issue.detail)
+        self.assertIn("【system_unit_missing】", jx_issue.detail)
         self.assertIn("JX1", jx_issue.detail)
+        jx_item = [it for it in recon.items if it.sheet_no == "01B-03"][0]
+        self.assertEqual(jx_item.deficit_kind, "system_unit_missing")
+        self.assertGreaterEqual(recon.system_unit_missing_count, 21)
 
     def test_field_evidence_policy(self):
         """验证字段级证据政策：严禁关键字段纯 MODEL_INFERENCE 编造。"""
@@ -757,9 +761,76 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
         self.assertTrue(range_issues)
 
         self.assertTrue(all(u.severity == "WARNING" for u in range_issues))
+        self.assertTrue(all("【plan_or_schedule_declared】" in (u.detail or "") for u in range_issues))
+        self.assertTrue(all(u.severity != "ERROR" for u in range_issues))
         # 管径范围不得进对账
         noisy = harvest_range_annotations(["管径DN65到DN150", "DN65~DN150"])
         self.assertEqual(noisy, [])
+
+    def test_plan_or_schedule_vs_system_unit_deficit(self):
+        """平面/表栏范围声明 vs 系统图漏单元：严重级别与 deficit_kind 必须分开。"""
+        from extractor.catalog_reconciler import (
+            collect_catalog_items,
+            DrawingCatalogReconciler,
+        )
+        from extractor.schema import Box
+
+        # 图幅标题不得假装成箱号目录
+        self.assertIsNone(DrawingCatalogReconciler.parse_catalog_line("00AL01道路照明系统图"))
+
+        texts = [
+            "路灯照明配电箱00ALZ",
+            "00AL01道路照明系统图",
+            "DQHZ01~DQHZ05",
+            "XFJK01~XFJK03",
+            "YJSS01~YJSS03",
+            "03XF01 消防联动控制箱",
+            "03ELB1 应急照明配电箱",
+            "01B-03 动力配电箱系统图(三) JX1~JX3",
+            "照明平面图 AL1~AL3",
+        ]
+        items = collect_catalog_items(texts)
+        # 范围去重：DQHZ 只出现一次
+        dqhz = [i for i in items if "DQHZ01" in i.declared_panels]
+        self.assertEqual(len(dqhz), 1)
+        self.assertEqual(dqhz[0].declaration_kind, "range_annotation")
+
+        # 命中 00ALZ / 03XF01 / 03ELB1；JX 与平面范围缺失
+        recon = DrawingCatalogReconciler.reconcile(
+            items,
+            [Box(code="00ALZ", name="路灯箱"), Box(code="03XF01", name="消控"), Box(code="03ELB1", name="应急")],
+        )
+        codes = set(recon.missing_box_codes)
+        self.assertNotIn("00AL01", codes)  # 图幅标题已剔除
+        self.assertIn("DQHZ01", codes)
+        self.assertIn("JX1", codes)
+        self.assertIn("AL1", codes)
+
+        # 分类计数
+        self.assertGreaterEqual(recon.plan_or_schedule_declared_count, 1)
+        self.assertGreaterEqual(recon.system_unit_missing_count, 1)
+
+        for it in recon.items:
+            if it.missing_panels and it.declaration_kind == "range_annotation":
+                self.assertEqual(it.deficit_kind, "plan_or_schedule_declared")
+            if it.sheet_no == "01B-03" and it.missing_panels:
+                self.assertEqual(it.deficit_kind, "system_unit_missing")
+            if "平面图" in (it.sheet_title or "") and it.missing_panels:
+                self.assertEqual(it.deficit_kind, "plan_or_schedule_declared")
+
+        issues = DrawingCatalogReconciler.generate_reconciliation_issues(recon)
+        plan_issues = [u for u in issues if "plan_or_schedule_declared" in (u.detail or "")]
+        sys_issues = [u for u in issues if "system_unit_missing" in (u.detail or "")]
+        self.assertTrue(plan_issues)
+        self.assertTrue(sys_issues)
+        self.assertTrue(all(u.severity in ("WARNING", "INFO") for u in plan_issues))
+        self.assertTrue(any(u.severity == "ERROR" for u in sys_issues))
+        # 消控真箱命中后不得出现在缺失告警里
+        for u in issues:
+            self.assertNotIn("03XF01", u.detail or "")
+            self.assertNotIn("03ELB1", u.detail or "")
+
+
 
 
 if __name__ == "__main__":

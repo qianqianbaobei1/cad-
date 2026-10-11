@@ -1396,15 +1396,26 @@ def _fill_reconciliation_sheet(wb, reconciliation, title: str, subtitle: str):
     if sheet_name in wb.sheetnames:
         del wb[sheet_name]
     ws = wb.create_sheet(sheet_name)
-    headers = ["序号", "图纸编号", "图纸名称", "目录声明箱柜", "实际覆盖提取箱柜", "缺失未提取箱柜", "对账状态"]
+    headers = ["序号", "图纸编号", "图纸名称", "目录声明箱柜", "实际覆盖提取箱柜", "缺失未提取箱柜", "对账状态", "声明类型", "缺失分类"]
     sub = (
         f"目录声明总数: {reconciliation.total_declared_panels} 台 ｜ 实际覆盖提取: {reconciliation.covered_count} 台 "
         f"｜ 缺失未提取: {reconciliation.missing_count} 台 ｜ 覆盖率: {int(reconciliation.coverage_rate * 100)}%"
+        f"｜ 系统图漏单元: {getattr(reconciliation, 'system_unit_missing_count', 0)} "
+        f"｜ 平面/表栏声明: {getattr(reconciliation, 'plan_or_schedule_declared_count', 0)}"
     )
     r = _setup(ws, f"{title}——图纸目录对账审计表", sub, headers, _COLUMNS["reconciliation"])
     items = getattr(reconciliation, "items", []) or []
     for i, item in enumerate(items, 1):
         status_text = "全部覆盖" if item.status == "COVERED" else ("整张图幅缺失" if item.status == "MISSING" else "部分覆盖")
+        kind_text = {
+            "sheet_catalog": "图纸目录",
+            "range_annotation": "平面/表栏范围",
+            "caption": "箱名声明",
+        }.get(getattr(item, "declaration_kind", "") or "", getattr(item, "declaration_kind", "") or "-")
+        deficit_text = {
+            "system_unit_missing": "系统图漏单元",
+            "plan_or_schedule_declared": "平面/表栏声明",
+        }.get(getattr(item, "deficit_kind", "") or "", getattr(item, "deficit_kind", "") or ("-" if item.status == "COVERED" else "-"))
         r = _row(
             ws, r,
             [
@@ -1415,9 +1426,11 @@ def _fill_reconciliation_sheet(wb, reconciliation, title: str, subtitle: str):
                 "、".join(item.matched_panels) if item.matched_panels else "(无覆盖)",
                 "、".join(item.missing_panels) if item.missing_panels else "(无缺失)",
                 status_text,
+                kind_text,
+                deficit_text,
             ],
             height=32,
-            center_cols=(1, 2, 7)
+            center_cols=(1, 2, 7, 8, 9)
         )
 
 
