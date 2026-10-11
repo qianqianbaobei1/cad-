@@ -1,0 +1,22 @@
+{
+  "drawing": "L8-配电系统图一",
+  "model": "cad-native",
+  "measured_on": "2026-10-10",
+  "calls": 0,
+  "score": {
+    "recognize": {
+      "recall": 0.3333,
+      "precision": 1.0
+    },
+    "split": {
+      "recall": 0.284,
+      "precision": 0.575
+    },
+    "extract": {
+      "recall": 0.0741,
+      "precision": 0.2609
+    },
+    "passed": false,
+    "misses": 108
+  }
+}

@@ -12,7 +12,7 @@ import os
 import re
 from typing import Any
 
-from .cad import _explode_texts, clean_mtext, dwg_to_dxf, load_dxf_document
+from .cad import _explode_texts, clean_mtext, load_dxf_document, resolve_dwg_dxf
 from .cad_ledger import entity_source, sha256_file, source_key
 from .panel_release import UNCONFIRMED_QTY_NOTE, UNCONFIRMED_QTY_WARNING
 from .schema import (
@@ -53,6 +53,9 @@ RE_DISALLOWED_PREFIXES = re.compile(_B["disallowed_prefixes_regex"], re.I)
 RE_ENGINEERING_UNIT = re.compile(_V["engineering_unit_regex"], re.I)
 RE_NATIONAL_ATLAS = re.compile(_V["national_atlas_regex"], re.I)
 CIRCUIT_NO_MAX_DIGITS = int(_V["circuit_no_max_digits"])
+# 变频柜出线 D01、控制线 D01-C1、风机就地按钮 K1-1、负荷 P(S)-1。
+# 不写进通用回路号正则，避免把 C01 这种柜号收成回路。
+_BRANCH_CIRCUIT_NO = re.compile(r"^(?:D\d{2}(?:-C\d+)?|K\d+-\d+|P\(S\)-\d+)$", re.I)
 
 # 电压/频率/功率这类工程量单独成文时不是箱号，按配置正则排除（可按项目补规则，不改代码）
 NON_PANEL_TOKEN_RES = [re.compile(pattern, re.I) for pattern in _V.get("non_panel_token_regexes", [])]
@@ -114,6 +117,11 @@ def _token_is_device_rating(token: str) -> bool:
     return any(_AMP_SEG_RE.match(part) for part in parts)
 
 
+def _text_is_circuit_anchor(text: str) -> bool:
+    raw = (text or "").strip()
+    return bool(RE_CIRCUIT_NO.match(raw) or _BRANCH_CIRCUIT_NO.match(raw))
+
+
 def _token_rejected(token: str) -> bool:
     if not re.search(r"[A-Za-z]", token):
         return True
@@ -124,7 +132,7 @@ def _token_rejected(token: str) -> bool:
         return True
     if RE_NATIONAL_ATLAS.match(token) or RE_ENGINEERING_UNIT.match(token):
         return True
-    if RE_PHASE.match(token) or RE_CIRCUIT_NO.match(token):
+    if RE_PHASE.match(token) or _text_is_circuit_anchor(token):
         return True
     parts = [part for part in re.split(r"[-/]", token) if part]
     if any(pattern.match(token) or any(pattern.match(part) for part in parts) for pattern in NON_PANEL_TOKEN_RES):
@@ -145,9 +153,14 @@ def _token_rejected(token: str) -> bool:
 
 
 def _segment_is_panel_core(part: str) -> bool:
-    """一段里要有至少两个字母再夹着数字，或单字母加至少两位数字（C01）。"""
-    if re.fullmatch(r"[A-Z]\d{2,}", part, re.I):
+    """一段里要有至少两个字母再夹着数字，或单字母加正好两位数字（C01）。
+
+    单字母加三位以上（A116）和两位字母加三位以上（PK306）是房间号。
+    """
+    if re.fullmatch(r"[A-Z]\d{2}", part, re.I):
         return True
+    if re.fullmatch(r"[A-Z]\d{3,}", part, re.I) or re.fullmatch(r"[A-Z]{2}\d{3,}", part, re.I):
+        return False
     return bool(re.search(r"[A-Z]{2,}", part, re.I) and re.search(r"\d", part))
 
 
@@ -313,6 +326,10 @@ def _text_is_breaker(text: str) -> bool:
     """整段就是箱号时不是开关。B1-AL2 这类编号开头的字母数字不是极数。"""
     if not text or _looks_like_cable(text) or _exact_feed_code(text) or _is_breaker_legend(text):
         return False
+    if re.fullmatch(r"[CDB]\d{1,3}类", text.strip()):
+        return False
+    if re.fullmatch(r"\d+[xX×]\d+(?:\.\d+)?A", text.strip(), re.I):
+        return True
     return bool(RE_BREAKER.search(text) or RE_BREAKER_FALLBACK.search(text))
 
 
@@ -471,10 +488,20 @@ def _specific_caption(text: str) -> str:
         return ""
     clean = str(text).replace("系统图", "")
     alt = "|".join(re.escape(suffix) for suffix in sorted(suffixes, key=len, reverse=True))
-    found = re.findall(rf"[\u4e00-\u9fa5]+(?:{alt})", clean)
+    found = re.findall(rf"[A-Za-z]?[\u4e00-\u9fa5]+(?:{alt})", clean)
     if not found:
         return ""
     name = max(found, key=len)
+    # 「02PBsgfj事故风机配电箱」里的 j 是箱号末尾，不是箱名。
+    at = clean.find(name)
+    if at > 0 and name[:1].isascii() and name[:1].isalpha() and clean[at - 1].isascii() and clean[at - 1].isalpha():
+        name = name[1:]
+        at += 1
+    # 「配电总箱1」的序号贴在后缀后面。
+    if at >= 0:
+        tail = re.match(r"\d+", clean[at + len(name):])
+        if tail:
+            name += tail.group(0)
     # 说明句子里顺带写到的箱名带着敷设动词，名称格不会这样写。
     route_marks = tuple(_D.get("caption_route_marks") or ())
     prefix = name
@@ -492,9 +519,9 @@ def _specific_caption(text: str) -> str:
 _QTY_HEADER = (
     re.compile(r"共\s*(\d+)\s*台"),
     re.compile(r"(?<!第)(\d+)\s*台"),
-    re.compile(r"(?<![A-Za-z0-9])[×xX]\s*(\d+)(?![A-Za-z0-9])"),
+    re.compile(r"(?<![A-Za-z0-9])[×x]\s*(\d+)(?![A-Za-z0-9])"),
 )
-_QTY_NEARBY = re.compile(r"共(\d+)台|[×xX](\d+)")
+_QTY_NEARBY = re.compile(r"共(\d+)台|[×x](\d+)")
 
 
 def _positive_quantity(raw: str | None) -> int | None:
@@ -556,25 +583,47 @@ def _extract_box_metadata(header_text: str, nearby_texts: list[tuple]) -> dict[s
         if hits:
             meta["name"] = max(hits, key=len)
 
+    def _install_phrase(text: str) -> str:
+        raw = re.sub(r"\s+", " ", (text or "").strip())
+        # 短注记整行留下，例如「落地式 抬高300mm」「壁挂式 中心距地1.0m」。
+        for head in ("挂墙明装", "壁挂式安装", "嵌墙安装", "落地安装", "壁挂式", "落地式", "明装"):
+            if raw.startswith(head) and len(raw) <= 24:
+                return raw
+        if "挂墙明装" in raw:
+            return "挂墙明装"
+        if "壁挂式安装" in raw:
+            return "壁挂式安装"
+        if "嵌墙安装" in raw or "暗装" in raw:
+            return "嵌墙安装"
+        if "壁挂式" in raw:
+            return "壁挂式"
+        if "落地安装" in raw:
+            return "落地安装"
+        if "落地式" in raw:
+            return "落地式"
+        if "明装" in raw:
+            return "明装"
+        return ""
+
+    # 标题里写明的安装方式优先。旁边另一台箱的「壁挂」不能盖过来。
+    header_install = _install_phrase(header_text)
+    if header_install:
+        meta["install"] = header_install
     # 扫描周边文字
     for item in nearby_texts:
         t = item[0]
-        if any(k in t for k in ["嵌墙安装", "暗装"]):
-            meta["install"] = "嵌墙安装"
-        elif any(k in t for k in ["壁挂式", "明装"]):
-            meta["install"] = "壁挂式"
-        elif any(k in t for k in ["落地式", "落地安装"]):
-            meta["install"] = "落地式"
+        phrase = _install_phrase(t)
+        if not meta["install"]:
+            meta["install"] = phrase
+        elif phrase.startswith(meta["install"]) and len(phrase) > len(meta["install"]):
+            meta["install"] = phrase
 
-        # 优先匹配真实物理尺寸 (如 800x600x200 或 600*400*160)
+        # 尺寸只留数字。XXM、GGD 这类壳架系列不是外形尺寸。
         m_dim = re.search(r"\b\d{2,4}\s*[xX*×]\s*\d{2,4}(?:\s*[xX*×]\s*\d{2,4})?\b", t)
         if m_dim and not meta["size"]:
             meta["size"] = m_dim.group(0).replace(" ", "")
-        elif any(m in t for m in ["XRM", "JXF", "GGD", "XXM", "PZ30"]):
-            for m in ["XRM", "JXF", "GGD", "XXM", "PZ30"]:
-                if m in t and not meta["size"]:
-                    meta["size"] = m
-                    break
+        elif t.strip().upper() in {"XRM", "JXF", "GGD", "XXM", "PZ30"} and not meta["size"]:
+            meta["size"] = t.strip().upper()
 
         m_ip = re.search(r"IP\d{1,2}[A-Za-z]?", t, re.I)
         if m_ip:
@@ -662,23 +711,7 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
     source_path = dxf_or_doc if isinstance(dxf_or_doc, str) else ""
     if isinstance(dxf_or_doc, str):
         if dxf_or_doc.lower().endswith(".dwg"):
-            work_dir = os.path.dirname(dxf_or_doc)
-            base_name = os.path.splitext(os.path.basename(dxf_or_doc))[0]
-            cache_dir = os.path.join(work_dir, ".cad_cache")
-            os.makedirs(cache_dir, exist_ok=True)
-            import hashlib
-            file_size = os.path.getsize(dxf_or_doc) if os.path.exists(dxf_or_doc) else 0
-            cache_key = hashlib.md5(f"{base_name}_{file_size}".encode()).hexdigest()
-            hash_dxf = os.path.join(cache_dir, f"{cache_key}.dxf")
-            named_dxf = os.path.join(cache_dir, f"{base_name}.dxf")
-            if os.path.exists(hash_dxf) and os.path.getsize(hash_dxf) > 0:
-                cached_dxf = hash_dxf
-            elif os.path.exists(named_dxf) and os.path.getsize(named_dxf) > 0:
-                cached_dxf = named_dxf
-            else:
-                cached_dxf = hash_dxf
-                dwg_to_dxf(dxf_or_doc, cached_dxf)
-            dxf_or_doc = cached_dxf
+            dxf_or_doc = resolve_dwg_dxf(dxf_or_doc)
         doc = load_dxf_document(dxf_or_doc)
     else:
         doc = dxf_or_doc
@@ -758,7 +791,7 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
              else float(_CAD_CONFIG["circuit_scale_basis_height"]))
     base_h = max(med_h, 1.0)
     scale_factor = base_h / float(_CAD_CONFIG["circuit_scale_basis_height"])
-    header_h_threshold = base_h * 1.15
+    header_h_threshold = base_h * 2.5
     row_dy = base_h * float(_CAD_CONFIG.get("header_row_dy_heights", 1.2))
     caption_dx = base_h * float(_CAD_CONFIG.get("header_caption_dx_heights", 40))
     field_dx = base_h * float(_CAD_CONFIG.get("header_field_scan_dx_heights", 30))
@@ -977,11 +1010,12 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
     bridge_gap = base_h * float(_CAD_CONFIG.get("text_cluster_bridge_heights", 16))
     points = [(x, y) for _, x, y, _ in all_texts]
     cluster_of = _cluster_ids(points, cluster_gap)
-    is_circuit = [bool(RE_CIRCUIT_NO.match(text)) for text, *_rest in all_texts]
+    is_circuit = [_text_is_circuit_anchor(text) for text, *_rest in all_texts]
     is_panel = []
     for text, *_rest in all_texts:
         code = extract_panel_code(text)
-        is_panel.append(bool(code) and text.strip().upper() == code)
+        head = re.split(r"[:：]", text, maxsplit=1)[0]
+        is_panel.append(bool(code) and _text_leads_with_panel(head, code))
     cluster_of = _bridge_orphan_circuits(points, cluster_of, is_circuit, is_panel, bridge_gap)
     pos_cluster = {
         (round(x, 3), round(y, 3)): cluster_of[index]
@@ -989,8 +1023,16 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
     }
     all_circuit_anchors: list[tuple[str, float, float, int]] = []
     for index, (text, x, y, _h) in enumerate(all_texts):
-        if RE_CIRCUIT_NO.match(text):
-            all_circuit_anchors.append((text, x, y, cluster_of[index]))
+        if _text_is_circuit_anchor(text):
+            all_circuit_anchors.append((text.strip(), x, y, cluster_of[index]))
+    # 回路号列上的「消防备用」「预留」也是一行。负荷列里的备用不在这条横坐标上。
+    spare_no = re.compile(r"^(?:(?:消防)?备用|预留)$")
+    column_tol = base_h * 0.8
+    for index, (text, x, y, _h) in enumerate(all_texts):
+        if not spare_no.match(text.strip()):
+            continue
+        if any(abs(x - ax) <= column_tol for _cno, ax, _ay, _cid in all_circuit_anchors):
+            all_circuit_anchors.append((text.strip(), x, y, cluster_of[index]))
     max_dx = float(_CAD_CONFIG["circuit_box_max_dx"]) * scale_factor
     max_dy = float(_CAD_CONFIG["circuit_box_max_dy"]) * scale_factor
     diagram_min = int(_CAD_CONFIG.get("diagram_min_circuit_support", 3))
@@ -1051,10 +1093,45 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
         row_y_tolerance = base_h * float(_CAD_CONFIG["circuit_row_tolerance_ratio"])
 
     # 4. 回路只在同一张图里挑最近的那一处箱号。这张图没有箱号时才在距离范围内找。
+    # 图名在回路下面时，回路归下面那台，即使上面一台的图名更近。
+    # 图名在柜顶时，近旁文字向下展开，回路归这台，不归下面一台。
     dx_weight = float(_CAD_CONFIG.get("circuit_dx_weight", 2.5))
+
+    def _title_owns(ox: float, oy: float) -> str:
+        """柜顶图名下面紧挨着开关，柜底图名上面紧挨着开关。旁边另一台的字不算。"""
+        span = base_h * 8
+        band = base_h * 50
+
+        def _near(x: float, y: float) -> bool:
+            return abs(x - ox) <= band and abs(y - oy) <= span
+
+        above = below = 0
+        ys: list[float] = []
+        for text, x, y, _h in all_texts:
+            if not _near(x, y):
+                continue
+            ys.append(y)
+            if y > oy + base_h and (_text_is_circuit_anchor(text) or _text_is_breaker(text)):
+                above += 1
+            elif y < oy - base_h and (_text_is_circuit_anchor(text) or _text_is_breaker(text)):
+                below += 1
+        if not ys:
+            return ""
+        if below and not above and max(ys) - oy < base_h * 4:
+            return "down"
+        if above and not below and oy - min(ys) < base_h * 4:
+            return "up"
+        return ""
+
+    title_own = {
+        index: _title_owns(occ[2], occ[3])
+        for index, occ in enumerate(occurrences)
+    }
     owned: dict[str, list[tuple[str, float, float]]] = defaultdict(list)
     for cno, cx, cy, ccid in all_circuit_anchors:
         pool = occ_by_cluster.get(ccid) or range(len(occurrences))
+        best_below = None
+        best_header = None
         best_dist = float("inf")
         best_index = None
         for index in pool:
@@ -1064,11 +1141,25 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
             if abs(dx) > max_dx or abs(dy) > max_dy:
                 continue
             dist = (dx * dx_weight) ** 2 + dy ** 2
+            # 柜顶图名：回路在它下面，而且比「图名在回路下面」的那一处更近。
+            owns = title_own.get(index) or ""
+            header = owns == "down" and (dy < -base_h or (abs(dy) <= base_h and dx > 0))
+            if header and (best_header is None or dist < best_header[0]):
+                best_header = (dist, index)
+            # 系统图的图名在回路下面，而且要隔开一行。同一行上的配出箱号不是图名。
+            if dy > base_h and (best_below is None or dist < best_below[0]):
+                best_below = (dist, index)
             if dist < best_dist:
                 best_dist = dist
                 best_index = index
-        if best_index is not None:
-            owned[occurrences[best_index][0]].append((cno, cx, cy))
+        if best_header is not None and (best_below is None or best_header[0] < best_below[0]):
+            chosen = best_header[1]
+        elif best_below is not None:
+            chosen = best_below[1]
+        else:
+            chosen = best_index
+        if chosen is not None:
+            owned[occurrences[chosen][0]].append((cno, cx, cy))
 
     def _occ_rank(item: tuple, circuits: list[tuple[str, float, float]]) -> tuple:
         title, x, y, h = item[1], item[2], item[3], item[4]
@@ -1152,15 +1243,28 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                 spd_by_code[owner].append(class_text)
 
     unrecognized_qty: list[str] = []
+    # 同一张图里已经有回路表时，通信示意图上的竖列代号不是配电箱。
+    # 整张图只有一列干线箱号时，仍按干线留下。
+    drawing_has_schedule = len(all_circuit_anchors) >= 3
     for code in sorted(best_headers.keys()):
         title, hx, hy, hh = best_headers[code]
         c_anchors = assigned_circuits[code]
 
         # 孤立代号丢掉；竖列里步距稳定的干线箱号留下来。
-        if (
-            not c_anchors
-            and code not in riser_codes
-            and not any(suffix in title for suffix in caption_suffixes)
+        # 这张图已经有回路表时，平面上只写了箱名、旁边没有回路的代号不是另一台箱。
+        has_caption = any(suffix in title for suffix in caption_suffixes)
+        # 检修箱出线没有回路号，开关就排在箱名旁边。平面图上的箱名旁边没有这列开关。
+        local_breakers = 0
+        if not c_anchors and has_caption:
+            reach = base_h * 40
+            for breaker_text, breaker_x, breaker_y, _breaker_h in all_texts:
+                if abs(breaker_x - hx) > reach or abs(breaker_y - hy) > reach:
+                    continue
+                if _text_is_breaker(breaker_text):
+                    local_breakers += 1
+        if not c_anchors and local_breakers < 3 and (
+            drawing_has_schedule
+            or (code not in riser_codes and not has_caption)
         ):
             continue
 
@@ -1197,6 +1301,21 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
 
         # 提取箱体属性元数据
         meta = _extract_box_metadata(title, panel_texts)
+        # 系统图标题只有「道路照明系统图」时，材料表里和「详系统图」写在一行的箱名仍是这台箱。
+        bare_suffixes = tuple(_D.get("unit_caption_suffix") or ())
+        if meta["name"] in ("", *bare_suffixes) and "系统图" in title:
+            legend_names: list[str] = []
+            for legend, _lx, ly, lh in all_texts:
+                if "详系统图" not in legend:
+                    continue
+                for other, _ox, oy, oh in all_texts:
+                    if abs(oy - ly) > max(base_h, lh, oh, 1.0):
+                        continue
+                    caption = _specific_caption(other)
+                    if caption and caption not in bare_suffixes and caption not in legend_names:
+                        legend_names.append(caption)
+            if len(legend_names) == 1:
+                meta["name"] = legend_names[0]
         # 离回路最近的常常只是箱号。同一箱号另一处写着的名称仍然属于这台箱。
         if not _specific_caption(meta["name"]):
             borrowed: list[str] = []
@@ -1231,13 +1350,110 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
         ])
         extracted_boxes.append(box)
 
+        # 出线没有回路号时，同一列开关各算一行。进线总开关不在这一列。
+        if not c_anchors:
+            breaker_rows = [
+                (text, x, y) for text, x, y, _h in panel_texts if _text_is_breaker(text)
+            ]
+            best_x = None
+            best_n = 0
+            for _text, x, _y in breaker_rows:
+                count = sum(1 for _t2, x2, _y2 in breaker_rows if abs(x2 - x) <= base_h * 2)
+                if count > best_n:
+                    best_n = count
+                    best_x = x
+            if best_x is not None and best_n >= 3:
+                for text, x, y in breaker_rows:
+                    if abs(x - best_x) > base_h * 2:
+                        continue
+                    beside = any(
+                        abs(oy - y) <= max(row_y_tolerance, base_h * 2)
+                        and (
+                            RE_PHASE.match(other.strip())
+                            or (
+                                any("\u4e00" <= ch <= "\u9fa5" for ch in other)
+                                and not _text_is_breaker(other)
+                                and not _looks_like_cable(other)
+                                and not _specific_caption(other)
+                            )
+                        )
+                        for other, _ox, oy, _oh in panel_texts
+                    )
+                    if beside:
+                        c_anchors.append(("", x, y))
+
         # 同一个回路号可能在干线上空标一次、在系统图里再写一次。留下旁边有电缆或开关的那一次。
         c_anchors.sort(key=lambda item: -item[2])
         # 被回路 breaker 字段实际消费的文本：SPD 收集时跳过这些，
         # 防止同一文本既进回路又进元器件造成双计
         consumed_breaker_texts: set[str] = set()
         consumed_cable_pts: set[tuple[int, int]] = set()
-        chosen_rows: dict[str, tuple[int, Circuit, str]] = {}
+        # 离回路号近的是出线开关。更远一列、隔着出线开关的是进线总开关，不挂到出线上。
+        incomer_breaker_pts: set[tuple[int, int]] = set()
+        anchor_xs = [ax for _cno, ax, _ay in c_anchors]
+        if anchor_xs:
+            breaker_pts = [
+                (x, y) for text, x, y, _h in panel_texts if _text_is_breaker(text)
+            ]
+
+            def _to_column(x: float) -> float:
+                return min(abs(x - ax) for ax in anchor_xs)
+
+            if breaker_pts:
+                nearest = min(_to_column(x) for x, _y in breaker_pts)
+                anchor_ys = [ay for _cno, _ax, ay in c_anchors]
+                row_band = max(row_y_tolerance, base_h * 2)
+                if nearest > 0:
+                    incomer_breaker_pts = {
+                        (round(x), round(y))
+                        for x, y in breaker_pts
+                        if _to_column(x) > nearest * 2.2
+                        and any(abs(y - ay) <= row_band for ay in anchor_ys)
+                    }
+        # 出线开关列上、对不齐任何回路号的一行，回路号是空的，负荷仍算一条回路。
+        if c_anchors:
+            anchor_ys = [ay for _cno, _ax, ay in c_anchors]
+            anchor_x = sorted(ax for _cno, ax, _ay in c_anchors)[len(c_anchors) // 2]
+            y_gaps = sorted(
+                abs(anchor_ys[i] - anchor_ys[i + 1])
+                for i in range(len(anchor_ys) - 1)
+                if base_h * 0.5 < abs(anchor_ys[i] - anchor_ys[i + 1]) <= base_h * 40
+            )
+            half_gap = (y_gaps[0] / 2) if y_gaps else row_y_tolerance
+            branch_on_row = [
+                x for text, x, y, _h in panel_texts
+                if _text_is_breaker(text)
+                and (round(x), round(y)) not in incomer_breaker_pts
+                and any(abs(y - ay) <= half_gap for ay in anchor_ys)
+            ]
+            if branch_on_row:
+                branch_x = sorted(branch_on_row)[len(branch_on_row) // 2]
+                for text, x, y, _h in panel_texts:
+                    if not _text_is_breaker(text):
+                        continue
+                    if (round(x), round(y)) in incomer_breaker_pts:
+                        continue
+                    if abs(x - branch_x) > base_h * 2:
+                        continue
+                    if any(abs(y - ay) <= half_gap for ay in anchor_ys):
+                        continue
+                    beside = any(
+                        abs(oy - y) <= half_gap
+                        and (
+                            RE_PHASE.match(other.strip())
+                            or (
+                                any("\u4e00" <= ch <= "\u9fa5" for ch in other)
+                                and not _text_is_breaker(other)
+                                and not _looks_like_cable(other)
+                                and not _specific_caption(other)
+                            )
+                        )
+                        for other, _ox, oy, _oh in panel_texts
+                    )
+                    if beside:
+                        c_anchors.append(("", anchor_x, y))
+                        anchor_ys.append(y)
+        chosen_rows: dict[str, list[tuple[int, Circuit, str]]] = {}
         # 贴在开关上的汉字是这只开关的附注。名称栏离开关有一整列。
         breaker_note_gap = base_h * float(_CAD_CONFIG.get("breaker_note_gap_heights", 2))
         breaker_points = [
@@ -1265,16 +1481,58 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                 return pad_x
             return min(gaps) / 2
 
+        def _same_column(anchor_x: float, other_x: float) -> bool:
+            return abs(other_x - anchor_x) <= column_x
+
         def _row_limit(anchor_x: float, anchor_y: float) -> float:
             gaps = [
                 abs(other_y - anchor_y)
                 for _cno, other_x, other_y in c_anchors
-                if abs(other_x - anchor_x) <= column_x
+                if _same_column(anchor_x, other_x)
                 and base_h * 0.5 < abs(other_y - anchor_y) <= spacing_ceiling
             ]
             if not gaps:
                 return row_y_tolerance
             return min(gaps) / 2
+
+        def _breaker_y(anchor_x: float, anchor_y: float) -> float | None:
+            hits = [
+                by for text, bx, by, _h in panel_texts
+                if _text_is_breaker(text)
+                and abs(bx - anchor_x) <= base_h * 30
+                and abs(by - anchor_y) <= _row_limit(anchor_x, anchor_y)
+            ]
+            if not hits:
+                return None
+            return max(hits)
+
+        def _in_row(text_y: float, anchor_x: float, anchor_y: float) -> bool:
+            """半行距以内仍归这一行。两行字的功率会落在下一行开关的上方，那一截仍归上一行。"""
+            if abs(text_y - anchor_y) <= baseline_slop:
+                return True
+            ups = [
+                other_y for _cno, other_x, other_y in c_anchors
+                if _same_column(anchor_x, other_x)
+                and base_h * 0.5 < other_y - anchor_y <= spacing_ceiling
+            ]
+            breaker_y = _breaker_y(anchor_x, anchor_y)
+            # 上面还有一行时，本行开关上方的字是上一行的第二行，不归这一行。
+            if ups and breaker_y is not None and text_y > breaker_y + baseline_slop:
+                return False
+            if abs(text_y - anchor_y) <= _row_limit(anchor_x, anchor_y):
+                return True
+            if text_y >= anchor_y:
+                return False
+            downs = [
+                other_y for _cno, other_x, other_y in c_anchors
+                if _same_column(anchor_x, other_x)
+                and anchor_y - spacing_ceiling <= other_y < anchor_y - base_h * 0.5
+            ]
+            if not downs:
+                return False
+            next_y = max(downs)
+            next_breaker = _breaker_y(anchor_x, next_y)
+            return next_breaker is not None and text_y > next_breaker
 
         row_of: dict[int, list] = defaultdict(list)
         for text_item in panel_texts:
@@ -1283,9 +1541,9 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
             for index, (_cno, anchor_x, anchor_y) in enumerate(c_anchors):
                 if abs(text_item[1] - anchor_x) > _col_limit(anchor_x, anchor_y, text_item[1]) or text_item[0] == _cno:
                     continue
-                dy = abs(text_item[2] - anchor_y)
-                if dy > _row_limit(anchor_x, anchor_y):
+                if not _in_row(text_item[2], anchor_x, anchor_y):
                     continue
+                dy = abs(text_item[2] - anchor_y)
                 key = (dy // baseline_slop, abs(text_item[1] - anchor_x))
                 if best_key is None or key < best_key:
                     best_key = key
@@ -1366,13 +1624,30 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                     elif not _closer_to_measure_label(x, y) and _prefer("current", dy, dx):
                         circuit.current_a = t
                 elif _looks_like_cable(t) and not _is_wire_kind_note(t):
-                    if _prefer("cable", dy, dx):
+                    # 贴着「引来」或总开关的是进线电缆，不给出线行。
+                    to_row = abs(x - ax) + abs(y - ay)
+                    nearer_upstream = any(
+                        (
+                            "引来" in other
+                            or "引入" in other
+                            or re.fullmatch(r"[A-Za-z0-9]+\s*[:：]\s*[A-Za-z0-9]+", other.strip())
+                        )
+                        and abs(ox - x) + abs(oy - y) < to_row
+                        for other, ox, oy, _oh in panel_texts
+                    )
+                    nearer_incomer = any(
+                        abs(x - bx) + abs(y - by) < to_row
+                        for bx, by in incomer_breaker_pts
+                    )
+                    if not nearer_upstream and not nearer_incomer and _prefer("cable", dy, dx):
                         circuit.cable = t
                         cable_at = (x, y)
                         consumed_cable_pts.add((round(x), round(y)))
                 elif _text_is_breaker(t):
                     # 已经落在这一行里时，取离回路号更近的开关，不让旁边一列贴基线的总开关抢走。
-                    if _prefer("breaker", 0, dx):
+                    if (round(x), round(y)) in incomer_breaker_pts:
+                        pass
+                    elif _prefer("breaker", 0, dx):
                         circuit.breaker = t
                         breaker_text = t
                         breaker_at = (x, y)
@@ -1438,6 +1713,14 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
             wrap_gap = base_h * float(_CAD_CONFIG.get("load_wrap_gap_heights", 2))
             pieces: list[tuple[str, float, float]] = []
             for t, x, y, h in band_items:
+                if re.fullmatch(r"[（(]\s*预留\s*[)）]", t.strip()):
+                    _remember_note(t.strip())
+                    continue
+                if t.strip() in {"日期", "版次", "图号", "比例", "索引图", "图签"} or "设计图" in t or re.match(r"^\d+\s*=", t.strip()):
+                    continue
+                if "引来" in t or "引入" in t or "电缆规格" in t or "详上级" in t:
+                    _remember_note(t)
+                    continue
                 if _is_wire_kind_note(t):
                     _remember_note(t)
                     continue
@@ -1492,7 +1775,9 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                 if breaker_at is not None:
                     low, high = sorted((breaker_at[0], ax))
                     if low < x < high:
-                        _remember_note(t)
+                        # 开关和回路号之间的整定值是继电器的，不是这一回的备注。
+                        if "整定" not in t and not re.match(r"BR\d", t.strip(), re.I):
+                            _remember_note(t)
                         continue
                 # 贴在另一只开关上的字是那只开关的附注。本行选中的开关旁边仍可以是负荷名。
                 if any(
@@ -1548,7 +1833,8 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
             pool = outside or load_candidates
             # 名称和功率写在同一行。另一列更贴回路号的「至…」「沿…」是去向说明。
             beside_power = []
-            if power_at is not None:
+            # 功率写在回路号下一行时，那一行上的字不是名称栏。名称仍按离回路号的距离取。
+            if power_at is not None and abs(power_at[1] - ay) <= max(baseline_slop * 2, base_h * 1.3):
                 beside_power = [item for item in pool if abs(item[2] - power_at[1]) <= baseline_slop]
             if beside_power:
                 pool = beside_power
@@ -1614,29 +1900,67 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                 circuit.phase, circuit.breaker, circuit.cable, circuit.power_kw,
                 circuit.current_a, circuit.load_name,
             ))
-            previous = chosen_rows.get(cno)
-            if score and (previous is None or score > previous[0]):
-                _bind_observed_fields(circuit, evidence_store, text_sources, [
-                    ("circuit.circuit_no", circuit.circuit_no, (ax, ay)),
-                    ("circuit.breaker", circuit.breaker, breaker_at),
-                    ("circuit.cable", circuit.cable, cable_at),
-                    ("circuit.phase", circuit.phase, _point_of(circuit.phase, band_items)),
-                    ("circuit.load_name", circuit.load_name, _point_of(circuit.load_name, band_items)),
-                ])
-                chosen_rows[cno] = (score, circuit, breaker_text)
-        for _score, circuit, breaker_text in chosen_rows.values():
-            if breaker_text:
-                consumed_breaker_texts.add(breaker_text)
-            extracted_circuits.append(circuit)
+            if not score:
+                continue
+            _bind_observed_fields(circuit, evidence_store, text_sources, [
+                ("circuit.circuit_no", circuit.circuit_no, (ax, ay)),
+                ("circuit.breaker", circuit.breaker, breaker_at),
+                ("circuit.cable", circuit.cable, cable_at),
+                ("circuit.phase", circuit.phase, _point_of(circuit.phase, band_items)),
+                ("circuit.load_name", circuit.load_name, _point_of(circuit.load_name, band_items)),
+            ])
+            kept = chosen_rows.setdefault(cno, [])
+            # 同号不同相是多行备用。同号同相只留信息更全的那一次。
+            same = next((item for item in kept if (item[1].phase or "") == (circuit.phase or "")), None)
+            if same is None:
+                kept.append((score, circuit, breaker_text))
+            elif score > same[0]:
+                kept.remove(same)
+                kept.append((score, circuit, breaker_text))
+        for group in chosen_rows.values():
+            for _score, circuit, breaker_text in group:
+                if breaker_text:
+                    consumed_breaker_texts.add(breaker_text)
+                extracted_circuits.append(circuit)
+
+        def _feeder_label(text: str) -> bool:
+            """短注记才是进线来源。说明段落里的「备用电源」不是一路进线。"""
+            raw = (text or "").strip()
+            if not raw or len(raw) > 48 or any(mark in raw for mark in ("。", "；", "，")):
+                return False
+            return any(key in raw for key in ("引来", "引入", "进线", "常用电源"))
+
+        def _is_transfer_switch(text: str) -> bool:
+            return bool(re.search(r"ATS(?:E)?(?:-|\d)", text or "", re.I))
 
         # 查找该箱体的进线回路与进线总断路器
-        incomers = [t for t in panel_texts if any(k in t[0] for k in ["引来", "进线", "引入", "常用电源", "备用电源"])]
+        incomers = [t for t in panel_texts if _feeder_label(t[0])]
+
+        for t in panel_texts:
+            if not _is_transfer_switch(t[0]):
+                continue
+            spec = ""
+            for other, ox, oy, _oh in panel_texts:
+                if other.strip() == t[0]:
+                    continue
+                if abs(oy - t[2]) <= base_h * 3 and abs(ox - t[1]) <= base_h * 8 and "级" in other and len(other.strip()) <= 8:
+                    spec = other.strip()
+                    break
+            extracted_devices.append(ExtraDevice(
+                name=t[0].strip(),
+                spec=spec,
+                unit="台",
+                quantity=1.0,
+                used_in=code,
+            ))
 
         # 寻找箱体内未被出线回路消费的开关电器（位于母线上方/进线侧的主断路器）
+        # 双电源转换开关不是这一路的断路器。
         unconsumed_breakers = [
             t for t in panel_texts
             if t[0] not in consumed_breaker_texts
             and _text_is_breaker(t[0])
+            and not _is_transfer_switch(t[0])
             and not any(k in t[0].upper() for k in ("SPD", "浪涌", "电涌"))
         ]
 
@@ -1670,23 +1994,86 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                 inc_breaker_at = (chosen[1], chosen[2])
                 consumed_breaker_texts.add(inc_breaker)
         elif unconsumed_breakers:
-            unconsumed_breakers.sort(key=lambda t: (
-                100 if any(k in t[0] for k in ("MCCB", "ATS", "3P", "4P", "NM", "NSX", "C65", "NXB")) else 0,
-                t[2]  # Y 坐标较高（进线总开关在上方）
-            ), reverse=True)
-            inc_breaker = unconsumed_breakers[0][0]
-            inc_breaker_at = (unconsumed_breakers[0][1], unconsumed_breakers[0][2])
-            consumed_breaker_texts.add(inc_breaker)
+            def _closer_to_other_circuits(x: float, y: float) -> bool:
+                own = min(
+                    (max(abs(x - ax), abs(y - ay)) for _cno, ax, ay in c_anchors),
+                    default=max(abs(x - hx), abs(y - hy)),
+                )
+                for other, anchors in assigned_circuits.items():
+                    if other == code:
+                        continue
+                    for _cno, ox, oy in anchors:
+                        if max(abs(x - ox), abs(y - oy)) < own:
+                            return True
+                return False
 
-        if incomers:
-            inc_note = _unique_joined(incomers)
-            for t in incomers:
-                if _looks_like_cable(t[0]) and not _is_signal_cable(t[0]) and not _is_wire_kind_note(t[0]):
-                    inc_cable = t[0]
+            local = [t for t in unconsumed_breakers if not _closer_to_other_circuits(t[1], t[2])]
+            owned = [
+                t for t in local
+                if (round(t[1]), round(t[2])) in incomer_breaker_pts
+            ]
+            pool = owned or local
+            if pool:
+                pool.sort(key=lambda t: (
+                    100 if any(k in t[0] for k in ("MCCB", "3P", "4P", "NM", "NSX", "C65", "NXB")) else 0,
+                    t[2]  # Y 坐标较高（进线总开关在上方）
+                ), reverse=True)
+                inc_breaker = pool[0][0]
+                inc_breaker_at = (pool[0][1], pool[0][2])
+                consumed_breaker_texts.add(inc_breaker)
+
+        # 离总开关很远、而且总开关旁边另有电缆的「引来」，才是另一路进线。
+        # 总开关旁边没有电缆时，这一路来源仍属于这只总开关。
+        far_incomers: list[tuple[str, float, float, float]] = []
+        if inc_breaker_at is not None:
+            far_limit = max(row_y_tolerance * 2, base_h * 3)
+            cable_reach = max(row_y_tolerance, base_h * 3)
+            far_incomers = [t for t in incomers if abs(t[2] - inc_breaker_at[1]) > far_limit]
+            incomers = [t for t in incomers if t not in far_incomers]
+            breaker_has_cable = any(
+                _looks_like_cable(t[0])
+                and not _is_signal_cable(t[0])
+                and not _is_wire_kind_note(t[0])
+                and abs(t[2] - inc_breaker_at[1]) <= cable_reach
+                for t in panel_texts
+            )
+            if far_incomers and not breaker_has_cable:
+                incomers = list(incomers) + far_incomers
+                far_incomers = []
+
+        note_bits: list[tuple[float, str]] = []
+        for t in incomers:
+            note_bits.append((t[1], t[0].strip()))
+        ref_anchors = []
+        if inc_breaker_at is not None:
+            ref_anchors.append(inc_breaker_at)
+        ref_anchors.extend((t[1], t[2]) for t in incomers)
+        for t, x, y, _h in panel_texts:
+            raw = t.strip()
+            if not re.fullmatch(r"[A-Za-z0-9]+\s*[:：]\s*[A-Za-z0-9]+", raw):
+                continue
+            if any(abs(y - ay) <= base_h * 2 and abs(x - ax) <= base_h * 30 for ax, ay in ref_anchors):
+                note_bits.append((x, raw))
+        if note_bits:
+            ordered: list[str] = []
+            for _x, raw in sorted(note_bits, key=lambda item: item[0]):
+                if raw and raw not in ordered:
+                    ordered.append(raw)
+            inc_note = " ".join(ordered)
+            for raw in ordered:
+                if _looks_like_cable(raw) and not _is_signal_cable(raw) and not _is_wire_kind_note(raw):
+                    inc_cable = raw
                     break
 
-        # 进线电缆和相序贴着总开关。出线行上的「进线详见…」不能把那一行的电缆和相序借过来。
-        anchor_at = inc_breaker_at
+        transfer_at = None
+        for t in panel_texts:
+            if _is_transfer_switch(t[0]):
+                transfer_at = (t[1], t[2])
+                break
+
+        # 进线电缆和相序贴着总开关。转换开关只用来定位，不写进断路器格。
+        # 出线行上的「进线详见…」不能把那一行的电缆和相序借过来。
+        anchor_at = inc_breaker_at or transfer_at
         if anchor_at is None and incomers:
             notes = incomers
             if not c_anchors:
@@ -1707,7 +2094,8 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
             to_branch = min((abs(y - ay) for _cno, _ax, ay in c_anchors), default=to_breaker)
             return to_branch <= baseline_slop and to_branch < to_breaker
 
-        if not inc_cable and anchor_at is not None and not note_on_branch:
+        if not inc_cable and anchor_at is not None and not note_on_branch and len(incomers) < 2:
+            cable_reach = max(row_y_tolerance, base_h * 3)
             near_cables = [
                 t for t in panel_texts
                 if _looks_like_cable(t[0])
@@ -1715,13 +2103,62 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                 and not _is_wire_kind_note(t[0])
                 and not t[0].lstrip().startswith(("+", "＋"))
                 and (round(t[1]), round(t[2])) not in consumed_cable_pts
-                and abs(t[2] - anchor_at[1]) <= row_y_tolerance
-                and not _closer_to_branch(t[2])
+                and abs(t[2] - anchor_at[1]) <= cable_reach
+                and (
+                    abs(t[1] - anchor_at[0]) <= base_h * 25
+                    or not _closer_to_branch(t[2])
+                )
             ]
             if near_cables:
-                inc_cable = min(near_cables, key=lambda t: abs(t[1] - anchor_at[0]))[0]
+                picked = min(near_cables, key=lambda t: abs(t[1] - anchor_at[0]) + abs(t[2] - anchor_at[1]))
+                inc_cable = picked[0]
+                consumed_cable_pts.add((round(picked[1]), round(picked[2])))
+            if not inc_cable and len(incomers) == 1:
+                label = incomers[0]
+                label_cables = [
+                    t for t in panel_texts
+                    if _looks_like_cable(t[0])
+                    and not _is_signal_cable(t[0])
+                    and not _is_wire_kind_note(t[0])
+                    and (round(t[1]), round(t[2])) not in consumed_cable_pts
+                    and abs(t[2] - label[2]) <= max(row_y_tolerance * 2, base_h * 3)
+                ]
+                if label_cables:
+                    picked = min(label_cables, key=lambda t: abs(t[2] - label[2]) * 4 + abs(t[1] - label[1]))
+                    inc_cable = picked[0]
+                    consumed_cable_pts.add((round(picked[1]), round(picked[2])))
 
-        if incomers or inc_breaker:
+        # 图上每写一处「引来」就是一路进线。两路电缆不能收成一条。
+        if len(incomers) >= 2:
+            for label in sorted(incomers, key=lambda item: -item[2]):
+                near_cables = [
+                    t for t in panel_texts
+                    if _looks_like_cable(t[0])
+                    and not _is_signal_cable(t[0])
+                    and not _is_wire_kind_note(t[0])
+                    and (round(t[1]), round(t[2])) not in consumed_cable_pts
+                    and abs(t[2] - label[2]) <= row_y_tolerance * 2
+                ]
+                feeder_cable = ""
+                if near_cables:
+                    picked = min(near_cables, key=lambda t: abs(t[2] - label[2]) * 4 + abs(t[1] - label[1]))
+                    feeder_cable = picked[0]
+                    consumed_cable_pts.add((round(picked[1]), round(picked[2])))
+                feeder = Circuit(
+                    box=code,
+                    circuit_no="进线",
+                    phase="",
+                    breaker="",
+                    cable=feeder_cable,
+                    load_name="进线",
+                    note=label[0].strip(),
+                )
+                _bind_observed_fields(feeder, evidence_store, text_sources, [
+                    ("circuit.cable", feeder.cable, _point_of(feeder.cable, panel_texts)),
+                    ("circuit.note", feeder.note, _point_of(feeder.note, panel_texts)),
+                ])
+                extracted_circuits.append(feeder)
+        elif incomers or inc_breaker or transfer_at:
             # 进线相序不得凭空填：只取总开关同一行上的相序，没标就留空。
             incoming_phase = ""
             incoming_note = inc_note or ("进线总开关" if inc_breaker else "")
@@ -1741,6 +2178,16 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                 ]
                 if near_phases:
                     incoming_phase = min(near_phases, key=lambda t: abs(t[1] - anchor_at[0]))[0].strip()
+                elif inc_breaker_at is not None and c_anchors:
+                    number_x = sorted(ax for _cno, ax, _ay in c_anchors)[len(c_anchors) // 2]
+                    side = [
+                        t for t in panel_texts
+                        if RE_PHASE.match(str(t[0]).strip())
+                        and abs(t[1] - inc_breaker_at[0]) < abs(number_x - inc_breaker_at[0]) * 0.7
+                        and re.search(r"L\d", str(t[0]).upper())
+                    ]
+                    if side:
+                        incoming_phase = min(side, key=lambda t: abs(t[1] - inc_breaker_at[0]))[0].strip()
             assumption = str(_CAD_CONFIG.get("incoming_phase_default") or "")
             if not incoming_phase and assumption:
                 incoming_phase = assumption
@@ -1764,6 +2211,35 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
                 ("circuit.load_name", incoming.load_name, _point_of("进线", panel_texts)),
             ])
             extracted_circuits.append(incoming)
+
+        for label in sorted(far_incomers, key=lambda item: -item[2]):
+            near_cables = [
+                t for t in panel_texts
+                if _looks_like_cable(t[0])
+                and not _is_signal_cable(t[0])
+                and not _is_wire_kind_note(t[0])
+                and (round(t[1]), round(t[2])) not in consumed_cable_pts
+                and abs(t[2] - label[2]) <= max(row_y_tolerance * 2, base_h * 3)
+            ]
+            feeder_cable = ""
+            if near_cables:
+                picked = min(near_cables, key=lambda t: abs(t[2] - label[2]) * 4 + abs(t[1] - label[1]))
+                feeder_cable = picked[0]
+                consumed_cable_pts.add((round(picked[1]), round(picked[2])))
+            feeder = Circuit(
+                box=code,
+                circuit_no="",
+                phase="",
+                breaker="",
+                cable=feeder_cable,
+                load_name="",
+                note=label[0].strip(),
+            )
+            _bind_observed_fields(feeder, evidence_store, text_sources, [
+                ("circuit.cable", feeder.cable, _point_of(feeder.cable, panel_texts)),
+                ("circuit.note", feeder.note, _point_of(feeder.note, panel_texts)),
+            ])
+            extracted_circuits.append(feeder)
 
         # 和总开关同一行、同一列、又没被出线用掉的，才是备用开关或隔离刀闸。
         # 同一高度上隔着几列的微型断路器是出线，不收成进线侧器件。

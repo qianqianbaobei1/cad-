@@ -87,6 +87,28 @@ class ReadStatusTests(unittest.TestCase):
         apply_read_gate(kept, {"status": "degraded", "reasons": ["单位未设置"]})
         self.assertTrue(kept.project_total_released)
 
+    def test_curve_like_drawing_is_not_a_full_read(self):
+        from extractor.cad_ledger import thin_vector_text
+        self.assertFalse(thin_vector_text(40, 0))
+        self.assertFalse(thin_vector_text(200, 20))
+        self.assertTrue(thin_vector_text(200, 1))
+        status, reasons, measurable = classify_read_status({
+            "converter": "native_dxf",
+            "accepted": True,
+            "warning_lines": 0,
+            "error_lines": 0,
+            "log_missing": False,
+            "entity_total": 201,
+            "thin_text": True,
+            "proxy_count": 0,
+            "xref_count": 0,
+            "units_known": True,
+            "recovered": False,
+        })
+        self.assertEqual(status, "degraded")
+        self.assertFalse(measurable)
+        self.assertTrue(any("转曲" in item for item in reasons))
+
 
 class IdentityAndInventoryTests(unittest.TestCase):
     def setUp(self):

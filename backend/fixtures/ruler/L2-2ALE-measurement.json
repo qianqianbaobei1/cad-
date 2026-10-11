@@ -1,0 +1,91 @@
+{
+  "drawing": "L2-2ALE",
+  "model": "deepseek-flash",
+  "measured_on": "2026-10-10",
+  "calls": 4,
+  "score": {
+    "recognize": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "split": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "extract": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "passed": true,
+    "misses": []
+  },
+  "boxes": [
+    {
+      "code": "2ALE",
+      "name": "应急照明配电箱",
+      "quantity": 1,
+      "ip_rating": "IP30",
+      "install": "底边距地1.5m明装",
+      "location": "强电间",
+      "size": "400×500×200"
+    }
+  ],
+  "circuits": [
+    {
+      "box": "2ALE",
+      "phase": "",
+      "breaker": "MCB-63/C25A/3P",
+      "circuit_no": "进线",
+      "cable": "NG-A(BTLY)-5×10-SC50-CE",
+      "load_name": "进线",
+      "power_kw": ""
+    },
+    {
+      "box": "2ALE",
+      "phase": "",
+      "breaker": "MCB-63/C25A/3P",
+      "circuit_no": "进线",
+      "cable": "NG-A(BTLY)-5×10-SC50-CE",
+      "load_name": "进线",
+      "power_kw": ""
+    },
+    {
+      "box": "2ALE",
+      "phase": "L1",
+      "breaker": "MCB-63/C16A/1P",
+      "circuit_no": "WE1",
+      "cable": "WDZN-BYJ-3×2.5-JDG20-WC",
+      "load_name": "集中电源 2TY-D",
+      "power_kw": "0.5"
+    },
+    {
+      "box": "2ALE",
+      "phase": "L2",
+      "breaker": "MCB-63/C16A/1P",
+      "circuit_no": "WE2",
+      "cable": "WDZN-BYJ-3×2.5-JDG20-WC",
+      "load_name": "强电间弱电间照明",
+      "power_kw": "0.1"
+    },
+    {
+      "box": "2ALE",
+      "phase": "L3",
+      "breaker": "MCB-63/C16A/1P",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "备用",
+      "power_kw": "",
+      "note": "图上未标注回路编号及导线"
+    },
+    {
+      "box": "2ALE",
+      "phase": "L1",
+      "breaker": "MCB-63/C16A/1P",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "备用",
+      "power_kw": "",
+      "note": "图上未标注回路编号及导线"
+    }
+  ]
+}

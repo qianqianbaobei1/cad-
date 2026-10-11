@@ -1,0 +1,39 @@
+{
+  "id": "L1-2SAL2",
+  "level": 1,
+  "drawing": "drawings/2SAL2.pdf",
+  "sha256": "7c0542e5558486477602713c074aaf7c0d9bda64eac442d707032196fa33d5a6",
+  "confirmed_on": "2026-10-10",
+  "confirmation": "单页单箱。文字层 0 个词，标准答案按渲染图逐格抄录。进线文字是「进线详上级配电箱系统图」，断路器 MCB-C63A/3P，进线旁没有电缆。负荷名称与回路表从上到下对齐。箱下的 CPM-R40T、ZD-BV-4×4、ZD-BV-1×6 已看见，当前通过线仍只看箱体和回路。",
+  "box": {
+    "code": "2 SAL2",
+    "name": "照明配电箱",
+    "quantity": 1,
+    "ip_rating": "IP30",
+    "install": "底边距地1.5m明装",
+    "location": "二层商业营业厅",
+    "size": "450×350×120"
+  },
+  "calc_observed_not_scored": {
+    "Pe_kW": "28.0",
+    "Kx": "1.00",
+    "Pjs_kW": "28.0",
+    "cos_phi": "0.85",
+    "Ijs_A": "50.1"
+  },
+  "devices_observed_not_scored": ["CPM-R40T II级 4P", "ZD-BV-4×4", "ZD-BV-1×6"],
+  "circuits": [
+    {"seq": 0, "phase": "", "breaker": "MCB-C63A/3P", "circuit_no": "进线", "cable": "", "load_name": "进线", "power_kw": "", "note": "进线详上级配电箱系统图"},
+    {"seq": 1, "phase": "L1", "breaker": "MCB-63/C16A/1P", "circuit_no": "WL1", "cable": "BV-3×2.5-PC20-WC,CC", "load_name": "照明", "power_kw": "1.0"},
+    {"seq": 2, "phase": "L2", "breaker": "RCB-63/C20A/1PN/30mA", "circuit_no": "WX1", "cable": "BV-3×4-PC20-WC,FC", "load_name": "普通插座", "power_kw": "2.0"},
+    {"seq": 3, "phase": "L123", "breaker": "RCB-63/D20A/3PN/30mA", "circuit_no": "WK1", "cable": "BV-5×4-PC25-WC,FC", "load_name": "空调插座", "power_kw": "4.0"},
+    {"seq": 4, "phase": "L123", "breaker": "RCB-63/D20A/3PN/30mA", "circuit_no": "WK2", "cable": "BV-5×4-PC25-WC,FC", "load_name": "空调插座", "power_kw": "4.0"},
+    {"seq": 5, "phase": "L123", "breaker": "RCB-63/D20A/3PN/30mA", "circuit_no": "WK3", "cable": "BV-5×4-PC25-WC,FC", "load_name": "空调插座", "power_kw": "4.0"},
+    {"seq": 6, "phase": "L123", "breaker": "RCB-63/D20A/3PN/30mA", "circuit_no": "WK4", "cable": "BV-5×4-PC25-WC,FC", "load_name": "空调插座", "power_kw": "4.0"},
+    {"seq": 7, "phase": "L2", "breaker": "MCB-63/C16A/1P", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""},
+    {"seq": 8, "phase": "L3", "breaker": "RCB-63/C20A/1PN/30mA", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""},
+    {"seq": 9, "phase": "L1", "breaker": "RCB-63/C20A/1PN/30mA", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""},
+    {"seq": 10, "phase": "L2", "breaker": "RCB-63/C20A/1PN/30mA", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""},
+    {"seq": 11, "phase": "L123", "breaker": "RCB-63/D20A/3PN/30mA", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""}
+  ]
+}

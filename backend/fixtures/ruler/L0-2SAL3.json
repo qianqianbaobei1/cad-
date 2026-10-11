@@ -1,0 +1,36 @@
+{
+  "id": "L0-2SAL3",
+  "level": 0,
+  "drawing": "drawings/2SAL3.pdf",
+  "sha256": "c012528451333dbcaed69178834f0ceb0f81efad5cf32b83b3e2ced624932973",
+  "confirmed_on": "2026-10-10",
+  "confirmation": "单页单箱。文字层 0 个词，标准答案按渲染图逐格抄录，不取任何程序输出。负荷名称和功率与回路表按从上到下的行对齐。",
+  "box": {
+    "code": "2 SAL3",
+    "name": "照明配电箱",
+    "quantity": 1,
+    "ip_rating": "IP30",
+    "install": "底边距地 1.5m 暗装",
+    "location": "商业网点",
+    "size": "450×350×120"
+  },
+  "calc_observed_not_scored": {
+    "Pe_kW": "18.0",
+    "Kx": "1.00",
+    "Pjs_kW": "18.0",
+    "cos_phi": "0.85",
+    "Ijs_A": "32.2"
+  },
+  "circuits": [
+    {"seq": 0, "phase": "", "breaker": "DS-50/3P", "circuit_no": "进线", "cable": "YJV-5×10-PC40-WC", "load_name": "进线", "power_kw": ""},
+    {"seq": 1, "phase": "L1", "breaker": "MCB-63/C16A/1P", "circuit_no": "WL1", "cable": "BV-3×2.5-PC20-WC,CC", "load_name": "照明", "power_kw": "1.0"},
+    {"seq": 2, "phase": "L2", "breaker": "MCB-63/C16A/1P", "circuit_no": "WL2", "cable": "BV-3×2.5-PC20-WC,CC", "load_name": "照明", "power_kw": "1.0"},
+    {"seq": 3, "phase": "L3", "breaker": "RCB-63/C20A/1PN/30mA", "circuit_no": "WX1", "cable": "BV-3×4-PC20-WC,FC", "load_name": "普通插座", "power_kw": "2.0"},
+    {"seq": 4, "phase": "L1", "breaker": "RCB-63/C20A/1PN/30mA", "circuit_no": "WX2", "cable": "BV-3×4-PC20-WC,FC", "load_name": "普通插座", "power_kw": "2.0"},
+    {"seq": 5, "phase": "L123", "breaker": "RCB-63/D20A/3PN/30mA", "circuit_no": "WK1", "cable": "BV-5×4-PC25-WC,FC", "load_name": "空调插座", "power_kw": "4.0"},
+    {"seq": 6, "phase": "L123", "breaker": "RCB-63/D20A/3PN/30mA", "circuit_no": "WK2", "cable": "BV-5×4-PC25-WC,FC", "load_name": "空调插座", "power_kw": "4.0"},
+    {"seq": 7, "phase": "L2", "breaker": "RCB-63/C20A/1PN/30mA", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""},
+    {"seq": 8, "phase": "L3", "breaker": "RCB-63/C20A/1PN/30mA", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""},
+    {"seq": 9, "phase": "L3", "breaker": "RCB-63/C20A/1PN/30mA", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""}
+  ]
+}

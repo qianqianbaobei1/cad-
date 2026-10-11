@@ -1,0 +1,22 @@
+{
+  "drawing": "L7-总图",
+  "model": "cad-native",
+  "measured_on": "2026-10-10",
+  "calls": 0,
+  "score": {
+    "recognize": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "split": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "extract": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "passed": true,
+    "misses": []
+  }
+}

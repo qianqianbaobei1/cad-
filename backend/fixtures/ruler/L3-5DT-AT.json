@@ -1,0 +1,39 @@
+{
+  "id": "L3-5DT-AT",
+  "level": 3,
+  "drawing": "drawings/5DT-AT.pdf",
+  "sha256": "a810d3e335dc2e64e377c9e9b424bcbd3a39aeeb76de1979a3f4d958188d95e8",
+  "confirmed_on": "2026-10-10",
+  "confirmation": "单页单箱，电梯配电箱，双路进线加 ATSE-100。文字层 0 个词，按渲染图逐格抄录。井道照明功率格是「预留」。温度控制器没有断路器，对应温度开关信号线。轴流风机旁的 ESB20、电表和浪涌已看见，这次不计入通过线。",
+  "box": {
+    "code": "5 DT-AT",
+    "name": "电梯配电箱",
+    "quantity": 1,
+    "ip_rating": "IP30",
+    "install": "底边距地1.5m明装",
+    "location": "5层电梯机房",
+    "size": "500×500×200"
+  },
+  "calc_observed_not_scored": {
+    "Pe_kW": "18.0",
+    "Kd": "1.0",
+    "Pc_kW": "18.0",
+    "cos_phi": "0.6",
+    "Ic_A": "45.6"
+  },
+  "extra_devices": [
+    {"name": "ATSE-100", "spec": "80A/4P/PC/R", "quantity": 1}
+  ],
+  "devices_observed_not_scored": ["ESB20", "DT862-3×1.5(6)", "150/5", "HSAD-R", "II级 4P"],
+  "circuits": [
+    {"seq": 0, "phase": "", "breaker": "MCCB-160C/63A/3340", "circuit_no": "进线", "cable": "WDZ-YJY-5×16-CT", "load_name": "进线", "power_kw": "", "note": "电源分别引自变配电室不同变压器"},
+    {"seq": 1, "phase": "", "breaker": "MCCB-160C/63A/3340", "circuit_no": "进线", "cable": "WDZ-YJY-5×16-CT", "load_name": "进线", "power_kw": "", "note": "电源分别引自变配电室不同变压器"},
+    {"seq": 2, "phase": "L123", "breaker": "MCCB-63/50A/3300", "circuit_no": "WP1", "cable": "WDZ-YJY-5×10-JDG40-CC,WC", "load_name": "电梯控制箱", "power_kw": "15.0", "note": "带隔离功能"},
+    {"seq": 3, "phase": "L1", "breaker": "RCB-63/C16A/1PN/30mA", "circuit_no": "WL1", "cable": "WDZ-BYJ-3×2.5-JDG20-WC", "load_name": "机房照明", "power_kw": "0.1"},
+    {"seq": 4, "phase": "L2", "breaker": "RCB-63/C16A/1PN/30mA", "circuit_no": "WL2", "cable": "WDZ-BYJ-3×2.5-SC20-CC,WC-E", "load_name": "井道照明", "power_kw": "预留"},
+    {"seq": 5, "phase": "L3", "breaker": "RCB-63/C20A/1PN/30mA", "circuit_no": "WX1", "cable": "WDZ-BYJ-3×4-JDG20-WC,FC", "load_name": "机房插座", "power_kw": "2.0"},
+    {"seq": 6, "phase": "L1", "breaker": "RCB-63/C20A/1PN/30mA", "circuit_no": "WX2", "cable": "WDZ-BYJ-3×4-SC20-WC,FC", "load_name": "电梯基坑插座", "power_kw": "1.5"},
+    {"seq": 7, "phase": "L2", "breaker": "MCB-63/C20A/3P", "circuit_no": "WX3", "cable": "WDZ-BYJ-3×4-JDG20-WC,FC", "load_name": "轴流风机", "power_kw": "0.1"},
+    {"seq": 8, "phase": "", "breaker": "", "circuit_no": "", "cable": "ZR-BV-2×2.5-JDG20-F,WC", "load_name": "温度控制器", "power_kw": "", "note": "温度开关信号线"}
+  ]
+}

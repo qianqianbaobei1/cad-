@@ -1,0 +1,42 @@
+{
+  "id": "L5-锅炉房",
+  "level": 5,
+  "drawing": "drawings/02-锅炉房-8台柜子.pdf",
+  "sha256": "123a5278e90fd30e4a06212095f2af8ea0a2f66758b04afcf9594150b1b8ae90",
+  "confirmed_on": "2026-10-10",
+  "confirmation": "一页八面 GGD 柜。上半张柜号行只在 C01、C02、C03、C04 的分界处有竖线：C02 含 S-1a-P 与 S-1b-P，S-1c-P 起直到 E9 都在 C03，C04 单独一窄列。下半张 C05 是进电列，C06 含 S-3a-P 与 S-3b-P，C07 含 S-2a-P 与 S-2b-P，C08 单独一列。回路号里的 a 按字形是拉丁字母。型号行的 GGD 不是设备名称。接触器、互感器、热继电器、计算电流、二次图和启动方式不进通过线。",
+  "boxes": [
+    {"code": "C01", "name": "", "quantity": 1, "ip_rating": "", "install": "", "location": "", "size": ""},
+    {"code": "C02", "name": "", "quantity": 1, "ip_rating": "", "install": "", "location": "", "size": ""},
+    {"code": "C03", "name": "", "quantity": 1, "ip_rating": "", "install": "", "location": "", "size": ""},
+    {"code": "C04", "name": "", "quantity": 1, "ip_rating": "", "install": "", "location": "", "size": ""},
+    {"code": "C05", "name": "", "quantity": 1, "ip_rating": "", "install": "", "location": "", "size": ""},
+    {"code": "C06", "name": "", "quantity": 1, "ip_rating": "", "install": "", "location": "", "size": ""},
+    {"code": "C07", "name": "", "quantity": 1, "ip_rating": "", "install": "", "location": "", "size": ""},
+    {"code": "C08", "name": "", "quantity": 1, "ip_rating": "", "install": "", "location": "", "size": ""}
+  ],
+  "circuits": [
+    {"box": "C01", "phase": "", "breaker": "", "circuit_no": "", "cable": "进电", "load_name": "", "power_kw": "281kW(最大同时使用容量:195kW)"},
+    {"box": "C02", "phase": "", "breaker": "MCCB-250MA/200A/3P", "circuit_no": "S-1a-P", "cable": "ZRNH-YJV-0.6/1kV-4×70-SC80\nZRNH-YJV-0.6/1kV-3×70-SC80", "load_name": "喷淋泵", "power_kw": "90"},
+    {"box": "C02", "phase": "", "breaker": "MCCB-250MA/200A/3P", "circuit_no": "S-1b-P", "cable": "ZRNH-YJV-0.6/1kV-4×70-SC80\nZRNH-YJV-0.6/1kV-3×70-SC80", "load_name": "喷淋泵", "power_kw": "90"},
+    {"box": "C03", "phase": "", "breaker": "MCCB-250MA/200A/3P", "circuit_no": "S-1c-P", "cable": "ZRNH-YJV-0.6/1kV-4×70-SC80\nZRNH-YJV-0.6/1kV-3×70-SC80", "load_name": "喷淋泵", "power_kw": "90"},
+    {"box": "C03", "phase": "", "breaker": "MCCB-160MA/32A/3P", "circuit_no": "XKP-1-P", "cable": "ZRNH-YJV-0.6/1kV-5×6-SC32", "load_name": "潜污泵控制箱", "power_kw": "11"},
+    {"box": "C03", "phase": "", "breaker": "MCCB-160MA/25A/3P", "circuit_no": "DF-1-P", "cable": "ZRNH-YJV-0.6/1kV-5×4-SC32", "load_name": "电动蝶阀", "power_kw": "0.75×3"},
+    {"box": "C03", "phase": "", "breaker": "MCB-C16A/1P", "circuit_no": "E1", "cable": "ZRNH-BV-450/750V-3×4.0", "load_name": "泵房、配电间照明", "power_kw": "0.44"},
+    {"box": "C03", "phase": "", "breaker": "MCB-C16A/1P", "circuit_no": "E2", "cable": "ZRNH-BV-450/750V-3×4.0", "load_name": "微型消防站照明", "power_kw": "0.31"},
+    {"box": "C03", "phase": "", "breaker": "MCB-MA C16A/1P", "circuit_no": "E3", "cable": "ZRNH-BV-450/750V-3×2.5", "load_name": "应急照明箱02YJ01", "power_kw": "0.5"},
+    {"box": "C03", "phase": "", "breaker": "MCB-MA C16A/1P", "circuit_no": "E4", "cable": "ZRNH-BV-450/750V-3×2.5", "load_name": "应急照明箱02YJ02", "power_kw": "0.5"},
+    {"box": "C03", "phase": "", "breaker": "MCB-MA C16A/1P", "circuit_no": "E5", "cable": "ZRNH-BV-450/750V-3×2.5", "load_name": "火灾自动报警电源", "power_kw": "0.5"},
+    {"box": "C03", "phase": "", "breaker": "MCB-MA C16A/1P", "circuit_no": "E6", "cable": "ZRNH-BV-450/750V-3×2.5", "load_name": "危险源电源", "power_kw": "0.5"},
+    {"box": "C03", "phase": "", "breaker": "MCB-MA C16A/1P", "circuit_no": "E7", "cable": "ZRNH-BV-450/750V-3×2.5", "load_name": "防火门电源", "power_kw": "0.5"},
+    {"box": "C03", "phase": "", "breaker": "MCB-MA C16A/1P", "circuit_no": "E8", "cable": "ZRNH-BV-450/750V-3×2.5", "load_name": "消防液位监测电源", "power_kw": "0.5"},
+    {"box": "C03", "phase": "", "breaker": "MCB-MA C16A/1P", "circuit_no": "E9", "cable": "ZRNH-BV-450/750V-3×2.5", "load_name": "试水流量计电源", "power_kw": "0.2"},
+    {"box": "C04", "phase": "", "breaker": "", "circuit_no": "", "cable": "", "load_name": "机械应急启动柜", "power_kw": ""},
+    {"box": "C05", "phase": "", "breaker": "", "circuit_no": "", "cable": "进电", "load_name": "", "power_kw": "370kW(最大同时使用容量:185kW)"},
+    {"box": "C06", "phase": "", "breaker": "MCCB-160MA/160A/3P", "circuit_no": "S-3a-P", "cable": "BBTRZ-1kV-4×50-SC70\nBBTRZ-1kV-3×50-SC70", "load_name": "水幕泵", "power_kw": "75"},
+    {"box": "C06", "phase": "", "breaker": "MCCB-160MA/160A/3P", "circuit_no": "S-3b-P", "cable": "BBTRZ-1kV-4×50-SC70\nBBTRZ-1kV-3×50-SC70", "load_name": "水幕泵", "power_kw": "75"},
+    {"box": "C07", "phase": "", "breaker": "MCCB-250MA/250A/3P", "circuit_no": "S-2a-P", "cable": "BBTRZ-1kV-4×70-SC80\nBBTRZ-1kV-3×70-SC80", "load_name": "室内外消火栓泵", "power_kw": "110"},
+    {"box": "C07", "phase": "", "breaker": "MCCB-250MA/250A/3P", "circuit_no": "S-2b-P", "cable": "BBTRZ-1kV-4×70-SC80\nBBTRZ-1kV-3×70-SC80", "load_name": "室内外消火栓泵", "power_kw": "110"},
+    {"box": "C08", "phase": "", "breaker": "", "circuit_no": "", "cable": "", "load_name": "机械应急启动柜", "power_kw": ""}
+  ]
+}

@@ -7,7 +7,14 @@ quantity 是该种箱体台数。只有图纸明确说明为同型箱体且数�
 
 circuits：逐条记录，包括进线和每条备用回路，不要合并。字段 box、phase、breaker、contactor、ct、thermal、power_kw、circuit_no、cable、current_a、load_name、secondary_ref、start_method、note、bbox。
 box 必须对应 boxes 中的编号。phase 原样记录明确标注的相序；未标注填空字符串。breaker、contactor、ct、thermal 原样记录图上可见的完整规格及数量；字段缺失时留空并记入 uncertainties，不得从类别、常见配置或其他箱体推断。
-备用回路没有编号就将 circuit_no 填空字符串，load_name 填“备用”。看不清的字段填空字符串，并在 uncertainties 指出具体位置和字段。
+每条出线都有自己的回路编号列。图上写了 WP、WL、WX、WE 这类编号，就必须填进 circuit_no，不得留空。备用回路没有编号就将 circuit_no 填空字符串，load_name 填“备用”。图上有几行备用就输出几条，断路器型号相同也不合并。
+断路器型号里的壳架字母逐字符保留，例如 160C 不能写成 160。电缆芯数和截面照图抄，不要改数字。
+note 只抄图上能看见的原句。不要概括成「双电源进线之一」这类图上没有的话。
+进线开关、隔离开关那一行单独作为一条回路：circuit_no 填“进线”，load_name 填“进线”，breaker 和 cable 照图抄。不要把它省略，也不要只写进箱体备注或 extra_devices。进线有几路就写几条。图上画了两只进线断路器，即使型号完全相同，也要写两条进线，不要并成一条。双电源自动转换开关（ATSE）写入 extra_devices，不要并进出线回路。
+负荷表里单独占一行、旁边没有断路器的设备（例如温度控制器）也要单独成一条回路，不要写进上一行的备注。
+功率格里写「预留」时，power_kw 填「预留」，不要改放到 note。
+boxes.size 只写外形尺寸数字，例如 450×350×120。自行补充的“宽×高×深”以及“以厂家深化尺寸为准”写入 note，不要拼进 size。
+看不清的字段填空字符串，并在 uncertainties 指出具体位置和字段。
 bbox 是该回路所在那一行（或那一格）在图纸页内的位置，用于前端点表定位。
 
 extra_devices：只记录不在 circuits 四个器件字段中的实际设备，例如浪涌保护器、电能表、N排/PE排、电气火灾监控器。字段 name、spec、unit、quantity、used_in、note。箱体本身不要放在这里。数量必须是图上可确认的正数；同型多台箱体内重复配置时，quantity 填每台数量，used_in 以 boxes.code 开头；全项目总量则在 used_in 中明确写“总量”，程序不会再乘箱体台数。无法判断数量归属时，放入 uncertainties，不要猜。
@@ -26,7 +33,7 @@ bbox 写法：给出 {x, y, w, h} 四个 0 到 1 之间的小数，表示在整�
 
 规则：
 - 五个顶层数组都必须出现，即使为空；project_info 图签不可见时可省略或字段留空。
-- 型号中的字母、数字、极数、漏保动作电流和数量须逐字符核对。
+- 型号中的字母、数字、极数、漏保动作电流和数量须逐字符核对。连字符「-」照图保留，不要写成空格。
 - 如果图上只是标示“星三角启动”，但没有接触器个数，不得自行填 3 只；将数量问题列入 uncertainties。
 - 不要自行聚合元器件数量，不要生成表格、说明文字或 Markdown。
 - 浪涌保护器不许进 circuits：SPD/电涌保护器/浪涌保护器只许出现在 extra_devices（元器件汇总），绝不能成为 circuits 的一条回路，也不能填进回路的 breaker 等字段。

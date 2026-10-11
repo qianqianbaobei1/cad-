@@ -1,0 +1,45 @@
+{
+  "id": "L4-2AT",
+  "level": 4,
+  "drawing": "drawings/2AT.pdf",
+  "sha256": "77b4548bf6d1b4e98a6d7101f0dc20217f8e9fb24e6229e9e0244f089d926faf",
+  "confirmed_on": "2026-10-10",
+  "confirmation": "单页单箱，动力配电箱。文字层 0 个词，按放大图抄录。两路进线断路器都是 MCB-63/C25A/3P，电缆不同：上路 NG-A(BTLY)-5×16-SC50-CE，下路 NG-A(BTLY)-5×10-SC40-CE。出线四行回路号是 WP1、WP2、WP2、WP2，负荷都是电动挡烟垂壁控制箱。备用两行无回路号。通讯线、电表、浪涌和端子已看见，这次通过线不计入。",
+  "box": {
+    "code": "2 AT",
+    "name": "动力配电箱",
+    "quantity": 1,
+    "ip_rating": "IP30",
+    "install": "底边距地1.5m明装",
+    "location": "2层强电间",
+    "size": "400×500×200"
+  },
+  "calc_observed_not_scored": {
+    "Pe_kW": "4.0",
+    "Kx": "1.00",
+    "Pjs_kW": "4.0",
+    "cos_phi": "0.80",
+    "Ijs_A": "7.6"
+  },
+  "extra_devices": [
+    {"name": "ATSE-63", "spec": "32A/4P/PC/R", "quantity": 1}
+  ],
+  "devices_observed_not_scored": [
+    "通讯线+电源线 WDZN-RYJS-2×1.5+WDZN-BYJ-2×2.5-CT-JDG20-WC,CC",
+    "RS485总线 CT/PC25",
+    "DT862-3×5(20)",
+    "CPM-R40T II级 4P",
+    "WDZ-BYJ-4×4",
+    "WDZ-BYJ-1×6"
+  ],
+  "circuits": [
+    {"seq": 0, "phase": "", "breaker": "MCB-63/C25A/3P", "circuit_no": "进线", "cable": "NG-A(BTLY)-5×16-SC50-CE", "load_name": "进线", "power_kw": ""},
+    {"seq": 1, "phase": "", "breaker": "MCB-63/C25A/3P", "circuit_no": "进线", "cable": "NG-A(BTLY)-5×10-SC40-CE", "load_name": "进线", "power_kw": ""},
+    {"seq": 2, "phase": "L123", "breaker": "MCB-63/D16A/3P", "circuit_no": "WP1", "cable": "WDZN-BYJ-5×2.5-JDG25-WC,CC", "load_name": "电动挡烟垂壁控制箱", "power_kw": "1.0"},
+    {"seq": 3, "phase": "L123", "breaker": "MCB-63/D16A/3P", "circuit_no": "WP2", "cable": "WDZN-BYJ-5×2.5-JDG25-WC,CC", "load_name": "电动挡烟垂壁控制箱", "power_kw": "1.0"},
+    {"seq": 4, "phase": "L123", "breaker": "MCB-63/D16A/3P", "circuit_no": "WP2", "cable": "WDZN-BYJ-5×2.5-JDG25-WC,CC", "load_name": "电动挡烟垂壁控制箱", "power_kw": "1.0"},
+    {"seq": 5, "phase": "L123", "breaker": "MCB-63/D16A/3P", "circuit_no": "WP2", "cable": "WDZN-BYJ-5×2.5-JDG25-WC,CC", "load_name": "电动挡烟垂壁控制箱", "power_kw": "1.0"},
+    {"seq": 6, "phase": "L3", "breaker": "MCB-63/C16A/1P", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""},
+    {"seq": 7, "phase": "L1", "breaker": "MCB-63/C16A/1P", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""}
+  ]
+}

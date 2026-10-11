@@ -272,6 +272,165 @@ class PageAndTileTests(unittest.TestCase):
         # 两块的重叠区在 0.42~0.58，右边那份离边缘更远
         self.assertAlmostEqual(merged.circuits[0].bbox.x, 0.05, places=6)
 
+    def test_identical_spare_rows_in_one_view_are_kept(self):
+        """同一张图上三条外形相同的备用是三条回路，不能收成一条。"""
+        raw = RawExtraction.model_validate({
+            "boxes": [],
+            "circuits": [
+                {"box": "2SAL3", "phase": "L2", "breaker": "RCB-63/C20A/1PN/30mA", "load_name": "备用"},
+                {"box": "2SAL3", "phase": "L3", "breaker": "RCB-63/C20A/1PN/30mA", "load_name": "备用"},
+                {"box": "2SAL3", "phase": "L3", "breaker": "RCB-63/C20A/1PN/30mA", "load_name": "备用"},
+            ],
+            "extra_devices": [], "requirements": [], "uncertainties": [],
+        })
+        merged = vision.merge_parts([(raw, None)])
+        self.assertEqual(len(merged.circuits), 3)
+        result = assemble(merged)
+        self.assertEqual(len(result.circuits), 3)
+        self.assertEqual([c.phase for c in result.circuits], ["L2", "L3", "L3"])
+
+    def test_two_identical_incomers_in_one_view_are_kept(self):
+        raw = RawExtraction.model_validate({
+            "boxes": [],
+            "circuits": [
+                {"box": "2ALE", "circuit_no": "进线", "breaker": "MCB-63/C25A/3P", "load_name": "进线",
+                 "cable": "NG-A(BTLY)-5×10-SC50-CE"},
+                {"box": "2ALE", "circuit_no": "进线", "breaker": "MCB-63/C25A/3P", "load_name": "进线",
+                 "cable": "NG-A(BTLY)-5×10-SC50-CE"},
+            ],
+            "extra_devices": [], "requirements": [], "uncertainties": [],
+        })
+        merged = vision.merge_parts([(raw, None)])
+        self.assertEqual(len(merged.circuits), 2)
+        self.assertEqual(len(assemble(merged).circuits), 2)
+
+    def test_laying_code_keeps_its_hyphen(self):
+        from extractor.assemble import restore_cable_hyphen
+        self.assertEqual(
+            restore_cable_hyphen("NG-A(BTLY)-5×10 SC50-CE"),
+            "NG-A(BTLY)-5×10-SC50-CE",
+        )
+        self.assertEqual(
+            restore_cable_hyphen("BV-3×2.5-PC20-WC,CC"),
+            "BV-3×2.5-PC20-WC,CC",
+        )
+
+    def test_reserved_power_stays_in_the_power_cell(self):
+        raw = RawExtraction.model_validate({
+            "boxes": [{"code": "5DT-AT", "name": "电梯配电箱"}],
+            "circuits": [{"box": "5DT-AT", "circuit_no": "WL2", "load_name": "井道照明", "note": "预留"}],
+            "extra_devices": [], "requirements": [], "uncertainties": [],
+        })
+        result = assemble(raw)
+        self.assertEqual(result.circuits[0].power_kw, "预留")
+        spare = RawExtraction.model_validate({
+            "boxes": [{"code": "2ALE", "name": "应急照明配电箱"}],
+            "circuits": [{"box": "2ALE", "load_name": "备用", "power_kw": "预留"}],
+            "extra_devices": [], "requirements": [], "uncertainties": [],
+        })
+        self.assertEqual(assemble(spare).circuits[0].power_kw, "")
+
+    def test_magnified_row_keeps_the_signal_wire_and_the_source_note(self):
+        from extractor.schema import Circuit
+        from extractor.vision import apply_row_detail, apply_source_note
+        from extractor.assemble import restore_cable_hyphen
+
+        temp = Circuit(box="5DT-AT", load_name="温度控制器", cable="WDZ-BYJ-1x6", note="自复式-4P")
+        apply_row_detail(temp, {
+            "load_name": "温度控制器",
+            "cable": "WDZ-BYJ-1x6",
+            "note": "温度开关信号线:ZR-BV-2*2.5 JDG20-F,WC",
+        })
+        self.assertEqual(temp.cable, "ZR-BV-2×2.5-JDG20-F,WC")
+        self.assertEqual(temp.note, "温度开关信号线")
+        self.assertEqual(restore_cable_hyphen("ZR-BV-2*2.5 JDG20-F,WC"), "ZR-BV-2×2.5-JDG20-F,WC")
+
+        incoming = [
+            Circuit(box="5DT-AT", circuit_no="进线", breaker="MCCB-160/C63/3340", note="消防联动控制"),
+            Circuit(box="5DT-AT", circuit_no="进线", note=""),
+        ]
+        from extractor.vision import apply_margin_cables
+        apply_margin_cables(incoming, ["WDZ-YJY-5x16-CT", "电源分别引自变配电室不同变压器"])
+        self.assertEqual(incoming[0].cable, "WDZ-YJY-5×16-CT")
+        self.assertEqual(incoming[1].cable, "WDZ-YJY-5×16-CT")
+        different = [
+            Circuit(box="2AT", circuit_no="进线", cable="NG-A(BTLY)-5×16-SC50-CE"),
+            Circuit(box="2AT", circuit_no="进线", cable="NG-A(BTLY)-5×10-SC40-CE"),
+        ]
+        apply_margin_cables(different, ["NG-A(BTLY)-5×16-SC50-CE"])
+        self.assertEqual(different[0].cable, "NG-A(BTLY)-5×16-SC50-CE")
+        self.assertEqual(different[1].cable, "NG-A(BTLY)-5×10-SC40-CE")
+        apply_margin_cables(different, ["NG-A(BTLY)-5x16-SC50-CE", "NG-A(BTLY)-5x10-SC40-CE"])
+        self.assertEqual(different[0].cable, "NG-A(BTLY)-5×16-SC50-CE")
+        self.assertEqual(different[1].cable, "NG-A(BTLY)-5×10-SC40-CE")
+
+        from extractor.vision import apply_signal_annotation
+        temp = Circuit(box="5DT-AT", load_name="温度控制器", cable="WDZ-BYJ-1×6", note="温控器")
+        fan = Circuit(box="5DT-AT", circuit_no="WX3", load_name="轴流风机", cable="WDZ-BYJ-3×4-JDG20-WC,FC")
+        apply_signal_annotation(
+            [temp, fan],
+            ["温度开关信号线:ZR-BV-2*2.5 JDG20-F,WC", "WDZ-BYJ-1x6"],
+        )
+        self.assertEqual(temp.cable, "ZR-BV-2×2.5-JDG20-F,WC")
+        self.assertEqual(temp.note, "温度开关信号线")
+        self.assertEqual(fan.cable, "WDZ-BYJ-3×4-JDG20-WC,FC")
+        apply_signal_annotation([temp], ["WDZ-BYJ-4×4"])
+        self.assertEqual(temp.cable, "ZR-BV-2×2.5-JDG20-F,WC")
+
+        from extractor.schema import RawExtraction
+        from extractor.vision import apply_transfer_switch
+        bare = RawExtraction(boxes=[], circuits=[], extra_devices=[], requirements=[], uncertainties=[])
+        apply_transfer_switch(bare, [{"name": "ATSE100", "spec": "80A/4P/PC/R"}])
+        self.assertEqual(bare.extra_devices[0].name, "ATSE-100")
+        self.assertEqual(bare.extra_devices[0].spec, "80A/4P/PC/R")
+        apply_transfer_switch(bare, [{"name": "ATSE-63", "spec": "32A/4P/PC/R"}])
+        self.assertEqual(len(bare.extra_devices), 1)
+        named = RawExtraction(
+            boxes=[], circuits=[], extra_devices=[], requirements=[], uncertainties=[],
+        )
+        from extractor.schema import ExtraDevice
+        named.extra_devices.append(ExtraDevice(name="双电源自动转换开关", spec="ATSE-100 80A/4P/PC/R", quantity=1))
+        apply_transfer_switch(named, [{"name": "ATSE-100", "spec": "80A/4P/PC/R"}])
+        self.assertEqual(len(named.extra_devices), 1)
+        empty = RawExtraction(boxes=[], circuits=[], extra_devices=[], requirements=[], uncertainties=[])
+        apply_transfer_switch(empty, [])
+        self.assertEqual(empty.extra_devices, [])
+        apply_source_note(incoming, ["WDZ-YJY-5×16-CT", "电源分别引自变配电室不同变压器"])
+        self.assertEqual(incoming[0].note, "电源分别引自变配电室不同变压器")
+        self.assertEqual(incoming[1].note, "电源分别引自变配电室不同变压器")
+        self.assertEqual(incoming[0].breaker, "MCCB-160/C63/3340")
+
+    def test_unlabeled_spare_seen_on_two_tiles_without_position_collapses(self):
+        spare = {"box": "2SAL3", "phase": "L3", "breaker": "RCB-63/C20A/1PN/30mA", "load_name": "备用"}
+        left = RawExtraction.model_validate({
+            "boxes": [], "circuits": [spare],
+            "extra_devices": [], "requirements": [], "uncertainties": [],
+        })
+        right = RawExtraction.model_validate({
+            "boxes": [], "circuits": [dict(spare)],
+            "extra_devices": [], "requirements": [], "uncertainties": [],
+        })
+        merged = vision.merge_parts([
+            (left, {"x": 0.0, "y": 0.0, "w": 0.58, "h": 1.0}),
+            (right, {"x": 0.42, "y": 0.0, "w": 0.58, "h": 1.0}),
+        ])
+        self.assertEqual(len(merged.circuits), 1)
+
+    def test_size_cell_keeps_the_dimension_and_moves_the_note(self):
+        raw = RawExtraction.model_validate({
+            "boxes": [{
+                "code": "2SAL3",
+                "name": "照明配电箱",
+                "size": "450×350×120 (宽×高×深)，以厂家深化尺寸为准",
+                "quantity": 1,
+            }],
+            "circuits": [],
+            "extra_devices": [], "requirements": [], "uncertainties": [],
+        })
+        result = assemble(raw)
+        self.assertEqual(result.boxes[0].size, "450×350×120")
+        self.assertIn("以厂家深化尺寸为准", result.boxes[0].note)
+
     def test_same_box_code_on_different_pages_is_not_deduped(self):
         page1 = RawExtraction.model_validate({
             "boxes": [{"code": "AL1", "size": "400x300"}], "circuits": [],
@@ -426,6 +585,7 @@ class JobIntegrationTests(unittest.TestCase):
                  patch.object(app, "VisionProvider") as provider:
                 provider.return_value.configured = True
                 provider.return_value.extract.return_value = raw
+                provider.return_value.refine_with_crops.return_value = raw
                 provider.return_value.model = "deepseek-flash"
                 app.process_pdf(job_id, "sample.pdf", "sample.pdf")
             job = app.jobs.pop(job_id)

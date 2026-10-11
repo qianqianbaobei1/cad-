@@ -169,6 +169,38 @@ class TestCadExtractor(unittest.TestCase):
         self.assertFalse(conflict["quantity_recognized"])
         self.assertEqual(conflict["quantity"], 1)
 
+    def test_terminal_tag_is_not_a_box_quantity_and_install_keeps_its_phrase(self):
+        meta = _extract_box_metadata(
+            "02AP01 配电总箱1",
+            [("X9", 0, 0, 100), ("落地式 抬高300mm", 100, -200, 100)],
+        )
+        self.assertEqual(meta["name"], "配电总箱1")
+        self.assertEqual(meta["install"], "落地式 抬高300mm")
+        self.assertFalse(meta["quantity_recognized"])
+        self.assertEqual(meta["quantity"], 1)
+        floor = _extract_box_metadata("02AP2", [("落地安装", 0, -100, 100)])
+        self.assertEqual(floor["install"], "落地安装")
+        self.assertEqual(_specific_caption("02PBsgfj事故风机配电箱"), "事故风机配电箱")
+
+    def test_top_header_keeps_feeder_numbers_and_does_not_take_the_cabinet_below(self):
+        doc = ezdxf.new("R2010")
+        msp = doc.modelspace()
+        msp.add_text("02AP1", dxfattribs={"insert": (0, 5000), "height": 100})
+        msp.add_text("GGD", dxfattribs={"insert": (400, 5000), "height": 100})
+        msp.add_text("D01", dxfattribs={"insert": (800, 4600), "height": 100})
+        msp.add_text("MCCB-160MA/50A/3P", dxfattribs={"insert": (400, 4600), "height": 100})
+        msp.add_text("1#锅炉给水泵", dxfattribs={"insert": (1600, 4600), "height": 100})
+        msp.add_text("D02", dxfattribs={"insert": (800, 4000), "height": 100})
+        msp.add_text("MCCB-160MA/50A/3P", dxfattribs={"insert": (400, 4000), "height": 100})
+        msp.add_text("02AP2", dxfattribs={"insert": (0, 2800), "height": 100})
+        msp.add_text("D03", dxfattribs={"insert": (800, 2400), "height": 100})
+        msp.add_text("MCCB-160MA/50A/3P", dxfattribs={"insert": (400, 2400), "height": 100})
+        raw = extract_cad_table_data(doc)
+        owners = {c.circuit_no: c.box for c in raw.circuits}
+        self.assertEqual(owners.get("D01"), "02AP1")
+        self.assertEqual(owners.get("D02"), "02AP1")
+        self.assertEqual(owners.get("D03"), "02AP2")
+
     def test_synthetic_dxf_extraction(self):
         doc = ezdxf.new("R2010")
         msp = doc.modelspace()

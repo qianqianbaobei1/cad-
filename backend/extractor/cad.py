@@ -8,6 +8,7 @@
 """
 
 import concurrent.futures
+import hashlib
 import math
 import os
 import re
@@ -81,13 +82,68 @@ def sanitize_surrogates(text: str) -> str:
     return text.encode("utf-8", "ignore").decode("utf-8")
 
 
+def decode_cad_controls(text: str) -> str:
+    """把 CAD 控制码还原成可读字符。DXF 与 PDF 文字层共用。
+
+    %%U 这类排版开关直接去掉，否则位号会带上脏前缀。%%133 这类数字码还原成上标。
+    认不出的控制码原样保留。直径符号沿用配电箱口径，写成 Φ。
+    """
+    if not text or "%" not in text:
+        return text
+    escapes = {
+        "P": "±",
+        "D": "°",
+        "C": "Φ",
+        "A": "°",
+        "S": "/",
+        "N": " ",
+    }
+    toggles = set("UOLKX")
+    numbers = {
+        "133": "³",
+        "132": "²",
+        "179": "³",
+        "176": "°",
+        "177": "±",
+        "248": "Φ",
+    }
+    out: list[str] = []
+    index = 0
+    length = len(text)
+    while index < length:
+        if text[index] == "%" and index + 1 < length and text[index + 1] == "%":
+            rest = text[index + 2:]
+            code3 = rest[:3]
+            if len(code3) == 3 and code3.isdigit():
+                mapped = numbers.get(code3)
+                if mapped is None:
+                    number = int(code3)
+                    mapped = chr(number) if 32 <= number < 127 else ""
+                out.append(mapped)
+                index += 5
+                continue
+            letter = rest[:1]
+            key = letter.upper()
+            if key in toggles:
+                out.append("")
+            elif key in escapes:
+                out.append(escapes[key])
+            else:
+                out.append(text[index:index + (3 if letter else 2)])
+            index += 3 if letter else 2
+        else:
+            out.append(text[index])
+            index += 1
+    return "".join(out)
+
+
 def clean_mtext(raw_text: str) -> str:
     """清理 AutoCAD MTEXT 常见的格式控制代码（如 \\P, \\A1;, \\fSimSun; 等）与非法控制字符。"""
     if not raw_text:
         return ""
     t = sanitize_surrogates(raw_text)
-    # 替换特殊电气工程字符
-    t = t.replace("%%c", "Φ").replace("%%C", "Φ").replace("%%d", "°").replace("%%p", "±")
+    # 先解 %% 控制码。ezdxf 会把 %%c 收成 Ø，配电箱口径要的是 Φ，所以不能等它先处理。
+    t = decode_cad_controls(t)
     # 优先使用 ezdxf 经过实战检验的 fast_plain_mtext 剔除全部 MTEXT 格式控制序列
     try:
         from ezdxf.tools.text import fast_plain_mtext
@@ -110,34 +166,143 @@ def clean_mtext(raw_text: str) -> str:
 
 
 def dwg_to_dxf(dwg_path: str, dxf_path: str) -> bool:
-    """调用 LibreDWG 的 dwg2dxf 工具将 DWG 转换为 DXF。
+    """调用 LibreDWG 的 dwg2dxf 将 DWG 转为 DXF。
 
-    返回值只表示这一步退出码为 0 且输出非空。警告、外参和代理对象记在转换记录里，
-    由读取盘点决定是降级还是关键条件不足。
+    通过条件是退出码 0，并且产物通过 DXF 结构校验。转换写到临时文件，
+    校验通过后才替换目标路径。失败时不改目标文件，也不到目录里挑另一张图顶替。
+    警告、外参和代理对象记在转换记录里，由读取盘点决定是降级还是关键条件不足。
     """
-    from .cad_ledger import classify_stderr, conversion_accepted, remember_conversion
+    from .cad_ledger import (
+        MIN_DWG_BYTES,
+        classify_stderr,
+        conversion_accepted,
+        is_valid_dxf,
+        remember_conversion,
+    )
+
+    def _remember(record: dict[str, Any]) -> bool:
+        remember_conversion(dwg_path, record)
+        if dxf_path:
+            remember_conversion(dxf_path, record)
+        return bool(record["accepted"])
+
+    try:
+        source_size = os.path.getsize(dwg_path)
+    except OSError:
+        source_size = 0
+    if source_size < MIN_DWG_BYTES:
+        return _remember({
+            "tool": "dwg2dxf",
+            "exit_code": None,
+            "output_nonempty": False,
+            "accepted": False,
+            "dxf_valid": False,
+            "warning_lines": 0,
+            "error_lines": 1,
+            "stderr_excerpt": "",
+            "log_missing": False,
+            "note": f"输入只有 {source_size} 字节，明显不是有效 DWG，未调用转换器",
+        })
 
     tool = find_dwg2dxf_tool()
     if not tool:
         raise RuntimeError("未检测到 dwg2dxf 转换工具，请确保已安装 libredwg")
-    cmd = [tool, "-y", "-o", dxf_path, dwg_path]
+
+    out_dir = os.path.dirname(os.path.abspath(dxf_path)) or "."
+    os.makedirs(out_dir, exist_ok=True)
+    staging = dxf_path + ".converting"
+    if os.path.exists(staging):
+        try:
+            os.remove(staging)
+        except OSError:
+            pass
+
+    cmd = [tool, "-y", "-o", staging, dwg_path]
     res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace", check=False)
-    output_nonempty = os.path.exists(dxf_path) and os.path.getsize(dxf_path) > 0
+    staging_exists = os.path.exists(staging)
+    output_nonempty = staging_exists and os.path.getsize(staging) > 0
+    dxf_valid, dxf_why = is_valid_dxf(staging) if staging_exists else (False, "本图未产出 .dxf")
+    accepted = conversion_accepted(res.returncode, output_nonempty) and dxf_valid
+    if accepted:
+        os.replace(staging, dxf_path)
+    elif staging_exists:
+        try:
+            os.remove(staging)
+        except OSError:
+            pass
     warning_lines, error_lines, excerpt = classify_stderr(res.stderr or "")
-    record = {
+    if dxf_valid:
+        note = "退出码 0 且 DXF 结构校验通过。这不表示对象、依赖和单位已经读全"
+    elif res.returncode != 0:
+        note = "转换器未正常退出，目标文件保持原样，不用目录里其他 DXF 顶替"
+    else:
+        note = f"产物不是可用 DXF（{dxf_why}），已丢弃，不用目录里其他 DXF 顶替"
+    return _remember({
         "tool": os.path.basename(tool),
         "exit_code": res.returncode,
         "output_nonempty": output_nonempty,
-        "accepted": conversion_accepted(res.returncode, output_nonempty),
+        "accepted": accepted,
+        "dxf_valid": dxf_valid,
         "warning_lines": warning_lines,
         "error_lines": error_lines,
         "stderr_excerpt": excerpt,
         "log_missing": False,
-        "note": "退出码 0 且输出非空只说明转换步骤返回了文件",
-    }
-    remember_conversion(dwg_path, record)
-    remember_conversion(dxf_path, record)
-    return bool(record["accepted"])
+        "note": note,
+    })
+
+
+def resolve_dwg_dxf(dwg_path: str) -> str:
+    """返回这张 DWG 自己的 DXF 缓存。
+
+    缓存名带文件大小，旁边的标记文件写源文件哈希。同目录里另一张图的 DXF，
+    或只有文件名对得上的旧缓存，都不会被当成这张图。
+    """
+    from .cad_ledger import MIN_DWG_BYTES, is_valid_dxf, sha256_file
+
+    if not os.path.isfile(dwg_path):
+        raise RuntimeError(f"DWG 不存在: {dwg_path}")
+    source_size = os.path.getsize(dwg_path)
+    work_dir = os.path.dirname(os.path.abspath(dwg_path))
+    base_name = os.path.splitext(os.path.basename(dwg_path))[0]
+    cache_dir = os.path.join(work_dir, ".cad_cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_key = hashlib.md5(f"{base_name}_{source_size}".encode()).hexdigest()
+    cached_dxf = os.path.join(cache_dir, f"{cache_key}.dxf")
+    stamp_path = cached_dxf + ".src"
+    if source_size < MIN_DWG_BYTES:
+        dwg_to_dxf(dwg_path, cached_dxf)
+        raise RuntimeError(
+            f"{os.path.basename(dwg_path)} 只有 {source_size} 字节，明显不是有效 DWG，已直接判失败"
+        )
+    source_hash = sha256_file(dwg_path)
+    valid, _why = is_valid_dxf(cached_dxf)
+    stamped = ""
+    if valid:
+        try:
+            with open(stamp_path, encoding="utf-8") as handle:
+                stamped = handle.read().strip()
+        except OSError:
+            stamped = ""
+    if valid and stamped == source_hash:
+        return cached_dxf
+
+    for stale in (cached_dxf, stamp_path):
+        if os.path.exists(stale):
+            try:
+                os.remove(stale)
+            except OSError:
+                pass
+    if not dwg_to_dxf(dwg_path, cached_dxf):
+        raise RuntimeError(
+            f"无法把 {os.path.basename(dwg_path)} 转成可用 DXF。"
+            "空壳、坏文件和目录里的其他图纸都不会拿来顶替。"
+        )
+    try:
+        with open(stamp_path, "w", encoding="utf-8") as handle:
+            handle.write(source_hash)
+    except OSError:
+        pass
+    return cached_dxf
 
 
 def dwg_to_svg_fallback(dwg_path: str, svg_path: str) -> bool:
@@ -1387,13 +1552,11 @@ def process_cad_file(cad_path: str, out_pdf_path: str) -> tuple[str, list[dict[s
     针对单张图纸 CAD，直接高质量渲染；
     具备持久化转换缓存，二次处理 0 耗时秒开。
     """
-    import hashlib
-
     ext = os.path.splitext(cad_path)[1].lower()
     work_dir = os.path.dirname(cad_path)
     base_name = os.path.splitext(os.path.basename(cad_path))[0]
 
-    from .cad_ledger import build_read_report, stamp_records, write_read_report
+    from .cad_ledger import build_read_report, is_valid_dxf, stamp_records, write_read_report
 
     dxf_to_clean = None
     converter = "native_dxf"
@@ -1412,26 +1575,15 @@ def process_cad_file(cad_path: str, out_pdf_path: str) -> tuple[str, list[dict[s
         return out_pdf_path, texts
 
     if ext == ".dwg":
-        cache_dir = os.path.join(work_dir, ".cad_cache")
-        os.makedirs(cache_dir, exist_ok=True)
-        file_size = os.path.getsize(cad_path) if os.path.exists(cad_path) else 0
-        cache_key = hashlib.md5(f"{base_name}_{file_size}".encode()).hexdigest()
-        cached_dxf = os.path.join(cache_dir, f"{cache_key}.dxf")
-
         converter = "libredwg"
         dxf_success = False
-        if os.path.exists(cached_dxf) and os.path.getsize(cached_dxf) > 0:
-            dxf_path = cached_dxf
+        try:
+            dxf_path = resolve_dwg_dxf(cad_path)
             dxf_success = True
-        else:
-            try:
-                dxf_success = dwg_to_dxf(cad_path, cached_dxf)
-                if dxf_success:
-                    dxf_path = cached_dxf
-            except Exception as e:
-                print(f"dwg2dxf 失败: {e}")
+        except Exception as e:
+            print(f"dwg2dxf 失败: {e}")
 
-        if not dxf_success or not os.path.exists(dxf_path) or os.path.getsize(dxf_path) == 0:
+        if not dxf_success or not is_valid_dxf(dxf_path)[0]:
             temp_svg = os.path.join(work_dir, f"{base_name}_temp.svg")
             if dwg_to_svg_fallback(cad_path, temp_svg):
                 try:

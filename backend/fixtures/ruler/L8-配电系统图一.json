@@ -1,0 +1,837 @@
+{
+  "id": "L8-配电系统图一",
+  "level": 8,
+  "drawing": "drawings/02-锅炉房-配电系统图一.dxf",
+  "sha256": "ebf89af94a40ae6991415a3122127eeb9f47c53236d7d24c8f4fae502db957dd",
+  "confirmed_on": "2026-10-10",
+  "confirmation": "从锅炉房电气整张 DWG 里只取出图框 07S20230052SD-02-07 配电系统图一，范围 x 633187–738287、y 156373–215773。这一张上有九台柜。02AP01、02AP02 是 GGD、IP3X、落地式抬高 300mm。JXX1、JXX2、JXX3 是 XXM，安装写壁挂式、中心距地 1.0m，各 1 台。02AP1、02AP2、02AP3 是锅炉给水泵变频柜，GGD、IP54。02AP2 和 02AP3 写落地安装、共 1 台。02AP1 抬头没有安装方式。没有写共 1 台的柜，图上各是一面，台数记 1。02PBsgfj 是事故风机配电箱，JXF、IP55、壁挂式中心距地 1.5m。计算栏 Pe、Pjs、Ijs、cosφ，浪涌，快速熔断器，指示灯，电流互感器变比，热继电器整定电流，以及写在两台泵之间的「一用一备」，这次通过线不计入。功率按图上的写法保留 kW。02AP2、02AP3 没有单独的进线标注。",
+  "boxes": [
+    {
+      "code": "02AP01",
+      "name": "配电总箱1",
+      "quantity": 1,
+      "ip_rating": "IP3X",
+      "install": "落地式 抬高300mm",
+      "location": "",
+      "size": "GGD"
+    },
+    {
+      "code": "JXX1",
+      "name": "防爆检修电源配电箱",
+      "quantity": 1,
+      "ip_rating": "IP65",
+      "install": "壁挂式 中心距地1.0m",
+      "location": "",
+      "size": "XXM"
+    },
+    {
+      "code": "02AP1",
+      "name": "",
+      "quantity": 1,
+      "ip_rating": "IP54",
+      "install": "",
+      "location": "",
+      "size": "GGD"
+    },
+    {
+      "code": "02AP02",
+      "name": "配电总箱2",
+      "quantity": 1,
+      "ip_rating": "IP3X",
+      "install": "落地式 抬高300mm",
+      "location": "",
+      "size": "GGD"
+    },
+    {
+      "code": "JXX2",
+      "name": "检修电源配电箱",
+      "quantity": 1,
+      "ip_rating": "IP4X",
+      "install": "壁挂式 中心距地1.0m",
+      "location": "",
+      "size": "XXM"
+    },
+    {
+      "code": "02AP2",
+      "name": "",
+      "quantity": 1,
+      "ip_rating": "IP54",
+      "install": "落地安装",
+      "location": "",
+      "size": "GGD"
+    },
+    {
+      "code": "02AP3",
+      "name": "",
+      "quantity": 1,
+      "ip_rating": "IP54",
+      "install": "落地安装",
+      "location": "",
+      "size": "GGD"
+    },
+    {
+      "code": "02PBsgfj",
+      "name": "事故风机配电箱",
+      "quantity": 1,
+      "ip_rating": "IP55",
+      "install": "壁挂式 中心距地1.5m",
+      "location": "",
+      "size": "JXF"
+    },
+    {
+      "code": "JXX3",
+      "name": "防水检修电源配电箱",
+      "quantity": 1,
+      "ip_rating": "IP55",
+      "install": "壁挂式 中心距地1.0m",
+      "location": "",
+      "size": "XXM"
+    }
+  ],
+  "devices_observed_not_scored": [
+    "Pe Pjs Ijs cosφ",
+    "SPD 过电流(后备)保护器",
+    "快速熔断器",
+    "LA39-11B AD16-22C",
+    "电流互感器变比",
+    "一用一备"
+  ],
+  "circuits": [
+    {
+      "box": "02AP01",
+      "phase": "L1~L3,N,PE",
+      "breaker": "MCCB-400TM/400A/4P",
+      "circuit_no": "进线",
+      "cable": "电缆型号详见上级配电",
+      "load_name": "进线",
+      "power_kw": "",
+      "note": "ET1C08P04 由制丝工房配电间低压段引来"
+    },
+    {
+      "box": "02AP01",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/125A/3P",
+      "circuit_no": "N1",
+      "cable": "ZR-YJV-0.6/1kV-4x50+1x25 SC70 CT",
+      "load_name": "1#锅炉燃烧器",
+      "power_kw": "45kW"
+    },
+    {
+      "box": "02AP01",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/125A/3P",
+      "circuit_no": "N2",
+      "cable": "ZR-YJV-0.6/1kV-4x50+1x25 SC70 CT",
+      "load_name": "2#锅炉燃烧器",
+      "power_kw": "45kW"
+    },
+    {
+      "box": "02AP01",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/100A/3P",
+      "circuit_no": "N3",
+      "cable": "ZR-YJV-0.6/1kV-4x35+1x16 SC50 CT",
+      "load_name": "3#锅炉燃烧器",
+      "power_kw": "37kW"
+    },
+    {
+      "box": "02AP01",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/125A/3P",
+      "circuit_no": "N4",
+      "cable": "ZR-YJV-0.6/1kV-4x50+1x25 SC70 CT",
+      "load_name": "02AP1",
+      "power_kw": "104kW"
+    },
+    {
+      "box": "02AP01",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/32A/3P",
+      "circuit_no": "N5",
+      "cable": "ZR-YJV-0.6/1kV-5x6 SC32 CT",
+      "load_name": "02AP4",
+      "power_kw": "8.8kW"
+    },
+    {
+      "box": "02AP01",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/50A/3P",
+      "circuit_no": "N6",
+      "cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+      "load_name": "02AP5",
+      "power_kw": "21kW"
+    },
+    {
+      "box": "02AP01",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/32A/3P",
+      "circuit_no": "N7",
+      "cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+      "load_name": "02AP6",
+      "power_kw": "26kW"
+    },
+    {
+      "box": "02AP01",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/32A/3P",
+      "circuit_no": "N8",
+      "cable": "ZR-YJV-0.6/1kV-5x6 SC32 CT",
+      "load_name": "02AP7",
+      "power_kw": "7.4kW"
+    },
+    {
+      "box": "02AP01",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/125A/3P",
+      "circuit_no": "备用",
+      "cable": "",
+      "load_name": "",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX1",
+      "phase": "L1~L3,N,PE",
+      "breaker": "GL-100/63A/3P",
+      "circuit_no": "进线",
+      "cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+      "load_name": "进线",
+      "power_kw": "",
+      "note": "02AP02:N3 由02AP02引来"
+    },
+    {
+      "box": "JXX1",
+      "phase": "L1,N,PE",
+      "breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "220V 16A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX1",
+      "phase": "L2,N,PE",
+      "breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "220V 16A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX1",
+      "phase": "L3,N,PE",
+      "breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "220V 16A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX1",
+      "phase": "L1,L2,L3,PE",
+      "breaker": "RCBO/3P D40+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "380V 32A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX1",
+      "phase": "L1,L2,L3,N,PE",
+      "breaker": "RCBO/4P D40+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "380V 32A\n三相接线柱",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP1",
+      "phase": "L1~L3.N.PE",
+      "breaker": "GL-250/200A/3P",
+      "circuit_no": "进线",
+      "cable": "ZR-YJV-0.6/1kV-4x50+1x25 SC70 CT",
+      "load_name": "进线",
+      "power_kw": "",
+      "note": "02AP01：N4 由02AP01引来"
+    },
+    {
+      "box": "02AP1",
+      "phase": "L1.L2.L3.PE",
+      "breaker": "MCCB-160MA/50A/3P",
+      "circuit_no": "D01",
+      "cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+      "load_name": "1#锅炉给水泵",
+      "power_kw": "18.5kW"
+    },
+    {
+      "box": "02AP1",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D01-C1",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至现场操作柱",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP1",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D01-C2",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP1",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D01-C3",
+      "cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP1",
+      "phase": "L1.L2.L3.PE",
+      "breaker": "MCCB-160MA/50A/3P",
+      "circuit_no": "D02",
+      "cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+      "load_name": "1#锅炉给水泵",
+      "power_kw": "18.5kW"
+    },
+    {
+      "box": "02AP1",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D02-C1",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至现场操作柱",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP1",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D02-C2",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP1",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D02-C3",
+      "cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~L3,N,PE",
+      "breaker": "MCCB-160TM/160A/4P",
+      "circuit_no": "进线",
+      "cable": "电缆型号详见上级配电",
+      "load_name": "进线",
+      "power_kw": "",
+      "note": "ET1C08P03 由制丝工房配电间低压段引来"
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/40A/3P",
+      "circuit_no": "N1",
+      "cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+      "load_name": "02AL01",
+      "power_kw": "16kW"
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/40A/3P",
+      "circuit_no": "N2",
+      "cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+      "load_name": "02AL02",
+      "power_kw": "17kW"
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/40A/3P",
+      "circuit_no": "N3",
+      "cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+      "load_name": "检修电源配电箱",
+      "power_kw": "15kWx2"
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/40A/3P",
+      "circuit_no": "N4",
+      "cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+      "load_name": "检修电源配电箱",
+      "power_kw": "15kW"
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/40A/3P",
+      "circuit_no": "N5",
+      "cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+      "load_name": "02AK01",
+      "power_kw": "16kW"
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/25A/3P",
+      "circuit_no": "N6",
+      "cable": "ZR-YJV-0.6/1kV-5x4 SC25 CT",
+      "load_name": "02PBsgfj",
+      "power_kw": "8kW"
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/32A/3P",
+      "circuit_no": "N7",
+      "cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+      "load_name": "弱电配电箱",
+      "power_kw": "10kW"
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/25A/3P",
+      "circuit_no": "N8",
+      "cable": "ZR-YJV-0.6/1KV-5x4 SC32 CT FC",
+      "load_name": "中水供水设备\n（设备自带控制柜）",
+      "power_kw": "4.5kW"
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCB-D25A/3P",
+      "circuit_no": "预留",
+      "cable": "",
+      "load_name": "",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCB-D25A/3P",
+      "circuit_no": "预留",
+      "cable": "",
+      "load_name": "",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/40A/3P",
+      "circuit_no": "备用",
+      "cable": "",
+      "load_name": "",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP02",
+      "phase": "L1~3,N,PE",
+      "breaker": "MCCB-160TM/40A/3P",
+      "circuit_no": "备用",
+      "cable": "",
+      "load_name": "",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX2",
+      "phase": "L1~L3,N,PE",
+      "breaker": "GL-100/63A/3P",
+      "circuit_no": "进线",
+      "cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+      "load_name": "进线",
+      "power_kw": "",
+      "note": "02AP02:N3 由02AP02引来"
+    },
+    {
+      "box": "JXX2",
+      "phase": "L1,N,PE",
+      "breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "220V 16A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX2",
+      "phase": "L2,N,PE",
+      "breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "220V 16A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX2",
+      "phase": "L3,N,PE",
+      "breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "220V 16A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX2",
+      "phase": "L1,L2,L3,PE",
+      "breaker": "RCBO/3P D40+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "380V 32A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX2",
+      "phase": "L1,L2,L3,N,PE",
+      "breaker": "RCBO/4P D40+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "380V 32A\n三相接线柱",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP2",
+      "phase": "L1.L2.L3.PE",
+      "breaker": "MCCB-160MA/50A/3P",
+      "circuit_no": "D03",
+      "cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+      "load_name": "2#锅炉给水泵",
+      "power_kw": "18.5kW"
+    },
+    {
+      "box": "02AP2",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D03-C1",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至现场操作柱",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP2",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D03-C2",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP2",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D03-C3",
+      "cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP2",
+      "phase": "L1.L2.L3.PE",
+      "breaker": "MCCB-160MA/50A/3P",
+      "circuit_no": "D04",
+      "cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+      "load_name": "2#锅炉给水泵",
+      "power_kw": "18.5kW"
+    },
+    {
+      "box": "02AP2",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D04-C1",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至现场操作柱",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP2",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D04-C2",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP2",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D04-C3",
+      "cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP3",
+      "phase": "L1.L2.L3.PE",
+      "breaker": "MCCB-160MA/50A/3P",
+      "circuit_no": "D05",
+      "cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+      "load_name": "3#锅炉给水泵",
+      "power_kw": "15kW"
+    },
+    {
+      "box": "02AP3",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D05-C1",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至现场操作柱",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP3",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D05-C2",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP3",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D05-C3",
+      "cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP3",
+      "phase": "L1.L2.L3.PE",
+      "breaker": "MCCB-160MA/50A/3P",
+      "circuit_no": "D06",
+      "cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+      "load_name": "3#锅炉给水泵",
+      "power_kw": "15kW"
+    },
+    {
+      "box": "02AP3",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D06-C1",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至现场操作柱",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP3",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D06-C2",
+      "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02AP3",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "D06-C3",
+      "cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+      "load_name": "至设备PLC柜",
+      "power_kw": ""
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "L1/L2/L3/N/PE",
+      "breaker": "MCCB-160TM/20A/3P",
+      "circuit_no": "进线",
+      "cable": "ZR-YJV-0.6/1kV-5x4 SC25 CT",
+      "load_name": "进线",
+      "power_kw": "",
+      "note": "02AP02:N6 由02AP02引来"
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "L1~L3,PE",
+      "breaker": "RCBO-100MA/16A/3P+VM(30mA,瞬时)",
+      "circuit_no": "N1",
+      "cable": "ZR-YJV-0.6/1kV-4x4.0-CT.WS.SC25",
+      "load_name": "P(S)-1",
+      "power_kw": "1.5kWx2"
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "K1-1",
+      "cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+      "load_name": "至锅炉房门内就地按钮盒（带可切除远方控制的手动旋转开关）",
+      "power_kw": ""
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "K1-2",
+      "cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+      "load_name": "至锅炉房门外就地按钮盒",
+      "power_kw": ""
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "K1-3",
+      "cable": "电缆型号规格详见弱电专业",
+      "load_name": "至可燃气体报警控制器",
+      "power_kw": ""
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "L1~L3,PE",
+      "breaker": "RCBO-100MA/16A/3P+VM(30mA,瞬时)",
+      "circuit_no": "N2",
+      "cable": "ZR-YJV-0.6/1kV-4x4.0-CT.WS.SC25",
+      "load_name": "P(S)-1",
+      "power_kw": "1.5kWx3"
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "K2-1",
+      "cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+      "load_name": "至锅炉房门内就地按钮盒（带可切除远方控制的手动旋转开关）",
+      "power_kw": ""
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "K2-2",
+      "cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+      "load_name": "至锅炉房门外就地按钮盒",
+      "power_kw": ""
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "K2-3",
+      "cable": "电缆型号规格详见弱电专业",
+      "load_name": "至可燃气体报警控制器",
+      "power_kw": ""
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "L1~L3,PE",
+      "breaker": "RCBO-100MA/16A/3P+VM(30mA,瞬时)",
+      "circuit_no": "N3",
+      "cable": "ZR-YJV-0.6/1kV-4x4.0-CT.WS.SC25",
+      "load_name": "P(S)-5",
+      "power_kw": "0.18kW"
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "K3-1",
+      "cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+      "load_name": "至在线检测间门内就地按钮盒（带可切除远方控制的手动旋转开关）",
+      "power_kw": ""
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "K3-2",
+      "cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+      "load_name": "至在线检测间门外就地按钮盒",
+      "power_kw": ""
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "K3-3",
+      "cable": "电缆型号规格详见弱电专业",
+      "load_name": "至可燃气体报警控制器",
+      "power_kw": ""
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "L1,N,PE",
+      "breaker": "MCB-C16A/1P",
+      "circuit_no": "N4",
+      "cable": "ZR-BV-450/750V-3x2.5 SC20 WC CC",
+      "load_name": "锅炉房事故照明",
+      "power_kw": "0.3kW"
+    },
+    {
+      "box": "02PBsgfj",
+      "phase": "",
+      "breaker": "MCCB-100MA/16A/3P",
+      "circuit_no": "备用",
+      "cable": "",
+      "load_name": "",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX3",
+      "phase": "L1~L3,N,PE",
+      "breaker": "GL-100/63A/3P",
+      "circuit_no": "进线",
+      "cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+      "load_name": "进线",
+      "power_kw": "",
+      "note": "02AP02:N4 由02AP02引来"
+    },
+    {
+      "box": "JXX3",
+      "phase": "L1,N,PE",
+      "breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "220V 16A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX3",
+      "phase": "L2,N,PE",
+      "breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "220V 16A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX3",
+      "phase": "L3,N,PE",
+      "breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "220V 16A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX3",
+      "phase": "L1,L2,L3,PE",
+      "breaker": "RCBO/3P D40+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "380V 32A",
+      "power_kw": ""
+    },
+    {
+      "box": "JXX3",
+      "phase": "L1,L2,L3,N,PE",
+      "breaker": "RCBO/4P D40+VM(30mA,瞬时)",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "380V 32A\n三相接线柱",
+      "power_kw": ""
+    }
+  ]
+}

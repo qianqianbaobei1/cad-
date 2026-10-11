@@ -1,0 +1,120 @@
+{
+  "drawing": "L3-5DT-AT",
+  "model": "deepseek-flash",
+  "measured_on": "2026-10-10",
+  "calls": null,
+  "score": {
+    "recognize": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "split": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "extract": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "passed": true,
+    "misses": []
+  },
+  "boxes": [
+    {
+      "code": "5DT-AT",
+      "name": "电梯配电箱",
+      "quantity": 1,
+      "ip_rating": "IP30",
+      "install": "底边距地 1.5m 明装",
+      "location": "5 层电梯机房",
+      "size": "500×500×200"
+    }
+  ],
+  "circuits": [
+    {
+      "box": "5DT-AT",
+      "phase": "",
+      "breaker": "MCCB-160C/63A/3340",
+      "circuit_no": "进线",
+      "cable": "WDZ-YJY-5×16-CT",
+      "load_name": "进线",
+      "power_kw": "",
+      "note": "电源分别引自变配电室不同变压器"
+    },
+    {
+      "box": "5DT-AT",
+      "phase": "",
+      "breaker": "MCCB-160C/63A/3340",
+      "circuit_no": "进线",
+      "cable": "WDZ-YJY-5×16-CT",
+      "load_name": "进线",
+      "power_kw": "",
+      "note": "电源分别引自变配电室不同变压器"
+    },
+    {
+      "box": "5DT-AT",
+      "phase": "L123",
+      "breaker": "MCCB-63/50A/3300",
+      "circuit_no": "WP1",
+      "cable": "WDZ-YJY-5×10-JDG40-CC,WC",
+      "load_name": "电梯控制箱",
+      "power_kw": "15.0",
+      "note": "带隔离功能"
+    },
+    {
+      "box": "5DT-AT",
+      "phase": "L1",
+      "breaker": "RCB-63/C16A/1PN/30mA",
+      "circuit_no": "WL1",
+      "cable": "WDZ-BYJ-3×2.5-JDG20-WC",
+      "load_name": "机房照明",
+      "power_kw": "0.1"
+    },
+    {
+      "box": "5DT-AT",
+      "phase": "L2",
+      "breaker": "RCB-63/C16A/1PN/30mA",
+      "circuit_no": "WL2",
+      "cable": "WDZ-BYJ-3×2.5-SC20-CC,WC-E",
+      "load_name": "井道照明",
+      "power_kw": "预留"
+    },
+    {
+      "box": "5DT-AT",
+      "phase": "L3",
+      "breaker": "RCB-63/C20A/1PN/30mA",
+      "circuit_no": "WX1",
+      "cable": "WDZ-BYJ-3×4-JDG20-WC,FC",
+      "load_name": "机房插座",
+      "power_kw": "2.0"
+    },
+    {
+      "box": "5DT-AT",
+      "phase": "L1",
+      "breaker": "RCB-63/C20A/1PN/30mA",
+      "circuit_no": "WX2",
+      "cable": "WDZ-BYJ-3×4-SC20-WC,FC",
+      "load_name": "电梯基坑插座",
+      "power_kw": "1.5"
+    },
+    {
+      "box": "5DT-AT",
+      "phase": "L2",
+      "breaker": "MCB-63/C20A/3P",
+      "circuit_no": "WX3",
+      "cable": "WDZ-BYJ-3×4-JDG20-WC,FC",
+      "load_name": "轴流风机",
+      "power_kw": "0.1"
+    },
+    {
+      "box": "5DT-AT",
+      "phase": "",
+      "breaker": "",
+      "circuit_no": "",
+      "cable": "ZR-BV-2×2.5-JDG20-F,WC",
+      "load_name": "温度控制器",
+      "power_kw": "",
+      "note": "温度开关信号线"
+    }
+  ]
+}

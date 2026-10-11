@@ -1,0 +1,109 @@
+{
+  "drawing": "L4-2AT",
+  "model": "deepseek-flash",
+  "measured_on": "2026-10-10",
+  "calls": null,
+  "score": {
+    "recognize": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "split": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "extract": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "passed": true,
+    "misses": []
+  },
+  "boxes": [
+    {
+      "code": "2AT",
+      "name": "动力配电箱",
+      "quantity": 1,
+      "ip_rating": "IP30",
+      "install": "底边距地1.5m明装",
+      "location": "2层强电间",
+      "size": "400×500×200"
+    }
+  ],
+  "circuits": [
+    {
+      "box": "2AT",
+      "phase": "",
+      "breaker": "MCB-63/C25A/3P",
+      "circuit_no": "进线",
+      "cable": "NG-A(BTLY)-5×16-SC50-CE",
+      "load_name": "进线",
+      "power_kw": ""
+    },
+    {
+      "box": "2AT",
+      "phase": "",
+      "breaker": "MCB-63/C25A/3P",
+      "circuit_no": "进线",
+      "cable": "NG-A(BTLY)-5×10-SC40-CE",
+      "load_name": "进线",
+      "power_kw": ""
+    },
+    {
+      "box": "2AT",
+      "phase": "L123",
+      "breaker": "MCB-63/D16A/3P",
+      "circuit_no": "WP1",
+      "cable": "WDZN-BYJ-5×2.5-JDG25-WC,CC",
+      "load_name": "电动挡烟垂壁控制箱",
+      "power_kw": "1.0"
+    },
+    {
+      "box": "2AT",
+      "phase": "L123",
+      "breaker": "MCB-63/D16A/3P",
+      "circuit_no": "WP2",
+      "cable": "WDZN-BYJ-5×2.5-JDG25-WC,CC",
+      "load_name": "电动挡烟垂壁控制箱",
+      "power_kw": "1.0"
+    },
+    {
+      "box": "2AT",
+      "phase": "L123",
+      "breaker": "MCB-63/D16A/3P",
+      "circuit_no": "WP2",
+      "cable": "WDZN-BYJ-5×2.5-JDG25-WC,CC",
+      "load_name": "电动挡烟垂壁控制箱",
+      "power_kw": "1.0"
+    },
+    {
+      "box": "2AT",
+      "phase": "L123",
+      "breaker": "MCB-63/D16A/3P",
+      "circuit_no": "WP2",
+      "cable": "WDZN-BYJ-5×2.5-JDG25-WC,CC",
+      "load_name": "电动挡烟垂壁控制箱",
+      "power_kw": "1.0"
+    },
+    {
+      "box": "2AT",
+      "phase": "L3",
+      "breaker": "MCB-63/C16A/1P",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "备用",
+      "power_kw": "",
+      "note": "图上未标注回路编号及导线"
+    },
+    {
+      "box": "2AT",
+      "phase": "L1",
+      "breaker": "MCB-63/C16A/1P",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "备用",
+      "power_kw": "",
+      "note": "图上未标注回路编号及导线"
+    }
+  ]
+}

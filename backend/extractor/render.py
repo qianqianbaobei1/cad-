@@ -153,17 +153,17 @@ def plan_tiles(pdf_path: str, page_index: int, long_edge: int = OVERVIEW_LONG_ED
         width_mm, height_mm = page_size_mm(page)
         long_mm = max(width_mm, height_mm)
         is_large = long_mm >= min_mm
+        # 幅面不到切块线时不切。A4 系统图从中间切开，回路号和断路器会落到两块里。
+        if not is_large:
+            return []
         is_dense = False
         try:
             drawings = page.get_drawings()
-            if (len(drawings) >= TILE_DENSE_DRAWINGS
-                    or sum(len(d.get("items", [])) for d in drawings) >= TILE_DENSE_ITEMS):
+            item_count = sum(len(d.get("items", [])) for d in drawings)
+            if item_count >= TILE_DENSE_ITEMS or len(drawings) >= TILE_DENSE_DRAWINGS:
                 is_dense = True
         except Exception:
             pass
-
-        if not is_large and not is_dense:
-            return []
 
         cols, rows = grid_for(width_mm, height_mm,
                               TILE_TARGET_LONG_MM_DENSE if is_dense else TILE_TARGET_LONG_MM)
@@ -223,6 +223,31 @@ def text_layer_stats(pdf_path: str) -> list[dict]:
                 "median_word_pt": round(heights[len(heights) // 2], 1) if heights else 0,
             })
         return out
+    finally:
+        doc.close()
+
+
+def pdf_curve_risk(pdf_path: str) -> dict:
+    """文字很少、矢量图元很多的页，按疑似转曲降置信。文字层够用的页不去数图元。"""
+    from .cad_ledger import thin_vector_text
+
+    doc = fitz.open(pdf_path)
+    words = 0
+    drawings = 0
+    try:
+        for page in doc:
+            page_words = page.get_text("words") or []
+            words += len(page_words)
+            if len(page_words) < 30:
+                try:
+                    drawings += len(page.get_drawings())
+                except Exception:
+                    continue
+        return {
+            "words": words,
+            "drawings": drawings,
+            "thin_text": thin_vector_text(drawings, words),
+        }
     finally:
         doc.close()
 

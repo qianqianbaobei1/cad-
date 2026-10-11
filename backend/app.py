@@ -21,7 +21,7 @@ from extractor.corroborate import corroborate, corroboration_issues
 from extractor.config import config_health, delivery, domain, pipeline
 from extractor.schema import CONTRACT_VERSION, PROMPT_VERSION, Uncertainty, RawExtraction, ExtractionResult, Box
 from extractor.excel import build_workbook, build_project_bom_workbook
-from extractor.cad import is_cad_path, process_cad_file
+from extractor.cad import decode_cad_controls, is_cad_path, process_cad_file
 from extractor.cad_ledger import apply_read_gate
 from extractor.panel_release import release_lines
 from extractor.cad_extractor import assign_preview_bboxes
@@ -438,6 +438,8 @@ def _native_text_lines(cad_texts: list | None, pdf_path: str) -> tuple[list[str]
     """
     if cad_texts:
         lines = [str(t.get("text", "")).strip() for t in cad_texts if str(t.get("text", "")).strip()]
+        from extractor.corroborate import schedule_lines
+        lines.extend(schedule_lines(cad_texts))
         if lines:
             return lines, "cad_native"
     lines: list[str] = []
@@ -446,12 +448,37 @@ def _native_text_lines(cad_texts: list | None, pdf_path: str) -> tuple[list[str]
         doc = fitz.open(pdf_path)
         try:
             for page in doc:
-                lines.extend((page.get_text("text") or "").splitlines())
+                lines.extend(decode_cad_controls(page.get_text("text") or "").splitlines())
         finally:
             doc.close()
     except Exception as exc:  # noqa: BLE001
         print(f"[corroborate] PDF 文字层读取失败: {exc!r}")
     return [line.strip() for line in lines if line.strip()], "pdf_text"
+
+
+def _mark_curve_text(stats: dict, pdf_path: str) -> None:
+    """图元多、文字少时明确降置信。对得上的几个字不能当成整张图已核对通过。"""
+    thin = False
+    report_path = pdf_path + ".read.json"
+    if os.path.exists(report_path):
+        try:
+            with open(report_path, encoding="utf-8") as handle:
+                thin = bool(json.load(handle).get("thin_text"))
+        except Exception:
+            thin = False
+    if not thin and stats.get("source") == "pdf_text":
+        try:
+            from extractor.render import pdf_curve_risk
+            thin = bool(pdf_curve_risk(pdf_path).get("thin_text"))
+        except Exception as exc:  # noqa: BLE001 - 图元统计失败只少一条降级，不能拖垮核对
+            print(f"[corroborate] 文字转曲判断失败: {exc!r}")
+    if thin:
+        stats["thin_text"] = True
+        stats["confidence"] = "low"
+    elif not stats.get("available"):
+        stats["confidence"] = "unavailable"
+    else:
+        stats["confidence"] = "checked"
 
 
 def _apply_corroboration(result: ExtractionResult, cad_texts: list | None, pdf_path: str) -> dict:
@@ -463,6 +490,7 @@ def _apply_corroboration(result: ExtractionResult, cad_texts: list | None, pdf_p
     """
     lines, source = _native_text_lines(cad_texts, pdf_path)
     stats = corroborate(result, lines, source=source)
+    _mark_curve_text(stats, pdf_path)
     for issue in corroboration_issues(stats):
         if str(issue.get("severity", "")).upper() == "INFO":
             continue
@@ -663,6 +691,8 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
         cad_texts = _read_cad_texts(job_id)
 
         raw = provider.extract(items, on_progress=on_progress, cad_texts=cad_texts)
+        if not is_cad_path(pdf_path):
+            raw = provider.refine_with_crops(pdf_path, raw)
         _drop_tiles(pdf_path)
 
         # 记录 AI 识别费用与 Token 日志
@@ -732,7 +762,7 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
                 pdf_cat_items = []
                 seen_pdf_cat = set()
                 for page_idx in range(len(doc)):
-                    page_txt = doc[page_idx].get_text("text") or ""
+                    page_txt = decode_cad_controls(doc[page_idx].get_text("text") or "")
                     for line in page_txt.splitlines():
                         line = line.strip()
                         if not line:
@@ -1284,7 +1314,7 @@ def parse_region(job_id: str, req: RegionParseRequest):
                     min((x + w) * page.rect.width, page.rect.width),
                     min((y + h) * page.rect.height, page.rect.height),
                 )
-                native_text = page.get_text("text", clip=rect).strip()
+                native_text = decode_cad_controls(page.get_text("text", clip=rect).strip())
                 dim = max(rect.width, rect.height)
                 dpi = int(min(450, max(200, 2400 / (dim / 72)))) if dim > 0 else 300
                 pix = page.get_pixmap(clip=rect, dpi=dpi)

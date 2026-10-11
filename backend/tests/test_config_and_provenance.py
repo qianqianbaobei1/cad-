@@ -216,6 +216,34 @@ class CorroborationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             corroborate(self._result(), ["x"], source="not_a_real_origin")
 
+    def test_schedule_row_keeps_device_cells_in_x_order(self):
+        from extractor.corroborate import schedule_lines
+        rows = schedule_lines([
+            {"text": "材料表", "x": 0, "y": 100, "height": 10},
+            {"text": "走廊照明", "x": 400, "y": 80, "height": 10},
+            {"text": "WL1", "x": 0, "y": 80, "height": 10},
+            {"text": "MCB-63/C16A/1P", "x": 180, "y": 80, "height": 10},
+            {"text": "另一张图的字", "x": 0, "y": 0, "height": 10},
+        ])
+        self.assertEqual(rows[0], "材料表")
+        self.assertEqual(rows[1], "WL1 MCB-63/C16A/1P 走廊照明")
+        self.assertTrue(all("另一张图的字" not in line for line in rows))
+
+    def test_plain_circuit_text_is_not_turned_into_a_schedule(self):
+        from extractor.corroborate import schedule_lines
+        self.assertEqual(schedule_lines([
+            {"text": "WL1", "x": 0, "y": 10},
+            {"text": "MCB-63/C16A/1P", "x": 20, "y": 10},
+        ]), [])
+
+    def test_thin_text_blocks_a_clean_pass_even_when_words_match(self):
+        result = self._result()
+        stats = corroborate(result, ["配电箱 2SAL2 系统图", "WL1 MCB-63 C16A/1P 照明 0.8kW"])
+        stats["thin_text"] = True
+        issues = corroboration_issues(stats)
+        self.assertTrue(any("不能当成整张配电箱图已经核对通过" in item["detail"] for item in issues))
+        self.assertTrue(all(item["severity"] == "WARNING" for item in issues if "核对通过" in item["detail"]))
+
 
 class CheckerEvidenceGatingTests(unittest.TestCase):
     def test_confirmed_without_physical_evidence_is_flagged(self):

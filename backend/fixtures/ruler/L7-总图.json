@@ -1,0 +1,40 @@
+{
+  "id": "L7-总图",
+  "level": 7,
+  "drawing": "drawings/00-总图-电气0915（出图）.dwg",
+  "sha256": "e1a7174da9042191afb2504b277afdd9fb0edba9a147677b022f2728ca4f983c",
+  "confirmed_on": "2026-10-10",
+  "confirmation": "总图里的配电系统图只有一台箱，标题是 00AL01道路照明系统图。材料汇总表写道路照明配电箱、详系统图、1台。图框抬头是 XRM、嵌墙安装、防护等级 IP4X，下面写共1台。进线在左侧：01LBZ3:N8、电缆 ZR-YJV-0.6/1kV-5x10 SC50 FC、由01LBZ3引来，总开关 GL-63A/3P，相序 L1~L3,N,PE。出线 N1 到 N12 从上到下。N1 到 N3 的开关是 RCB/2P D20+VM(100mA,瞬动)，N4 到 N12 是 RCB/2P C20+VM(100mA,瞬动)。N1 到 N4 有电缆和功率，N5 到 N12 负荷里带着预留、没有电缆和功率。N12 下面还有一行，回路号是空的，负荷写备用，开关 MCB-C16A/1P。N3、N6、N9、N12 旁的 SE/S3.16.1 和左侧浪涌是器件，这次通过线不计入。平面图上的 00ALZ、00ALW-1 不是这张系统图的另一台箱。",
+  "boxes": [
+    {
+      "code": "00AL01",
+      "name": "道路照明配电箱",
+      "quantity": 1,
+      "ip_rating": "IP4X",
+      "install": "嵌墙安装",
+      "location": "",
+      "size": "XRM"
+    }
+  ],
+  "devices_observed_not_scored": [
+    "SE/S3.16.1",
+    "SPD 4P T1级 I级试验电涌保护器 Up≤2.5kV Iimp≥12.5kA SPD厂家配套 过电流(后备)保护器",
+    "CAT6网线接入能源管理网"
+  ],
+  "circuits": [
+    {"box": "00AL01", "phase": "L1~L3,N,PE", "breaker": "GL-63A/3P", "circuit_no": "进线", "cable": "ZR-YJV-0.6/1kV-5x10 SC50 FC", "load_name": "进线", "power_kw": "", "note": "01LBZ3:N8 由01LBZ3引来"},
+    {"box": "00AL01", "phase": "L1,N,PE", "breaker": "RCB/2P D20+VM(100mA,瞬动)", "circuit_no": "N1", "cable": "ZR-YJV22-0.6/1kV-3x6.0-SC32 FC", "load_name": "1组道路照明", "power_kw": "0.7kW"},
+    {"box": "00AL01", "phase": "L2,N,PE", "breaker": "RCB/2P D20+VM(100mA,瞬动)", "circuit_no": "N2", "cable": "ZR-YJV22-0.6/1kV-3x6.0-SC32 FC", "load_name": "2组道路照明", "power_kw": "0.9kW"},
+    {"box": "00AL01", "phase": "L3,N,PE", "breaker": "RCB/2P D20+VM(100mA,瞬动)", "circuit_no": "N3", "cable": "ZR-YJV22-0.6/1kV-3x6.0-SC32 FC", "load_name": "3组道路照明", "power_kw": "0.8kW"},
+    {"box": "00AL01", "phase": "L1,N,PE", "breaker": "RCB/2P C20+VM(100mA,瞬动)", "circuit_no": "N4", "cable": "ZR-YJV22-0.6/1kV-3x6.0-SC32 FC", "load_name": "货运广场照明", "power_kw": "0.6kW"},
+    {"box": "00AL01", "phase": "L2,N,PE", "breaker": "RCB/2P C20+VM(100mA,瞬动)", "circuit_no": "N5", "cable": "", "load_name": "天井照明预留", "power_kw": ""},
+    {"box": "00AL01", "phase": "L3,N,PE", "breaker": "RCB/2P C20+VM(100mA,瞬动)", "circuit_no": "N6", "cable": "", "load_name": "天井照明预留", "power_kw": ""},
+    {"box": "00AL01", "phase": "L1,N,PE", "breaker": "RCB/2P C20+VM(100mA,瞬动)", "circuit_no": "N7", "cable": "", "load_name": "天井照明预留", "power_kw": ""},
+    {"box": "00AL01", "phase": "L2,N,PE", "breaker": "RCB/2P C20+VM(100mA,瞬动)", "circuit_no": "N8", "cable": "", "load_name": "室外景观照明预留", "power_kw": ""},
+    {"box": "00AL01", "phase": "L3,N,PE", "breaker": "RCB/2P C20+VM(100mA,瞬动)", "circuit_no": "N9", "cable": "", "load_name": "室外景观照明预留", "power_kw": ""},
+    {"box": "00AL01", "phase": "L1,N,PE", "breaker": "RCB/2P C20+VM(100mA,瞬动)", "circuit_no": "N10", "cable": "", "load_name": "室外景观照明预留", "power_kw": ""},
+    {"box": "00AL01", "phase": "L2,N,PE", "breaker": "RCB/2P C20+VM(100mA,瞬动)", "circuit_no": "N11", "cable": "", "load_name": "室外景观照明预留", "power_kw": ""},
+    {"box": "00AL01", "phase": "L3,N,PE", "breaker": "RCB/2P C20+VM(100mA,瞬动)", "circuit_no": "N12", "cable": "", "load_name": "室外景观照明预留", "power_kw": ""},
+    {"box": "00AL01", "phase": "L1,N,PE", "breaker": "MCB-C16A/1P", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""}
+  ]
+}

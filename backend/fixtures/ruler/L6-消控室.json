@@ -1,0 +1,66 @@
+{
+  "id": "L6-消控室",
+  "level": 6,
+  "drawing": "drawings/03-扩建消控室-电气916(出图).dwg",
+  "sha256": "62b88fce7d01b45c65d1592f017eb0a935c66b03b4cc40ba51ba6b61282926fd",
+  "confirmed_on": "2026-10-10",
+  "confirmation": "配电系统图这一页只有两台箱。03XF01 标题是消防配电箱，共1台，挂墙明装，防护等级 IP44。出线 N1 到 N9 的回路号、相序、断路器和电缆按文字左缘对齐；功率写在负荷下一行，带 kW。N2、N3、N4、N6 负荷右侧写着（预留）。三行消防备用落在回路号列，负荷列是空的。两路进线电缆相同，回路号格是空的，按进线计，来源写在备注。图上写的是「链接」不是「连接」。03ELB1 是 A型应急照明集中电源配电箱，壁挂式安装，IP44，共1台。E1 左侧开关文字是 4x6A，E2 到 E4 回路号旁的短横是记号，不是开关型号。材料表里的监控主机是这张系统图的负荷，不是另几台箱。浪涌、BR2-12 和集中电源内部模块看见了，这次通过线不计入。平面图上其它楼的箱号不是这张系统图的配出对象。",
+  "boxes": [
+    {
+      "code": "03XF01",
+      "name": "消防配电箱",
+      "quantity": 1,
+      "ip_rating": "IP44",
+      "install": "挂墙明装",
+      "location": "",
+      "size": ""
+    },
+    {
+      "code": "03ELB1",
+      "name": "A型应急照明集中电源配电箱",
+      "quantity": 1,
+      "ip_rating": "IP44",
+      "install": "壁挂式安装",
+      "location": "",
+      "size": ""
+    }
+  ],
+  "extra_devices": [
+    {"name": "ATS-40/4P带检修隔离位", "spec": "PC级", "quantity": 1}
+  ],
+  "devices_observed_not_scored": [
+    "SPD 4P T1级 I级试验电涌保护器 Up≤2.5kV Iimp≥12.5kA SPD厂家配套 过电流（后备）保护器",
+    "BR2-12 整定12A",
+    "BR2-12 整定3A",
+    "控制显示单元",
+    "通信模块",
+    "智能灯控模块",
+    "充电单元",
+    "蓄电池 DC 3*12V"
+  ],
+  "calc_observed_not_scored": {
+    "03ELB1_Pe_kW": "0.5"
+  },
+  "circuits": [
+    {"box": "03XF01", "phase": "", "breaker": "", "circuit_no": "进线", "cable": "BBTRZ-1000V-5x10  SC40 WC CT", "load_name": "进线", "power_kw": "", "note": "由原消控室原有消防配电箱链接引来"},
+    {"box": "03XF01", "phase": "", "breaker": "", "circuit_no": "进线", "cable": "BBTRZ-1000V-5x10  SC40 WC CT", "load_name": "进线", "power_kw": "", "note": "由原消控室原有消防配电箱链接引来"},
+    {"box": "03XF01", "phase": "L1,N,PE", "breaker": "MCB-C16A/1P", "circuit_no": "N1", "cable": "ZRNH-BV-450/750V-3x2.5 SC20 WC.SCE", "load_name": "新增消控室照明", "power_kw": "0.5kW"},
+    {"box": "03XF01", "phase": "L2,N,PE", "breaker": "MCB-MA 20A/2P", "circuit_no": "N2", "cable": "BBTRZ-1000V-3x2.5 SC20 WC.SCE", "load_name": "火警控制台", "power_kw": "2.0kW", "note": "（预留）"},
+    {"box": "03XF01", "phase": "L3,N,PE", "breaker": "MCB-MA 16A/2P", "circuit_no": "N3", "cable": "BBTRZ-1000V-3x2.5 SC20 WC.SCE", "load_name": "消防电源盘", "power_kw": "1.0kW", "note": "（预留）"},
+    {"box": "03XF01", "phase": "L1,N,PE", "breaker": "MCB-MA 16A/2P", "circuit_no": "N4", "cable": "ZRNH-BV-450/750V-3x2.5 SC20 WC.SCE", "load_name": "防火门监控主机", "power_kw": "0.5kW", "note": "（预留）"},
+    {"box": "03XF01", "phase": "L2,N,PE", "breaker": "MCB-MA 16A/2P", "circuit_no": "N5", "cable": "ZRNH-BV-450/750V-3x2.5 SC20 WC.SCE", "load_name": "应急照明监控主机", "power_kw": "0.5kW"},
+    {"box": "03XF01", "phase": "L3,N,PE", "breaker": "MCB-MA 16A/2P", "circuit_no": "N6", "cable": "ZRNH-BV-450/750V-3x2.5 SC20 WC.SCE", "load_name": "消防仪表箱", "power_kw": "0.5kW", "note": "（预留）"},
+    {"box": "03XF01", "phase": "L1,N,PE", "breaker": "MCB-MA 16A/2P", "circuit_no": "N7", "cable": "ZRNH-BV-450/750V-3x2.5 SC20 WC.SCE", "load_name": "电气火灾监控主机", "power_kw": "0.5kW"},
+    {"box": "03XF01", "phase": "L2,N,PE", "breaker": "MCB-MA 16A/2P", "circuit_no": "N8", "cable": "ZRNH-BV-450/750V-3x2.5 SC20 WC.SCE", "load_name": "消防电源监控主机", "power_kw": "0.5kW"},
+    {"box": "03XF01", "phase": "L3,N,PE", "breaker": "MCB-C16A/1P", "circuit_no": "N9", "cable": "ZRNH-BV-450/750V-3x2.5 SC20 WC.SCE", "load_name": "应急照明箱03ELB1", "power_kw": "0.5kW"},
+    {"box": "03XF01", "phase": "L1,N,PE", "breaker": "MCB-MA 16A/2P", "circuit_no": "消防备用", "cable": "", "load_name": "", "power_kw": ""},
+    {"box": "03XF01", "phase": "L2,N,PE", "breaker": "MCB-MA 16A/2P", "circuit_no": "消防备用", "cable": "", "load_name": "", "power_kw": ""},
+    {"box": "03XF01", "phase": "L3,N,PE", "breaker": "MCB-MA 16A/2P", "circuit_no": "消防备用", "cable": "", "load_name": "", "power_kw": ""},
+    {"box": "03ELB1", "phase": "", "breaker": "MCB-C10A/1P", "circuit_no": "进线", "cable": "ZRNH-BV-450/750V-3x2.5 SC20 WC.CC", "load_name": "进线", "power_kw": "", "note": "03XF01:N9"},
+    {"box": "03ELB1", "phase": "", "breaker": "", "circuit_no": "", "cable": "ZRNH-BV-450/750-3x2.5 SC20  WC CC", "load_name": "", "power_kw": "", "note": "市电故障检测 由就近照明配电箱引来"},
+    {"box": "03ELB1", "phase": "", "breaker": "4x6A", "circuit_no": "E1", "cable": "NH-RVV-300/500V-2X2.5 SC20 WC", "load_name": "扩建消控室应急疏散照明", "power_kw": ""},
+    {"box": "03ELB1", "phase": "", "breaker": "", "circuit_no": "E2", "cable": "", "load_name": "消防备用", "power_kw": ""},
+    {"box": "03ELB1", "phase": "", "breaker": "", "circuit_no": "E3", "cable": "", "load_name": "消防备用", "power_kw": ""},
+    {"box": "03ELB1", "phase": "", "breaker": "", "circuit_no": "E4", "cable": "", "load_name": "消防备用", "power_kw": ""}
+  ]
+}

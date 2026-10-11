@@ -157,6 +157,80 @@ def _parse_devices(value: str, allow_combo: bool = False) -> list[tuple[str, int
     return parsed
 
 
+def split_size_annotation(size: str, note: str) -> tuple[str, str]:
+    """尺寸格只留外形数字。轴说明和厂家备注挪到 note，不改已经干净的尺寸。"""
+    text = (size or "").strip()
+    match = re.search(
+        r"(\d+(?:\.\d+)?)\s*[×xX*]\s*(\d+(?:\.\d+)?)\s*[×xX*]\s*(\d+(?:\.\d+)?)",
+        text,
+    )
+    if not match:
+        return size or "", note or ""
+    raw_extra = text[:match.start()] + text[match.end():]
+    cleaned = re.sub(r"宽\s*[×xX*]\s*高\s*[×xX*]\s*深", " ", raw_extra)
+    cleaned = re.sub(r"[\s，,;；()（）]+", " ", cleaned).strip()
+    if not cleaned and not raw_extra.strip():
+        return size or "", note or ""
+    dim = match.group(0).strip()
+    if not cleaned:
+        return dim, note or ""
+    note = note or ""
+    if cleaned not in note:
+        note = f"{note}；{cleaned}" if note else cleaned
+    return dim, note
+
+
+_LAYING_GAP = re.compile(r"(?<=[\w×xX.)])\s+(?=(?:SC|PC|WC|JDG|CT|FC|CC)\d*)")
+
+
+def restore_cable_hyphen(cable: str) -> str:
+    """敷设代号前被看成空格的连字符补回去。芯数里的 * 和 x 收成 ×。"""
+    text = _LAYING_GAP.sub("-", cable or "")
+    return re.sub(r"(?<=\d)\s*[*xX]\s*(?=\d)", "×", text)
+
+
+_SIGNAL_CABLE = re.compile(
+    r"(ZR-BV-\d+(?:[×xX*]\d+(?:\.\d+)?)+)\s*-?\s*(JDG[\w,.-]+)",
+    re.I,
+)
+
+
+def pull_signal_cable(circuit) -> None:
+    """温度控制器旁边的信号线写在备注里时，收回电缆格，备注只留信号线名称。"""
+    blob = f"{circuit.load_name or ''} {circuit.note or ''} {circuit.cable or ''}"
+    if "温度" not in blob or "信号" not in blob:
+        return
+    match = _SIGNAL_CABLE.search(blob)
+    if not match:
+        return
+    circuit.cable = restore_cable_hyphen(f"{match.group(1)}-{match.group(2)}")
+    circuit.note = "温度开关信号线"
+
+
+def _circuit_signature(circuit) -> tuple:
+    return (
+        (circuit.box or "").strip(),
+        (circuit.circuit_no or "").strip(),
+        (circuit.phase or "").strip(),
+        (circuit.breaker or "").strip(),
+        (circuit.load_name or "").strip(),
+        (circuit.cable or "").strip(),
+        (circuit.power_kw or "").strip(),
+    )
+
+
+def _same_circuit_row(left, right) -> bool:
+    """字段相同且垂直位置重叠，才是同一条被看了两次。没有位置时不合并。"""
+    if _circuit_signature(left) != _circuit_signature(right):
+        return False
+    if left.bbox is None or right.bbox is None:
+        return False
+    overlap = min(left.bbox.y + left.bbox.h, right.bbox.y + right.bbox.h) - max(left.bbox.y, right.bbox.y)
+    if overlap <= 0:
+        return False
+    return overlap >= 0.5 * min(left.bbox.h, right.bbox.h)
+
+
 def _circuit_label(circuit) -> str:
     if circuit.circuit_no:
         return circuit.circuit_no
@@ -406,6 +480,7 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
     extra_devs_from_boxes = []
     dedup_boxes_dict: dict[str, Box] = {}
     for box in raw.boxes:
+        box.size, box.note = split_size_annotation(box.size, box.note)
         code = (box.code or "").strip()
         name = (box.name or "").strip()
         # 通用判断：若柜号或名称为二次监控仪表/模块，转入非回路设备清单
@@ -489,25 +564,39 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
             }
     boxes = {box.code: box for box in merged_boxes if box.code}
 
-    # 2. 回路跨切片去重：同一箱体内完全一致的回路（编号+断路器+负荷名+导线+功率）。
-    # 导线/功率不同也算不同回路——只按前四项去重会静默丢真实回路（少算钱）。
+    # 2. 回路跨切片去重：有编号且相序、断路器、负荷、导线、功率都相同才合并。
+    # 无编号备用行只在垂直位置重叠时才算同一条，外形相同的多行必须都留下。
     # 被去重丢弃的回路记入 warnings（转 uncertainties），不得静默丢。
-    seen_circs = set()
     dedup_circuits = []
     for c in raw.circuits:
         if c.box and not _is_real_box_code(c.box):
             continue
         c_copy = c.model_copy(deep=True)
-        sig = (c_copy.box.strip(), c_copy.circuit_no.strip(), c_copy.breaker.strip(),
-               c_copy.load_name.strip(), c_copy.cable.strip(), c_copy.power_kw.strip())
-        if sig != ("", "", "", "", "", "") and sig in seen_circs:
+        # 矢量文字里的空格是图纸原样。连字符只补视觉读图看成空格的那一处。
+        cable_claim = (c_copy.claims or {}).get("circuit.cable")
+        native_cable = False
+        if cable_claim is not None:
+            for evidence_id in cable_claim.value_evidence_ids:
+                evidence = raw.evidence_store.get(evidence_id)
+                if evidence is not None and getattr(evidence, "origin", "") == "cad_native":
+                    native_cable = True
+                    break
+        if not native_cable:
+            c_copy.cable = restore_cable_hyphen(c_copy.cable)
+        pull_signal_cable(c_copy)
+        if not (c_copy.power_kw or "").strip() and (c_copy.note or "").strip() == "预留":
+            c_copy.power_kw = "预留"
+        # 备用行的功率格是空的。模型有时把「预留」写进功率，那一格仍按空处理。
+        if (c_copy.load_name or "").strip() == "备用" and (c_copy.power_kw or "").strip() == "预留":
+            c_copy.power_kw = ""
+        sig = _circuit_signature(c_copy)
+        if sig != ("", "", "", "", "", "", "") and any(_same_circuit_row(c_copy, prev) for prev in dedup_circuits):
             label = c_copy.circuit_no.strip() or c_copy.load_name.strip() or "（无编号）"
             warnings.append(
                 f"疑似重复回路 {c_copy.box.strip()} {label}（断路器 {c_copy.breaker.strip()}）"
                 f"已去重保留一条，请核对"
             )
             continue
-        seen_circs.add(sig)
 
         # 结构化清洗断路器与导线参数 (Stage 5)
         # 若回路字段被修改过，强制更新结构化清洗参数

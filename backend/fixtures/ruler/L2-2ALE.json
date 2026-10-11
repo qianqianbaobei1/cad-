@@ -1,0 +1,43 @@
+{
+  "id": "L2-2ALE",
+  "level": 2,
+  "drawing": "drawings/2ALE.pdf",
+  "sha256": "e2da104d7b6389c916018254b3f5a69f7e18932d530d9c09fce64dcee3b752d6",
+  "confirmed_on": "2026-10-10",
+  "confirmation": "单页单箱，应急照明，双路进线加 ATSE。文字层 0 个词，按渲染图抄录。两路进线电缆都是 NG-A(BTLY)-5×10-SC50-CE，断路器都是 MCB-63/C25A/3P。出线四行与右侧负荷表对齐。通讯线、电表、浪涌和端子已看见，这次通过线不计入。",
+  "box": {
+    "code": "2 ALE",
+    "name": "应急照明配电箱",
+    "quantity": 1,
+    "ip_rating": "IP30",
+    "install": "底边距地1.5m明装",
+    "location": "强电间",
+    "size": "400×500×200"
+  },
+  "calc_observed_not_scored": {
+    "Pe_kW": "1.0",
+    "Kx": "1.00",
+    "Pjs_kW": "1.0",
+    "cos_phi": "0.85",
+    "Ijs_A": "1.8"
+  },
+  "extra_devices": [
+    {"name": "ATSE-63", "spec": "32A/4P/PC/R", "quantity": 1}
+  ],
+  "devices_observed_not_scored": [
+    "通讯线+电源线 WDZN-RYJS-2×1.5+WDZN-BYJ-2×2.5-CT-JDG20-WC,CC",
+    "RS485总线 CT/PC25",
+    "DT862-3×5(20)",
+    "CPM-R40T II级 4P",
+    "WDZ-BYJ-4×4",
+    "WDZ-BYJ-1×6"
+  ],
+  "circuits": [
+    {"seq": 0, "phase": "", "breaker": "MCB-63/C25A/3P", "circuit_no": "进线", "cable": "NG-A(BTLY)-5×10-SC50-CE", "load_name": "进线", "power_kw": ""},
+    {"seq": 1, "phase": "", "breaker": "MCB-63/C25A/3P", "circuit_no": "进线", "cable": "NG-A(BTLY)-5×10-SC50-CE", "load_name": "进线", "power_kw": ""},
+    {"seq": 2, "phase": "L1", "breaker": "MCB-63/C16A/1P", "circuit_no": "WE1", "cable": "WDZN-BYJ-3×2.5-JDG20-WC", "load_name": "集中电源 2TY-D", "power_kw": "0.5"},
+    {"seq": 3, "phase": "L2", "breaker": "MCB-63/C16A/1P", "circuit_no": "WE2", "cable": "WDZN-BYJ-3×2.5-JDG20-WC", "load_name": "强电间弱电间照明", "power_kw": "0.1"},
+    {"seq": 4, "phase": "L3", "breaker": "MCB-63/C16A/1P", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""},
+    {"seq": 5, "phase": "L1", "breaker": "MCB-63/C16A/1P", "circuit_no": "", "cable": "", "load_name": "备用", "power_kw": ""}
+  ]
+}

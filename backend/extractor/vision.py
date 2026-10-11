@@ -277,15 +277,55 @@ def _key_uncertainty(u):
     return (u.location, u.detail)
 
 
+def _rows_overlap(a, b) -> bool:
+    """两行的垂直范围重叠过半，才算同一条回路被两块同时看到。"""
+    if a is None or b is None:
+        return False
+    overlap = min(a.y + a.h, b.y + b.h) - max(a.y, b.y)
+    if overlap <= 0:
+        return False
+    return overlap >= 0.5 * min(a.h, b.h)
+
+
+def _same_circuit_sighting(a, a_part: int, b, b_part: int) -> bool:
+    """有编号的回路按字段合并。没有编号的备用行，同一块里有几条就留几条。
+
+    跨块时，只有位置重叠、或两边都没给出位置，才当成同一条被看了两次。
+    """
+    if _key_circuit(a) != _key_circuit(b):
+        return False
+    # 同一块里模型列出的每一行都留下。进线号重复的双电源是两条，不是看重了。
+    if a_part == b_part:
+        return False
+    if (a.circuit_no or "").strip():
+        if a.bbox is not None and b.bbox is not None:
+            return _rows_overlap(a.bbox, b.bbox)
+        return True
+    if a.bbox is None and b.bbox is None:
+        return True
+    return _rows_overlap(a.bbox, b.bbox)
+
+
 def merge_parts(parts: list, ) -> RawExtraction:
     """同一页的多个块合并。块之间有重叠，同一个回路会在两块里都出现，
     保留“离块边缘最远”的那一份（就是看得最完整的那一块）。跨页不能去重，
-    不同页上长得一样的备用回路是两条回路。"""
+    不同页上长得一样的备用回路是两条回路。同一块里外形相同的备用行也是多条。"""
     best: dict = {}
     order: list = []
-    for raw, clip in parts:
+    circuit_kept: list[tuple[float, int, object]] = []
+    for part_i, (raw, clip) in enumerate(parts):
+        for item in raw.circuits:
+            score = _interior_score(getattr(item, "bbox", None), clip)
+            replaced = False
+            for index, (old_score, old_part, old) in enumerate(circuit_kept):
+                if _same_circuit_sighting(old, old_part, item, part_i):
+                    if score > old_score:
+                        circuit_kept[index] = (score, part_i, item)
+                    replaced = True
+                    break
+            if not replaced:
+                circuit_kept.append((score, part_i, item))
         for kind, key_fn, collection in (
-            ("circuit", _key_circuit, raw.circuits),
             ("box", _key_box, raw.boxes),
             ("device", _key_device, raw.extra_devices),
             ("requirement", _key_requirement, raw.requirements),
@@ -298,7 +338,7 @@ def merge_parts(parts: list, ) -> RawExtraction:
                     best[key] = (score, item)
                 if key not in order:
                     order.append(key)
-    picked = [best[k][1] for k in order]
+    picked = [item for _, _, item in circuit_kept] + [best[k][1] for k in order]
     return RawExtraction(
         boxes=[x for x in picked if isinstance(x, Box)],
         circuits=[x for x in picked if isinstance(x, Circuit)],
@@ -307,6 +347,110 @@ def merge_parts(parts: list, ) -> RawExtraction:
         uncertainties=[x for x in picked if isinstance(x, Uncertainty)],
         project_info=_first_project_info([raw for raw, _ in parts]),
     )
+
+
+_ROW_KEYS = ("breaker", "circuit_no", "phase", "cable", "load_name", "power_kw", "note")
+_SIGNAL_CABLE = re.compile(
+    r"(ZR-BV-\d+(?:[×xX*]\d+(?:\.\d+)?)+)\s*-?\s*(JDG[\w,.-]+)",
+    re.I,
+)
+
+
+def apply_row_detail(circuit, detail: dict) -> None:
+    """放大读到的非空字段覆盖这一行。温度开关信号线从整段原文里收回电缆格。"""
+    from .assemble import restore_cable_hyphen
+
+    for key in _ROW_KEYS:
+        value = str(detail.get(key) or "").strip()
+        if value:
+            setattr(circuit, key, value)
+    if circuit.cable:
+        circuit.cable = restore_cable_hyphen(circuit.cable)
+    blob = " ".join(str(detail.get(key) or "") for key in ("cable", "note", "load_name", "raw"))
+    if "温度" in f"{circuit.load_name or ''}{blob}" and "信号" in blob:
+        match = _SIGNAL_CABLE.search(blob)
+        if match:
+            circuit.cable = restore_cable_hyphen(f"{match.group(1)}-{match.group(2)}")
+            circuit.note = "温度开关信号线"
+
+
+def apply_margin_cables(circuits, lines: list[str]) -> None:
+    """竖排进线电缆按条数对上进线。只有一条、且各路进线电缆还没出现两种不同规格时，各路都用这一条。两条对两路时按读到的顺序逐条写入。支线 BV 不拿来覆盖进线。"""
+    from .assemble import restore_cable_hyphen
+
+    feeders = []
+    for line in lines:
+        text = line.strip()
+        if not re.search(r"\d+\s*[×xX*]\s*\d+", text):
+            continue
+        if not re.search(r"YJY|YJV|NG-", text, re.I):
+            continue
+        feeders.append(restore_cable_hyphen(text))
+    incomers = [
+        circuit for circuit in circuits
+        if (circuit.circuit_no or "").strip() == "进线" or (circuit.load_name or "").startswith("进线")
+    ]
+    if len(feeders) == 1 and incomers:
+        existing = {restore_cable_hyphen(circuit.cable) for circuit in incomers if (circuit.cable or "").strip()}
+        if len(existing) <= 1:
+            for circuit in incomers:
+                circuit.cable = feeders[0]
+    elif feeders and len(feeders) == len(incomers):
+        for circuit, cable in zip(incomers, feeders):
+            circuit.cable = cable
+
+
+_ATSE = re.compile(r"ATSE\s*-?\s*\d+", re.I)
+
+
+def apply_transfer_switch(raw: RawExtraction, devices: list) -> None:
+    """整页漏了双电源转换开关时，用放大图里读到的型号补一条。已有 ATSE 则不动。"""
+    existing = " ".join(f"{device.name} {device.spec}" for device in raw.extra_devices).upper()
+    if "ATSE" in existing:
+        return
+    for item in devices or []:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        spec = str(item.get("spec") or "").strip()
+        match = _ATSE.search(f"{name} {spec}")
+        if not match or not spec:
+            continue
+        token = re.sub(r"\s+", "", match.group(0)).upper()
+        token = re.sub(r"ATSE(?!-)", "ATSE-", token)
+        raw.extra_devices.append(ExtraDevice(name=token, spec=spec, quantity=1))
+        return
+
+
+def apply_signal_annotation(circuits, lines: list[str]) -> None:
+    """温度控制器旁边单独写的信号线，覆盖误收到该行上的端子线。"""
+    from .assemble import restore_cable_hyphen
+
+    text = " ".join(str(line).strip() for line in lines if str(line).strip())
+    if "信号" not in text:
+        return
+    match = _SIGNAL_CABLE.search(text)
+    if not match:
+        return
+    cable = restore_cable_hyphen(f"{match.group(1)}-{match.group(2)}")
+    for circuit in circuits:
+        blob = f"{circuit.load_name or ''}{circuit.note or ''}"
+        if "温度" not in blob and "温控" not in blob:
+            continue
+        circuit.cable = cable
+        circuit.note = "温度开关信号线"
+
+
+def apply_source_note(circuits, lines: list[str]) -> None:
+    """竖排里「引自…」那一句是进线备注，不拿旁边的消防联动说明去顶替。"""
+    source = next((line.strip() for line in lines if "引自" in line), "")
+    if not source:
+        return
+    for circuit in circuits:
+        number = (circuit.circuit_no or "").strip()
+        name = (circuit.load_name or "").strip()
+        if number == "进线" or name.startswith("进线"):
+            circuit.note = source
 
 
 def _first_project_info(raws: list):
@@ -629,6 +773,368 @@ class VisionProvider:
                           "只输出完整 JSON。"
                     )},
                 ]
+
+    def _ask_json(self, image_path: str, prompt: str, max_tokens: int = 800) -> dict:
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": "你只输出 JSON。只抄图上看得见的字，不改字母和数字。"},
+                {"role": "user", "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": _data_url(image_path), "detail": "high"}},
+                ]},
+            ],
+            "response_format": {"type": "json_object"},
+            "max_tokens": max_tokens,
+            "temperature": 0,
+        }
+        if self._is_deepseek():
+            payload["thinking"] = {"type": "disabled"}
+        data = self._call(payload)
+        raw = json.loads(data["choices"][0]["message"]["content"])
+        return raw if isinstance(raw, dict) else {}
+
+    def read_schedule(self, pdf_path: str) -> RawExtraction | None:
+        """表格线够密时，丢掉整页结果，按列重抄。不是这种表就返回 None。"""
+        import pymupdf
+
+        from .schedule import assign_columns, detect_schedules, label_roles, realign_tall_row
+
+        if not pdf_path or not os.path.exists(pdf_path) or not self.api_key:
+            return None
+        tables = detect_schedules(pdf_path)
+        if not tables:
+            return None
+        doc = pymupdf.open(pdf_path)
+        try:
+            boxes: list[dict] = []
+            circuits: list[dict] = []
+            for table in tables:
+                y0 = table.rows[0][0]
+                y1 = table.rows[-1][1]
+                page = doc[table.page]
+                columns = [
+                    self._transcribe_column(page, x0, x1, y0, y1, len(table.rows))
+                    for x0, x1 in table.columns
+                ]
+                columns = realign_tall_row(table, columns)
+                label, roles = label_roles(columns, len(table.rows))
+                if label is not None and "load" in roles:
+                    self._reread_row(page, table, columns, roles.index("load"), label)
+                if label is not None and "circuit_no" in roles:
+                    self._reread_row(
+                        page, table, columns, roles.index("circuit_no"), label,
+                        only_if=lambda text: bool(re.search(r"YJV|BV|BBTRZ|BTTRZ", text, re.I)),
+                    )
+                if label is not None and "power" in roles:
+                    power_row = roles.index("power")
+                    shifted = [
+                        index
+                        for group in table.groups(power_row)
+                        for index in group
+                        if index != label and len(columns[index]) > power_row
+                        and re.fullmatch(
+                            r"E\d+", "".join(str(columns[index][power_row]).split()), re.I,
+                        )
+                    ]
+                    for role in ("breaker", "cable", "power"):
+                        if role not in roles:
+                            continue
+                        row = roles.index(role)
+                        y0, y1 = table.rows[row]
+                        inset = (y1 - y0) * 0.1
+                        for index in shifted:
+                            x0, x1 = table.columns[index]
+                            text = self._transcribe_cell(page, x0, x1, y0 + inset, y1 - inset)
+                            if text:
+                                columns[index][row] = text
+                found_boxes, found_circuits = assign_columns(table, columns)
+                boxes.extend(found_boxes)
+                circuits.extend(found_circuits)
+        finally:
+            doc.close()
+        if len(boxes) < 2:
+            return None
+        return RawExtraction(
+            boxes=[Box.model_validate(item) for item in boxes],
+            circuits=[Circuit.model_validate(item) for item in circuits],
+            extra_devices=[],
+            requirements=[],
+            uncertainties=[],
+        )
+
+    def _reread_row(self, page, table, columns: list[list[str]], row: int, label: int, only_if=None) -> None:
+        """负荷名称常常写在合并格中间，整列缩略会抄到下一行。按这一行的合并格再放大一次。"""
+        y0, y1 = table.rows[row]
+        inset = (y1 - y0) * 0.1
+        for group in table.groups(row):
+            if label in group:
+                continue
+            if only_if is not None and not any(
+                only_if(columns[index][row]) for index in group if len(columns[index]) > row
+            ):
+                continue
+            x0 = table.columns[group[0]][0]
+            x1 = table.columns[group[-1]][1]
+            text = self._transcribe_cell(page, x0, x1, y0 + inset, y1 - inset)
+            if not text:
+                continue
+            for index in group:
+                if len(columns[index]) == len(table.rows):
+                    columns[index][row] = text
+
+    def _transcribe_cell(self, page, x0, x1, y0, y1) -> str:
+        import pymupdf
+
+        rect = page.rect
+        clip = pymupdf.Rect(
+            rect.x0 + max(0.0, x0) * rect.width,
+            rect.y0 + max(0.0, y0) * rect.height,
+            rect.x0 + min(1.0, x1) * rect.width,
+            rect.y0 + min(1.0, y1) * rect.height,
+        )
+        if clip.width < 4 or clip.height < 4:
+            return ""
+        zoom = min(28.0, max(6.0, 900 / max(clip.height, 1)))
+        path = self._save_clip(page, clip, pymupdf.Matrix(zoom, zoom))
+        try:
+            data = self._ask_json(
+                path,
+                "这是表格里的一个格子。输出 JSON：{\"text\":\"格子里的原文\"}。"
+                "没有字就让 text 为空字符串。格子里有两行就用换行连接。不要补字。",
+                max_tokens=300,
+            )
+        except (json.JSONDecodeError, OSError, RuntimeError, ValueError, KeyError):
+            return ""
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        return "" if data.get("text") is None else str(data.get("text"))
+
+    def _transcribe_column(self, page, x0, x1, y0, y1, row_count: int) -> list[str]:
+        import pymupdf
+
+        rect = page.rect
+        pad = 0.003
+        clip = pymupdf.Rect(
+            rect.x0 + max(0.0, x0 - pad) * rect.width,
+            rect.y0 + y0 * rect.height,
+            rect.x0 + min(1.0, x1 + pad) * rect.width,
+            rect.y0 + y1 * rect.height,
+        )
+        if clip.width < 4 or clip.height < 4:
+            return []
+        zoom = min(22.0, max(4.0, 1600 / max(clip.width, clip.height)))
+        path = self._save_clip(page, clip, pymupdf.Matrix(zoom, zoom))
+        prompt = (
+            f"这是系统表的一列，横线把它分成 {row_count} 个格子。"
+            "输出 JSON：{\"cells\":[\"从上到下的原文\"]}。"
+            f"cells 的长度必须是 {row_count}。空格子用空字符串。"
+            "格子里面如果写了两行，用换行放在同一个字符串里，不要拆成下一格。"
+            "只抄看得到的字，不要补型号，不要改数字。"
+        )
+        try:
+            for _ in range(2):
+                try:
+                    data = self._ask_json(path, prompt, max_tokens=1200)
+                except (json.JSONDecodeError, OSError, RuntimeError, ValueError, KeyError):
+                    return []
+                cells = data.get("cells")
+                if isinstance(cells, list) and len(cells) == row_count:
+                    return ["" if item is None else str(item) for item in cells]
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        return []
+
+    def refine_with_crops(self, pdf_path: str, raw: RawExtraction) -> RawExtraction:
+        """整页读完后，把每一行放大再抄一次。竖排的「引自」写回进线备注。"""
+        import tempfile
+
+        import pymupdf
+
+        if not pdf_path or not os.path.exists(pdf_path) or not self.api_key:
+            return raw
+        doc = pymupdf.open(pdf_path)
+        try:
+            scheduled = self.read_schedule(pdf_path)
+            if scheduled is not None:
+                return scheduled
+            for circuit in raw.circuits:
+                bbox = circuit.bbox
+                if bbox is None or not bbox.usable or bbox.page < 1 or bbox.page > len(doc):
+                    continue
+                if bbox.w * bbox.h > 0.45:
+                    continue
+                page = doc[bbox.page - 1]
+                rect = page.rect
+                x0 = max(0.0, bbox.x - 0.08)
+                x1 = min(1.0, bbox.x + max(bbox.w, 0.05) + 0.42)
+                y0 = max(0.0, bbox.y - 0.012)
+                y1 = min(1.0, bbox.y + bbox.h + 0.012)
+                clip = pymupdf.Rect(rect.x0 + x0 * rect.width, rect.y0 + y0 * rect.height,
+                                    rect.x0 + x1 * rect.width, rect.y0 + y1 * rect.height)
+                if clip.width < 8 or clip.height < 8:
+                    continue
+                zoom = 1500 / max(clip.width, clip.height)
+                pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), clip=clip)
+                handle, path = tempfile.mkstemp(suffix=".png")
+                os.close(handle)
+                try:
+                    pix.save(path)
+                    detail = self._ask_json(
+                        path,
+                        "这是配电回路的一行局部。输出 JSON，字段 breaker、circuit_no、phase、cable、"
+                        "load_name、power_kw、note。只填这行看得到的原文，看不到就留空字符串。",
+                    )
+                except (json.JSONDecodeError, OSError, RuntimeError, ValueError, KeyError):
+                    detail = {}
+                finally:
+                    try:
+                        os.remove(path)
+                    except OSError:
+                        pass
+                if detail:
+                    apply_row_detail(circuit, detail)
+
+            page = doc[0]
+            rect = page.rect
+            margin = pymupdf.Rect(rect.x0, rect.y0 + rect.height * 0.22,
+                                  rect.x0 + rect.width * 0.10, rect.y0 + rect.height * 0.82)
+            pix = page.get_pixmap(matrix=pymupdf.Matrix(2.8, 2.8).prerotate(90), clip=margin)
+            handle, path = tempfile.mkstemp(suffix=".png")
+            os.close(handle)
+            try:
+                pix.save(path)
+                listed = self._ask_json(path, "输出 JSON：{\"lines\":[\"竖排文字逐行原文\"]}")
+            except (json.JSONDecodeError, OSError, RuntimeError, ValueError, KeyError):
+                listed = {}
+            finally:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+            margin_lines = [str(line) for line in (listed.get("lines") or [])]
+            apply_source_note(raw.circuits, margin_lines)
+            apply_margin_cables(raw.circuits, margin_lines)
+            if not any(c.bbox is not None and c.bbox.usable for c in raw.circuits):
+                self._refine_unlocated_columns(doc, raw)
+            self._refine_signal_annotation(doc, raw)
+            self._refine_transfer_switch(doc, raw)
+        finally:
+            doc.close()
+        return raw
+
+    def _save_clip(self, page, clip, matrix) -> str:
+        import tempfile
+        pix = page.get_pixmap(matrix=matrix, clip=clip)
+        handle, path = tempfile.mkstemp(suffix=".png")
+        os.close(handle)
+        pix.save(path)
+        return path
+
+    def _refine_unlocated_columns(self, doc, raw: RawExtraction) -> None:
+        """模型没给行坐标时，把进线断路器和负荷名称列放大再抄。行数对得上才覆盖。"""
+        import pymupdf
+        boxes = {(c.box or "").strip() for c in raw.circuits if (c.box or "").strip()}
+        if len(boxes) != 1:
+            return
+        page = doc[0]
+        rect = page.rect
+        incomers = [c for c in raw.circuits if (c.circuit_no or "").strip() == "进线" or (c.load_name or "").startswith("进线")]
+        outgoing = [c for c in raw.circuits if c not in incomers]
+        breaker_clip = pymupdf.Rect(rect.x0 + rect.width * 0.08, rect.y0 + rect.height * 0.30,
+                                    rect.x0 + rect.width * 0.34, rect.y0 + rect.height * 0.62)
+        load_clip = pymupdf.Rect(rect.x0 + rect.width * 0.62, rect.y0 + rect.height * 0.18,
+                                 rect.x0 + rect.width * 0.94, rect.y0 + rect.height * 0.72)
+        breaker_path = self._save_clip(page, breaker_clip, pymupdf.Matrix(3.2, 3.2))
+        load_path = self._save_clip(page, load_clip, pymupdf.Matrix(3.2, 3.2))
+        try:
+            breaker_doc = self._ask_json(breaker_path, "按从上到下的顺序输出 JSON：{\"lines\":[\"断路器型号或器件原文\"]}")
+            load_doc = self._ask_json(load_path, "按从上到下的顺序，只输出负荷名称，不要功率。JSON：{\"loads\":[\"名称\"]}")
+        except (json.JSONDecodeError, OSError, RuntimeError, ValueError, KeyError):
+            return
+        finally:
+            for path in (breaker_path, load_path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+        found = [line.strip() for line in (breaker_doc.get("lines") or []) if re.search(r"MCCB|MCB|RCB", line, re.I)]
+        incoming_found = found[:len(incomers)]
+        if incomers and len(incoming_found) == len(incomers):
+            for circuit, text in zip(incomers, incoming_found):
+                circuit.breaker = text
+        loads = []
+        for line in load_doc.get("loads") or []:
+            name = re.sub(r"\s+\d+(?:\.\d+)?\s*$", "", str(line).strip())
+            name = re.sub(r"\s*(kW|KW)$", "", name).strip()
+            if name and name not in {"设备名称", "设备(名称)", "名称"}:
+                loads.append(name)
+        if outgoing and len(loads) == len(outgoing):
+            for circuit, name in zip(outgoing, loads):
+                circuit.load_name = name
+
+    def _refine_signal_annotation(self, doc, raw: RawExtraction) -> None:
+        """温度行还停在端子线上时，放大图中部那条信号标注再抄一次。"""
+        import pymupdf
+
+        pending = []
+        for circuit in raw.circuits:
+            blob = f"{circuit.load_name or ''}{circuit.note or ''}"
+            if "温度" not in blob and "温控" not in blob:
+                continue
+            if _SIGNAL_CABLE.search(f"{circuit.cable or ''} {circuit.note or ''}"):
+                continue
+            pending.append(circuit)
+        if not pending:
+            return
+        page = doc[0]
+        rect = page.rect
+        clip = pymupdf.Rect(rect.x0 + rect.width * 0.32, rect.y0 + rect.height * 0.46,
+                            rect.x0 + rect.width * 0.75, rect.y0 + rect.height * 0.66)
+        path = self._save_clip(page, clip, pymupdf.Matrix(3.2, 3.2))
+        try:
+            listed = self._ask_json(path, "输出 JSON：{\"lines\":[\"图上每一行原文\"]}。温度、信号和电缆都要抄上。")
+        except (json.JSONDecodeError, OSError, RuntimeError, ValueError, KeyError):
+            return
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        apply_signal_annotation(raw.circuits, [str(line) for line in (listed.get("lines") or [])])
+
+    def _refine_transfer_switch(self, doc, raw: RawExtraction) -> None:
+        """已有 ATSE 不再放大。没有时看系统图中部，读到型号才补。"""
+        import pymupdf
+
+        if any("ATSE" in f"{device.name} {device.spec}".upper() for device in raw.extra_devices):
+            return
+        page = doc[0]
+        rect = page.rect
+        clip = pymupdf.Rect(rect.x0 + rect.width * 0.12, rect.y0 + rect.height * 0.28,
+                            rect.x0 + rect.width * 0.48, rect.y0 + rect.height * 0.58)
+        path = self._save_clip(page, clip, pymupdf.Matrix(3.2, 3.2))
+        try:
+            listed = self._ask_json(
+                path,
+                "只找双电源自动转换开关。看到 ATSE 才写入 devices，name 用图上的型号，"
+                "spec 用图上的电流和极数原文。没有就输出 {\"devices\":[]}。"
+                "JSON 形如 {\"devices\":[{\"name\":\"\",\"spec\":\"\"}]}。",
+            )
+        except (json.JSONDecodeError, OSError, RuntimeError, ValueError, KeyError):
+            return
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        apply_transfer_switch(raw, listed.get("devices") or [])
 
     def parse_crop(self, image_data_url: str, native_text: str = "") -> dict:
         """针对用户在图纸上框选的局部区域，识别其中的元器件与回路分支。"""

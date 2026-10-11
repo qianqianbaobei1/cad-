@@ -3,8 +3,10 @@
 
 import os
 import shutil
+import subprocess
 import tempfile
 import unittest
+import unittest.mock
 
 import ezdxf
 import pymupdf
@@ -44,6 +46,12 @@ class TestCADPipeline(unittest.TestCase):
 
         raw3 = r"%%c200\P%%d45"
         self.assertEqual(clean_mtext(raw3), "Φ200\n°45")
+
+        # 下划线开关不能污染位号；上标和未知控制码按配电箱文字原样处理
+        self.assertEqual(clean_mtext("%%UV4102A"), "V4102A")
+        self.assertEqual(clean_mtext(r"电缆%%c95\P250Nm%%133/min"), "电缆Φ95\n250Nm³/min")
+        self.assertEqual(clean_mtext("%%P0.2MPa"), "±0.2MPa")
+        self.assertEqual(clean_mtext("%%Q12"), "%%Q12")
 
     def test_dxf_entity_extraction_and_rendering(self):
         dxf_path = os.path.join(self.temp_dir, "test_sample.dxf")
@@ -334,6 +342,134 @@ class TestCADPipeline(unittest.TestCase):
         self.assertEqual(len(frames), 1)
         self.assertEqual(frames[0]["source"], "polyline")
         self.assertEqual(frames[0]["bbox"], (0.0, 0.0, 118900.0, 84100.0))
+
+
+class TestDwgConversionGuard(unittest.TestCase):
+    """DWG 转 DXF 只认本图产物，坏文件不能冒充另一张配电箱图。"""
+
+    def setUp(self):
+        self.temp_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+
+    def _panel_dxf(self, path: str, label: str) -> None:
+        doc = ezdxf.new("R2010")
+        doc.modelspace().add_text(label, dxfattribs={"height": 25, "insert": (50, 500)})
+        doc.saveas(path)
+
+    def _dwg(self, name: str, size: int) -> str:
+        path = os.path.join(self.temp_dir, name)
+        with open(path, "wb") as handle:
+            handle.write(b"AC1015" + b"\x00" * max(0, size - 6))
+        return path
+
+    def test_structure_check_rejects_shell_and_accepts_panel_dxf(self):
+        from extractor.cad_ledger import is_valid_dxf
+
+        shell = os.path.join(self.temp_dir, "shell.dxf")
+        with open(shell, "wb") as handle:
+            handle.write(b"not a drawing" * 40)
+        ok, why = is_valid_dxf(shell)
+        self.assertFalse(ok)
+        self.assertIn("SECTION", why)
+
+        panel = os.path.join(self.temp_dir, "1AL.dxf")
+        self._panel_dxf(panel, "1AL1 照明配电箱")
+        self.assertTrue(is_valid_dxf(panel)[0])
+
+    def test_tiny_dwg_fails_fast_and_does_not_borrow_neighbor(self):
+        from extractor.cad import dwg_to_dxf
+
+        neighbor = os.path.join(self.temp_dir, "other.dxf")
+        self._panel_dxf(neighbor, "AP1 动力配电箱")
+        tiny = self._dwg("fake.dwg", 64)
+        target = os.path.join(self.temp_dir, "fake.dxf")
+        with unittest.mock.patch("extractor.cad.find_dwg2dxf_tool") as finder:
+            self.assertFalse(dwg_to_dxf(tiny, target))
+            finder.assert_not_called()
+        self.assertFalse(os.path.exists(target))
+        kept = ezdxf.readfile(neighbor)
+        texts = [entity.dxf.text for entity in kept.modelspace().query("TEXT")]
+        self.assertEqual(texts, ["AP1 动力配电箱"])
+
+    def test_invalid_converter_output_is_discarded(self):
+        from extractor.cad import dwg_to_dxf
+
+        dwg = self._dwg("panel.dwg", 4096)
+        target = os.path.join(self.temp_dir, "panel.dxf")
+        self._panel_dxf(target, "旧缓存里的别的箱子")
+
+        def fake_run(cmd, **kwargs):
+            out = cmd[cmd.index("-o") + 1]
+            with open(out, "wb") as handle:
+                handle.write(b"SECTION but not really" * 20)
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        with unittest.mock.patch("extractor.cad.find_dwg2dxf_tool", return_value="dwg2dxf"), \
+             unittest.mock.patch("extractor.cad.subprocess.run", side_effect=fake_run):
+            self.assertFalse(dwg_to_dxf(dwg, target))
+        kept = ezdxf.readfile(target)
+        texts = [entity.dxf.text for entity in kept.modelspace().query("TEXT")]
+        self.assertEqual(texts, ["旧缓存里的别的箱子"])
+        self.assertFalse(os.path.exists(target + ".converting"))
+
+    def test_valid_output_replaces_only_its_own_file(self):
+        from extractor.cad import dwg_to_dxf
+
+        dwg = self._dwg("panel.dwg", 4096)
+        target = os.path.join(self.temp_dir, "panel.dxf")
+        neighbor = os.path.join(self.temp_dir, "neighbor.dxf")
+        self._panel_dxf(neighbor, "AP1 动力配电箱")
+        good = os.path.join(self.temp_dir, "good.dxf")
+        self._panel_dxf(good, "1AL1 照明配电箱")
+        with open(good, "rb") as handle:
+            payload = handle.read()
+
+        def fake_run(cmd, **kwargs):
+            out = cmd[cmd.index("-o") + 1]
+            with open(out, "wb") as handle:
+                handle.write(payload)
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        with unittest.mock.patch("extractor.cad.find_dwg2dxf_tool", return_value="dwg2dxf"), \
+             unittest.mock.patch("extractor.cad.subprocess.run", side_effect=fake_run):
+            self.assertTrue(dwg_to_dxf(dwg, target))
+        texts = [entity.dxf.text for entity in ezdxf.readfile(target).modelspace().query("TEXT")]
+        neighbor_texts = [entity.dxf.text for entity in ezdxf.readfile(neighbor).modelspace().query("TEXT")]
+        self.assertEqual(texts, ["1AL1 照明配电箱"])
+        self.assertEqual(neighbor_texts, ["AP1 动力配电箱"])
+
+    def test_resolve_ignores_same_name_cache(self):
+        from extractor.cad import resolve_dwg_dxf
+
+        dwg = self._dwg("照明系统图.dwg", 4096)
+        decoy_dir = os.path.join(self.temp_dir, ".cad_cache")
+        os.makedirs(decoy_dir, exist_ok=True)
+        decoy = os.path.join(decoy_dir, "照明系统图.dxf")
+        self._panel_dxf(decoy, "AP1 动力配电箱")
+        good = os.path.join(self.temp_dir, "good.dxf")
+        self._panel_dxf(good, "1AL1 照明配电箱")
+        with open(good, "rb") as handle:
+            payload = handle.read()
+
+        def fake_run(cmd, **kwargs):
+            out = cmd[cmd.index("-o") + 1]
+            with open(out, "wb") as handle:
+                handle.write(payload)
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        with unittest.mock.patch("extractor.cad.find_dwg2dxf_tool", return_value="dwg2dxf"), \
+             unittest.mock.patch("extractor.cad.subprocess.run", side_effect=fake_run) as runner:
+            resolved = resolve_dwg_dxf(dwg)
+            again = resolve_dwg_dxf(dwg)
+        self.assertNotEqual(os.path.abspath(resolved), os.path.abspath(decoy))
+        self.assertEqual(os.path.abspath(resolved), os.path.abspath(again))
+        self.assertEqual(runner.call_count, 1)
+        texts = [entity.dxf.text for entity in ezdxf.readfile(resolved).modelspace().query("TEXT")]
+        decoy_texts = [entity.dxf.text for entity in ezdxf.readfile(decoy).modelspace().query("TEXT")]
+        self.assertEqual(texts, ["1AL1 照明配电箱"])
+        self.assertEqual(decoy_texts, ["AP1 动力配电箱"])
 
 
 if __name__ == "__main__":

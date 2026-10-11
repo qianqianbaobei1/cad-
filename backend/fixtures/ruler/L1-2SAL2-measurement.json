@@ -1,0 +1,149 @@
+{
+  "drawing": "L1-2SAL2",
+  "model": "deepseek-flash",
+  "measured_on": "2026-10-10",
+  "calls": null,
+  "score": {
+    "recognize": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "split": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "extract": {
+      "recall": 1.0,
+      "precision": 1.0
+    },
+    "passed": true,
+    "misses": []
+  },
+  "boxes": [
+    {
+      "code": "2SAL2",
+      "name": "照明配电箱",
+      "quantity": 1,
+      "ip_rating": "IP30",
+      "install": "底边距地1.5m明装",
+      "location": "二层商业营业厅",
+      "size": "450×350×120"
+    }
+  ],
+  "circuits": [
+    {
+      "box": "2SAL2",
+      "phase": "",
+      "breaker": "MCB- C63A/3P",
+      "circuit_no": "进线",
+      "cable": "",
+      "load_name": "进线",
+      "power_kw": "",
+      "note": "进线详上级配电箱系统图"
+    },
+    {
+      "box": "2SAL2",
+      "phase": "L1",
+      "breaker": "MCB-63/C16A/1P",
+      "circuit_no": "WL1",
+      "cable": "BV-3×2.5-PC20-WC,CC",
+      "load_name": "照明",
+      "power_kw": "1.0"
+    },
+    {
+      "box": "2SAL2",
+      "phase": "L2",
+      "breaker": "RCB-63/C20A/1PN/30mA",
+      "circuit_no": "WX1",
+      "cable": "BV-3×4-PC20-WC,FC",
+      "load_name": "普通插座",
+      "power_kw": "2.0"
+    },
+    {
+      "box": "2SAL2",
+      "phase": "L123",
+      "breaker": "RCB-63/D20A/3PN/30mA",
+      "circuit_no": "WK1",
+      "cable": "BV-5×4-PC25-WC,FC",
+      "load_name": "空调插座",
+      "power_kw": "4.0"
+    },
+    {
+      "box": "2SAL2",
+      "phase": "L123",
+      "breaker": "RCB-63/D20A/3PN/30mA",
+      "circuit_no": "WK2",
+      "cable": "BV-5×4-PC25-WC,FC",
+      "load_name": "空调插座",
+      "power_kw": "4.0"
+    },
+    {
+      "box": "2SAL2",
+      "phase": "L123",
+      "breaker": "RCB-63/D20A/3PN/30mA",
+      "circuit_no": "WK3",
+      "cable": "BV-5×4-PC25-WC,FC",
+      "load_name": "空调插座",
+      "power_kw": "4.0"
+    },
+    {
+      "box": "2SAL2",
+      "phase": "L123",
+      "breaker": "RCB-63/D20A/3PN/30mA",
+      "circuit_no": "WK4",
+      "cable": "BV-5×4-PC25-WC,FC",
+      "load_name": "空调插座",
+      "power_kw": "4.0"
+    },
+    {
+      "box": "2SAL2",
+      "phase": "L2",
+      "breaker": "MCB-63/C16A/1P",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "备用",
+      "power_kw": "",
+      "note": "图上未标注回路编号及导线"
+    },
+    {
+      "box": "2SAL2",
+      "phase": "L3",
+      "breaker": "RCB-63/C20A/1PN/30mA",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "备用",
+      "power_kw": "",
+      "note": "图上未标注回路编号及导线"
+    },
+    {
+      "box": "2SAL2",
+      "phase": "L1",
+      "breaker": "RCB-63/C20A/1PN/30mA",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "备用",
+      "power_kw": "",
+      "note": "图上未标注回路编号及导线"
+    },
+    {
+      "box": "2SAL2",
+      "phase": "L2",
+      "breaker": "RCB-63/C20A/1PN/30mA",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "备用",
+      "power_kw": "",
+      "note": "图上未标注回路编号及导线"
+    },
+    {
+      "box": "2SAL2",
+      "phase": "L123",
+      "breaker": "RCB-63/D20A/3PN/30mA",
+      "circuit_no": "",
+      "cable": "",
+      "load_name": "备用",
+      "power_kw": "",
+      "note": "图上未标注回路编号及导线"
+    }
+  ]
+}

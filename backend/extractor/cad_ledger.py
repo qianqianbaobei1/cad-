@@ -78,9 +78,60 @@ def classify_stderr(stderr: str) -> tuple[int, int, str]:
     return warnings, errors, excerpt
 
 
+def thin_vector_text(geometry_count: int, text_count: int) -> bool:
+    """图元已经成图、文字却少到不像一张写全的配电箱图。
+
+    系统图本来线多字少，所以小图和正常标注图不降级。只在图元不少于 80、
+    且文字不到图元四十分之一时，认定文字层盖不住这张图。
+    """
+    geometry = int(geometry_count or 0)
+    texts = int(text_count or 0)
+    if geometry < 80:
+        return False
+    return texts * 40 < geometry
+
+
 def conversion_accepted(exit_code: int | None, output_nonempty: bool) -> bool:
     """转换步骤的通过条件。它不表示对象、依赖和单位已经读全。"""
     return exit_code == 0 and output_nonempty
+
+
+# 真实 DWG 通常远大于这个数。更小的输入直接失败，避免空等转换器。
+MIN_DWG_BYTES = 1024
+# 空壳 DXF 往往只有几十字节。低于这个数，或缺少结构标志，都不能进缓存。
+MIN_DXF_BYTES = 200
+
+
+def is_valid_dxf(path: str | None, min_bytes: int = MIN_DXF_BYTES) -> tuple[bool, str]:
+    """轻量校验：文件够大，且带 DXF 结构标志。
+
+    转换器在损坏输入下会留下 0 字节或空壳。只看「文件存在」会把空壳当成这张图，
+    也会让目录里另一张图的 DXF 被误用。
+    """
+    if not path:
+        return False, "没有 DXF 路径"
+    try:
+        size = os.path.getsize(path)
+    except OSError as exc:
+        return False, str(exc)
+    if size < min_bytes:
+        return False, f"文件过小（{size} 字节）"
+    try:
+        with open(path, "rb") as handle:
+            head = handle.read(65536)
+            handle.seek(max(0, size - 64))
+            tail = handle.read(64)
+    except OSError as exc:
+        return False, str(exc)
+    if head.startswith(b"AutoCAD Binary DXF"):
+        return True, ""
+    folded_head = head.upper()
+    folded_tail = tail.upper()
+    if b"SECTION" not in folded_head:
+        return False, "缺少 DXF 结构标志（SECTION）"
+    if b"EOF" not in folded_tail and b"EOF" not in folded_head:
+        return False, "缺少 DXF 结束标志（EOF）"
+    return True, ""
 
 
 def entity_source(entity: Any, *, owner: str, insert_path: str, layout: str = "Model") -> dict[str, str]:
@@ -147,7 +198,7 @@ def classify_read_status(facts: dict[str, Any]) -> tuple[str, list[str], bool]:
         reasons.append("只有视觉降级，没有原生对象账本")
         return STATUS_INSUFFICIENT, reasons, False
     if converter == "libredwg" and not facts.get("accepted"):
-        reasons.append("DWG 转换未同时满足退出码 0 与非空输出")
+        reasons.append("DWG 转换未同时满足退出码 0、非空输出与 DXF 结构校验")
         return STATUS_INSUFFICIENT, reasons, False
     if int(facts.get("entity_total") or 0) <= 0:
         reasons.append("模型空间没有可读实体")
@@ -172,6 +223,9 @@ def classify_read_status(facts: dict[str, Any]) -> tuple[str, list[str], bool]:
     if facts.get("recovered"):
         status = STATUS_DEGRADED
         reasons.append("DXF 以恢复模式读取")
+    if facts.get("thin_text"):
+        status = STATUS_DEGRADED
+        reasons.append("图元多、文字少，疑似文字转曲，不能把少量文字当成整张配电箱图已经读全")
     if status == STATUS_SUPPORTED:
         reasons.append("普通实体已盘点。这不表示专业对象、字体和外部依赖已经读全")
     measurement_allowed = bool(
@@ -217,16 +271,18 @@ def build_read_report(
             "note": "DWG 未能转成可读取的 DXF，只保留视觉降级",
         }
     elif conversion is None:
+        cache_ok, cache_why = is_valid_dxf(dxf_path)
         conversion = {
             "tool": "libredwg",
             "exit_code": None,
-            "output_nonempty": bool(dxf_path and os.path.exists(dxf_path)),
-            "accepted": bool(dxf_path and os.path.exists(dxf_path) and os.path.getsize(dxf_path) > 0),
+            "output_nonempty": bool(dxf_path and os.path.exists(dxf_path) and os.path.getsize(dxf_path) > 0),
+            "accepted": cache_ok,
+            "dxf_valid": cache_ok,
             "warning_lines": 0,
-            "error_lines": 0,
+            "error_lines": 0 if cache_ok else 1,
             "stderr_excerpt": "",
             "log_missing": True,
-            "note": "使用已有 DXF 缓存，本次未重跑转换",
+            "note": "使用已有 DXF 缓存，本次未重跑转换" if cache_ok else f"缓存不是可用 DXF：{cache_why}",
         }
 
     try:
@@ -298,6 +354,9 @@ def build_read_report(
             pass
 
     model_entities = sum(entity_counts.values())
+    text_entities = sum(int(entity_counts.get(kind, 0)) for kind in ("TEXT", "MTEXT", "ATTRIB", "ATTDEF"))
+    geometry_entities = max(0, model_entities - text_entities)
+    sparse_text = thin_vector_text(geometry_entities, text_entities)
     facts = {
         "converter": converter,
         "accepted": bool(conversion.get("accepted")),
@@ -305,6 +364,9 @@ def build_read_report(
         "error_lines": int(conversion.get("error_lines") or 0),
         "log_missing": bool(conversion.get("log_missing")),
         "entity_total": model_entities,
+        "text_entities": text_entities,
+        "geometry_entities": geometry_entities,
+        "thin_text": sparse_text,
         "proxy_count": proxy_count,
         "xref_count": len(xrefs),
         "units_known": insunits in _UNIT_NAMES,
@@ -328,6 +390,9 @@ def build_read_report(
         "layouts": layouts,
         "entity_counts": entity_counts,
         "model_entities": model_entities,
+        "text_entities": text_entities,
+        "geometry_entities": geometry_entities,
+        "thin_text": sparse_text,
         "named_blocks": named_blocks,
         "anonymous_blocks": anonymous_blocks,
         "insert_count": int(entity_counts.get("INSERT", 0)),

@@ -49,6 +49,82 @@ def normalize_for_match(value: Any) -> str:
     return _NOISE.sub("", text)
 
 
+_SCHEDULE_HEADERS = ("设备表", "材料表", "回路表", "电缆表", "元器件表")
+
+
+def schedule_lines(records: Iterable[Any], y_tol: float | None = None) -> list[str]:
+    """把带坐标的设备表、材料表按行拼回去。
+
+    只处理标题里写明是表的那一块。系统图上散落的回路文字保持原样，
+    避免把左右两台箱子的字拼成一行。
+    """
+    items: list[dict[str, Any]] = []
+    for record in records or []:
+        if not isinstance(record, dict):
+            continue
+        text = str(record.get("text") or "").strip()
+        if not text or "x" not in record or "y" not in record:
+            continue
+        try:
+            x = float(record["x"])
+            y = float(record["y"])
+        except (TypeError, ValueError):
+            continue
+        try:
+            height = abs(float(record.get("height") or record.get("h") or 0))
+        except (TypeError, ValueError):
+            height = 0.0
+        items.append({"text": text, "x": x, "y": y, "height": height})
+    if len(items) < 2:
+        return []
+    heights = sorted(item["height"] for item in items if item["height"] > 0)
+    tol = y_tol
+    if tol is None:
+        tol = heights[len(heights) // 2] * 0.6 if heights else 8.0
+    if tol <= 0:
+        tol = 8.0
+    items.sort(key=lambda item: (-item["y"], item["x"]))
+    rows: list[list[dict[str, Any]]] = []
+    current: list[dict[str, Any]] = []
+    current_y: float | None = None
+    for item in items:
+        if current_y is None or abs(item["y"] - current_y) <= tol:
+            current.append(item)
+            if current_y is None:
+                current_y = item["y"]
+        else:
+            rows.append(current)
+            current = [item]
+            current_y = item["y"]
+    if current:
+        rows.append(current)
+
+    def _blob(row: list[dict[str, Any]]) -> str:
+        return "".join(cell["text"] for cell in row)
+
+    header_at = None
+    for index, row in enumerate(rows):
+        blob = _blob(row)
+        if any(hint in blob for hint in _SCHEDULE_HEADERS):
+            header_at = index
+            break
+    if header_at is None:
+        return []
+    chosen = [rows[header_at]]
+    previous_y = max(cell["y"] for cell in rows[header_at])
+    for row in rows[header_at + 1:]:
+        row_y = max(cell["y"] for cell in row)
+        if previous_y - row_y > tol * 6:
+            break
+        chosen.append(row)
+        previous_y = row_y
+    lines: list[str] = []
+    for row in chosen:
+        ordered = sorted(row, key=lambda cell: cell["x"])
+        lines.append(" ".join(cell["text"] for cell in ordered))
+    return lines
+
+
 def build_native_corpus(sources: Iterable[Any]) -> tuple[str, int]:
     """把原生文字来源拼成一个大写归一化语料，返回 (语料, 条目数)。
 
@@ -128,24 +204,29 @@ def corroborate(result: ExtractionResult, native_sources: Iterable[Any],
 
 def corroboration_issues(stats: dict, severity: str = "WARNING") -> list[dict]:
     """把交叉验证结果转成待核对条目（未命中才报，命中不打扰人工）。"""
+    issues = []
     if not stats.get("available"):
-        return [{
+        issues.append({
             "location": "交叉验证",
             "detail": ("本图没有可用的原生文字（文字已转曲或未提供矢量文字层），"
                        "模型结论没有第二个来源交叉验证，关键字段需人工抽查"),
             "severity": "INFO",
-        }]
-    if not stats.get("values_checked"):
-        return []
-    issues = []
-    unverified = stats.get("unverified") or 0
-    if unverified:
-        examples = "、".join(stats.get("unverified_examples") or [])
+        })
+    else:
+        unverified = stats.get("unverified") or 0
+        if stats.get("values_checked") and unverified:
+            examples = "、".join(stats.get("unverified_examples") or [])
+            issues.append({
+                "location": "交叉验证",
+                "detail": (f"{stats['values_checked']} 个关键字段里 {unverified} 个未在图纸原生文字中命中"
+                           f"（命中率 {stats['coverage_rate']:.1%}）：{examples}。"
+                           f"未命中不等于错误（可能是转曲、分块边界或原生文字缺失），请在图纸上逐条核对"),
+                "severity": severity,
+            })
+    if stats.get("thin_text"):
         issues.append({
             "location": "交叉验证",
-            "detail": (f"{stats['values_checked']} 个关键字段里 {unverified} 个未在图纸原生文字中命中"
-                       f"（命中率 {stats['coverage_rate']:.1%}）：{examples}。"
-                       f"未命中不等于错误（可能是转曲、分块边界或原生文字缺失），请在图纸上逐条核对"),
-            "severity": severity,
+            "detail": "图元多、文字少，疑似文字转曲。文字层里对得上的字段不能当成整张配电箱图已经核对通过",
+            "severity": "WARNING",
         })
     return issues
