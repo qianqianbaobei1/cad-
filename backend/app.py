@@ -568,22 +568,8 @@ def process_cad_raw_extraction(job_id: str, pdf_path: str, filename: str, raw: R
         result = assemble(raw, meta)
 
         if cad_texts and not getattr(result, "reconciliation", None):
-            from extractor.catalog_reconciler import harvest_range_annotations
-            seen_cat = set()
-            cat_items = []
-            for t in cad_texts:
-                txt = t.get("text", "")
-                parsed = DrawingCatalogReconciler.parse_catalog_line(txt)
-                if parsed and parsed.declared_panels:
-                    key = (parsed.sheet_no, parsed.sheet_title)
-                    if key not in seen_cat:
-                        seen_cat.add(key)
-                        cat_items.append(parsed)
-            for item in harvest_range_annotations(t.get("text", "") for t in cad_texts):
-                key = ("range", item.sheet_title)
-                if key not in seen_cat:
-                    seen_cat.add(key)
-                    cat_items.append(item)
+            from extractor.catalog_reconciler import collect_catalog_items
+            cat_items = collect_catalog_items(t.get("text", "") for t in cad_texts)
             if cat_items:
                 result.reconciliation = DrawingCatalogReconciler.reconcile(
                     cat_items, result.boxes, source_name="CAD图纸目录"
@@ -746,22 +732,8 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
         result = assemble(raw, meta)
 
         if cad_texts and not getattr(result, "reconciliation", None):
-            from extractor.catalog_reconciler import harvest_range_annotations
-            seen_cat = set()
-            cat_items = []
-            for t in cad_texts:
-                txt = t.get("text", "")
-                parsed = DrawingCatalogReconciler.parse_catalog_line(txt)
-                if parsed and parsed.declared_panels:
-                    key = (parsed.sheet_no, parsed.sheet_title)
-                    if key not in seen_cat:
-                        seen_cat.add(key)
-                        cat_items.append(parsed)
-            for item in harvest_range_annotations(t.get("text", "") for t in cad_texts):
-                key = ("range", item.sheet_title)
-                if key not in seen_cat:
-                    seen_cat.add(key)
-                    cat_items.append(item)
+            from extractor.catalog_reconciler import collect_catalog_items
+            cat_items = collect_catalog_items(t.get("text", "") for t in cad_texts)
             if cat_items:
                 result.reconciliation = DrawingCatalogReconciler.reconcile(
                     cat_items, result.boxes, source_name="图纸目录"
@@ -771,21 +743,16 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
             try:
                 import fitz
                 doc = fitz.open(pdf_path)
-                pdf_cat_items = []
-                seen_pdf_cat = set()
+                from extractor.catalog_reconciler import collect_catalog_items
+                pdf_lines = []
                 for page_idx in range(len(doc)):
                     page_txt = decode_cad_controls(doc[page_idx].get_text("text") or "")
                     for line in page_txt.splitlines():
                         line = line.strip()
-                        if not line:
-                            continue
-                        parsed = DrawingCatalogReconciler.parse_catalog_line(line)
-                        if parsed and parsed.declared_panels:
-                            key = (parsed.sheet_no, parsed.sheet_title)
-                            if key not in seen_pdf_cat:
-                                seen_pdf_cat.add(key)
-                                pdf_cat_items.append(parsed)
+                        if line:
+                            pdf_lines.append(line)
                 doc.close()
+                pdf_cat_items = collect_catalog_items(pdf_lines)
                 if pdf_cat_items:
                     result.reconciliation = DrawingCatalogReconciler.reconcile(
                         pdf_cat_items, result.boxes, source_name="PDF图纸目录"

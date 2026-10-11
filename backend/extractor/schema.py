@@ -296,6 +296,13 @@ class CatalogItem(BaseModel):
         "",
         description="sheet_catalog=图纸目录行; range_annotation=平面/表栏范围声明; caption=箱名声明",
     )
+    deficit_kind: str = Field(
+        "",
+        description=(
+            "缺失分类: system_unit_missing=系统图应有独立单元却没有; "
+            "plan_or_schedule_declared=仅平面/目录范围声明，图面未切出单元"
+        ),
+    )
     note: str = Field("", description="对账备注，如「目录声明、图面未切出单元」")
 
 
@@ -308,6 +315,8 @@ class CatalogReconciliation(BaseModel):
     coverage_rate: float = Field(1.0, description="覆盖率 0.0~1.0")
     items: List[CatalogItem] = Field(default_factory=list)
     missing_box_codes: List[str] = Field(default_factory=list, description="遗漏的配电箱编号列表")
+    system_unit_missing_count: int = Field(0, description="系统图应有独立单元却缺失的箱号数")
+    plan_or_schedule_declared_count: int = Field(0, description="仅平面/表栏范围声明、未切出单元的箱号数")
 
 
 class ProjectInfo(BaseModel):
