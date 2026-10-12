@@ -197,7 +197,7 @@ def classify_read_status(facts: dict[str, Any]) -> tuple[str, list[str], bool]:
     if converter == "svg_fallback":
         reasons.append("只有视觉降级，没有原生对象账本")
         return STATUS_INSUFFICIENT, reasons, False
-    if converter == "libredwg" and not facts.get("accepted"):
+    if converter in {"libredwg", "acadrust"} and not facts.get("accepted"):
         reasons.append("DWG 转换未同时满足退出码 0、非空输出与 DXF 结构校验")
         return STATUS_INSUFFICIENT, reasons, False
     if int(facts.get("entity_total") or 0) <= 0:
@@ -205,6 +205,9 @@ def classify_read_status(facts: dict[str, Any]) -> tuple[str, list[str], bool]:
         return STATUS_INSUFFICIENT, reasons, False
 
     status = STATUS_SUPPORTED
+    if converter == "acadrust":
+        status = STATUS_DEGRADED
+        reasons.append("使用 acadrust 兜底读取，尚未完成此类工程图的独立完整性验证")
     if facts.get("log_missing"):
         status = STATUS_DEGRADED
         reasons.append("本次没有转换日志，不能把缓存文件存在当成无警告读全")

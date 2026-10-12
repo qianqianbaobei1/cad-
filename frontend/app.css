@@ -500,6 +500,125 @@ kbd{background:var(--inset);border:1px solid var(--line2);padding:1px 6px;font-s
 }
 .auth-tab-btn.active{color:var(--acc-d);border-bottom-color:var(--acc)}
 
+/* ===== CAD 原生矢量透视面板 ===== */
+.cad-inspector{
+  position:absolute;top:0;right:0;bottom:0;width:340px;
+  background:rgba(255,255,255,0.97);
+  backdrop-filter:blur(10px);
+  border-left:1px solid var(--line2);
+  box-shadow:-4px 0 24px rgba(26,35,51,0.12);
+  z-index:25;display:flex;flex-direction:column;
+  transition:transform .25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cad-inspector.collapsed{
+  transform:translateX(100%);
+  pointer-events:none;
+}
+.cad-inspector-header{
+  padding:12px 14px;background:#F7F9FD;
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.ci-title{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600}
+.ci-badge{font-size:11px;color:var(--acc-d);background:var(--acc-t);padding:1px 6px;border-radius:2px}
+.cad-inspector-body{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+.ci-meta{background:var(--inset);border:1px solid var(--line);border-radius:3px;padding:8px 10px;font-size:12px;display:flex;flex-direction:column;gap:6px}
+.ci-search-box{display:flex;gap:6px}
+.ci-search-box input{flex:1;padding:5px 8px;font-size:12px;border:1px solid var(--line2);border-radius:2px;background:#fff}
+.ci-subtitle{font-size:12px;color:var(--mut2);margin-top:4px}
+.ci-layer-row{display:flex;align-items:center;justify-content:space-between;padding:4px 6px;border-bottom:1px solid var(--line);font-size:12px}
+.ci-layer-row:hover{background:var(--inset)}
+.ci-result-item{padding:5px 8px;border:1px solid var(--line);border-radius:2px;margin-bottom:4px;cursor:pointer;background:#fff;display:flex;justify-content:space-between}
+.ci-result-item:hover{background:var(--acc-t);border-color:var(--acc)}
+
+/* ===== 视口模式切换按钮 (蓝图 vs 纯矢量 CAD) ===== */
+.vmode-group{
+  display:inline-flex;align-items:center;background:var(--inset);
+  border:1px solid var(--line2);border-radius:4px;padding:2px;gap:2px;
+}
+.vmode-btn{
+  border:none;background:transparent;color:var(--mut);font-size:12px;font-weight:600;
+  padding:3px 10px;border-radius:3px;cursor:pointer;transition:all .15s;
+}
+.vmode-btn:hover{color:var(--txt)}
+.vmode-btn.active{
+  background:#fff;color:var(--acc-d);box-shadow:0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* ===== 方案 A: CAD 矢量定位浮标与高亮框 ===== */
+.cad-overlay{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  pointer-events:none;z-index:20;overflow:hidden;
+}
+.cad-locator-box{
+  position:absolute;pointer-events:auto;
+  border:2px solid #00F0FF;border-radius:4px;
+  background:rgba(0, 240, 255, 0.08);
+  box-shadow:0 0 16px rgba(0, 240, 255, 0.4), inset 0 0 12px rgba(0, 240, 255, 0.2);
+  transition:all .2s ease;
+  animation:cad-radar-pulse 2s infinite ease-in-out;
+}
+@keyframes cad-radar-pulse{
+  0%{box-shadow:0 0 8px rgba(0, 240, 255, 0.3), inset 0 0 4px rgba(0, 240, 255, 0.1)}
+  50%{box-shadow:0 0 24px rgba(0, 240, 255, 0.7), inset 0 0 16px rgba(0, 240, 255, 0.35)}
+  100%{box-shadow:0 0 8px rgba(0, 240, 255, 0.3), inset 0 0 4px rgba(0, 240, 255, 0.1)}
+}
+.cad-locator-tag{
+  position:absolute;bottom:calc(100% + 6px);left:0;
+  background:#0B132B;color:#00F0FF;border:1px solid #00F0FF;
+  border-radius:3px;padding:3px 8px;font-size:11px;font-family:monospace;
+  white-space:nowrap;display:flex;align-items:center;gap:6px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.3);
+}
+.cad-locator-tag button{
+  background:rgba(0,240,255,0.15);border:none;color:#00F0FF;
+  padding:1px 5px;border-radius:2px;font-size:10px;cursor:pointer;
+}
+.cad-locator-tag button:hover{background:#00F0FF;color:#000}
+
+/* ===== 方案 B: 图层控制条与显隐交互 ===== */
+.ci-layers-toolbar{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-top:6px;padding-bottom:4px;border-bottom:1px solid var(--line);
+}
+.ci-btn-group{display:flex;gap:4px}
+.ci-tool-btn{
+  border:1px solid var(--line2);background:#fff;border-radius:2px;
+  padding:2px 6px;font-size:11px;color:var(--txt);cursor:pointer;
+}
+.ci-tool-btn:hover{background:var(--inset);border-color:var(--acc)}
+.ci-layer-toggle{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:20px;height:20px;cursor:pointer;border-radius:2px;
+  margin-right:6px;font-size:12px;opacity:0.85;transition:opacity .1s;
+}
+.ci-layer-toggle:hover{opacity:1;background:rgba(0,0,0,0.05)}
+.ci-layer-row.hidden-layer{
+  opacity:0.4;background:#f5f5f5;
+}
+.ci-layer-row.hidden-layer b{
+  text-decoration:line-through;color:var(--mut);
+}
+
+/* ===== 方案 C: 纯矢量 CAD 画布与 HUD ===== */
+.vector-canvas{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  background:#141518;cursor:crosshair;z-index:5;
+}
+.vector-canvas.panning{cursor:grabbing}
+.vector-hud{
+  position:absolute;bottom:12px;left:12px;
+  background:rgba(20, 21, 24, 0.88);
+  border:1px solid #2C2D35;backdrop-filter:blur(6px);
+  color:#9CA3AF;border-radius:4px;padding:4px 10px;
+  font-size:11.5px;font-family:monospace;display:flex;gap:14px;
+  z-index:22;pointer-events:none;
+}
+.vector-hud b{color:#E5E7EB}
+.vector-hud span{color:#00F0FF}
+
+
+
 
 
 

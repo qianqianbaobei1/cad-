@@ -9,6 +9,7 @@
 
 import concurrent.futures
 import hashlib
+import json
 import math
 import os
 import re
@@ -165,7 +166,7 @@ def clean_mtext(raw_text: str) -> str:
     return t
 
 
-def dwg_to_dxf(dwg_path: str, dxf_path: str) -> bool:
+def _libredwg_to_dxf(dwg_path: str, dxf_path: str) -> bool:
     """调用 LibreDWG 的 dwg2dxf 将 DWG 转为 DXF。
 
     通过条件是退出码 0，并且产物通过 DXF 结构校验。转换写到临时文件，
@@ -218,10 +219,11 @@ def dwg_to_dxf(dwg_path: str, dxf_path: str) -> bool:
             pass
 
     cmd = [tool, "-y", "-o", staging, dwg_path]
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace", check=False)
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace", check=False, timeout=180)
     staging_exists = os.path.exists(staging)
     output_nonempty = staging_exists and os.path.getsize(staging) > 0
-    dxf_valid, dxf_why = is_valid_dxf(staging) if staging_exists else (False, "本图未产出 .dxf")
+    from .cad_fallback import validate_document
+    dxf_valid, dxf_why = validate_document(staging) if staging_exists else (False, "本图未产出 .dxf")
     accepted = conversion_accepted(res.returncode, output_nonempty) and dxf_valid
     if accepted:
         os.replace(staging, dxf_path)
@@ -249,6 +251,46 @@ def dwg_to_dxf(dwg_path: str, dxf_path: str) -> bool:
         "log_missing": False,
         "note": note,
     })
+
+
+def dwg_to_dxf(dwg_path: str, dxf_path: str) -> bool:
+    """LibreDWG first, acadrust on failure; never union two converter documents."""
+    from .cad_fallback import convert_acadrust
+    from .cad_ledger import MIN_DWG_BYTES, conversion_for, remember_conversion
+    os.makedirs(os.path.dirname(os.path.abspath(dxf_path)), exist_ok=True)
+    if os.path.realpath(dwg_path) == os.path.realpath(dxf_path):
+        raise ValueError("不允许覆盖原始 DWG")
+    try:
+        accepted = _libredwg_to_dxf(dwg_path, dxf_path)
+        primary = dict(conversion_for(dwg_path) or {})
+    except (RuntimeError, OSError, subprocess.TimeoutExpired) as exc:
+        accepted = False
+        primary = {"tool": "dwg2dxf", "accepted": False, "exit_code": None,
+                   "error_lines": 1, "warning_lines": 0, "log_missing": False,
+                   "note": f"LibreDWG 未完成：{type(exc).__name__}: {exc}"}
+    primary["converter"] = "libredwg"
+    attempts = [primary]
+    chosen = primary
+    if not accepted and os.path.isfile(dwg_path) and os.path.getsize(dwg_path) >= MIN_DWG_BYTES:
+        secondary = convert_acadrust(dwg_path, dxf_path)
+        attempts.append(secondary)
+        if secondary["accepted"]:
+            chosen = secondary
+    record = {**chosen, "attempts": attempts,
+              "fallback_used": chosen.get("converter") == "acadrust"}
+    for path in (dwg_path, dxf_path):
+        remember_conversion(path, record)
+    # Provenance survives a backend restart alongside the source-hash cache stamp.
+    if record.get("accepted") and os.path.isfile(dwg_path) and os.path.isfile(dxf_path):
+        from .cad_ledger import sha256_file
+        record["source_sha256"] = sha256_file(dwg_path)
+        record["output_sha256"] = sha256_file(dxf_path)
+        try:
+            with open(dxf_path + ".conversion.json", "w", encoding="utf-8") as stream:
+                json.dump(record, stream, ensure_ascii=False, indent=2)
+        except OSError:
+            pass
+    return bool(record.get("accepted"))
 
 
 def resolve_dwg_dxf(dwg_path: str) -> str:
@@ -284,6 +326,16 @@ def resolve_dwg_dxf(dwg_path: str) -> str:
         except OSError:
             stamped = ""
     if valid and stamped == source_hash:
+        from .cad_ledger import remember_conversion
+        try:
+            with open(cached_dxf + ".conversion.json", encoding="utf-8") as stream:
+                record = json.load(stream)
+            if (record.get("source_sha256") == source_hash
+                    and record.get("output_sha256") == sha256_file(cached_dxf)):
+                remember_conversion(dwg_path, record)
+                remember_conversion(cached_dxf, record)
+        except (OSError, ValueError, AttributeError):
+            pass
         return cached_dxf
 
     for stale in (cached_dxf, stamp_path):
@@ -1962,6 +2014,8 @@ def process_cad_file(cad_path: str, out_pdf_path: str) -> tuple[str, list[dict[s
         dxf_success = False
         try:
             dxf_path = resolve_dwg_dxf(cad_path)
+            from .cad_ledger import conversion_for
+            converter = (conversion_for(cad_path) or {}).get("converter", "libredwg")
             dxf_success = True
         except Exception as e:
             print(f"dwg2dxf 失败: {e}")

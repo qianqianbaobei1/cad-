@@ -74,9 +74,55 @@
         <button id="prevpage" onclick="setPage(S.page-1)" title="上一页">‹</button>
         <span class="pct" id="ppct">1/1</span>
         <button id="nextpage" onclick="setPage(S.page+1)" title="下一页">›</button>
+        <span class="vsep" id="cadsep" hidden></span>
+        <div class="vmode-group" id="vmodeGroup" hidden>
+          <button id="btnViewRaster" class="vmode-btn active" onclick="setViewMode('raster')" title="高清施工图纸模式">📷 蓝图视图</button>
+          <button id="btnViewVector" class="vmode-btn" onclick="setViewMode('vector')" title="纯矢量 CAD 交互画布模式">📐 纯矢量 CAD</button>
+        </div>
+        <button id="cadinfobtn" onclick="toggleCadInspector()" title="查看 CAD 原生矢量图层、空间边界与实体透视" hidden>📐 CAD 矢量透视</button>
+        <a id="caddownloadbtn" class="btn sm ghost" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px;font-size:12px;" title="下载转换保留的完整 DXF 文件" hidden download>💾 下载 DXF</a>
       </div>
     </div>
     <div class="canvas" id="canvas">
+      <!-- 方案 C: 纯矢量 CAD 交互画布与 HUD -->
+      <canvas id="vectorCanvas" class="vector-canvas" hidden></canvas>
+      <div class="vector-hud" id="vectorHud" hidden>
+        <div class="vh-item"><b>坐标:</b> <span id="vhCoords">X: 0 Y: 0</span></div>
+        <div class="vh-item"><b>缩放:</b> <span id="vhZoom">100%</span></div>
+        <div class="vh-item"><b>图元:</b> <span id="vhHoverEntity">无</span></div>
+      </div>
+      <!-- CAD 矢量实体透视浮动面板 -->
+      <div class="cad-inspector collapsed" id="cadInspector">
+        <div class="cad-inspector-header">
+          <div class="ci-title">
+            <span>📐</span>
+            <b>CAD 矢量实体透视</b>
+            <span class="ci-badge" id="ciEntityBadge">0 实体</span>
+          </div>
+          <button class="icon-btn" onclick="toggleCadInspector()" title="收起面板">✕</button>
+        </div>
+        <div class="cad-inspector-body">
+          <div class="ci-meta">
+            <div><b>空间边界:</b> <span id="ciExtents">-</span></div>
+            <div><b>实体统计:</b> <span id="ciCounts">-</span></div>
+          </div>
+          <div class="ci-subtitle"><b>全文搜索实体与 Handle</b></div>
+          <div class="ci-search-box">
+            <input type="text" id="ciSearchInput" placeholder="输入文字（如 锅炉/AL1/250A）..." onkeydown="if(event.key==='Enter')doCadSearch()">
+            <button class="btn sm primary" onclick="doCadSearch()">查找</button>
+          </div>
+          <div class="ci-results" id="ciResults"></div>
+          <!-- 方案 B: 图层清单与实时批量控制 -->
+          <div class="ci-layers-toolbar">
+            <div class="ci-subtitle" style="margin:0;"><b>图层清单 (<span id="ciLayerCount">0</span>)</b></div>
+            <div class="ci-btn-group">
+              <button class="ci-tool-btn" onclick="toggleAllLayers(true)" title="显示全部图层">👁️ 全显</button>
+              <button class="ci-tool-btn" onclick="toggleAllLayers(false)" title="隐藏全部图层">🕶️ 全隐</button>
+            </div>
+          </div>
+          <div class="ci-layers" id="ciLayers"></div>
+        </div>
+      </div>
       <!-- 多图切块浮动目录滑块 -->
       <div class="sheet-catalog collapsed" id="sheetCatalog">
         <div class="sheet-catalog-header">
@@ -112,6 +158,8 @@
       <div class="stage" id="stage" hidden>
         <div id="zones"></div>
         <div id="hlbox"></div>
+        <!-- 方案 A: CAD 矢量定位浮标层 -->
+        <div id="cadOverlay" class="cad-overlay"></div>
         <div id="cropmarquee" class="cropbox" hidden><span class="crop-tag" id="croptag">选区</span></div>
         <img id="dwg" alt="配电系统图" onerror="onDrawingError()">
       </div>

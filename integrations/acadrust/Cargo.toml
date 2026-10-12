@@ -1,0 +1,10 @@
+[package]
+name = "extractor-dwg"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+acadrust = { version = "=0.6.3", features = ["serde"] }
+serde_json = "1"
+

@@ -35,3 +35,8 @@ backend/data/*.csv
 *.dxf
 *.log
 deliveries/
+integrations/acadrust/target/
+integrations/cadcraft/source/
+integrations/cadcraft/bin/
+frontend/vendor/cadcraft/
+*.vectors.json

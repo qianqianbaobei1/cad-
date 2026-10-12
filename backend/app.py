@@ -1237,6 +1237,124 @@ def get_page_image(job_id: str, page_num: int = 1):
     return FileResponse(img_path, media_type="image/png")
 
 
+def _resolve_job_dxf(job_id: str) -> str | None:
+    job = load_job_cached(job_id)
+    if not job:
+        return None
+    file_type = (job.get("file_type") or "").lower()
+    if file_type == "dxf":
+        raw = os.path.join(WORKDIR, f"{job_id}.dxf")
+        if os.path.isfile(raw):
+            return raw
+    elif file_type == "dwg":
+        raw = os.path.join(WORKDIR, f"{job_id}.dwg")
+        if os.path.isfile(raw):
+            from extractor.cad import resolve_dwg_dxf
+            try:
+                cached = resolve_dwg_dxf(raw)
+                if os.path.isfile(cached):
+                    return cached
+            except Exception:
+                pass
+    return None
+
+
+@app.get("/api/jobs/{job_id}/dxf")
+def get_job_dxf(job_id: str):
+    _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
+    dxf_path = _resolve_job_dxf(job_id)
+    if not dxf_path:
+        raise HTTPException(404, "该任务非 CAD 图纸或 DXF 产物尚未生成")
+    filename = f"{job_id}.dxf"
+    return FileResponse(dxf_path, media_type="application/dxf", filename=filename)
+
+
+@app.get("/api/jobs/{job_id}/cad_info")
+def get_job_cad_info(job_id: str):
+    _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
+    dxf_path = _resolve_job_dxf(job_id)
+    if not dxf_path:
+        return JSONResponse({"available": False, "reason": "非 CAD 图纸或 DXF 不存在"})
+    from extractor.cad_craft import cadcraft_info
+    info = cadcraft_info(dxf_path)
+    if not info:
+        return JSONResponse({"available": False, "reason": "CADCraft 解析未返回元数据"})
+    return JSONResponse({"available": True, "info": info})
+
+
+@app.get("/api/jobs/{job_id}/cad_find")
+def get_job_cad_find(job_id: str, q: str = ""):
+    _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
+    if not q.strip():
+        raise HTTPException(400, "查询关键字不能为空")
+    dxf_path = _resolve_job_dxf(job_id)
+    if not dxf_path:
+        return JSONResponse({"matches": [], "total": 0, "available": False})
+    from extractor.cad_craft import cadcraft_find
+    result = cadcraft_find(dxf_path, q.strip()) or {}
+    return JSONResponse(result)
+
+
+@app.get("/api/jobs/{job_id}/cad_slice")
+def get_job_cad_slice(job_id: str, x0: float, y0: float, x1: float, y1: float):
+    _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
+    dxf_path = _resolve_job_dxf(job_id)
+    if not dxf_path:
+        raise HTTPException(404, "非 CAD 图纸或 DXF 不存在")
+    import hashlib
+    slice_hash = hashlib.md5(f"{job_id}_{x0}_{y0}_{x1}_{y1}".encode()).hexdigest()[:12]
+    out_path = os.path.join(WORKDIR, f"{job_id}_slice_{slice_hash}.png")
+    if not os.path.isfile(out_path):
+        from extractor.cad_craft import cadcraft_render_slice
+        ok = cadcraft_render_slice(dxf_path, out_path, (x0, y0, x1, y1))
+        if not ok:
+            raise HTTPException(500, "CADCraft 区域渲染失败")
+    return FileResponse(out_path, media_type="image/png")
+
+
+@app.get("/api/jobs/{job_id}/cad_inspect")
+def get_job_cad_inspect(job_id: str, handle: str = ""):
+    _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
+    handle = handle.strip()
+    if not handle:
+        raise HTTPException(400, "Handle 句柄参数不能为空")
+    dxf_path = _resolve_job_dxf(job_id)
+    if not dxf_path:
+        raise HTTPException(404, "非 CAD 图纸或 DXF 不存在")
+    from extractor.cad_craft import cadcraft_inspect
+    res = cadcraft_inspect(dxf_path, handle)
+    if not res:
+        return JSONResponse({"available": False, "handle": handle, "message": "未能定位到该图元"})
+    return JSONResponse({"available": True, "data": res})
+
+
+@app.get("/api/jobs/{job_id}/cad_vectors")
+def get_job_cad_vectors(job_id: str, max_entities: int = 25000):
+    _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
+    dxf_path = _resolve_job_dxf(job_id)
+    if not dxf_path:
+        return JSONResponse({"available": False, "reason": "非 CAD 图纸或 DXF 不存在"})
+    from extractor.cad_craft import cadcraft_get_vectors
+    try:
+        data = cadcraft_get_vectors(dxf_path, max_entities=max_entities)
+        return JSONResponse({"available": True, "vectors": data})
+    except Exception as exc:
+        return JSONResponse({"available": False, "reason": str(exc)}, status_code=500)
+
+
+
 from typing import Any
 from pydantic import BaseModel
 from extractor.schema import (

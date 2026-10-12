@@ -23,6 +23,19 @@ const S = {
   isCropping: false,
   cropStart: { x: 0, y: 0 },
   currentCropBBox: null,
+  cadLayersState: {},
+  viewMode: 'raster',
+  cadVectors: null,
+  cadLayersList: [],
+  cadInfo: null,
+  vectorState: {
+    panX: 0,
+    panY: 0,
+    zoom: 1,
+    isDragging: false,
+    startX: 0,
+    startY: 0
+  },
   lastCropResult: null,
   rec: null,
   settings: {},
@@ -389,10 +402,35 @@ function syncHash(page) {
 /** 启动/刷新时按 hash 恢复位置；解析不了就停在项目列表。 */
 async function applyHashRoute() {
   const raw = (location.hash || '').replace(/^#\/?/, '');
-  const [kind, ...rest] = raw.split('/');
+  const [routePart, queryPart] = raw.split('?');
+  const [kind, ...rest] = (routePart || '').split('/');
   const value = decodeURIComponent(rest.join('/') || '');
+  const shouldOpenCad = (queryPart && queryPart.includes('cad=open')) || location.search.includes('cad=open');
+  const shouldVectorMode = (queryPart && (queryPart.includes('mode=vector') || queryPart.includes('view=vector'))) || location.search.includes('mode=vector') || location.search.includes('view=vector');
+  const matchLocate = (queryPart && queryPart.match(/locate=([A-Za-z0-9]+)/)) || location.search.match(/locate=([A-Za-z0-9]+)/);
   if (kind === 'project' && value) { await openProject(value); return true; }
-  if (kind === 'job' && value) { await openJob(value); return true; }
+  if (kind === 'job' && value) {
+    await openJob(value);
+    if (shouldVectorMode) {
+      setTimeout(() => {
+        setViewMode('vector');
+      }, 350);
+    }
+    if (shouldOpenCad) {
+      setTimeout(() => {
+        const panel = $('cadInspector');
+        if (panel && panel.classList.contains('collapsed')) {
+          toggleCadInspector();
+        }
+      }, 300);
+    }
+    if (matchLocate) {
+      setTimeout(() => {
+        locateCadHandle(matchLocate[1]);
+      }, 700);
+    }
+    return true;
+  }
   if (kind === 'history' || kind === 'settings') { navGo(kind); return true; }
   return false;
 }
@@ -1476,6 +1514,19 @@ function renderWorkbench() {
   $('sb-left').textContent = job.created_at ? `提取于 ${job.created_at.replace('T', ' ')}` : '未打开图纸';
   $('sb-mid').textContent = '回路是唯一可编辑来源，保存后元器件汇总按回路重新生成';
 
+  const isCad = (job.file_type === 'dwg' || job.file_type === 'dxf' ||
+                 (job.filename && /\.(dwg|dxf)$/i.test(job.filename)));
+  if ($('cadsep')) $('cadsep').hidden = !isCad;
+  if ($('vmodeGroup')) $('vmodeGroup').hidden = !isCad;
+  if ($('cadinfobtn')) $('cadinfobtn').hidden = !isCad;
+  if ($('caddownloadbtn')) {
+    $('caddownloadbtn').hidden = !isCad;
+    if (isCad) {
+      $('caddownloadbtn').href = `/api/jobs/${S.jobId}/dxf`;
+      $('caddownloadbtn').download = `${job.filename || S.jobId}.dxf`;
+    }
+  }
+
   renderDrawing();
   renderSheetCatalog();
   applyAiWidth(S.aiWidth);
@@ -1485,6 +1536,465 @@ function renderWorkbench() {
   renderReview();
   updateChg();
   updateBadge();
+}
+
+function toggleCadInspector() {
+  const panel = $('cadInspector');
+  if (!panel) return;
+  const isCollapsed = panel.classList.toggle('collapsed');
+  if (!isCollapsed && S.jobId) {
+    loadCadInfo();
+  }
+}
+
+async function loadCadInfo() {
+  if (!S.jobId) return;
+  try {
+    const res = await api(`/api/jobs/${S.jobId}/cad_info`);
+    if (!res.available || !res.info) {
+      $('ciEntityBadge').textContent = '未提取到矢量元数据';
+      return;
+    }
+    const info = res.info;
+    S.cadInfo = info;
+    $('ciEntityBadge').textContent = `${(info.entityCount || 0).toLocaleString()} 实体`;
+    if (info.extents) {
+      const [[x0, y0], [x1, y1]] = info.extents;
+      $('ciExtents').textContent = `[${Math.round(x0)}, ${Math.round(y0)}] ~ [${Math.round(x1)}, ${Math.round(y1)}]`;
+    }
+    if (info.counts) {
+      const pairs = Object.entries(info.counts).map(([k, v]) => `${k}: ${v}`);
+      $('ciCounts').textContent = pairs.slice(0, 4).join(', ') || '-';
+    }
+    const layers = info.layers || [];
+    S.cadLayersList = layers;
+    $('ciLayerCount').textContent = layers.length;
+    $('ciLayers').innerHTML = layers.map(l => {
+      const isVis = S.cadLayersState[l.name] !== false;
+      const colorBox = `<span style="display:inline-block;width:10px;height:10px;background:${l.color === 'White' ? '#888' : l.color};border-radius:2px;margin-right:4px;"></span>`;
+      return `<div class="ci-layer-row ${isVis ? '' : 'hidden-layer'}" data-layer="${esc(l.name)}">
+        <div style="display:flex;align-items:center;">
+          <span class="ci-layer-toggle" onclick="toggleLayer('${esc(l.name)}', event)">${isVis ? '👁️' : '🕶️'}</span>
+          <span>${colorBox}<b>${esc(l.name)}</b></span>
+        </div>
+        <span class="mut" style="font-size:11px;">${l.frozen ? '❄️' : ''} ${l.locked ? '🔒' : ''}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('loadCadInfo failed', e);
+  }
+}
+
+/* ===== 方案 B: 图层实时显隐开关 ===== */
+function toggleLayer(layerName, ev) {
+  if (ev) ev.stopPropagation();
+  S.cadLayersState[layerName] = S.cadLayersState[layerName] === false ? true : false;
+  updateLayersUI();
+  if (S.viewMode === 'vector') {
+    renderVectorCanvas();
+  }
+}
+
+function toggleAllLayers(visible) {
+  if (!S.cadLayersList || !S.cadLayersList.length) return;
+  S.cadLayersList.forEach(l => {
+    S.cadLayersState[l.name] = visible;
+  });
+  updateLayersUI();
+  if (S.viewMode === 'vector') {
+    renderVectorCanvas();
+  }
+  toast(visible ? '已开启全部图层' : '已隐藏全部图层');
+}
+
+function updateLayersUI() {
+  const rows = document.querySelectorAll('.ci-layer-row');
+  rows.forEach(r => {
+    const name = r.dataset.layer;
+    if (!name) return;
+    const isVisible = S.cadLayersState[name] !== false;
+    r.classList.toggle('hidden-layer', !isVisible);
+    const icon = r.querySelector('.ci-layer-toggle');
+    if (icon) icon.textContent = isVisible ? '👁️' : '🕶️';
+  });
+}
+
+/* ===== 方案 A: 实体搜索与 Handle 毫米坐标定位 ===== */
+async function doCadSearch() {
+  const input = $('ciSearchInput');
+  const kw = (input ? input.value : '').trim();
+  if (!kw) return;
+  const box = $('ciResults');
+  box.innerHTML = '<span class="mut">正在 CAD 矢量数据库检索 Handle…</span>';
+  try {
+    const res = await api(`/api/jobs/${S.jobId}/cad_find?q=${encodeURIComponent(kw)}`);
+    const matches = res.matches || [];
+    if (!matches.length) {
+      box.innerHTML = `<span class="mut">未找到与「${esc(kw)}」匹配的实体</span>`;
+      return;
+    }
+    box.innerHTML = matches.slice(0, 15).map(m => `
+      <div class="ci-result-item" title="句柄 Handle: ${esc(m.handle)} (点击立即在图面定位)" onclick="locateCadHandle('${esc(m.handle)}', '${esc(m.type)}')">
+        <span><b>${esc(m.type || 'Entity')}</b> #${esc(m.handle)}</span>
+        <span class="mut" style="color:var(--acc-d);">${m.count || 1} 处命中 🎯 点击定位</span>
+      </div>
+    `).join('') + (matches.length > 15 ? `<div class="mut" style="font-size:11px;text-align:center;">还有 ${matches.length - 15} 处匹配…</div>` : '');
+  } catch (e) {
+    box.innerHTML = `<span class="warn">搜索失败: ${esc(e.message)}</span>`;
+  }
+}
+
+async function locateCadHandle(handle, fallbackLabel = '') {
+  if (!S.jobId || !handle) return;
+  try {
+    toast(`正在查询 CAD 图元 #${handle} 绝对空间坐标…`);
+    const res = await api(`/api/jobs/${S.jobId}/cad_inspect?handle=${encodeURIComponent(handle)}`);
+    if (!res.available || !res.data) {
+      toast(`未能定位句柄 #${handle} 的空间信息`);
+      return;
+    }
+    const d = res.data;
+    
+    // 如果在纯矢量模式，平移并缩放到该实体
+    if (S.viewMode === 'vector' && d.coords) {
+      const [cx, cy] = d.coords;
+      const canvas = $('vectorCanvas');
+      if (canvas) {
+        const w = canvas.clientWidth || 800;
+        const h = canvas.clientHeight || 600;
+        S.vectorState.panX = w / 2 - cx * S.vectorState.zoom;
+        S.vectorState.panY = h / 2 + cy * S.vectorState.zoom;
+        renderVectorCanvas();
+      }
+    }
+
+    const overlay = $('cadOverlay');
+    if (!overlay) return;
+    overlay.innerHTML = '';
+
+    const stage = $('stage');
+    const dwg = $('dwg');
+    if (!stage || !dwg) return;
+
+    const box = document.createElement('div');
+    box.className = 'cad-locator-box';
+
+    let left = stage.clientWidth * 0.45;
+    let top = stage.clientHeight * 0.45;
+    let w = 220, h = 80;
+
+    if (d.coords && S.cadInfo && S.cadInfo.extents) {
+      const [[minX, minY], [maxX, maxY]] = S.cadInfo.extents;
+      const rangeX = maxX - minX || 1;
+      const rangeY = maxY - minY || 1;
+      const normX = (d.coords[0] - minX) / rangeX;
+      const normY = 1 - (d.coords[1] - minY) / rangeY;
+      if (normX >= 0 && normX <= 1 && normY >= 0 && normY <= 1) {
+        left = normX * dwg.clientWidth - w / 2;
+        top = normY * dwg.clientHeight - h / 2;
+      }
+    }
+
+    box.style.left = `${Math.max(10, Math.round(left))}px`;
+    box.style.top = `${Math.max(10, Math.round(top))}px`;
+    box.style.width = `${w}px`;
+    box.style.height = `${h}px`;
+
+    const tag = document.createElement('div');
+    tag.className = 'cad-locator-tag';
+    const titleTxt = esc(d.text || fallbackLabel || d.type || 'CAD 实体');
+    tag.innerHTML = `
+      <span>📐 #${esc(handle)} [${esc(d.layer || '0')}] ${titleTxt}</span>
+      <button onclick="previewCadSlice('${esc(handle)}')">🔍 毫米切片</button>
+      <button onclick="this.parentElement.parentElement.remove()">✕</button>
+    `;
+    box.appendChild(tag);
+    overlay.appendChild(box);
+
+    const canvasParent = stage.parentElement;
+    if (canvasParent) {
+      canvasParent.scrollTo({
+        left: Math.max(0, left - canvasParent.clientWidth / 2 + w / 2),
+        top: Math.max(0, top - canvasParent.clientHeight / 2 + h / 2),
+        behavior: 'smooth'
+      });
+    }
+    toast(`已成功定位 CAD 图元 #${handle} (图层: ${d.layer || '0'})`);
+  } catch (e) {
+    toast(`定位失败: ${e.message}`);
+  }
+}
+
+async function previewCadSlice(handle) {
+  try {
+    toast('正在通过 CADCraft 渲染毫米级局部矢量切片…');
+    const res = await api(`/api/jobs/${S.jobId}/cad_inspect?handle=${encodeURIComponent(handle)}`);
+    if (!res.available || !res.data || !res.data.coords) {
+      toast('未能获取该实体的毫米空间坐标');
+      return;
+    }
+    const [cx, cy] = res.data.coords;
+    const dynamicPad = Math.min(Math.max(800, (res.data.height || 200) * 4), 3000);
+    const sliceUrl = `/api/jobs/${S.jobId}/cad_slice?x0=${cx - dynamicPad}&y0=${cy - dynamicPad}&x1=${cx + dynamicPad}&y1=${cy + dynamicPad}`;
+
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.innerHTML = `
+      <div style="background:#1C1D22;border:1px solid #00F0FF;border-radius:6px;max-width:85vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);overflow:hidden;">
+        <div style="padding:10px 14px;background:#24262E;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333;color:#fff;">
+          <b>📐 CADCraft 原生局部毫米切片 · #${esc(handle)} [图层: ${esc(res.data.layer || '')}]</b>
+          <button style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;" onclick="this.closest('[style*=fixed]').remove()">✕</button>
+        </div>
+        <div style="padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#141518;overflow:auto;">
+          <img src="${sliceUrl}" alt="CAD 切片" style="max-width:100%;max-height:68vh;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,0.5);" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'color:#ff8888;padding:20px;\\'>CADCraft 切片生成中或该区域无可渲染图元</span>';">
+          <div style="color:#9CA3AF;font-size:11px;font-family:monospace;margin-top:8px;">空间毫米窗口: [${Math.round(cx - pad)}, ${Math.round(cy - pad)}] ~ [${Math.round(cx + pad)}, ${Math.round(cy + pad)}]</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  } catch (e) {
+    toast('切片加载失败: ' + e.message);
+  }
+}
+
+/* ===== 方案 C: 纯矢量 CAD 画布模式切换与交互引擎 ===== */
+function setViewMode(mode) {
+  S.viewMode = mode;
+  if ($('btnViewRaster')) {
+    $('btnViewRaster').classList.toggle('active', mode === 'raster');
+    $('btnViewRaster').classList.toggle('ghost', mode !== 'raster');
+  }
+  if ($('btnViewVector')) {
+    $('btnViewVector').classList.toggle('active', mode === 'vector');
+    $('btnViewVector').classList.toggle('ghost', mode !== 'vector');
+  }
+
+  const vCanvas = $('vectorCanvas');
+  const vHud = $('vectorHud');
+  const dwg = $('dwg');
+  const zones = $('zones');
+  const hlbox = $('hlbox');
+  const overlay = $('cadOverlay');
+
+  if (mode === 'vector') {
+    if (dwg) dwg.hidden = true;
+    if (zones) zones.hidden = true;
+    if (hlbox) hlbox.hidden = true;
+    if (overlay) overlay.hidden = true;
+    if (vCanvas) vCanvas.hidden = false;
+    if (vHud) vHud.hidden = false;
+    loadAndInitVectorCanvas();
+    toast('已切入 📐 纯矢量 CAD 交互视口（支持无极无损缩放与实时图层控制）');
+  } else {
+    if (dwg) dwg.hidden = false;
+    if (zones) zones.hidden = false;
+    if (hlbox) hlbox.hidden = false;
+    if (overlay) overlay.hidden = false;
+    if (vCanvas) vCanvas.hidden = true;
+    if (vHud) vHud.hidden = true;
+  }
+}
+
+async function loadAndInitVectorCanvas() {
+  const canvas = $('vectorCanvas');
+  if (!canvas) return;
+  if (!S.cadVectors && S.jobId) {
+    toast('正在加载 CAD 空间矢量几何流…');
+    try {
+      const res = await api(`/api/jobs/${S.jobId}/cad_vectors`);
+      if (res.available && res.vectors) {
+        S.cadVectors = res.vectors;
+        initVectorStateFromExtents();
+      }
+    } catch (e) {
+      toast('矢量数据加载失败: ' + e.message);
+    }
+  }
+  bindVectorCanvasEvents();
+  resizeVectorCanvas();
+  renderVectorCanvas();
+}
+
+function initVectorStateFromExtents() {
+  if (!S.cadVectors || !S.cadVectors.extents) return;
+  const canvas = $('vectorCanvas');
+  const w = canvas.clientWidth || 800;
+  const h = canvas.clientHeight || 600;
+  const [[minX, minY], [maxX, maxY]] = S.cadVectors.extents;
+  const dw = maxX - minX || 1;
+  const dh = maxY - minY || 1;
+  const scale = Math.min(w / dw, h / dh) * 0.9;
+  S.vectorState.zoom = scale;
+  S.vectorState.panX = w / 2 - ((minX + maxX) / 2) * scale;
+  S.vectorState.panY = h / 2 + ((minY + maxY) / 2) * scale;
+}
+
+function resizeVectorCanvas() {
+  const canvas = $('vectorCanvas');
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * (window.devicePixelRatio || 1);
+  canvas.height = rect.height * (window.devicePixelRatio || 1);
+}
+
+function bindVectorCanvasEvents() {
+  const canvas = $('vectorCanvas');
+  if (!canvas || canvas._bound) return;
+  canvas._bound = true;
+
+  window.addEventListener('resize', () => {
+    if (S.viewMode === 'vector') {
+      resizeVectorCanvas();
+      renderVectorCanvas();
+    }
+  });
+
+  canvas.addEventListener('mousedown', (e) => {
+    S.vectorState.isDragging = true;
+    S.vectorState.startX = e.clientX;
+    S.vectorState.startY = e.clientY;
+    canvas.classList.add('panning');
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (S.vectorState.isDragging) {
+      const dx = e.clientX - S.vectorState.startX;
+      const dy = e.clientY - S.vectorState.startY;
+      S.vectorState.panX += dx;
+      S.vectorState.panY += dy;
+      S.vectorState.startX = e.clientX;
+      S.vectorState.startY = e.clientY;
+      renderVectorCanvas();
+    } else if (S.viewMode === 'vector') {
+      updateVectorHud(e);
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (S.vectorState.isDragging) {
+      S.vectorState.isDragging = false;
+      canvas.classList.remove('panning');
+    }
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    const factor = e.deltaY < 0 ? 1.15 : 0.85;
+    const newZoom = Math.min(Math.max(S.vectorState.zoom * factor, 0.000001), 100);
+
+    S.vectorState.panX = mouseX - (mouseX - S.vectorState.panX) * (newZoom / S.vectorState.zoom);
+    S.vectorState.panY = mouseY - (mouseY - S.vectorState.panY) * (newZoom / S.vectorState.zoom);
+    S.vectorState.zoom = newZoom;
+
+    const zoomEl = $('vhZoom');
+    if (zoomEl) zoomEl.textContent = `${Math.round(S.vectorState.zoom * 1000)}%`;
+    renderVectorCanvas();
+  }, { passive: false });
+}
+
+function updateVectorHud(e) {
+  const canvas = $('vectorCanvas');
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+
+  const cadX = Math.round((mx - S.vectorState.panX) / S.vectorState.zoom);
+  const cadY = Math.round((S.vectorState.panY - my) / S.vectorState.zoom);
+
+  const coordsEl = $('vhCoords');
+  if (coordsEl) coordsEl.textContent = `X: ${cadX.toLocaleString()} Y: ${cadY.toLocaleString()}`;
+}
+
+const CAD_ACI_COLORS = {
+  1: '#FF0000', 2: '#FFFF00', 3: '#00FF00', 4: '#00FFFF',
+  5: '#0000FF', 6: '#FF00FF', 7: '#FFFFFF', 8: '#808080', 9: '#C0C0C0'
+};
+
+function renderVectorCanvas() {
+  const canvas = $('vectorCanvas');
+  if (!canvas || !S.cadVectors) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+
+  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#141518';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.scale(dpr, dpr);
+  ctx.translate(S.vectorState.panX, S.vectorState.panY);
+  ctx.scale(S.vectorState.zoom, -S.vectorState.zoom);
+
+  const layers = S.cadVectors.layers || [];
+  const layerColors = layers.map(l => {
+    if (typeof l.color === 'string') return l.color === 'White' ? '#FFFFFF' : l.color;
+    return CAD_ACI_COLORS[l.color] || '#A0AEC0';
+  });
+
+  const isLayerVisible = (lIdx) => {
+    const l = layers[lIdx];
+    if (!l) return true;
+    return S.cadLayersState[l.name] !== false;
+  };
+
+  const lines = S.cadVectors.lines || [];
+  for (let i = 0; i < lines.length; i++) {
+    const [x1, y1, x2, y2, lIdx] = lines[i];
+    if (!isLayerVisible(lIdx)) continue;
+    ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
+    ctx.lineWidth = 1 / S.vectorState.zoom;
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  const polylines = S.cadVectors.polylines || [];
+  for (let i = 0; i < polylines.length; i++) {
+    const [pts, lIdx] = polylines[i];
+    if (!isLayerVisible(lIdx) || pts.length < 2) continue;
+    ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
+    ctx.lineWidth = 1 / S.vectorState.zoom;
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let j = 1; j < pts.length; j++) {
+      ctx.lineTo(pts[j][0], pts[j][1]);
+    }
+    ctx.stroke();
+  }
+
+  const circles = S.cadVectors.circles || [];
+  for (let i = 0; i < circles.length; i++) {
+    const [cx, cy, r, lIdx] = circles[i];
+    if (!isLayerVisible(lIdx) || r <= 0) continue;
+    ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
+    ctx.lineWidth = 1 / S.vectorState.zoom;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  const texts = S.cadVectors.texts || [];
+  for (let i = 0; i < texts.length; i++) {
+    const [x, y, txt, height, lIdx] = texts[i];
+    if (!isLayerVisible(lIdx)) continue;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(1, -1);
+    ctx.fillStyle = layerColors[lIdx] || '#FFFFFF';
+    ctx.font = `${Math.max(12, height)}px "PingFang SC", "Microsoft YaHei", "SimHei", -apple-system, sans-serif`;
+    ctx.fillText(txt, 0, 0);
+    ctx.restore();
+  }
+
+  ctx.restore();
 }
 
 function renderDrawing() {
