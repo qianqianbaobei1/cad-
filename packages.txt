@@ -1,0 +1,3 @@
+fonts-noto-cjk
+fonts-wqy-microhei
+fonts-wqy-zenhei

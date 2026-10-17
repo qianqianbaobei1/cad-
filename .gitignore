@@ -1,0 +1,45 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables & secrets (CRITICAL)
+.env
+*.env.local
+
+# Testing & Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor & OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Runtime workdir & large CAD / binary data
+backend/work/
+backend/data/*.db*
+backend/data/*.json
+# 价格库原始数据（5.7MB，与 .db 同源，属于本地数据不进仓库）
+backend/data/*.csv
+*.dwg
+*.dxf
+*.log
+deliveries
+deliveries/
+配电箱项目/
+integrations/acadrust/target/
+integrations/cadcraft/source/
+integrations/cadcraft/bin/
+frontend/vendor/cadcraft/
+*.vectors.json
+

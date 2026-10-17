@@ -1,0 +1,17 @@
+.git
+.github
+.gitignore
+.env
+.env.*
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.cad_cache
+*.log
+backend/fixtures/ruler/drawings/.cad_cache
+deliveries/成稿/*.xlsx
+deliveries/内部
+deliveries/制作

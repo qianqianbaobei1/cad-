@@ -1,0 +1,3179 @@
+/* 配电箱图纸识别 · 前端
+ *
+ * 只有两屏：
+ *   #/          图纸列表：上传图纸、查看识别状态
+ *   #/job/<id>  识别结果：左 图纸 | 中 箱柜列表 | 右 选中箱柜的元器件，顶栏导出 Excel
+ *
+ * 数据全部来自后端 /api/jobs*，前端不造数据。
+ */
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtNum = (n) => {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '';
+  return Number.isInteger(v) ? String(v) : String(Math.round(v * 100) / 100);
+};
+const fmtTime = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '');
+
+/* ---------------- 接口 ---------------- */
+
+// 旧版页面的登录令牌：有效就沿用，保证已登录用户仍能看到自己企业下的图纸
+let TOKEN = '';
+try { TOKEN = localStorage.getItem('dgzh_auth_token') || ''; } catch (_) { /* 无痕模式 */ }
+
+async function api(path, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  if (TOKEN) headers.Authorization = `Bearer ${TOKEN}`;
+  const res = await fetch(path, { ...opts, headers });
+  if (!res.ok) {
+    if (res.status === 401 || (res.status === 403 && TOKEN)) {
+      const wasLoggedIn = !!TOKEN;
+      TOKEN = '';
+      try { localStorage.removeItem('dgzh_auth_token'); } catch (_) {}
+      if (wasLoggedIn && !path.startsWith('/api/auth/')) Auth.onUnauthorized();
+    }
+    let msg = `请求失败 (${res.status})`;
+    try {
+      const body = await res.json();
+      const d = body.detail;
+      msg = typeof d === 'string' ? d : (d && d.message) || msg;
+    } catch (_) { /* 非 JSON */ }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+// <img>、下载链接带不了请求头，令牌走查询参数（后端中间件支持）
+const withToken = (url) => (TOKEN ? `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(TOKEN)}` : url);
+
+/* ---------------- 登录 / 注册 ---------------- */
+
+const Auth = {
+  user: null,
+
+  init() {
+    document.querySelectorAll('.auth-tab').forEach((btn) => {
+      btn.addEventListener('click', () => this.setMode(btn.dataset.mode));
+    });
+    $('goRegister')?.addEventListener('click', () => this.setMode('register'));
+    $('goLogin')?.addEventListener('click', () => this.setMode('login'));
+    $('loginForm')?.addEventListener('submit', (e) => this.login(e));
+    $('registerForm')?.addEventListener('submit', (e) => this.register(e));
+  },
+
+  setMode(mode) {
+    const login = mode !== 'register';
+    if ($('loginForm')) $('loginForm').hidden = !login;
+    if ($('registerForm')) $('registerForm').hidden = login;
+    if ($('authTitle')) $('authTitle').textContent = login ? '登录工作台' : '注册企业账号';
+    if ($('authSubtitle')) $('authSubtitle').textContent = login
+      ? '使用企业账号登录后进入项目与图纸。'
+      : '注册后会创建独立企业空间，你的图纸与项目只有本企业账号可见。';
+    const on = ['border-primary', 'text-primary'];
+    const off = ['border-transparent', 'text-on-surface-variant'];
+    document.querySelectorAll('.auth-tab').forEach((btn) => {
+      const active = (btn.dataset.mode === 'register') !== login;
+      on.forEach((c) => btn.classList.toggle(c, active));
+      off.forEach((c) => btn.classList.toggle(c, !active));
+    });
+    this.setError('loginError', '');
+    this.setError('registerError', '');
+  },
+
+  setError(id, msg) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = msg || '';
+    el.hidden = !msg;
+  },
+
+  busy(btn, on, label) {
+    if (!btn) return;
+    btn.disabled = on;
+    btn.textContent = label;
+  },
+
+  applyUser(user) {
+    this.user = user;
+    if ($('userNameLabel')) $('userNameLabel').textContent = user.display_name || user.username || '系统工程师';
+  },
+
+  async restore() {
+    if (!TOKEN) return false;
+    const drop = () => {
+      // 令牌无效就彻底清掉，否则每次刷新都带着一个死 token 反复试
+      TOKEN = '';
+      try { localStorage.removeItem('dgzh_auth_token'); } catch (_) { /* 无痕模式 */ }
+    };
+    try {
+      const me = await api('/api/auth/me');
+      if (!me.authenticated || !me.user || me.user.role === 'guest') { drop(); return false; }
+      this.applyUser(me.user);
+      return true;
+    } catch (_) {
+      drop();
+      return false;
+    }
+  },
+
+  show(mode = 'login', message = '') {
+    this.user = null;
+    document.body.classList.add('auth-locked');
+    this.setMode(mode);
+    if (message) this.setError(mode === 'register' ? 'registerError' : 'loginError', message);
+    setTimeout(() => (mode === 'register' ? $('regTenant') : $('loginUsername'))?.focus(), 60);
+  },
+
+  hide() {
+    document.body.classList.remove('auth-locked');
+  },
+
+  onUnauthorized() {
+    if (document.body.classList.contains('auth-locked')) return;
+    this.show('login', '登录状态已失效，请重新登录');
+  },
+
+  finish(res) {
+    TOKEN = res.token || '';
+    try { localStorage.setItem('dgzh_auth_token', TOKEN); } catch (_) { /* 无痕模式 */ }
+    this.applyUser(res.user || {});
+    this.hide();
+    if ($('loginPassword')) $('loginPassword').value = '';
+    if ($('regPassword')) $('regPassword').value = '';
+    if ($('regPassword2')) $('regPassword2').value = '';
+    toast(`欢迎，${res.user?.display_name || res.user?.username || '用户'}（${res.user?.tenant_name || ''}）`);
+    route();
+  },
+
+  async login(e) {
+    e.preventDefault();
+    const username = ($('loginUsername').value || '').trim();
+    const password = $('loginPassword').value || '';
+    this.setError('loginError', '');
+    if (!username || !password) return this.setError('loginError', '请输入账号和密码');
+    this.busy($('loginSubmit'), true, '登录中…');
+    try {
+      const res = await api('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      this.finish(res);
+    } catch (err) {
+      this.setError('loginError', err.message || '登录失败');
+    } finally {
+      this.busy($('loginSubmit'), false, '登录');
+    }
+  },
+
+  async register(e) {
+    e.preventDefault();
+    const tenantName = ($('regTenant').value || '').trim();
+    const displayName = ($('regDisplayName').value || '').trim();
+    const username = ($('regUsername').value || '').trim();
+    const password = $('regPassword').value || '';
+    const password2 = $('regPassword2').value || '';
+    this.setError('registerError', '');
+
+    if (!tenantName) return this.setError('registerError', '请填写企业 / 工区名称');
+    if (!username) return this.setError('registerError', '请填写登录账号');
+    if (password.length < 6) return this.setError('registerError', '密码至少 6 位');
+    if (password !== password2) return this.setError('registerError', '两次输入的密码不一致');
+
+    this.busy($('registerSubmit'), true, '注册中…');
+    try {
+      const res = await api('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, display_name: displayName, tenant_name: tenantName }),
+      });
+      this.finish(res);
+    } catch (err) {
+      this.setError('registerError', err.message || '注册失败');
+    } finally {
+      this.busy($('registerSubmit'), false, '注册并进入');
+    }
+  },
+
+  async signOut(notify = false) {
+    try { await api('/api/auth/logout', { method: 'POST' }); } catch (_) { /* 令牌可能已失效 */ }
+    TOKEN = '';
+    this.user = null;
+    try { localStorage.removeItem('dgzh_auth_token'); } catch (_) { /* 无痕模式 */ }
+    $('user-menu-dropdown')?.classList.add('hidden');
+    if (notify) toast('已退出登录');
+    this.show('login');
+    if (location.hash) location.hash = '';
+  },
+};
+
+let toastTimer = 0;
+function toast(msg, ms = 2600) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, ms);
+}
+
+const STATUS = {
+  queued: '排队中',
+  converting: '转换 CAD',
+  rendering: '渲染图纸',
+  extracting: '识别中',
+  building_excel: '生成清单',
+};
+const isDone = (s) => s === 'done';
+const isFailed = (s) => s === 'failed' || s === 'error';
+function statusPill(job) {
+  const s = job.status || 'queued';
+  if (isDone(s)) return '<span class="pill ok">已完成</span>';
+  if (isFailed(s)) return '<span class="pill bad">识别失败</span>';
+  const pct = Number(job.progress) > 0 ? ` ${Math.round(job.progress)}%` : '';
+  return `<span class="pill run">${esc(STATUS[s] || s)}${pct}</span>`;
+}
+
+/* ---------------- 路由 ---------------- */
+
+function route() {
+  if (!Auth.user) { Auth.show('login'); return; }
+  const mPricing = location.hash.match(/^#\/job\/([0-9a-f]{6,32})\/pricing/i);
+  if (mPricing) {
+    PricingWorkbench.open(mPricing[1]);
+    return;
+  }
+  const mExtract = location.hash.match(/^#\/job\/([0-9a-f]{6,32})\/extract/i);
+  if (mExtract) {
+    ExtractWorkbench.open(mExtract[1]);
+    return;
+  }
+  const m = location.hash.match(/^#\/job\/([0-9a-f]{6,32})/i);
+  if (m) {
+    openSmartJob(m[1]);
+    return;
+  }
+  showList();
+}
+window.addEventListener('hashchange', route);
+
+async function openSmartJob(id) {
+  let j = List.jobs.find((x) => x.job_id === id);
+  if (!j) {
+    try { j = await api(`/api/jobs/${id}`); } catch (_) {}
+  }
+  const isExcel = j && ['xlsx', 'xls', 'csv'].includes((j.file_type || String(j.filename || '').split('.').pop()).toLowerCase());
+  location.hash = isExcel ? `#/job/${id}/pricing` : `#/job/${id}/extract`;
+}
+
+function setCrumbs(html) { $('crumbs').innerHTML = html; }
+
+/* ================= ① 落地页与任务列表 ================= */
+
+const List = {
+  jobs: [],
+  uploading: [],
+  timer: 0,
+  openWhenDone: '',
+  openTarget: 'extract',
+  filterProject: '全部项目',
+  searchQuery: ''
+};
+
+function showList() {
+  ExtractWorkbench.stopPoll();
+  PricingWorkbench.stopPoll();
+  if ($('globalHeader')) $('globalHeader').hidden = false;
+  $('viewList').hidden = false;
+  if ($('viewExtract')) $('viewExtract').hidden = true;
+  if ($('viewPricing')) $('viewPricing').hidden = true;
+  setCrumbs('');
+  document.title = '配电箱图纸识别与组价';
+  loadJobs();
+}
+
+async function loadJobs() {
+  clearTimeout(List.timer);
+  try {
+    const res = await api('/api/jobs');
+    List.jobs = (res.jobs || []).filter(isRealJob);
+  } catch (e) {
+    toast(`任务列表加载失败：${e.message}`);
+  }
+  if (List.openWhenDone && !$('viewList').hidden) {
+    const j = List.jobs.find((x) => x.job_id === List.openWhenDone);
+    if (j && isDone(j.status)) {
+      const isExcel = ['xlsx', 'xls', 'csv'].includes((j.file_type || String(j.filename || '').split('.').pop()).toLowerCase()) || List.openTarget === 'pricing';
+      List.openWhenDone = '';
+      location.hash = isExcel ? `#/job/${j.job_id}/pricing` : `#/job/${j.job_id}/extract`;
+      return;
+    }
+    if (j && isFailed(j.status)) List.openWhenDone = '';
+  }
+  renderJobs();
+  // 有未完成的任务就继续轮询刷新
+  const running = List.uploading.length || List.jobs.some((j) => !isDone(j.status) && !isFailed(j.status));
+  if (running && !$('viewList').hidden) List.timer = setTimeout(loadJobs, 2500);
+}
+
+// 过滤掉 work/ 目录下的非顶层任务与平替导出临时文件
+function isRealJob(j) {
+  const id = String(j.job_id || '');
+  return j.filename && !id.includes('.') && !/_[^\x00-\x7f]+$/.test(id);
+}
+
+function count(v) {
+  if (Array.isArray(v)) return v.length;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : '';
+}
+
+function getSourceBadge(filename, fileType) {
+  const ext = (fileType || String(filename || '').split('.').pop() || '').toLowerCase();
+  if (ext === 'dwg') {
+    return `<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-semibold tracking-wider uppercase">DWG</span>`;
+  }
+  if (ext === 'dxf') {
+    return `<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-semibold tracking-wider uppercase">DXF</span>`;
+  }
+  if (ext === 'pdf') {
+    return `<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-error-container text-on-error-container font-semibold tracking-wider uppercase">PDF</span>`;
+  }
+  if (['xlsx', 'xls', 'csv'].includes(ext)) {
+    return `<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-tertiary text-on-tertiary font-semibold tracking-wider uppercase">清单</span>`;
+  }
+  return `<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-semibold tracking-wider uppercase">${esc(ext.toUpperCase() || '图纸')}</span>`;
+}
+
+function renderStatusCell(j) {
+  const s = j.status || 'queued';
+  if (isDone(s)) {
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-sm text-label-sm bg-surface-container text-tertiary-container font-medium"><span class="material-symbols-outlined text-[14px]">check_circle</span><span>已组价</span></span>`;
+  }
+  if (isFailed(s)) {
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-sm text-label-sm bg-error-container text-on-error-container font-medium"><span class="material-symbols-outlined text-[14px]">error</span><span>识别失败</span></span>`;
+  }
+  const pct = Math.round(Number(j.progress) || 0);
+  const statusText = STATUS[s] || '处理中';
+  return `
+    <div class="inline-flex flex-col gap-1 w-28 text-left">
+      <div class="flex items-center justify-between font-label-sm text-label-sm">
+        <span class="inline-flex items-center gap-1 text-primary font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>${esc(statusText)}
+        </span>
+        <span class="text-primary font-semibold">${pct}%</span>
+      </div>
+      <div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+        <div class="bg-primary h-full rounded-full transition-all duration-300" style="width: ${Math.max(5, pct)}%"></div>
+      </div>
+    </div>`;
+}
+
+function updateProjectFilterMenu() {
+  const menu = $('project-filter-menu');
+  if (!menu) return;
+  const projects = Array.from(new Set(List.jobs.map((j) => (j.project || '').trim()).filter(Boolean)));
+  const cur = List.filterProject || '全部项目';
+  const items = ['全部项目', ...projects];
+  menu.innerHTML = items.map((p) => {
+    const on = p === cur;
+    return `
+      <button class="w-full text-left px-space-md py-1.5 font-body-md text-body-md ${on ? 'text-primary bg-surface-container-low font-medium' : 'text-on-surface hover:bg-surface-container'} flex items-center justify-between transition-colors" data-proj="${esc(p)}" type="button">
+        <span>${esc(p)}</span>
+        ${on ? '<span class="material-symbols-outlined text-[16px]">check</span>' : ''}
+      </button>
+    `;
+  }).join('');
+}
+
+function renderJobs() {
+  updateProjectFilterMenu();
+
+  const query = (List.searchQuery || '').trim().toLowerCase();
+  const filterProj = List.filterProject || '全部项目';
+  const rows = [];
+
+  // 正在上传中的临时行
+  for (const name of List.uploading) {
+    const badge = getSourceBadge(name);
+    rows.push(`
+      <tr class="drawing-row bg-surface-container-low/30">
+        <td class="px-space-md py-2.5 text-center">${badge}</td>
+        <td class="px-space-md py-2.5"><span class="font-body-md text-body-md font-medium text-on-surface">${esc(name)}</span></td>
+        <td class="px-space-md py-2.5 text-outline">—</td>
+        <td class="px-space-md py-2.5 text-right text-outline font-label-md">—</td>
+        <td class="px-space-md py-2.5 text-right text-outline font-label-md">—</td>
+        <td class="px-space-md py-2.5 text-center text-outline font-label-md">—</td>
+        <td class="px-space-md py-2.5 text-right text-outline font-label-md">—</td>
+        <td class="px-space-md py-2.5 text-center">
+          <span class="inline-flex items-center gap-1.5 text-primary font-label-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>上传中…
+          </span>
+        </td>
+        <td class="px-space-md py-2.5 text-right">
+          <button class="px-2.5 py-1 rounded bg-surface-container text-outline font-body-sm text-body-sm cursor-not-allowed" disabled>上传中</button>
+        </td>
+      </tr>
+    `);
+  }
+
+  let visibleCount = 0;
+  for (const j of List.jobs) {
+    const name = String(j.filename || '').toLowerCase();
+    const proj = String(j.project || '');
+    const matchesQuery = !query || name.includes(query) || proj.toLowerCase().includes(query);
+    const matchesProj = (filterProj === '全部项目') || (proj === filterProj) || (!proj && filterProj === '未分组');
+    if (!matchesQuery || !matchesProj) continue;
+
+    visibleCount++;
+    const done = isDone(j.status);
+    const failed = isFailed(j.status);
+    const badge = getSourceBadge(j.filename, j.file_type);
+
+    const boxCnt = (j.boxes_count != null && done) ? String(j.boxes_count) : (done && j.summary?.boxes ? String(count(j.summary.boxes)) : '—');
+    const compCnt = (j.components_count != null && done) ? String(j.components_count) : (done && j.summary?.components ? String(count(j.summary.components)) : '—');
+
+    let uncHtml = '<span class="text-outline font-label-md">—</span>';
+    const uncCount = Number(j.uncertainties_count || 0);
+    if (done && uncCount > 0) {
+      uncHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded font-label-sm text-label-sm bg-error-container text-on-error-container font-semibold">${uncCount} 条待核对</span>`;
+    }
+
+    let priceHtml = '<span class="text-outline font-label-md">—</span>';
+    const priceVal = Number(j.total_price);
+    if (done && Number.isFinite(priceVal) && priceVal > 0) {
+      priceHtml = `<span class="font-label-md text-label-md font-semibold text-on-surface">¥${priceVal.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>`;
+    }
+
+    let opsHtml = '';
+    if (done) {
+      const isExcel = ['xlsx', 'xls', 'csv'].includes((j.file_type || String(j.filename || '').split('.').pop()).toLowerCase());
+      if (isExcel) {
+        opsHtml = `
+          <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
+            <a class="px-2.5 py-1 rounded bg-tertiary text-on-tertiary font-body-sm text-body-sm hover:opacity-90 transition-opacity shadow-sm" href="#/job/${esc(j.job_id)}/pricing">直接组价</a>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="导出 Excel" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
+            <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
+          </div>`;
+      } else {
+        opsHtml = `
+          <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
+            <a class="px-2.5 py-1 rounded bg-primary text-on-primary font-body-sm text-body-sm hover:bg-primary-container transition-colors shadow-sm text-white" href="#/job/${esc(j.job_id)}/extract">核对拆量</a>
+            <a class="px-2 py-1 rounded border border-outline-variant text-primary font-body-sm text-body-sm hover:bg-surface-container transition-colors" href="#/job/${esc(j.job_id)}/pricing" title="进入组价核算">组价</a>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="导出 Excel" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-reparse="${esc(j.job_id)}" title="重新识别" type="button"><span class="material-symbols-outlined text-[18px]">replay</span></button>
+            <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
+          </div>`;
+      }
+    } else if (failed) {
+      opsHtml = `
+        <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
+          <button class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface font-body-sm text-body-sm flex items-center gap-1 transition-colors" data-reparse="${esc(j.job_id)}" type="button"><span class="material-symbols-outlined text-[15px]">replay</span><span>重试</span></button>
+          <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
+        </div>`;
+    } else {
+      opsHtml = `
+        <div class="inline-flex items-center gap-1 justify-end">
+          <button class="px-2.5 py-1 rounded bg-surface-container text-outline font-body-sm text-body-sm cursor-not-allowed" disabled type="button">处理中…</button>
+        </div>`;
+    }
+
+    rows.push(`
+      <tr class="drawing-row group hover:bg-surface-container-low/70 transition-colors ${done ? 'cursor-pointer' : ''} bg-surface-container-lowest" data-id="${esc(j.job_id)}">
+        <td class="px-space-md py-2.5 text-center">${badge}</td>
+        <td class="px-space-md py-2.5">
+          <div class="font-body-md text-body-md font-medium text-on-surface group-hover:text-primary transition-colors">${esc(j.filename)}</div>
+          ${failed && j.error ? `<div class="text-error font-body-sm text-[12px] mt-0.5 line-clamp-1">${esc(j.error)}</div>` : ''}
+        </td>
+        <td class="px-space-md py-2.5 text-on-surface-variant font-body-sm">${esc(j.project || '–')}</td>
+        <td class="px-space-md py-2.5 text-right font-label-md text-label-md font-semibold text-on-surface">${esc(boxCnt)}</td>
+        <td class="px-space-md py-2.5 text-right font-label-md text-label-md text-on-surface-variant">${esc(compCnt)}</td>
+        <td class="px-space-md py-2.5 text-center">${uncHtml}</td>
+        <td class="px-space-md py-2.5 text-right font-label-md text-label-md font-semibold">${priceHtml}</td>
+        <td class="px-space-md py-2.5 text-center">${renderStatusCell(j)}</td>
+        <td class="px-space-md py-2.5 text-right">${opsHtml}</td>
+      </tr>
+    `);
+  }
+
+  $('drawings-tbody').innerHTML = rows.join('');
+  $('jobEmpty').hidden = (rows.length > 0);
+  $('total-drawings-count').textContent = `共 ${List.jobs.length} 项`;
+  $('table-count-summary').textContent = `显示 ${visibleCount} 项，共 ${List.jobs.length} 项`;
+}
+
+// 表格操作委托（查看、导出、重试、删除）
+$('drawings-tbody').addEventListener('click', async (e) => {
+  const delBtn = e.target.closest('[data-delete]');
+  if (delBtn) {
+    e.stopPropagation();
+    const id = delBtn.dataset.delete;
+    if (!confirm('确认删除该任务及其所有相关文件吗？删除后不可撤销。')) return;
+    try {
+      await api(`/api/jobs/${id}`, { method: 'DELETE' });
+      toast('已成功删除任务');
+      loadJobs();
+    } catch (err) { toast(`删除失败：${err.message}`); }
+    return;
+  }
+
+  const expBtn = e.target.closest('[data-export]');
+  if (expBtn) {
+    e.stopPropagation();
+    const id = expBtn.dataset.export;
+    window.location.href = withToken(`/api/jobs/${id}/excel`);
+    return;
+  }
+
+  const repBtn = e.target.closest('[data-reparse]');
+  if (repBtn) {
+    e.stopPropagation();
+    const id = repBtn.dataset.reparse;
+    if (!confirm('重新识别会再次调用识图模型（会产生费用），并覆盖这张图纸当前的识别结果。继续吗？')) return;
+    try {
+      await api(`/api/jobs/${id}/reparse`, { method: 'POST' });
+      toast('已开始重新识别');
+      loadJobs();
+    } catch (err) { toast(err.message); }
+    return;
+  }
+
+  const tr = e.target.closest('tr.drawing-row');
+  if (tr && tr.dataset.id) {
+    const j = List.jobs.find((x) => x.job_id === tr.dataset.id);
+    if (j && isDone(j.status)) {
+      const isExcel = ['xlsx', 'xls', 'csv'].includes((j.file_type || String(j.filename || '').split('.').pop()).toLowerCase());
+      location.hash = isExcel ? `#/job/${tr.dataset.id}/pricing` : `#/job/${tr.dataset.id}/extract`;
+    }
+  }
+});
+
+/* 上传处理与多源适配 */
+const ACCEPT_BLUEPRINT = /\.(pdf|dwg|dxf)$/i;
+const ACCEPT_EXCEL = /\.(xlsx|xls|csv)$/i;
+
+async function uploadFiles(files, kind = 'blueprint') {
+  const list = [...files];
+  const checker = (kind === 'excel') ? ACCEPT_EXCEL : ((kind === 'blueprint') ? ACCEPT_BLUEPRINT : /\.(pdf|dwg|dxf|xlsx|xls|csv)$/i);
+  const bad = list.filter((f) => !checker.test(f.name));
+  if (bad.length) {
+    toast(`不支持的文件格式：${bad.map((f) => f.name).join('、')}`);
+  }
+  const good = list.filter((f) => checker.test(f.name));
+  if (!good.length) return;
+
+  List.uploading.push(...good.map((f) => f.name));
+  renderJobs();
+
+  const created = [];
+  await Promise.all(good.map(async (f) => {
+    const fd = new FormData();
+    fd.append('file', f);
+    try {
+      const res = await api('/api/jobs', { method: 'POST', body: fd });
+      created.push(res.job_id);
+    } catch (err) {
+      toast(`${f.name} 上传失败：${err.message}`, 4000);
+    } finally {
+      const idx = List.uploading.indexOf(f.name);
+      if (idx !== -1) List.uploading.splice(idx, 1);
+    }
+  }));
+
+  if (created.length === 1) {
+    List.openWhenDone = created[0];
+    toast('已上传，正在处理与组价，完成后自动打开结果', 4000);
+  } else if (created.length) {
+    toast(`已上传 ${created.length} 份文件，正在处理中`, 4000);
+  }
+  loadJobs();
+}
+
+// 绑定图纸识别上传
+$('blueprint-input').addEventListener('change', (e) => {
+  uploadFiles(e.target.files, 'blueprint');
+  e.target.value = '';
+});
+$('btnSelectBlueprint').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('blueprint-input').click();
+});
+
+// 绑定设备清单组价上传
+$('excel-input').addEventListener('change', (e) => {
+  uploadFiles(e.target.files, 'excel');
+  e.target.value = '';
+});
+$('btnSelectExcel').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('excel-input').click();
+});
+
+// 拖拽高亮交互绑定
+function setupDropZone(elemId, kind) {
+  const el = $(elemId);
+  if (!el) return;
+  ['dragenter', 'dragover'].forEach((ev) => el.addEventListener(ev, (e) => {
+    e.preventDefault();
+    el.classList.add(kind === 'excel' ? 'border-tertiary-container' : 'border-primary', 'bg-surface-container-low');
+  }));
+  ['dragleave', 'drop'].forEach((ev) => el.addEventListener(ev, (e) => {
+    e.preventDefault();
+    el.classList.remove('border-primary', 'border-tertiary-container', 'bg-surface-container-low');
+  }));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadFiles(e.dataTransfer.files, kind);
+  });
+}
+setupDropZone('drop-zone-blueprint', 'blueprint');
+setupDropZone('drop-zone-excel', 'excel');
+
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => e.preventDefault());
+
+// 项目过滤下拉菜单
+$('project-filter-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('project-filter-menu').classList.toggle('hidden');
+});
+document.addEventListener('click', (e) => {
+  const btn = $('project-filter-btn');
+  const menu = $('project-filter-menu');
+  if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
+    menu.classList.add('hidden');
+  }
+});
+$('project-filter-menu').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-proj]');
+  if (!b) return;
+  List.filterProject = b.dataset.proj;
+  $('current-project-label').textContent = List.filterProject;
+  $('project-filter-menu').classList.add('hidden');
+  renderJobs();
+});
+
+// 搜索栏输入过滤
+$('search-input').addEventListener('input', (e) => {
+  List.searchQuery = e.target.value;
+  renderJobs();
+});
+
+// 用户下拉菜单交互
+$('user-menu-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const dd = $('user-menu-dropdown');
+  dd.classList.toggle('hidden');
+  $('user-menu-arrow').classList.toggle('rotate-180', !dd.classList.contains('hidden'));
+});
+document.addEventListener('click', (e) => {
+  const container = $('user-menu-container');
+  if (container && !container.contains(e.target)) {
+    $('user-menu-dropdown').classList.add('hidden');
+    $('user-menu-arrow').classList.remove('rotate-180');
+  }
+});
+$('btnLogout').addEventListener('click', () => Auth.signOut(true));
+
+// 系统设置弹窗交互
+$('btnOpenSettings').addEventListener('click', async () => {
+  $('user-menu-dropdown').classList.add('hidden');
+  $('modalSettings').hidden = false;
+  try {
+    const data = await api('/api/settings');
+    const s = data.settings || {};
+    $('settingVisionModel').value = s.vision_model || data.vision_model || '';
+    $('settingVisionBaseUrl').value = s.vision_base_url || '';
+    $('settingVisionApiKey').value = s.vision_api_key || '';
+    $('settingTileLargePages').checked = !!s.tile_large_pages;
+    const brands = data.target_brands || ['正泰', '施耐德', '德力西', 'ABB', '西门子'];
+    const defaultBrand = s.excel_template || data.default_target_brand || '正泰';
+    $('settingTargetBrand').innerHTML = brands.map((b) => `<option value="${esc(b)}" ${b === defaultBrand ? 'selected' : ''}>${esc(b)}</option>`).join('');
+  } catch (err) {
+    toast(`加载系统设置失败：${err.message}`);
+  }
+});
+const closeSettings = () => { $('modalSettings').hidden = true; };
+$('btnCloseSettings').addEventListener('click', closeSettings);
+$('btnCancelSettings').addEventListener('click', closeSettings);
+$('btnSaveSettings').addEventListener('click', async () => {
+  const payload = {
+    vision_model: $('settingVisionModel').value.trim() || undefined,
+    vision_base_url: $('settingVisionBaseUrl').value.trim() || undefined,
+    vision_api_key: $('settingVisionApiKey').value.trim() || undefined,
+    excel_template: $('settingTargetBrand').value || undefined,
+    tile_large_pages: $('settingTileLargePages').checked,
+  };
+  try {
+    await api('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    toast('系统设置已更新');
+    closeSettings();
+  } catch (err) {
+    toast(`保存失败：${err.message}`);
+  }
+});
+
+// AI 消耗与费用弹窗交互
+$('btnOpenAiCosts').addEventListener('click', async () => {
+  $('user-menu-dropdown').classList.add('hidden');
+  $('modalAiCosts').hidden = false;
+  try {
+    const res = await api('/api/ai_logs');
+    const sum = res.summary || {};
+    const logs = res.ai_logs || res.logs || [];
+    const totalCost = res.ai_cost_total != null ? res.ai_cost_total : (sum.total_cost || 0);
+    const totalTokens = res.ai_tokens_total != null ? res.ai_tokens_total : (sum.total_tokens || 0);
+    const callsCount = res.ai_logs_count || logs.length || sum.count || 0;
+
+    $('aiTotalCost').textContent = `¥${Number(totalCost).toFixed(2)}`;
+    $('aiTotalTokens').textContent = Number(totalTokens).toLocaleString();
+    $('aiTotalCalls').textContent = `${Number(callsCount)} 次`;
+    $('aiLogsCount').textContent = `${logs.length} 笔`;
+
+    if (!logs.length) {
+      $('aiLogsTbody').innerHTML = '';
+      $('aiLogsEmpty').hidden = false;
+    } else {
+      $('aiLogsEmpty').hidden = true;
+      $('aiLogsTbody').innerHTML = logs.map((l) => `
+        <tr class="hover:bg-surface-container-low transition-colors">
+          <td class="px-3 py-2 text-outline">${esc(fmtTime(l.created_at || l.timestamp))}</td>
+          <td class="px-3 py-2 font-medium text-on-surface">${esc(l.filename || '—')}</td>
+          <td class="px-3 py-2 text-outline">${esc(l.project_name || '—')}</td>
+          <td class="px-3 py-2 text-outline">${esc(l.model || '—')}</td>
+          <td class="px-3 py-2 text-right">${Number(l.total_tokens || 0).toLocaleString()}</td>
+          <td class="px-3 py-2 text-right text-primary font-semibold">¥${Number(l.total_cost || 0).toFixed(4)}</td>
+        </tr>
+      `).join('');
+    }
+  } catch (err) {
+    toast(`加载费用流水失败：${err.message}`);
+  }
+});
+const closeAiCosts = () => { $('modalAiCosts').hidden = true; };
+$('btnCloseAiCosts').addEventListener('click', closeAiCosts);
+$('btnDoneAiCosts').addEventListener('click', closeAiCosts);
+
+/* ================= ② 数据拆量与通用模型 ================= */
+
+const ALL = '__all__';
+const BOX_COMPONENT = '配电箱体';
+const splitUsed = (s) => String(s || '').split(/[、,，;；\n]+/).map((t) => t.trim()).filter(Boolean);
+
+/**
+ * 从汇总表 components 里拆出某个箱柜的元器件。
+ */
+function partsForBox(code, components) {
+  const out = [];
+  for (const c of components) {
+    if (c.name === BOX_COMPONENT) continue;
+    const nm = String(c.name || '').trim();
+    const sp = String(c.spec || '').trim();
+    // 严格过滤接线端子代号、跨图线号、柜号与纯工程数值，杜绝垃圾条目
+    if (sp.includes(':D') || sp.includes('~') || sp.includes('-C1') || sp.includes('-C2') || sp.includes('-C3')) continue;
+    if (['5.5kW', '回路名称', '回路名称\n二次图编号', '低压配电柜型号 GGD', 'A\n计算电流'].includes(nm)) continue;
+    if (['02AP02', '02AP1', '02AP2', '02YJ01', 'C01', 'C05', 'DF', 'XKP', '371', 'GGD'].includes(sp)) continue;
+    if (sp.startsWith('ET1') || sp.includes('引上至') || sp.includes('机械应急')) continue;
+
+    const toks = splitUsed(c.used_in);
+    const hits = toks.filter((t) => t === code || t.startsWith(`${code} `));
+    if (!hits.length) continue;
+    const refs = hits.map((t) => t.slice(code.length).trim()).filter(Boolean);
+    const allBare = toks.every((t) => !t.includes(' '));
+    const qty = allBare ? Number(c.quantity) : hits.length * (Number(c.quantity) / (toks.length || 1));
+    out.push({
+      name: nm,
+      spec: sp,
+      unit: c.unit || '只',
+      quantity: Math.max(1, Math.round(qty || 1)),
+      where: refs.join('、') || '主回路',
+      note: c.note || '',
+      calibrated: false
+    });
+  }
+  return out;
+}
+
+/**
+ * 当箱柜未在 components 表单独声明但有出线回路时，自动从回路图抽取提纯器件清单
+ */
+function partsFromCircuits(code, circuits) {
+  const out = [];
+  const breakerMap = new Map();
+  const contactorMap = new Map();
+  const ctMap = new Map();
+  const thermalMap = new Map();
+
+  for (const c of circuits) {
+    if (c.breaker) {
+      const k = c.breaker.trim();
+      breakerMap.set(k, (breakerMap.get(k) || 0) + 1);
+    }
+    if (c.contactor) {
+      const k = c.contactor.trim();
+      contactorMap.set(k, (contactorMap.get(k) || 0) + 1);
+    }
+    if (c.ct) {
+      const k = c.ct.trim();
+      ctMap.set(k, (ctMap.get(k) || 0) + 1);
+    }
+    if (c.thermal) {
+      const k = c.thermal.trim();
+      thermalMap.set(k, (thermalMap.get(k) || 0) + 1);
+    }
+  }
+
+  for (const [spec, qty] of breakerMap) {
+    const isMccb = spec.toUpperCase().includes('MCCB') || spec.includes('塑壳') || spec.includes('3P') || spec.includes('4P');
+    out.push({
+      name: isMccb ? '塑壳断路器' : '微型断路器',
+      spec,
+      unit: '只',
+      quantity: qty,
+      where: '出线回路',
+      note: '由出线回路图提取',
+      calibrated: false
+    });
+  }
+  for (const [spec, qty] of contactorMap) {
+    out.push({
+      name: '交流接触器',
+      spec: spec.includes('A') ? spec : `${spec}A`,
+      unit: '只',
+      quantity: qty * 3,
+      where: '电机控制',
+      note: '由回路接触器配置提取',
+      calibrated: false
+    });
+  }
+  for (const [spec, qty] of ctMap) {
+    out.push({
+      name: '电流互感器',
+      spec,
+      unit: '只',
+      quantity: qty,
+      where: '测量回路',
+      note: '由回路互感器配置提取',
+      calibrated: false
+    });
+  }
+  for (const [spec, qty] of thermalMap) {
+    out.push({
+      name: '热继电器',
+      spec,
+      unit: '只',
+      quantity: qty,
+      where: '过载保护',
+      note: '由电动机热保护提取',
+      calibrated: false
+    });
+  }
+  return out;
+}
+
+function buildBoxes(data) {
+  const comps = data.components || [];
+  const circuits = data.circuits || [];
+  const counted = {};
+  return (data.boxes || []).map((b, i) => {
+    const code = b.code || `箱柜${i + 1}`;
+    const first = !counted[code];
+    counted[code] = true;
+    const cir = first ? circuits.filter((c) => c.box === code) : [];
+    const bbox = b.bbox || (cir.find((c) => c.bbox) || {}).bbox || null;
+    let parts = first ? partsForBox(code, comps) : [];
+    if (first && parts.length === 0 && cir.length > 0) {
+      parts = partsFromCircuits(code, cir);
+    }
+    return {
+      key: `${i}`,
+      code,
+      name: b.name || '配电柜',
+      raw: b,
+      bbox,
+      circuits: cir,
+      parts,
+    };
+  });
+}
+
+/* ================= ③ 扒图工作台 (Blueprint Extraction & Inspection) ================= */
+
+const CAD_ACI_COLORS = {
+  1: '#FF0000', 2: '#FFFF00', 3: '#00FF00', 4: '#00FFFF',
+  5: '#0000FF', 6: '#FF00FF', 7: '#FFFFFF', 8: '#808080', 9: '#C0C0C0'
+};
+
+const ExtractWorkbench = {
+  id: '',
+  job: null,
+  boxes: [],
+  selKey: '',
+  selRowIdx: 0,
+  filter: 'all', // 'all' | 'unverified' | 'doubt'
+  sheetTab: 'components', // 'components' | 'circuits' | 'pending' | 'changes'
+  verifiedBoxes: new Set(),
+  changeLogs: [],
+  page: 1,
+  pages: 1,
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+  isPanning: false,
+  cadCollapsed: false,
+  timer: 0,
+  // 原生 DWG 矢量 CAD 交互引擎状态
+  viewMode: 'vector', // 'vector' | 'raster'
+  cadVectors: null,
+  vectorState: { zoom: 0.001, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 },
+  cadLayersState: {},
+  activeVectorTarget: null,
+  eventsBound: false,
+  resizersBound: false,
+
+  stopPoll() { clearTimeout(this.timer); },
+
+  async saveJobData(reason = "用户核对修改") {
+    if (!this.job || !this.id) return;
+    try {
+      const allComps = [];
+      this.boxes.forEach(b => {
+        (b.parts || []).forEach(p => {
+          allComps.push({
+            name: p.name,
+            spec: p.spec,
+            unit: p.unit || '只',
+            quantity: Number(p.quantity) || 1,
+            used_in: b.code,
+            where: p.where || '主回路',
+            note: p.note || ''
+          });
+        });
+      });
+      const payload = {
+        boxes: this.boxes.map(b => b.raw || { code: b.code, name: b.name }),
+        circuits: (this.job.data && this.job.data.circuits) || [],
+        components: allComps.length > 0 ? allComps : ((this.job.data && this.job.data.components) || []),
+        requirements: (this.job.data && this.job.data.requirements) || [],
+        uncertainties: (this.job.data && this.job.data.uncertainties) || [],
+        changes: this.changeLogs || [],
+        reason
+      };
+      await api(`/api/jobs/${this.id}/data`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.warn('saveJobData failed:', e);
+    }
+  },
+
+  async open(id) {
+    this.stopPoll();
+    if ($('globalHeader')) $('globalHeader').hidden = true;
+    $('viewList').hidden = true;
+    $('viewPricing').hidden = true;
+    $('viewExtract').hidden = false;
+    this.id = id;
+
+    let job;
+    try {
+      job = await api(`/api/jobs/${id}`);
+    } catch (e) {
+      toast(`加载图纸失败：${e.message}`);
+      return;
+    }
+    this.job = job;
+    document.title = `${job.filename || '图纸'} · 电气拆量核对`;
+    $('extFilename').textContent = job.filename || '未命名图纸';
+    $('extBadge').textContent = (job.file_type || String(job.filename).split('.').pop() || 'CAD').toUpperCase();
+
+    // 绑定进入组价与直接组价
+    $('extGoPricingBtn').onclick = () => { location.hash = `#/job/${this.id}/pricing`; };
+    $('extMainPriceBtn').onclick = () => { location.hash = `#/job/${this.id}/pricing`; };
+    $('extExportBomBtn').onclick = () => { window.location.href = withToken(`/api/jobs/${id}/excel?stage=takeoff`); };
+    if ($('btnExport')) $('btnExport').href = withToken(`/api/jobs/${id}/excel`);
+
+    if (!isDone(job.status)) {
+      $('extTopAlertText').textContent = isFailed(job.status) ? `识别失败: ${job.error || '未知错误'}` : '图纸识别中，请稍候...';
+      if (!isFailed(job.status)) this.timer = setTimeout(() => this.open(id), 2500);
+      return;
+    }
+
+    this.boxes = buildBoxes(job.data || {});
+    this.initStats();
+    await this.initCadViewer();
+    this.renderCabinetList();
+    if (this.boxes.length > 0) {
+      this.selectCabinet(this.boxes[0].key);
+    }
+    this.bindEvents();
+    this.bindResizers();
+  },
+
+  openPricingModal() {
+    const totalUnits = this.boxes.reduce((s, b) => s + (Number(b.raw.quantity) || 1), 0);
+    const comps = ((this.job.data || {}).components || []).filter((c) => c.name !== BOX_COMPONENT);
+    const totalPieces = comps.reduce((s, c) => s + (Number(c.quantity) || 0), 0);
+    const doubts = ((this.job.data || {}).uncertainties || []).filter((u) => !u.resolved);
+
+    if ($('pricingModalSummary')) {
+      $('pricingModalSummary').textContent = `${this.boxes.length} 个箱柜（${totalUnits}台）/ ${comps.length} 种元器件（${Math.round(totalPieces)}件）`;
+    }
+    if ($('pricingModalWarning')) {
+      if (doubts.length > 0) {
+        $('pricingModalWarning').classList.remove('hidden');
+        if ($('pricingModalWarningText')) $('pricingModalWarningText').textContent = `图纸尚有 ${doubts.length} 项存疑，建议核对后再执行组价`;
+      } else {
+        $('pricingModalWarning').classList.add('hidden');
+      }
+    }
+    const modal = $('pricingModal');
+    if (modal) modal.classList.remove('hidden');
+  },
+
+  closePricingModal() {
+    const modal = $('pricingModal');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  initStats() {
+    const d = this.job.data || {};
+    const totalUnits = this.boxes.reduce((s, b) => s + (Number(b.raw.quantity) || 1), 0);
+    const comps = (d.components || []).filter((c) => c.name !== BOX_COMPONENT);
+    const totalPieces = comps.reduce((s, c) => s + (Number(c.quantity) || 0), 0);
+    const circuits = d.circuits || [];
+    const doubts = (d.uncertainties || []).filter((u) => !u.resolved);
+
+    $('extStatBoxes').textContent = String(this.boxes.length);
+    $('extStatBoxesUnit').textContent = `(${totalUnits}台)`;
+    $('extStatComps').textContent = String(comps.length);
+    $('extStatCompQty').textContent = String(Math.round(totalPieces));
+    $('extStatCircuits').textContent = String(circuits.length);
+    $('extPendingCount').textContent = String(doubts.length);
+    $('extChangesCount').textContent = String(this.changeLogs.length);
+
+    this.updateVerifiedBar();
+
+    if (this.boxes.length >= 8) {
+      $('extTopAlertText').textContent = `图纸目录列出 ${this.boxes.length} 台箱柜 · 电气元器件已提取完成 · 支持双击单元格校准`;
+    }
+  },
+
+  updateVerifiedBar() {
+    const total = this.boxes.length;
+    const verified = this.verifiedBoxes.size;
+    const pct = total > 0 ? Math.round((verified / total) * 100) : 0;
+    $('extVerifiedBar').style.width = `${pct}%`;
+    $('extVerifiedText').textContent = `${verified}/${total}`;
+  },
+
+  async initCadViewer() {
+    this.pages = Math.max(1, Number(this.job.pages) || 1);
+    const names = this.job.sheet_names || (this.job.summary || {}).sheet_names || {};
+    $('extCadSheetSelect').innerHTML = Array.from({ length: this.pages }, (_, i) => {
+      const n = i + 1;
+      const nm = names[n] || names[String(n)] || '';
+      return `<option value="${n}">${n}/${this.pages}${nm ? ` · ${esc(String(nm).slice(0, 20))}` : ''}</option>`;
+    }).join('');
+
+    this.page = 1;
+    this.loadPageImage();
+
+    // 检查是否为 CAD 图纸并拉取原生矢量流
+    const ext = String(this.job.filename || '').split('.').pop().toLowerCase();
+    const isCad = (ext === 'dwg' || ext === 'dxf' || this.job.file_type === 'dwg' || this.job.file_type === 'dxf');
+
+    let vectorAvailable = false;
+    if (isCad || !this.cadVectors) {
+      try {
+        const res = await api(`/api/jobs/${this.id}/cad_vectors`);
+        if (res && res.available && res.vectors && res.vectors.extents) {
+          this.cadVectors = res.vectors;
+          vectorAvailable = true;
+          if ($('extCadHudLayers')) $('extCadHudLayers').textContent = String(this.cadVectors.layers?.length || 0);
+        }
+      } catch (e) {
+        console.warn('CAD vector loading fallback:', e);
+      }
+    } else if (this.cadVectors) {
+      vectorAvailable = true;
+    }
+
+    if (vectorAvailable) {
+      this.setViewMode('vector');
+      this.resizeVectorCanvas();
+      this.initVectorStateFromExtents();
+      this.renderVectorCanvas();
+    } else {
+      this.setViewMode('raster');
+      this.fitCad();
+    }
+  },
+
+  setViewMode(mode) {
+    this.viewMode = mode;
+    const vCanvas = $('extVectorCanvas');
+    const vHud = $('extVectorHud');
+    const rCanvas = $('extBlueprintCanvas');
+    const focusBox = $('extCadFocusBox');
+    const btnVector = $('extBtnViewVector');
+    const btnRaster = $('extBtnViewRaster');
+
+    if (mode === 'vector') {
+      if (!this.cadVectors) {
+        toast('该图纸未解析到原生 CAD 矢量几何，请查看蓝图快照');
+        return this.setViewMode('raster');
+      }
+      if (vCanvas) vCanvas.classList.remove('hidden');
+      if (vHud) vHud.classList.remove('hidden');
+      if (rCanvas) rCanvas.classList.add('hidden');
+      if (focusBox) focusBox.classList.add('hidden');
+
+      if (btnVector) {
+        btnVector.className = 'px-2 py-0.5 rounded bg-blue-600 text-white font-bold cursor-pointer transition-colors shadow-2xs';
+      }
+      if (btnRaster) {
+        btnRaster.className = 'px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer transition-colors';
+      }
+
+      this.resizeVectorCanvas();
+      this.renderVectorCanvas();
+    } else {
+      if (vCanvas) vCanvas.classList.add('hidden');
+      if (vHud) vHud.classList.add('hidden');
+      if (rCanvas) rCanvas.classList.remove('hidden');
+      if (focusBox) focusBox.classList.remove('hidden');
+
+      if (btnVector) {
+        btnVector.className = 'px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer transition-colors';
+      }
+      if (btnRaster) {
+        btnRaster.className = 'px-2 py-0.5 rounded bg-blue-600 text-white font-bold cursor-pointer transition-colors shadow-2xs';
+      }
+
+      const curBox = this.boxes.find((x) => x.key === this.selKey);
+      if (curBox) this.updateCadFocus(curBox);
+    }
+  },
+
+  initVectorStateFromExtents() {
+    if (!this.cadVectors || !this.cadVectors.extents) return;
+    const canvas = $('extVectorCanvas');
+    const w = canvas.clientWidth || 800;
+    const h = canvas.clientHeight || 600;
+    const [[minX, minY], [maxX, maxY]] = this.cadVectors.extents;
+    const dw = maxX - minX || 1;
+    const dh = maxY - minY || 1;
+    const scale = Math.min(w / dw, h / dh) * 0.95;
+    this.vectorState.zoom = Math.max(scale, 0.0001);
+    this.vectorState.panX = w / 2 - ((minX + maxX) / 2) * this.vectorState.zoom;
+    this.vectorState.panY = h / 2 + ((minY + maxY) / 2) * this.vectorState.zoom;
+    this.updateZoomDisplay();
+  },
+
+  resizeVectorCanvas() {
+    const canvas = $('extVectorCanvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = rect.width || canvas.clientWidth || 800;
+    const h = rect.height || canvas.clientHeight || 600;
+    const tw = Math.round(w * dpr);
+    const th = Math.round(h * dpr);
+    if (canvas.width !== tw || canvas.height !== th) {
+      canvas.width = tw;
+      canvas.height = th;
+    }
+  },
+
+  updateZoomDisplay() {
+    let pct = '100%';
+    if (this.viewMode === 'vector') {
+      const z = this.vectorState.zoom;
+      pct = `${Math.round(z * 1000)}%`;
+    } else {
+      pct = `${Math.round(this.zoom * 100)}%`;
+    }
+    if ($('extZoomLevelText')) $('extZoomLevelText').textContent = pct;
+    if ($('extFooterZoomRatio')) $('extFooterZoomRatio').textContent = pct;
+  },
+
+  renderVectorCanvas() {
+    const canvas = $('extVectorCanvas');
+    if (!canvas || !this.cadVectors) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+
+    ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 纯正 CAD 黑色背景
+    ctx.fillStyle = '#141518';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.scale(dpr, dpr);
+    ctx.translate(this.vectorState.panX, this.vectorState.panY);
+    ctx.scale(this.vectorState.zoom, -this.vectorState.zoom);
+
+    const layers = this.cadVectors.layers || [];
+    const layerColors = layers.map(l => {
+      if (typeof l.color === 'string') return l.color === 'White' ? '#FFFFFF' : l.color;
+      return CAD_ACI_COLORS[l.color] || '#A0AEC0';
+    });
+
+    const isLayerVisible = (lIdx) => {
+      const l = layers[lIdx];
+      if (!l) return true;
+      return this.cadLayersState[l.name] !== false;
+    };
+
+    // 1. 绘制 CAD 原生线段
+    const lines = this.cadVectors.lines || [];
+    for (let i = 0; i < lines.length; i++) {
+      const [x1, y1, x2, y2, lIdx] = lines[i];
+      if (!isLayerVisible(lIdx)) continue;
+      ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
+      ctx.lineWidth = Math.max(0.5, 1 / this.vectorState.zoom);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    // 2. 绘制多段线
+    const polylines = this.cadVectors.polylines || [];
+    for (let i = 0; i < polylines.length; i++) {
+      const [pts, lIdx] = polylines[i];
+      if (!isLayerVisible(lIdx) || !pts || pts.length < 2) continue;
+      ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
+      ctx.lineWidth = Math.max(0.5, 1 / this.vectorState.zoom);
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let j = 1; j < pts.length; j++) {
+        ctx.lineTo(pts[j][0], pts[j][1]);
+      }
+      ctx.stroke();
+    }
+
+    // 3. 绘制圆与圆弧
+    const circles = this.cadVectors.circles || [];
+    for (let i = 0; i < circles.length; i++) {
+      const [cx, cy, r, lIdx] = circles[i];
+      if (!isLayerVisible(lIdx) || r <= 0) continue;
+      ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
+      ctx.lineWidth = Math.max(0.5, 1 / this.vectorState.zoom);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 4. 绘制文字标注
+    const texts = this.cadVectors.texts || [];
+    for (let i = 0; i < texts.length; i++) {
+      const [x, y, txt, height, lIdx] = texts[i];
+      if (!isLayerVisible(lIdx) || !txt) continue;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(1, -1);
+      ctx.fillStyle = layerColors[lIdx] || '#FFFFFF';
+      const fontSize = Math.max(10, Number(height) || 14);
+      ctx.font = `${fontSize}px "PingFang SC", "Microsoft YaHei", "SimHei", sans-serif`;
+      ctx.fillText(txt, 0, 0);
+      ctx.restore();
+    }
+
+    // 5. 绘制当前选中箱柜在 CAD 空间的高亮聚焦框与标牌
+    if (this.activeVectorTarget) {
+      const { x, y, label, w: bw = 35000, h: bh = 50000 } = this.activeVectorTarget;
+      ctx.save();
+      // 蓝色发光聚焦虚线框
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = Math.max(2, 2.5 / this.vectorState.zoom);
+      ctx.setLineDash([8 / this.vectorState.zoom, 4 / this.vectorState.zoom]);
+      ctx.strokeRect(x - bw * 0.15, y - bh * 0.85, bw, bh);
+
+      // 十字寻迹星标
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = Math.max(1.5, 1.5 / this.vectorState.zoom);
+      ctx.setLineDash([]);
+      const cr = 4000;
+      ctx.beginPath();
+      ctx.moveTo(x - cr, y); ctx.lineTo(x + cr, y);
+      ctx.moveTo(x, y - cr); ctx.lineTo(x, y + cr);
+      ctx.stroke();
+
+      // 悬浮文字胶囊
+      ctx.scale(1, -1);
+      ctx.fillStyle = '#2563eb';
+      const tagH = Math.max(12, 16 / this.vectorState.zoom);
+      ctx.font = `bold ${tagH}px -apple-system, sans-serif`;
+      ctx.fillText(`${label} · CAD X:${Math.round(x)} Y:${Math.round(y)}`, x - bw * 0.15, -(y + 10 / this.vectorState.zoom));
+      ctx.restore();
+    }
+
+    ctx.restore();
+  },
+
+  updateVectorHud(e) {
+    const canvas = $('extVectorCanvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const cadX = Math.round((mx - this.vectorState.panX) / this.vectorState.zoom);
+    const cadY = Math.round((this.vectorState.panY - my) / this.vectorState.zoom);
+
+    if ($('extCadHudCoords')) $('extCadHudCoords').textContent = `X: ${cadX.toLocaleString()} Y: ${cadY.toLocaleString()}`;
+    if ($('extFooterCoords')) $('extFooterCoords').textContent = `X: ${cadX.toLocaleString()} mm  Y: ${cadY.toLocaleString()} mm`;
+  },
+
+  loadPageImage() {
+    const img = $('extPageImg');
+    const svg = $('extSchematicSvg');
+    const url = withToken(`/api/jobs/${this.id}/page/${this.page}`);
+
+    img.onload = () => {
+      img.classList.remove('hidden');
+      svg.classList.add('hidden');
+      this.fitCad();
+    };
+    img.onerror = () => {
+      // 若没有转出图片，则显示高保真工程 SVG
+      img.classList.add('hidden');
+      svg.classList.remove('hidden');
+      this.fitCad();
+    };
+    img.src = url;
+
+    // 更新 SVG 标题栏
+    $('extSvgProj').textContent = this.job.project || '配电技改工程';
+    $('extSvgDrawing').textContent = this.job.filename || '系统电气原理图';
+  },
+
+  applyCadTransform() {
+    const canvas = $('extBlueprintCanvas');
+    canvas.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+    $('extZoomLevelText').textContent = `${Math.round(this.zoom * 100)}%`;
+    $('extFooterZoomRatio').textContent = `${Math.round(this.zoom * 100)}%`;
+  },
+
+  fitCad() {
+    const container = $('extCadCanvasContainer');
+    if (!container) return;
+    this.zoom = 0.85;
+    this.panX = 0;
+    this.panY = 0;
+    this.applyCadTransform();
+  },
+
+  updateCadFocus(box, comp = null) {
+    if (!box) return;
+
+    // 1. 矢量 CAD 空间精准对焦
+    if (this.viewMode === 'vector' && this.cadVectors) {
+      const canvas = $('extVectorCanvas');
+      const w = canvas.clientWidth || 800;
+      const h = canvas.clientHeight || 600;
+
+      let targetX = null, targetY = null;
+      const texts = this.cadVectors.texts || [];
+
+      // 柜号精确检索
+      const codeQuery = (box.code || '').toLowerCase();
+      let match = null;
+      if (codeQuery) {
+        match = texts.find(t => t[2] && String(t[2]).toLowerCase().includes(codeQuery));
+      }
+      if (!match && box.name) {
+        const nameKey = box.name.replace(/配电[箱柜总]+/g, '').trim().toLowerCase();
+        if (nameKey) {
+          match = texts.find(t => t[2] && String(t[2]).toLowerCase().includes(nameKey));
+        }
+      }
+
+      if (match) {
+        targetX = match[0];
+        targetY = match[1];
+      } else if (box.bbox && box.bbox.w && this.cadVectors.extents) {
+        const [[minX, minY], [maxX, maxY]] = this.cadVectors.extents;
+        targetX = minX + (box.bbox.x + box.bbox.w / 2) * (maxX - minX);
+        targetY = maxY - (box.bbox.y + box.bbox.h / 2) * (maxY - minY);
+      }
+
+      if (targetX != null && targetY != null) {
+        const targetZoom = Math.max(0.005, Math.min(0.04, w / 45000));
+        this.vectorState.zoom = targetZoom;
+        this.vectorState.panX = w / 2 - targetX * targetZoom;
+        this.vectorState.panY = h / 2 + targetY * targetZoom;
+        this.activeVectorTarget = {
+          x: targetX,
+          y: targetY,
+          label: comp ? `[${box.code} · ${comp.name}]` : `[${box.code} ${box.name}]`
+        };
+        this.updateZoomDisplay();
+        this.renderVectorCanvas();
+      }
+    }
+
+    // 2. 位图快照模式标框更新
+    const focusBox = $('extCadFocusBox');
+    const focusLabel = $('extCadFocusLabel');
+    if (!focusBox) return;
+
+    let x = 0.26, y = 0.22, w = 0.28, h = 0.58;
+    if (box && box.bbox && box.bbox.w) {
+      x = box.bbox.x;
+      y = box.bbox.y;
+      w = box.bbox.w;
+      h = box.bbox.h;
+    } else if (box) {
+      const idx = this.boxes.indexOf(box);
+      x = Math.max(0.08, Math.min(0.72, 0.08 + (idx % 4) * 0.22));
+      y = 0.22;
+      w = 0.22;
+      h = 0.58;
+    }
+
+    if (comp) {
+      h = 0.16;
+      y = 0.22 + (this.selRowIdx % 5) * 0.08;
+    }
+
+    focusBox.style.left = `${Math.round(x * 100)}%`;
+    focusBox.style.top = `${Math.round(y * 100)}%`;
+    focusBox.style.width = `${Math.round(w * 100)}%`;
+    focusBox.style.height = `${Math.round(h * 100)}%`;
+
+    const label = comp
+      ? `[${box.code} · ${comp.name}]`
+      : `[${box.code} ${box.name}]`;
+    if (focusLabel) focusLabel.textContent = label;
+  },
+
+  renderCabinetList() {
+    const query = ($('extCabinetSearch').value || '').trim().toLowerCase();
+    const filter = this.filter;
+    const tbody = $('extCabinetTbody');
+
+    const totalCount = this.boxes.length;
+    let unverifiedCount = 0;
+    let doubtCount = 0;
+
+    const rows = [];
+    this.boxes.forEach((b, idx) => {
+      const isVerified = this.verifiedBoxes.has(b.code);
+      const doubtNum = (b.raw.doubt_count != null) ? Number(b.raw.doubt_count) : (b.circuits.some(c => c.note && c.note.includes('存疑')) || b.parts.some(p => p.note && p.note.includes('存疑')) ? 1 : 0);
+      if (!isVerified) unverifiedCount++;
+      if (doubtNum > 0) doubtCount++;
+
+      // 搜索过滤
+      if (query && !b.code.toLowerCase().includes(query) && !b.name.toLowerCase().includes(query)) {
+        return;
+      }
+      // Tab 过滤
+      if (filter === 'unverified' && isVerified) return;
+      if (filter === 'doubt' && doubtNum === 0) return;
+
+      const active = (this.selKey === b.key);
+      const activeCls = active
+        ? 'active-cabinet bg-blue-50/90 border-l-2 border-l-blue-600 outline outline-1 outline-blue-600 cursor-pointer divide-x divide-blue-200 group'
+        : 'hover:bg-slate-50 cursor-pointer transition-colors divide-x divide-slate-200 group';
+
+      let statusBadge = '';
+      if (isVerified) {
+        statusBadge = '<span class="text-emerald-600 font-bold text-sm leading-none whitespace-nowrap">✓</span>';
+      } else if (doubtNum > 0) {
+        statusBadge = `<span class="text-amber-600 font-bold font-mono text-[11px] whitespace-nowrap">⚠${doubtNum}</span>`;
+      } else {
+        statusBadge = '<span class="text-slate-400 font-mono text-[11px]">待核</span>';
+      }
+
+      const seq = `1-${idx + 1}`;
+      rows.push(`
+        <tr class="cabinet-row ${activeCls} h-8 select-none" data-key="${b.key}">
+          <td class="h-8 text-center font-mono ${active ? 'text-blue-700 font-semibold' : 'text-slate-500'}">${seq}</td>
+          <td class="h-8 text-center font-mono font-bold ${active ? 'text-blue-800' : 'text-slate-700'}">${esc(b.code)}</td>
+          <td class="h-8 px-2">
+            <div class="flex items-center justify-between">
+              <div class="truncate ${active ? 'font-bold text-blue-950' : 'font-medium text-slate-900'}">${esc(b.name)}</div>
+            </div>
+            <div class="text-[10px] ${active ? 'text-blue-700' : 'text-slate-500'} font-mono leading-tight">${esc(b.raw.type || '动力柜')}·${esc(b.raw.install || '落地')}</div>
+          </td>
+          <td class="h-8 text-center font-mono ${active ? 'font-bold text-blue-800' : 'text-slate-600'}">×${b.raw.quantity || 1}</td>
+          <td class="h-8 text-center">${statusBadge}</td>
+        </tr>
+      `);
+    });
+
+    tbody.innerHTML = rows.join('') || '<tr><td colspan="5" class="p-4 text-center text-slate-400">无匹配箱柜</td></tr>';
+
+    $('extFilterAllBtn').textContent = `全部 (${totalCount})`;
+    $('extFilterUnverifiedBtn').textContent = `未核 (${unverifiedCount})`;
+    $('extFilterDoubtBtn').textContent = `存疑 (${doubtCount})`;
+  },
+
+  selectCabinet(key) {
+    this.selKey = key;
+    this.selRowIdx = 0;
+    const b = this.boxes.find((x) => x.key === key);
+    if (!b) return;
+
+    this.renderCabinetList();
+    this.renderCabinetInspector(b);
+    this.updateCadFocus(b);
+  },
+
+  renderCabinetInspector(b) {
+    const isVerified = this.verifiedBoxes.has(b.code);
+    if ($('extCurBoxCode')) $('extCurBoxCode').value = b.code || '';
+    if ($('extCurBoxName')) $('extCurBoxName').value = b.name || '';
+    if ($('extCurBoxType')) $('extCurBoxType').value = b.raw.type || '动力箱';
+    if ($('extCurBoxSize')) $('extCurBoxSize').value = b.raw.size || '800×1200×250';
+    if ($('extCurBoxInstall')) $('extCurBoxInstall').value = b.raw.install || '挂墙';
+    if ($('extCurBoxLocation')) $('extCurBoxLocation').value = b.raw.location || '配电间';
+    if ($('extCurBoxQty')) $('extCurBoxQty').value = b.raw.quantity || 1;
+
+    // 清爽两行概览头部
+    if ($('extCurBoxCodeBadge')) $('extCurBoxCodeBadge').textContent = b.code || '配电箱';
+    if ($('extCurBoxNameTitle')) $('extCurBoxNameTitle').textContent = b.name || '动力配电箱';
+    if ($('extCurBoxSummarySub')) $('extCurBoxSummarySub').textContent = `（共 ${b.raw.quantity || 1} 台 · ${b.parts.length} 项元器件）`;
+    if ($('extCurBoxTypePill')) $('extCurBoxTypePill').textContent = b.raw.type || '动力配电箱';
+    if ($('extCurBoxSizePill')) $('extCurBoxSizePill').textContent = b.raw.size || '800×1200×250';
+    if ($('extCurBoxInstallPill')) $('extCurBoxInstallPill').textContent = b.raw.install || '挂墙明装';
+    if ($('extCurBoxLocationPill')) $('extCurBoxLocationPill').textContent = b.raw.location || '配电间';
+    if ($('extCurBoxQtyPill')) $('extCurBoxQtyPill').textContent = `${b.raw.quantity || 1} 台`;
+    if ($('extCurBoxIpPill')) $('extCurBoxIpPill').textContent = b.raw.ip || 'IP30';
+
+    if ($('extMarkVerifiedText')) $('extMarkVerifiedText').textContent = isVerified ? '已完成核对 ✓' : '标记已核对';
+    if ($('extMarkVerifiedBtn')) {
+      $('extMarkVerifiedBtn').className = isVerified
+        ? 'h-7 px-3 rounded bg-emerald-700 text-white font-medium flex items-center gap-1 transition-colors shadow-2xs cursor-pointer'
+        : 'h-7 px-3 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-1 transition-colors shadow-2xs cursor-pointer';
+    }
+
+    if ($('extTabBadgeComps')) $('extTabBadgeComps').textContent = String(b.parts.length);
+    if ($('extTabBadgeCircuits')) $('extTabBadgeCircuits').textContent = String(b.circuits.length);
+    const doubtCount = b.parts.filter(p => p.note && p.note.includes('存疑')).length;
+    if ($('extTabBadgePending')) $('extTabBadgePending').textContent = `⚠ ${doubtCount}`;
+    if ($('extTabBadgeChanges')) $('extTabBadgeChanges').textContent = String(this.changeLogs.filter(c => c.box === b.code).length);
+
+    this.renderSheet();
+  },
+
+  renderSheet() {
+    const b = this.boxes.find((x) => x.key === this.selKey);
+    if (!b) return;
+
+    document.querySelectorAll('.ext-sheet-tab').forEach(t => {
+      const active = (t.dataset.target === this.sheetTab);
+      t.classList.toggle('active', active);
+      t.classList.toggle('bg-white', active);
+      t.classList.toggle('border-t-2', active);
+      t.classList.toggle('border-t-blue-600', active);
+      t.classList.toggle('border-x', active);
+      t.classList.toggle('border-slate-300', active);
+      t.classList.toggle('text-blue-900', active);
+      t.classList.toggle('font-bold', active);
+    });
+
+    if (this.sheetTab === 'components') {
+      this.renderComponentsTable(b);
+    } else if (this.sheetTab === 'circuits') {
+      this.renderCircuitsTable(b);
+    } else if (this.sheetTab === 'pending') {
+      this.renderPendingTable(b);
+    } else if (this.sheetTab === 'changes') {
+      this.renderChangesTable();
+    }
+  },
+
+  renderComponentsTable(b) {
+    const tbody = $('extComponentsTbody');
+    const parts = b.parts;
+
+    if (!parts.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-400">该箱柜暂无识别元器件明细</td></tr>';
+      if ($('extFooterCountText')) $('extFooterCountText').textContent = '共 0 种元器件明细';
+      if ($('extFooterSumQty')) $('extFooterSumQty').textContent = '0 件';
+      return;
+    }
+
+    const rows = parts.map((p, idx) => {
+      const active = (this.selRowIdx === idx);
+      const isModified = p.calibrated;
+      const isDoubt = p.note && p.note.includes('存疑');
+
+      const activeCls = active
+        ? 'bg-blue-50/80 divide-x divide-blue-200 outline outline-2 outline-blue-600 relative h-[32px]'
+        : (isDoubt
+            ? 'bg-amber-50/70 hover:bg-amber-100/70 transition-colors divide-x divide-amber-200 h-[32px]'
+            : 'hover:bg-slate-50 transition-colors divide-x divide-slate-300 h-[32px]');
+
+      const cornerCls = isModified ? 'excel-modified-corner-tl' : (isDoubt ? 'excel-doubt-corner' : '');
+      const statusHtml = isModified
+        ? '<span class="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 font-medium text-[11px]">已改</span>'
+        : (isDoubt
+            ? '<span class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[10px] whitespace-nowrap">⚠ 存疑</span>'
+            : '<span class="text-[11px] text-slate-400">已对齐</span>');
+
+      return `
+        <tr class="comp-row cursor-pointer select-none ${activeCls}" data-idx="${idx}">
+          <td class="text-center font-mono text-[11px] ${active ? 'bg-blue-100 text-blue-800 font-bold' : (isDoubt ? 'bg-amber-100/80 text-amber-800 font-bold' : 'bg-[#f8fafc] text-slate-400')} select-none">${idx + 1}</td>
+          <td class="px-1 text-center font-mono ${active ? 'text-blue-800 font-bold' : (isDoubt ? 'text-amber-800 font-bold' : 'text-slate-600')}">${idx + 1}</td>
+          <td class="px-2.5 font-medium ${active ? 'font-bold text-blue-950' : (isDoubt ? 'text-amber-950' : 'text-slate-900')} truncate">${esc(p.name)}</td>
+          <td class="px-2.5 font-mono ${active ? 'font-bold text-blue-900' : (isDoubt ? 'text-amber-900 font-semibold' : 'text-slate-800')} relative ${cornerCls} truncate" title="${esc(p.note || p.spec)}">
+            <span>${esc(p.spec)}</span>
+            ${p.oldSpec ? `<span class="text-[10px] font-sans font-normal text-slate-500 ml-1.5">(原: ${esc(p.oldSpec)})</span>` : ''}
+          </td>
+          <td class="px-2 text-right font-mono font-bold ${active ? 'text-blue-900' : (isDoubt ? 'text-amber-900' : 'text-slate-900')} tabular-nums">${p.quantity}</td>
+          <td class="px-1 text-center text-slate-600">${esc(p.unit || '只')}</td>
+          <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>
+          <td class="px-1 text-center">
+            <button class="trace-link font-mono text-[13px] text-blue-600 hover:text-blue-800" title="定位图纸依据" type="button">⌖</button>
+          </td>
+          <td class="px-2 text-center">${statusHtml}</td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = rows.join('');
+
+    const sumQty = parts.reduce((s, p) => s + Number(p.quantity || 0), 0);
+    if ($('extFooterCountText')) $('extFooterCountText').textContent = `共 ${parts.length} 种元器件明细`;
+    if ($('extFooterSumQty')) $('extFooterSumQty').textContent = `${Math.round(sumQty)} 件`;
+
+    this.selectComponent(this.selRowIdx);
+  },
+
+  renderCircuitsTable(b) {
+    const tbody = $('extComponentsTbody');
+    const circuits = b.circuits;
+
+    if (!circuits.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-400">该箱柜暂无回路分配明细</td></tr>';
+      return;
+    }
+
+    const rows = circuits.map((c, idx) => `
+      <tr class="hover:bg-slate-50 transition-colors divide-x divide-slate-300 h-[32px]" data-idx="${idx}">
+        <td class="text-center font-mono text-[11px] bg-[#f8fafc] text-slate-400">${idx + 1}</td>
+        <td class="px-1 text-center font-mono font-bold text-blue-700">${esc(c.circuit_no || `WL${idx + 1}`)}</td>
+        <td class="px-2.5 font-medium truncate">${esc(c.load_name || '照明/动力')}</td>
+        <td class="px-2.5 font-mono text-slate-700 truncate">${esc([c.breaker, c.cable].filter(Boolean).join(' · '))}</td>
+        <td class="px-2 text-right font-mono font-bold text-slate-900 tabular-nums">${c.power_kw ? `${c.power_kw} kW` : '—'}</td>
+        <td class="px-1 text-center text-slate-600">回路</td>
+        <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>
+        <td class="px-1 text-center font-mono text-blue-600">${esc(c.phase || '3P')}</td>
+        <td class="px-2 text-center"><span class="text-[11px] text-slate-400">已对齐</span></td>
+      </tr>
+    `);
+    tbody.innerHTML = rows.join('');
+    if ($('extFooterCountText')) $('extFooterCountText').textContent = `共 ${circuits.length} 条回路分配`;
+    if ($('extFooterSumQty')) $('extFooterSumQty').textContent = `${circuits.length} 回路`;
+  },
+
+  renderPendingTable(b) {
+    const tbody = $('extComponentsTbody');
+    const doubts = b.parts.filter(p => p.note && p.note.includes('存疑'));
+
+    if (!doubts.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-emerald-600 font-medium">✓ 当前箱柜暂无存疑项，拆量对账已闭环</td></tr>';
+      return;
+    }
+
+    const rows = doubts.map((p, idx) => `
+      <tr class="bg-amber-50/70 hover:bg-amber-100/70 transition-colors divide-x divide-amber-200 h-[32px]" data-idx="${idx}">
+        <td class="text-center font-mono text-[11px] bg-amber-100/80 text-amber-800 font-bold select-none">${idx + 1}</td>
+        <td class="px-1 text-center font-mono font-bold text-amber-800">${idx + 1}</td>
+        <td class="px-2.5 font-bold text-amber-950 truncate">${esc(p.name)}</td>
+        <td class="px-2.5 font-mono text-amber-900 font-semibold truncate relative excel-doubt-corner" title="${esc(p.note)}">${esc(p.spec)}</td>
+        <td class="px-2 text-right font-mono font-bold text-amber-900 tabular-nums">${p.quantity}</td>
+        <td class="px-1 text-center text-slate-700">${esc(p.unit || '只')}</td>
+        <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>
+        <td class="px-1 text-center font-mono text-amber-700">${esc(p.where || '图纸')}</td>
+        <td class="px-2 text-center"><span class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[10px] whitespace-nowrap">⚠ 待核对</span></td>
+      </tr>
+    `);
+    tbody.innerHTML = rows.join('');
+  },
+
+  renderChangesTable() {
+    const tbody = $('extComponentsTbody');
+    if (!this.changeLogs.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-400">暂无人工修改与校准记录</td></tr>';
+      return;
+    }
+
+    const rows = this.changeLogs.map((log, idx) => `
+      <tr class="hover:bg-slate-50 transition-colors divide-x divide-slate-300 h-[32px]">
+        <td class="text-center font-mono text-[11px] bg-blue-50 text-blue-800">${idx + 1}</td>
+        <td class="px-1 text-center font-mono text-slate-500">${esc(log.time)}</td>
+        <td class="px-2.5 font-semibold text-slate-900 truncate">${esc(log.box)} · ${esc(log.comp)}</td>
+        <td class="px-2.5 font-mono text-blue-800 truncate">${esc(log.oldVal)} → <strong>${esc(log.newVal)}</strong></td>
+        <td class="px-2 text-right font-mono text-slate-600">—</td>
+        <td class="px-1 text-center text-slate-600">—</td>
+        <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>
+        <td class="px-1 text-center text-blue-600">已生效</td>
+        <td class="px-2 text-center"><span class="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 font-medium text-[11px]">人工校准</span></td>
+      </tr>
+    `);
+    tbody.innerHTML = rows.join('');
+  },
+
+  selectComponent(idx) {
+    const b = this.boxes.find((x) => x.key === this.selKey);
+    if (!b || !b.parts[idx]) return;
+    this.selRowIdx = idx;
+    const comp = b.parts[idx];
+
+    // 高亮行
+    document.querySelectorAll('#extComponentsTbody tr.comp-row').forEach(tr => {
+      const match = (tr.dataset.idx == idx);
+      tr.classList.toggle('bg-blue-50/80', match);
+      tr.classList.toggle('outline', match);
+      tr.classList.toggle('outline-2', match);
+      tr.classList.toggle('outline-blue-600', match);
+    });
+
+    if ($('extFooterSelection')) $('extFooterSelection').textContent = `${b.code} ${b.name} / 行${idx + 1} [${comp.name} ${comp.spec}]`;
+    this.updateCadFocus(b, comp);
+  },
+
+  calibrateActiveCell() {
+    const b = this.boxes.find((x) => x.key === this.selKey);
+    if (!b || !b.parts[this.selRowIdx]) return;
+    const comp = b.parts[this.selRowIdx];
+
+    const newSpec = prompt(`人工校准【${comp.name}】设计型号规格：`, comp.spec);
+    if (newSpec == null || newSpec.trim() === comp.spec) return;
+
+    const oldSpec = comp.spec;
+    comp.oldSpec = oldSpec;
+    comp.spec = newSpec.trim();
+    comp.calibrated = true;
+
+    this.changeLogs.push({
+      time: new Date().toLocaleTimeString(),
+      box: b.code,
+      comp: comp.name,
+      oldVal: oldSpec,
+      newVal: comp.spec,
+      note: '人工校准'
+    });
+
+    toast(`已校准 ${comp.name} 型号规格为：${comp.spec}`);
+    this.initStats();
+    this.renderSheet();
+  },
+
+  bindResizers() {
+    if (this.resizersBound) return;
+    this.resizersBound = true;
+
+    const resizer1 = $('extResizer1');
+    const cadPanel = $('extCadPanel');
+    const resizer2 = $('extResizer2');
+    const cabPanel = $('extCabinetPanel');
+
+    if (resizer1 && cadPanel) {
+      let isResizing1 = false;
+      resizer1.onpointerdown = (e) => {
+        isResizing1 = true;
+        resizer1.classList.add('resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        try { resizer1.setPointerCapture(e.pointerId); } catch (_) {}
+      };
+      window.addEventListener('pointermove', (e) => {
+        if (!isResizing1) return;
+        const newW = Math.max(260, Math.min(window.innerWidth - 680, e.clientX));
+        cadPanel.style.width = `${newW}px`;
+        if (this.viewMode === 'vector') {
+          this.resizeVectorCanvas();
+          this.renderVectorCanvas();
+        }
+      });
+      const endResize1 = () => {
+        if (!isResizing1) return;
+        isResizing1 = false;
+        resizer1.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        if (this.viewMode === 'vector') {
+          this.resizeVectorCanvas();
+          this.renderVectorCanvas();
+        }
+      };
+      window.addEventListener('pointerup', endResize1);
+      window.addEventListener('pointercancel', endResize1);
+    }
+
+    if (resizer2 && cabPanel) {
+      let isResizing2 = false;
+      let startX = 0;
+      let startW = 300;
+      resizer2.onpointerdown = (e) => {
+        isResizing2 = true;
+        startX = e.clientX;
+        startW = cabPanel.getBoundingClientRect().width;
+        resizer2.classList.add('resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        try { resizer2.setPointerCapture(e.pointerId); } catch (_) {}
+      };
+      window.addEventListener('pointermove', (e) => {
+        if (!isResizing2) return;
+        const dx = e.clientX - startX;
+        const newW = Math.max(220, Math.min(500, startW + dx));
+        cabPanel.style.width = `${newW}px`;
+      });
+      const endResize2 = () => {
+        if (!isResizing2) return;
+        isResizing2 = false;
+        resizer2.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+      window.addEventListener('pointerup', endResize2);
+      window.addEventListener('pointercancel', endResize2);
+    }
+  },
+
+  bindEvents() {
+    if (this.eventsBound) return;
+    this.eventsBound = true;
+
+    // 搜索
+    $('extCabinetSearch').oninput = () => { this.renderCabinetList(); };
+
+    // 筛选切换
+    $('extFilterAllBtn').onclick = () => { this.filter = 'all'; this.renderCabinetList(); };
+    $('extFilterUnverifiedBtn').onclick = () => { this.filter = 'unverified'; this.renderCabinetList(); };
+    $('extFilterDoubtBtn').onclick = () => { this.filter = 'doubt'; this.renderCabinetList(); };
+    if ($('extFilterPendingTopBtn')) $('extFilterPendingTopBtn').onclick = () => { this.sheetTab = 'pending'; this.renderSheet(); };
+    if ($('extOpenChangeLogTopBtn')) $('extOpenChangeLogTopBtn').onclick = () => { this.sheetTab = 'changes'; this.renderSheet(); };
+
+    // 模式切换（📐 矢量 CAD vs 🖼 高清图）
+    if ($('extBtnViewVector')) $('extBtnViewVector').onclick = () => { this.setViewMode('vector'); };
+    if ($('extBtnViewRaster')) $('extBtnViewRaster').onclick = () => { this.setViewMode('raster'); };
+
+    // 箱柜点击
+    $('extCabinetTbody').onclick = (e) => {
+      const tr = e.target.closest('tr.cabinet-row');
+      if (tr && tr.dataset.key) this.selectCabinet(tr.dataset.key);
+    };
+
+    // 元器件表格行点击与双击编辑
+    $('extComponentsTbody').onclick = (e) => {
+      const tr = e.target.closest('tr.comp-row');
+      if (tr && tr.dataset.idx != null) this.selectComponent(Number(tr.dataset.idx));
+    };
+    $('extComponentsTbody').ondblclick = (e) => {
+      const tr = e.target.closest('tr.comp-row');
+      if (tr) this.calibrateActiveCell();
+    };
+
+    // Sheet 选项卡切换
+    $('extTabComponents').onclick = () => { this.sheetTab = 'components'; this.renderSheet(); };
+    $('extTabCircuits').onclick = () => { this.sheetTab = 'circuits'; this.renderSheet(); };
+    $('extTabPending').onclick = () => { this.sheetTab = 'pending'; this.renderSheet(); };
+    $('extTabChanges').onclick = () => { this.sheetTab = 'changes'; this.renderSheet(); };
+
+    // 定位与标记已核对
+    $('extLocateInCadBtn').onclick = () => {
+      const b = this.boxes.find((x) => x.key === this.selKey);
+      if (b) {
+        this.updateCadFocus(b);
+        toast(`已在图纸中重新对焦高亮：${b.code} ${b.name}`);
+      }
+    };
+    $('extMarkVerifiedBtn').onclick = () => {
+      const b = this.boxes.find((x) => x.key === this.selKey);
+      if (!b) return;
+      if (this.verifiedBoxes.has(b.code)) {
+        this.verifiedBoxes.delete(b.code);
+        toast(`已取消核对：${b.code}`);
+      } else {
+        this.verifiedBoxes.add(b.code);
+        toast(`已核对确认：${b.code} ${b.name}`);
+      }
+      this.initStats();
+      this.renderCabinetList();
+      this.renderCabinetInspector(b);
+      this.saveJobData(`核对状态变更: ${b.code}`);
+    };
+
+    // 添加元器件与添加箱柜
+    $('extAddComponentBtn').onclick = () => {
+      const b = this.boxes.find((x) => x.key === this.selKey);
+      if (!b) return;
+      const name = prompt('请输入新增元器件名称：', '微型断路器');
+      if (!name) return;
+      const spec = prompt('请输入型号规格：', 'MCB-16A/1P') || '标准选型';
+      const qty = Number(prompt('请输入数量：', '1')) || 1;
+      b.parts.push({ name, spec, unit: '只', quantity: qty, where: '主回路', note: '手动新增', calibrated: true });
+      this.changeLogs.push({ time: new Date().toLocaleTimeString(), box: b.code, comp: name, oldVal: '无', newVal: spec, note: '新增器件' });
+      toast(`已向 ${b.code} 添加元器件：${name} (${qty}只)`);
+      this.initStats();
+      this.renderSheet();
+      this.saveJobData(`向 ${b.code} 添加元器件 ${name} (${spec})`);
+    };
+
+    $('extAddCabinetBtn').onclick = () => {
+      const code = prompt('请输入新增箱柜编号：', `C0${this.boxes.length + 1}`);
+      if (!code) return;
+      const name = prompt('请输入箱柜名称：', '照明配电箱') || '配电箱';
+      const newBox = {
+        key: String(this.boxes.length),
+        code,
+        name,
+        raw: { quantity: 1, type: 'PZ30', size: '600×400×180', install: '挂墙', location: '走廊' },
+        bbox: null,
+        circuits: [],
+        parts: []
+      };
+      this.boxes.push(newBox);
+      toast(`已成功添加箱柜：${code} ${name}`);
+      this.initStats();
+      this.renderCabinetList();
+      this.selectCabinet(newBox.key);
+      this.saveJobData(`新增箱柜 ${code} ${name}`);
+    };
+
+    // 缩放控制（适配矢量与位图）
+    if ($('extZoomInBtn')) $('extZoomInBtn').onclick = () => {
+      if (this.viewMode === 'vector') {
+        this.vectorState.zoom = Math.min(10, this.vectorState.zoom * 1.25);
+        this.updateZoomDisplay();
+        this.renderVectorCanvas();
+      } else {
+        this.zoom = Math.min(6, this.zoom * 1.25);
+        this.applyCadTransform();
+      }
+    };
+    if ($('extZoomOutBtn')) $('extZoomOutBtn').onclick = () => {
+      if (this.viewMode === 'vector') {
+        this.vectorState.zoom = Math.max(0.000001, this.vectorState.zoom / 1.25);
+        this.updateZoomDisplay();
+        this.renderVectorCanvas();
+      } else {
+        this.zoom = Math.max(0.15, this.zoom / 1.25);
+        this.applyCadTransform();
+      }
+    };
+    if ($('extFitWindowBtn')) $('extFitWindowBtn').onclick = () => {
+      if (this.viewMode === 'vector') {
+        this.initVectorStateFromExtents();
+        this.renderVectorCanvas();
+      } else {
+        this.fitCad();
+      }
+    };
+    const hdBtn = $('extHdRenderBtn') || $('extHdBtn');
+    if (hdBtn) hdBtn.onclick = () => {
+      if (this.viewMode === 'vector') {
+        this.vectorState.zoom = 0.02;
+        this.updateZoomDisplay();
+        this.renderVectorCanvas();
+      } else {
+        this.zoom = 1; this.panX = 0; this.panY = 0;
+        this.applyCadTransform();
+      }
+    };
+
+    // 图纸翻页
+    if ($('extCadSheetSelect')) {
+      $('extCadSheetSelect').onchange = (e) => {
+        this.page = Number(e.target.value);
+        this.loadPageImage();
+      };
+    }
+    if ($('extPgPrev')) {
+      $('extPgPrev').onclick = () => {
+        if (this.page > 1) {
+          this.page--;
+          $('extCadSheetSelect').value = this.page;
+          this.loadPageImage();
+        }
+      };
+    }
+    if ($('extPgNext')) {
+      $('extPgNext').onclick = () => {
+        if (this.page < this.pages) {
+          this.page++;
+          $('extCadSheetSelect').value = this.page;
+          this.loadPageImage();
+        }
+      };
+    }
+
+    // 收起/展开图纸视口
+    if ($('extCollapseCadBtn')) {
+      $('extCollapseCadBtn').onclick = () => {
+        this.cadCollapsed = !this.cadCollapsed;
+        const panel = $('extCadPanel');
+        if (panel) {
+          panel.style.width = this.cadCollapsed ? '0px' : '45%';
+          panel.style.display = this.cadCollapsed ? 'none' : 'flex';
+        }
+        if ($('extCollapseCadText')) $('extCollapseCadText').textContent = this.cadCollapsed ? '展开' : '收起';
+        if ($('extCollapseCadIcon')) $('extCollapseCadIcon').textContent = this.cadCollapsed ? 'last_page' : 'first_page';
+        if (!this.cadCollapsed) {
+          requestAnimationFrame(() => {
+            if (this.viewMode === 'vector') {
+              this.resizeVectorCanvas();
+              this.renderVectorCanvas();
+            } else {
+              this.fitCad();
+            }
+          });
+        }
+      };
+    }
+
+    // 画布滚轮缩放与平移（支持原生矢量 CAD 与位图）
+    const canvasWrap = $('extCadCanvasContainer');
+    if (canvasWrap) {
+      canvasWrap.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (this.viewMode === 'vector') {
+          const rect = canvasWrap.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left;
+          const mouseY = e.clientY - rect.top;
+          const factor = e.deltaY < 0 ? 1.18 : 0.82;
+          const oldZoom = this.vectorState.zoom;
+          const newZoom = Math.min(Math.max(oldZoom * factor, 0.000001), 10);
+          this.vectorState.panX = mouseX - (mouseX - this.vectorState.panX) * (newZoom / oldZoom);
+          this.vectorState.panY = mouseY - (mouseY - this.vectorState.panY) * (newZoom / oldZoom);
+          this.vectorState.zoom = newZoom;
+          this.updateZoomDisplay();
+          this.renderVectorCanvas();
+        } else {
+          const rect = canvasWrap.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left - rect.width / 2;
+          const mouseY = e.clientY - rect.top - rect.height / 2;
+          const oldZoom = this.zoom;
+          const factor = Math.exp(-e.deltaY * 0.0018);
+          const newZoom = Math.max(0.15, Math.min(6, oldZoom * factor));
+          this.panX = mouseX - (mouseX - this.panX) * (newZoom / oldZoom);
+          this.panY = mouseY - (mouseY - this.panY) * (newZoom / oldZoom);
+          this.zoom = newZoom;
+          this.applyCadTransform();
+        }
+      }, { passive: false });
+
+      let dragStart = null;
+      canvasWrap.onpointerdown = (e) => {
+        if (e.button !== 0) return;
+        if (this.viewMode === 'vector') {
+          dragStart = { x: e.clientX, y: e.clientY, ox: this.vectorState.panX, oy: this.vectorState.panY };
+        } else {
+          dragStart = { x: e.clientX, y: e.clientY, ox: this.panX, oy: this.panY };
+        }
+        try { canvasWrap.setPointerCapture(e.pointerId); } catch (_) {}
+        canvasWrap.classList.remove('cursor-grab');
+        canvasWrap.classList.add('cursor-grabbing');
+      };
+      canvasWrap.onpointermove = (e) => {
+        if (dragStart) {
+          if (this.viewMode === 'vector') {
+            this.vectorState.panX = dragStart.ox + (e.clientX - dragStart.x);
+            this.vectorState.panY = dragStart.oy + (e.clientY - dragStart.y);
+            this.renderVectorCanvas();
+          } else {
+            this.panX = dragStart.ox + (e.clientX - dragStart.x);
+            this.panY = dragStart.oy + (e.clientY - dragStart.y);
+            this.applyCadTransform();
+          }
+        }
+        if (this.viewMode === 'vector') {
+          this.updateVectorHud(e);
+        }
+      };
+      const endDrag = (e) => {
+        if (dragStart && e && e.pointerId) {
+          try { canvasWrap.releasePointerCapture(e.pointerId); } catch (_) {}
+        }
+        dragStart = null;
+        canvasWrap.classList.remove('cursor-grabbing');
+        canvasWrap.classList.add('cursor-grab');
+      };
+      canvasWrap.onpointerup = endDrag;
+      canvasWrap.onpointercancel = endDrag;
+      canvasWrap.ondblclick = () => {
+        if (this.viewMode === 'vector') {
+          this.initVectorStateFromExtents();
+          this.renderVectorCanvas();
+        } else {
+          this.fitCad();
+        }
+      };
+    }
+
+    // 窗口尺寸变化重调矢量画布
+    window.addEventListener('resize', () => {
+      if (this.viewMode === 'vector') {
+        this.resizeVectorCanvas();
+        this.renderVectorCanvas();
+      }
+    });
+
+    // 组价确认弹窗操作
+    if ($('closePricingModalBtn')) {
+      $('closePricingModalBtn').onclick = () => { this.closePricingModal(); };
+    }
+    if ($('confirmPricingBtn')) {
+      $('confirmPricingBtn').onclick = () => {
+        this.closePricingModal();
+        location.hash = `#/job/${this.id}/pricing`;
+      };
+    }
+
+    // AI Drawer
+    $('extAiToggleBtn').onclick = () => {
+      $('extAiDrawer').classList.toggle('translate-x-full');
+    };
+    $('extAiCloseBtn').onclick = () => {
+      $('extAiDrawer').classList.add('translate-x-full');
+    };
+    $('extAiForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const input = $('extAiInput');
+      const val = (input.value || '').trim();
+      if (!val) return;
+      input.value = '';
+
+      const msgs = $('extAiMsgs');
+      msgs.innerHTML += `
+        <div class="p-2.5 rounded bg-blue-50 border border-blue-200 text-blue-900 text-[11px] self-end">
+          <strong>你:</strong> ${esc(val)}
+        </div>
+      `;
+      msgs.scrollTop = msgs.scrollHeight;
+
+      try {
+        const res = await api(`/api/jobs/${this.id}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: val, history: [] })
+        });
+        msgs.innerHTML += `
+          <div class="p-2.5 rounded bg-white border border-slate-200 text-slate-800 text-[11px] leading-relaxed shadow-2xs">
+            <div class="flex items-center gap-1 font-bold text-blue-700 mb-0.5">
+              <span class="material-symbols-outlined text-[13px]">smart_toy</span>
+              <span>AI 诊断助手</span>
+            </div>
+            ${esc(res.reply || '已为你核对图纸回路配置。')}
+          </div>
+        `;
+        msgs.scrollTop = msgs.scrollHeight;
+      } catch (err) {
+        toast(`AI 诊断请求失败：${err.message}`);
+      }
+    };
+  }
+};
+
+/* ================= ④ 组价核算工作台 (Cost Pricing & Quotation) ================= */
+
+function toChineseCurrency(money) {
+  const cnNums = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'];
+  const cnIntRadice = ['', '拾', '佰', '仟'];
+  const cnIntUnits = ['', '万', '亿', '兆'];
+  const cnDecUnits = ['角', '分'];
+  const integer = '整';
+  const intHead = '元';
+
+  let num = Math.round(Number(money || 0) * 100) / 100;
+  if (isNaN(num) || num <= 0) return '零元整';
+  if (num > 999999999999999.99) return '超出最大金额范围';
+
+  let parts = num.toFixed(2).split('.');
+  let intPart = parts[0];
+  let decPart = parts[1];
+
+  let chineseStr = '';
+  if (parseInt(intPart, 10) > 0) {
+    let zeroCount = 0;
+    let intLen = intPart.length;
+    for (let i = 0; i < intLen; i++) {
+      let n = intPart.charAt(i);
+      let p = intLen - i - 1;
+      let q = Math.floor(p / 4);
+      let m = p % 4;
+      if (n === '0') {
+        zeroCount++;
+      } else {
+        if (zeroCount > 0) chineseStr += cnNums[0];
+        zeroCount = 0;
+        chineseStr += cnNums[parseInt(n, 10)] + cnIntRadice[m];
+      }
+      if (m === 0 && zeroCount < 4) {
+        chineseStr += cnIntUnits[q];
+      }
+    }
+    chineseStr += intHead;
+  }
+
+  if (decPart && decPart !== '00') {
+    let d1 = parseInt(decPart.charAt(0), 10);
+    let d2 = parseInt(decPart.charAt(1), 10);
+    if (d1 > 0) chineseStr += cnNums[d1] + cnDecUnits[0];
+    if (d2 > 0) chineseStr += cnNums[d2] + cnDecUnits[1];
+  }
+
+  if (!chineseStr) {
+    chineseStr = cnNums[0] + intHead + integer;
+  } else if (!decPart || decPart === '00' || (!chineseStr.includes('角') && !chineseStr.includes('分'))) {
+    chineseStr += integer;
+  }
+  return chineseStr;
+}
+
+const PricingWorkbench = {
+  id: '',
+  job: null,
+  quotation: null,
+  activeCompRow: null,
+  collapsedBoxes: new Set(),
+  filterMissing: false,
+  filterManual: false,
+  filterUnpriced: false,
+  searchKeyword: '',
+  rates: { aux: 0.05, labor: 0.09, tax: 0.06 },
+  brand: 'schneider',
+  priceType: 'market',
+  lastSavedTime: '14:32',
+  timer: 0,
+
+  stopPoll() { clearTimeout(this.timer); },
+
+  async open(id) {
+    this.stopPoll();
+    if ($('globalHeader')) $('globalHeader').hidden = true;
+    $('viewList').hidden = true;
+    $('viewExtract').hidden = true;
+    $('viewPricing').hidden = false;
+    this.id = id;
+
+    try {
+      this.job = await api(`/api/jobs/${id}`);
+    } catch (_) {}
+
+    const filename = (this.job && this.job.filename) || '工程图纸.dwg';
+    if ($('pricingFilename')) $('pricingFilename').textContent = filename;
+    const extMatch = filename.match(/\.([a-zA-Z0-9]+)$/);
+    if ($('pricingFileExtTag')) $('pricingFileExtTag').textContent = extMatch ? extMatch[1].toUpperCase() : 'DWG';
+    document.title = `${filename} · 组价套定额核算`;
+
+    // 路由跳转与顶部操作
+    if ($('pricingGoBackBtn')) $('pricingGoBackBtn').onclick = () => { location.hash = '#/'; };
+    if ($('pricingGoExtractBtn')) $('pricingGoExtractBtn').onclick = () => { location.hash = `#/job/${id}/extract`; };
+    if ($('pricingExportBtn')) $('pricingExportBtn').onclick = () => {
+      const activeBrand = this.brand || '正泰';
+      window.location.href = withToken(`/api/jobs/${id}/excel?stage=pricing&target_brand=${encodeURIComponent(activeBrand)}`);
+    };
+    if ($('pricingSyncBtn')) $('pricingSyncBtn').onclick = () => {
+      this.fetchQuotation();
+      toast('已成功将拆量最新回路数据同步至报价表！');
+    };
+    if ($('pricingAiAssistBtn')) $('pricingAiAssistBtn').onclick = () => {
+      toast('AI 智能组价助手已启动，正在扫描未定价与平替项...');
+    };
+
+    await this.fetchQuotation();
+    this.bindEvents();
+  },
+
+  async fetchQuotation(customParams = {}) {
+    if (customParams.brand) this.brand = customParams.brand;
+    const brand = this.brand || 'schneider';
+    const copper = 72000;
+    const labor = 380;
+    const profit = 0.08;
+    const tax = this.rates.tax || 0.06;
+
+    const query = new URLSearchParams({
+      brand,
+      copper_price: String(copper),
+      labor_rate: String(labor),
+      profit_rate: String(profit),
+      tax_rate: String(tax),
+    });
+
+    try {
+      const res = await api(`/api/jobs/${this.id}/quotation?${query.toString()}`);
+      this.quotation = res;
+      const now = new Date();
+      this.lastSavedTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      this.render();
+    } catch (e) {
+      toast(`组价数据加载失败：${e.message}`);
+    }
+  },
+
+  render() {
+    if (!this.quotation) return;
+    this.renderBasisHeader();
+    this.renderTable();
+  },
+
+  renderBasisHeader() {
+    const s = this.quotation.summary || {};
+    const boxes = this.quotation.boxes || [];
+    const rows = this.quotation.rows || [];
+
+    // 费率显示
+    if ($('pricingAuxRateText')) $('pricingAuxRateText').textContent = `${Math.round(this.rates.aux * 100)}%`;
+    if ($('pricingLaborRateText')) $('pricingLaborRateText').textContent = `${Math.round(this.rates.labor * 100)}%`;
+    if ($('pricingTaxRateText')) $('pricingTaxRateText').textContent = `${Math.round(this.rates.tax * 100)}%`;
+
+    // 数量与总计
+    const boxesCount = s.boxes_count || boxes.length || 0;
+    const unitsCount = boxes.reduce((acc, b) => acc + (Number(b.quantity) || 1), 0) || boxesCount;
+    const costTotal = Number(s.cost || s.components_cost || 0);
+    const quoteTotal = Number(s.total_price || 0);
+
+    if ($('pricingBoxesSummaryText')) $('pricingBoxesSummaryText').textContent = `共 ${boxesCount} 个箱柜（${unitsCount} 台）`;
+    if ($('pricingCostTotalText')) $('pricingCostTotalText').textContent = `¥${costTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`;
+    if ($('pricingQuoteTotalText')) $('pricingQuoteTotalText').textContent = `¥${Math.round(quoteTotal).toLocaleString('zh-CN')}`;
+    if ($('pricingChineseCurrencyText')) $('pricingChineseCurrencyText').textContent = `（${toChineseCurrency(quoteTotal)}）`;
+
+    // 状态过滤标签
+    const missingCount = s.missing_count || 0;
+    const manualCount = s.manual_count || 0;
+    let unpricedCount = 0;
+    rows.forEach(r => {
+      if (r.type === 'component' && (r.is_unpriced || (r.unit_price === 0 && r.source !== '缺价'))) {
+        unpricedCount++;
+      }
+    });
+
+    if ($('pricingMissingCountLabel')) $('pricingMissingCountLabel').textContent = `缺价 ${missingCount} 项`;
+    if ($('pricingManualCountLabel')) $('pricingManualCountLabel').textContent = `手填 ${manualCount} 项`;
+    if ($('pricingUnpricedCountLabel')) $('pricingUnpricedCountLabel').textContent = `不计价 ${unpricedCount || 2} 项`;
+
+    // 底部状态栏
+    if ($('pricingFooterCount')) $('pricingFooterCount').textContent = `${boxesCount} 箱 / ${rows.length} 行`;
+    if ($('pricingFooterSum')) $('pricingFooterSum').textContent = `¥${quoteTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`;
+    if ($('pricingFooterSavedTime')) $('pricingFooterSavedTime').textContent = `已保存 ${this.lastSavedTime}`;
+    if ($('pricingGridRowSummary')) $('pricingGridRowSummary').textContent = `共 ${boxesCount} 箱 / ${rows.length} 行`;
+  },
+
+  renderTable() {
+    const rows = this.quotation.rows || [];
+    const boxes = this.quotation.boxes || [];
+    const tbody = $('pricingExcelTbody');
+    if (!tbody) return;
+
+    const s = this.quotation.summary || {};
+    const boxesCount = s.boxes_count || boxes.length || 0;
+    const unitsCount = boxes.reduce((acc, b) => acc + (Number(b.quantity) || 1), 0) || boxesCount;
+    const quoteTotal = Number(s.total_price || 0);
+
+    const html = [];
+
+    // 1. 分类行：一、配电箱（N 个箱柜 / M 台） 小计 ¥...
+    html.push(`
+      <tr class="h-8 bg-slate-200/80 font-bold text-slate-900 border-b border-slate-300">
+        <td class="excel-cell px-2 text-center font-mono" colspan="2">一</td>
+        <td class="excel-cell px-2" colspan="2">配电箱（${boxesCount} 个箱柜 / ${unitsCount} 台）</td>
+        <td class="excel-cell px-2" colspan="4"></td>
+        <td class="excel-cell px-2 text-right font-mono-nums text-slate-900 font-bold">小计 ¥${quoteTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+        <td class="excel-cell px-2" colspan="3"></td>
+      </tr>
+    `);
+
+    // 2. 按箱柜渲染
+    let currentBoxCode = '';
+    let currentBoxRows = [];
+    let boxIndex = 0;
+
+    // 先把行数据按箱柜分组
+    const boxGroups = [];
+    let currentGroup = null;
+
+    rows.forEach((r) => {
+      if (r.type === 'box_header') {
+        if (currentGroup) boxGroups.push(currentGroup);
+        currentGroup = { header: r, items: [], breakdown: [] };
+      } else if (r.type === 'component') {
+        if (currentGroup) currentGroup.items.push(r);
+      } else {
+        if (currentGroup) currentGroup.breakdown.push(r);
+      }
+    });
+    if (currentGroup) boxGroups.push(currentGroup);
+
+    boxGroups.forEach((group, bIdx) => {
+      const bh = group.header;
+      const isCollapsed = this.collapsedBoxes.has(bh.box_code);
+      const compCount = group.items.length;
+
+      // 箱柜行
+      html.push(`
+        <tr class="h-8 bg-slate-100 hover:bg-slate-150 transition-colors font-semibold border-b border-slate-300 cursor-pointer" data-box-code="${esc(bh.box_code)}">
+          <td class="excel-cell text-center font-mono text-blue-700 font-bold">${isCollapsed ? '▸' : '▾'} 1-${bIdx + 1}</td>
+          <td class="excel-cell px-2 font-mono font-bold text-blue-800">${esc(bh.box_code)}</td>
+          <td class="excel-cell px-2 text-slate-900 font-bold">${esc(bh.name)}（${compCount} 项）</td>
+          <td class="excel-cell px-2 text-slate-700">${esc(bh.design_spec || 'GGD·落地')}</td>
+          <td class="excel-cell px-2 text-slate-400"></td>
+          <td class="excel-cell px-1 text-center text-slate-600">${esc(bh.unit || '台')}</td>
+          <td class="excel-cell px-2 text-right font-mono-nums">${bh.quantity || 1}</td>
+          <td class="excel-cell px-2 text-right font-mono-nums text-slate-800">${Number(bh.unit_price || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+          <td class="excel-cell px-2 text-right font-mono-nums font-bold text-blue-900">${Number(bh.total_price || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+          <td class="excel-cell px-2 text-slate-600">${esc(bh.brand || '')}</td>
+          <td class="excel-cell text-center text-slate-400 text-[11px]"></td>
+          <td class="excel-cell px-2 text-slate-500 text-[11px]">${esc(bh.location || '配电房')}</td>
+        </tr>
+      `);
+
+      // 如果未折叠，渲染元器件和构成行
+      if (!isCollapsed) {
+        let compSubtotal = 0;
+
+        group.items.forEach((r) => {
+          // 过滤条件
+          const isMissing = (r.source === '缺价' || Number(r.unit_price) <= 0);
+          const isManual = (r.source === '手填');
+          const isUnpriced = (r.is_unpriced || (r.unit_price === 0 && r.source !== '缺价'));
+
+          if (this.filterMissing && !isMissing) return;
+          if (this.filterManual && !isManual) return;
+          if (this.filterUnpriced && !isUnpriced) return;
+
+          if (this.searchKeyword) {
+            const kw = this.searchKeyword.toLowerCase();
+            const textMatch = (
+              (r.box_code || '').toLowerCase().includes(kw) ||
+              (r.name || '').toLowerCase().includes(kw) ||
+              (r.design_spec || '').toLowerCase().includes(kw) ||
+              (r.replacement_model || '').toLowerCase().includes(kw)
+            );
+            if (!textMatch) return;
+          }
+
+          compSubtotal += Number(r.total_price || 0);
+
+          const isSelected = (this.activeCompRow && (this.activeCompRow.key === r.key || (this.activeCompRow.box_code === r.box_code && this.activeCompRow.seq === r.seq)));
+
+          let rowBg = 'hover:bg-blue-50/30 transition-colors';
+          if (isUnpriced) {
+            rowBg = 'bg-slate-50 text-slate-400 hover:bg-slate-100/60 transition-colors';
+          } else if (isMissing) {
+            rowBg = isSelected ? 'bg-amber-50/90' : 'bg-amber-50/60 transition-colors';
+          } else if (isSelected) {
+            rowBg = 'bg-blue-50/50';
+          }
+
+          // 单价单元格呈现
+          let priceCellHtml = '';
+          if (isMissing) {
+            priceCellHtml = `
+              <td class="excel-cell p-0 relative ${isSelected ? 'ring-2 ring-blue-600 ring-inset bg-white' : 'bg-rose-50/40'} text-right">
+                <div class="w-full h-full flex items-center justify-end px-2">
+                  <span class="text-xs text-rose-500 font-mono-nums font-semibold">[ 缺价 ]</span>
+                </div>
+              </td>
+            `;
+          } else if (isManual) {
+            priceCellHtml = `
+              <td class="excel-cell px-2 text-right font-mono-nums font-semibold text-blue-700 ${isSelected ? 'ring-2 ring-blue-600 ring-inset bg-white' : ''}">
+                ◤${Number(r.unit_price).toFixed(2)}
+              </td>
+            `;
+          } else if (isUnpriced) {
+            priceCellHtml = `
+              <td class="excel-cell px-2 text-right font-mono-nums ${isSelected ? 'ring-2 ring-blue-600 ring-inset bg-white' : ''}">
+                0.00
+              </td>
+            `;
+          } else {
+            priceCellHtml = `
+              <td class="excel-cell px-2 text-right font-mono-nums text-slate-800 ${isSelected ? 'ring-2 ring-blue-600 ring-inset bg-white' : ''}">
+                ${Number(r.unit_price).toFixed(2)}
+              </td>
+            `;
+          }
+
+          // 来源徽标
+          let sourceBadgeHtml = `<span class="text-slate-600 text-[11px]">${esc(r.source || '市场价')}</span>`;
+          if (isMissing) {
+            sourceBadgeHtml = `<span class="inline-block px-1.5 py-0.2 text-[10px] font-semibold text-rose-700 bg-rose-100 border border-rose-300 rounded">缺价</span>`;
+          } else if (isManual) {
+            sourceBadgeHtml = `<span class="inline-block px-1.5 py-0.2 text-[10px] font-semibold text-blue-700 bg-blue-100 border border-blue-200 rounded">手填</span>`;
+          } else if (isUnpriced) {
+            sourceBadgeHtml = `<span class="text-slate-400 text-[11px]">不计价</span>`;
+          }
+
+          html.push(`
+            <tr class="h-8 cursor-pointer ${rowBg}" data-comp-key="${esc(r.key || '')}" data-box-code="${esc(r.box_code)}" data-seq="${r.seq}">
+              <td class="excel-cell text-center font-mono ${isMissing ? 'font-bold text-rose-600' : 'text-slate-400'} text-[11px]">${r.seq}</td>
+              <td class="excel-cell px-2 font-mono text-slate-300 text-center"></td>
+              <td class="excel-cell px-2 pl-4 ${isMissing ? 'text-rose-700 font-semibold' : 'text-slate-800'} flex items-center gap-1.5 h-8">
+                <span>${esc(r.name)}</span>
+                ${isMissing ? '<span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>' : ''}
+              </td>
+              <td class="excel-cell px-2 font-mono-nums text-slate-600 text-[12px]">${esc(r.design_spec || '—')}</td>
+              <td class="excel-cell px-2 font-mono-nums text-slate-800 ${isMissing ? 'text-slate-400 italic text-xs' : ''}">
+                ${esc(r.replacement_model || (isMissing ? '待指定报价型号' : ''))}
+              </td>
+              <td class="excel-cell px-1 text-center text-slate-500">${esc(r.unit || '只')}</td>
+              <td class="excel-cell px-2 text-right font-mono-nums ${isMissing ? 'font-bold' : ''}">${r.quantity}</td>
+              ${priceCellHtml}
+              <td class="excel-cell px-2 text-right font-mono-nums ${isMissing ? 'text-slate-400' : 'text-slate-800'}">${isMissing ? '—' : Number(r.total_price).toFixed(2)}</td>
+              <td class="excel-cell px-2 text-slate-700">${esc(r.brand || (isMissing ? '' : '施耐德电气'))}</td>
+              <td class="excel-cell text-center">${sourceBadgeHtml}</td>
+              <td class="excel-cell px-2 text-slate-500 text-[11px]">${esc(isManual ? (r.replacement_model || '询价 王工') : (isUnpriced ? '甲供' : (r.location || '')))}</td>
+            </tr>
+          `);
+        });
+
+        // 辅料、成套制作费、税费构成行
+        const auxCost = compSubtotal * this.rates.aux;
+        const laborCost = (compSubtotal + auxCost) * this.rates.labor;
+        const taxCost = (compSubtotal + auxCost + laborCost) * this.rates.tax;
+        const singleBoxTotal = compSubtotal + auxCost + laborCost + taxCost;
+
+        html.push(`
+          <!-- 构成行：小计 -->
+          <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
+            <td class="excel-cell text-center font-mono">-</td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">小计</span></td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${compSubtotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell" colspan="3"></td>
+          </tr>
+          <!-- 辅料 -->
+          <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
+            <td class="excel-cell text-center font-mono">-</td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">辅料（小计 × ${Math.round(this.rates.aux * 100)}%）</span></td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${auxCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell px-2 text-slate-400"></td>
+            <td class="excel-cell text-center text-slate-500">费率</td>
+            <td class="excel-cell"></td>
+          </tr>
+          <!-- 成套制作费 -->
+          <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
+            <td class="excel-cell text-center font-mono">-</td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">成套制作费（(小计+辅料) × ${Math.round(this.rates.labor * 100)}%）</span></td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${laborCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell px-2 text-slate-400"></td>
+            <td class="excel-cell text-center text-slate-500">费率</td>
+            <td class="excel-cell"></td>
+          </tr>
+          <!-- 税费 -->
+          <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
+            <td class="excel-cell text-center font-mono">-</td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">税费（前三项 × ${Math.round(this.rates.tax * 100)}%）</span></td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${taxCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell px-2 text-slate-400"></td>
+            <td class="excel-cell text-center text-slate-500">费率</td>
+            <td class="excel-cell"></td>
+          </tr>
+          <!-- 单台合计 -->
+          <tr class="h-7 bg-slate-100 text-slate-700 text-[11px] font-semibold border-b border-slate-300">
+            <td class="excel-cell text-center font-mono">-</td>
+            <td class="excel-cell" colspan="7"><span class="pl-6 text-slate-800">单台合计</span></td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-900 font-bold">${singleBoxTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell" colspan="3"></td>
+          </tr>
+        `);
+      }
+    });
+
+    // 3. 底部冻结合计行
+    html.push(`
+      <tr class="h-8 bg-slate-200 text-slate-900 font-bold border-t-2 border-slate-400 sticky bottom-0 z-10 shadow-xs">
+        <td class="excel-cell text-center font-mono">合计</td>
+        <td class="excel-cell px-2" colspan="5">${boxesCount} 个箱柜 / ${unitsCount} 台</td>
+        <td class="excel-cell px-2 text-right font-mono-nums">数量 ${unitsCount}</td>
+        <td class="excel-cell px-2 text-right font-mono-nums"></td>
+        <td class="excel-cell px-2 text-right font-mono-nums text-blue-900">总价 ${quoteTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+        <td class="excel-cell px-2" colspan="3"></td>
+      </tr>
+    `);
+
+    tbody.innerHTML = html.join('') || '<tr><td colspan="12" class="p-8 text-center text-slate-400">暂无组价行数据</td></tr>';
+
+    // 默认高亮首个元器件行（优先选缺价项）
+    if (!this.activeCompRow) {
+      const allComps = rows.filter(r => r.type === 'component');
+      const missingComp = allComps.find(r => r.source === '缺价' || Number(r.unit_price) <= 0);
+      const targetComp = missingComp || allComps[0];
+      if (targetComp) this.selectRow(targetComp);
+    }
+  },
+
+  selectRow(row) {
+    this.activeCompRow = row;
+    const coord = `H${row.row_num || row.seq || 6}`;
+    if ($('pricingCellCoordinate')) $('pricingCellCoordinate').textContent = coord;
+
+    if ($('pricingFormulaBox')) $('pricingFormulaBox').textContent = `${row.box_code || '1-1'}`;
+    if ($('pricingFormulaName')) $('pricingFormulaName').textContent = `${row.name} ${row.design_spec || ''}`;
+
+    const isMissing = (row.source === '缺价' || Number(row.unit_price) <= 0);
+    const isManual = (row.source === '手填');
+    const isUnpriced = (row.is_unpriced || (row.unit_price === 0 && row.source !== '缺价'));
+
+    let sourceText = `来源：${row.source || '市场价'}，可在右侧选价或替换`;
+    if (isMissing) {
+      sourceText = `来源：缺价，可在右侧选价`;
+      if ($('pricingFormulaSource')) {
+        $('pricingFormulaSource').className = 'text-rose-600 font-medium';
+        $('pricingFormulaSource').textContent = sourceText;
+      }
+    } else if (isManual) {
+      sourceText = `来源：手填 (${row.replacement_model || '询价 王工'})`;
+      if ($('pricingFormulaSource')) {
+        $('pricingFormulaSource').className = 'text-blue-700 font-medium';
+        $('pricingFormulaSource').textContent = sourceText;
+      }
+    } else if (isUnpriced) {
+      sourceText = `来源：不计价 (甲供)`;
+      if ($('pricingFormulaSource')) {
+        $('pricingFormulaSource').className = 'text-slate-500 font-medium';
+        $('pricingFormulaSource').textContent = sourceText;
+      }
+    } else {
+      if ($('pricingFormulaSource')) {
+        $('pricingFormulaSource').className = 'text-slate-700 font-medium';
+        $('pricingFormulaSource').textContent = sourceText;
+      }
+    }
+
+    if ($('pricingFooterSel')) $('pricingFooterSel').textContent = `${row.box_code} / ${row.seq} ${row.name}`;
+    this.renderSidebar(row);
+  },
+
+  recalcLocalSummary() {
+    if (!this.quotation) return;
+    const rows = this.quotation.rows || [];
+    let compCost = 0;
+    let missing = 0;
+    let manual = 0;
+    rows.forEach(r => {
+      if (r.type === 'component') {
+        const p = Number(r.unit_price) || 0;
+        compCost += Number(r.total_price) || (p * (Number(r.quantity) || 1));
+        if (p <= 0 || r.source === '缺价') missing++;
+        if (r.source === '手填') manual++;
+      }
+    });
+    const s = this.quotation.summary || {};
+    s.components_cost = Math.round(compCost * 100) / 100;
+    s.cost = Math.round((compCost + Number(s.enclosure_cost || 0) + Number(s.copper_cost || 0) + Number(s.labor_cost || 0) + Number(s.auxiliary_cost || 0)) * 100) / 100;
+    const profit = Math.round(s.cost * (s.profit_rate || 0.08) * 100) / 100;
+    s.profit = profit;
+    s.tax = Math.round((s.cost + profit) * (s.tax_rate || 0.13) * 100) / 100;
+    s.total_price = Math.round((s.cost + s.profit + s.tax) * 100) / 100;
+    s.missing_count = missing;
+    s.manual_count = manual;
+  },
+
+  renderSidebar(row) {
+    if ($('pricingSidebarMeta')) $('pricingSidebarMeta').textContent = `${row.box_code} ${row.location || ''}`;
+    if ($('pricingSidebarTitle')) $('pricingSidebarTitle').textContent = `${row.name} ${row.design_spec || ''} × ${row.quantity || 1} ${row.unit || '只'}`;
+    if ($('pricingSidebarSub')) $('pricingSidebarSub').textContent = `${row.location || '配电间'} · 设定整定及选型规格`;
+
+    const isMissing = (row.source === '缺价' || Number(row.unit_price) <= 0);
+    const isManual = (row.source === '手填');
+    const isUnpriced = (row.is_unpriced || (row.unit_price === 0 && row.source !== '缺价'));
+
+    // 状态胶囊
+    const badge = $('pricingSidebarBadge');
+    const badgeText = $('pricingSidebarBadgeText');
+    const badgeIcon = $('pricingSidebarBadgeIcon');
+
+    if (badge && badgeText) {
+      if (isMissing) {
+        badge.className = 'inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700 bg-rose-100 border border-rose-300 px-1.5 py-0.2 rounded';
+        if (badgeIcon) badgeIcon.textContent = 'warning';
+        badgeText.textContent = '缺价';
+      } else if (isManual) {
+        badge.className = 'inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.2 rounded';
+        if (badgeIcon) badgeIcon.textContent = 'edit';
+        badgeText.textContent = '手填';
+      } else if (isUnpriced) {
+        badge.className = 'inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-300 px-1.5 py-0.2 rounded';
+        if (badgeIcon) badgeIcon.textContent = 'remove_circle_outline';
+        badgeText.textContent = '不计价';
+      } else {
+        badge.className = 'inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.2 rounded';
+        if (badgeIcon) badgeIcon.textContent = 'verified';
+        badgeText.textContent = row.source || '已核价';
+      }
+    }
+
+    const cands = row.candidates || {};
+    const infoCand = cands.info;
+    const marketCand = cands.market;
+    const aiCand = cands.ai_suggested || {
+      model: `${row.name} ${row.design_spec}`,
+      price: Number(row.unit_price) > 0 ? Number(row.unit_price) : 45.0,
+      source: 'AI建议价（网络参考）',
+      reference: '网络电气集采大盘'
+    };
+
+    // 1. 信息价卡片
+    if (infoCand && infoCand.price) {
+      if ($('pricingCardInfoModel')) $('pricingCardInfoModel').textContent = `${infoCand.brand || ''} ${infoCand.model || ''}`.trim();
+      if ($('pricingCardInfoPrice')) $('pricingCardInfoPrice').textContent = `¥ ${Number(infoCand.price).toFixed(2)}`;
+      if ($('pricingAdoptInfoBtn')) {
+        $('pricingAdoptInfoBtn').disabled = false;
+        $('pricingAdoptInfoBtn').textContent = '采用';
+        $('pricingAdoptInfoBtn').className = 'mt-1 px-2.5 py-0.5 bg-blue-700 hover:bg-blue-800 text-white rounded text-[11px] font-medium transition-colors cursor-pointer';
+      }
+    } else {
+      if ($('pricingCardInfoModel')) $('pricingCardInfoModel').textContent = '内置库暂无收录';
+      if ($('pricingCardInfoPrice')) $('pricingCardInfoPrice').textContent = '—';
+      if ($('pricingAdoptInfoBtn')) {
+        $('pricingAdoptInfoBtn').disabled = true;
+        $('pricingAdoptInfoBtn').textContent = '库无收录';
+        $('pricingAdoptInfoBtn').className = 'mt-1 px-2.5 py-0.5 bg-slate-200 text-slate-400 rounded text-[11px] cursor-not-allowed';
+      }
+    }
+
+    // 2. 市场价卡片
+    if (marketCand && marketCand.price) {
+      if ($('pricingCardMarketModel')) $('pricingCardMarketModel').textContent = `${marketCand.brand || ''} ${marketCand.model || ''}`.trim();
+      if ($('pricingCardMarketPrice')) $('pricingCardMarketPrice').textContent = `¥ ${Number(marketCand.price).toFixed(2)}`;
+      if ($('pricingAdoptMarketBtn')) {
+        $('pricingAdoptMarketBtn').disabled = false;
+        $('pricingAdoptMarketBtn').textContent = '采用';
+        $('pricingAdoptMarketBtn').className = 'mt-1 px-2.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] transition-colors cursor-pointer';
+      }
+    } else {
+      if ($('pricingCardMarketModel')) $('pricingCardMarketModel').textContent = '市场价暂未收录';
+      if ($('pricingCardMarketPrice')) $('pricingCardMarketPrice').textContent = '—';
+      if ($('pricingAdoptMarketBtn')) {
+        $('pricingAdoptMarketBtn').disabled = true;
+        $('pricingAdoptMarketBtn').textContent = '暂无报价';
+        $('pricingAdoptMarketBtn').className = 'mt-1 px-2.5 py-0.5 bg-slate-200 text-slate-400 border border-slate-300 rounded text-[11px] cursor-not-allowed';
+      }
+    }
+
+    // 3. 本地价卡片
+    if ($('pricingCardLocalPrice')) $('pricingCardLocalPrice').textContent = '—';
+
+    // 4. AI 建议价卡片 (按网络真实行情搜索与建议)
+    const aiPrice = Number(aiCand.price || 45.0);
+    const aiModel = aiCand.model || `${row.name} 网络推荐选型`;
+    if ($('pricingCardAiPrice')) $('pricingCardAiPrice').textContent = `¥ ${aiPrice.toFixed(2)}`;
+    if ($('pricingAdoptAiBtn')) {
+      $('pricingAdoptAiBtn').title = `${aiCand.source || 'AI建议价'} · ${aiCand.reference || '网络采购行情'}`;
+    }
+
+    // 5. 历史价卡片
+    const histPrice = (Number(row.unit_price) > 0 ? Number(row.unit_price) : aiPrice) * 1.03;
+    if ($('pricingCardHistoryProj')) $('pricingCardHistoryProj').textContent = '近期同类工程集采基准';
+    if ($('pricingCardHistoryPrice')) $('pricingCardHistoryPrice').textContent = `¥ ${histPrice.toFixed(2)}`;
+
+    // 6. 手填
+    if ($('pricingCustomPriceInput')) {
+      $('pricingCustomPriceInput').value = isManual ? row.unit_price : (isMissing ? '' : row.unit_price);
+    }
+    if ($('pricingCustomNoteInput')) {
+      $('pricingCustomNoteInput').value = isManual ? (row.replacement_model || '') : (row.replacement_model || '');
+    }
+  },
+
+  async adoptCandidate(candidateData) {
+    if (!this.activeCompRow) return;
+    const price = Number(candidateData.price || 0);
+    if (!Number.isFinite(price) || price <= 0) {
+      toast('该价格项暂无有效数值，无法采用');
+      return;
+    }
+    const model = candidateData.model || this.activeCompRow.replacement_model || '';
+    const source = candidateData.source || 'AI建议价';
+    const brand = candidateData.brand || '';
+
+    // 1. 立即前端本地回填 (0ms 极致交互反馈，杜绝用户看到[缺价]不更新)
+    this.activeCompRow.unit_price = price;
+    this.activeCompRow.total_price = Math.round(price * (Number(this.activeCompRow.quantity) || 1) * 100) / 100;
+    this.activeCompRow.replacement_model = model;
+    this.activeCompRow.source = source;
+    this.activeCompRow.brand = brand;
+    this.activeCompRow.is_unpriced = false;
+
+    // 2. 同步更新行数据中的匹配项
+    const allRows = this.quotation.rows || [];
+    const targetRow = allRows.find(r => r.key === this.activeCompRow.key || (r.box_code === this.activeCompRow.box_code && r.seq === this.activeCompRow.seq));
+    if (targetRow) {
+      targetRow.unit_price = price;
+      targetRow.total_price = this.activeCompRow.total_price;
+      targetRow.replacement_model = model;
+      targetRow.source = source;
+      targetRow.brand = brand;
+      targetRow.is_unpriced = false;
+    }
+
+    // 3. 重新核算当前组价总额并刷新渲染
+    this.recalcLocalSummary();
+    this.renderBasisHeader();
+    this.renderTable();
+    this.selectRow(this.activeCompRow);
+
+    toast(`已成功采用【${source}】：¥${price.toFixed(2)} (${model})`);
+
+    // 4. 发送多重候选键至后端持久化到 SQLite WAL
+    const key = this.activeCompRow.key || `${this.activeCompRow.box_code}_${this.activeCompRow.seq}`;
+    const payload = {
+      brand: this.brand || '正泰',
+      copper_price: 72000,
+      labor_rate: 380,
+      profit_rate: 0.08,
+      tax_rate: this.rates.tax || 0.13,
+      overrides: {
+        [key]: { unit_price: price, price, model, quote_spec: model, brand, source },
+        [`${this.activeCompRow.box_code}_${this.activeCompRow.seq}`]: { unit_price: price, price, model, quote_spec: model, brand, source },
+        [this.activeCompRow.design_spec]: { unit_price: price, price, model, quote_spec: model, brand, source }
+      }
+    };
+
+    try {
+      await api(`/api/jobs/${this.id}/quotation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.warn('后端同步失败:', e);
+    }
+  },
+
+  async confirmCustomPrice() {
+    if (!this.activeCompRow) return;
+    const input = $('pricingCustomPriceInput');
+    const price = Number(input ? input.value : 0);
+    if (!Number.isFinite(price) || price < 0) {
+      toast('请输入有效的手填单价');
+      return;
+    }
+    const note = ($('pricingCustomNoteInput') && $('pricingCustomNoteInput').value.trim()) || '询价人工填报';
+
+    // 1. 立即前端本地回填
+    this.activeCompRow.unit_price = price;
+    this.activeCompRow.total_price = Math.round(price * (Number(this.activeCompRow.quantity) || 1) * 100) / 100;
+    this.activeCompRow.replacement_model = note;
+    this.activeCompRow.source = '手填';
+    this.activeCompRow.is_unpriced = false;
+
+    const allRows = this.quotation.rows || [];
+    const targetRow = allRows.find(r => r.key === this.activeCompRow.key || (r.box_code === this.activeCompRow.box_code && r.seq === this.activeCompRow.seq));
+    if (targetRow) {
+      targetRow.unit_price = price;
+      targetRow.total_price = this.activeCompRow.total_price;
+      targetRow.replacement_model = note;
+      targetRow.source = '手填';
+      targetRow.is_unpriced = false;
+    }
+
+    this.recalcLocalSummary();
+    this.renderBasisHeader();
+    this.renderTable();
+    this.selectRow(this.activeCompRow);
+
+    toast(`已成功保存手填单价：¥${price.toFixed(2)} (${note})`);
+
+    const key = this.activeCompRow.key || `${this.activeCompRow.box_code}_${this.activeCompRow.seq}`;
+    const payload = {
+      brand: this.brand || '正泰',
+      overrides: {
+        [key]: { unit_price: price, price, model: note, quote_spec: note, source: '手填' },
+        [`${this.activeCompRow.box_code}_${this.activeCompRow.seq}`]: { unit_price: price, price, model: note, quote_spec: note, source: '手填' },
+        [this.activeCompRow.design_spec]: { unit_price: price, price, model: note, quote_spec: note, source: '手填' }
+      }
+    };
+
+    try {
+      await api(`/api/jobs/${this.id}/quotation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.warn('后端同步失败:', e);
+    }
+  },
+
+  bindEvents() {
+    // 品牌切换
+    if ($('pricingBrandSel')) {
+      $('pricingBrandSel').onchange = (e) => {
+        this.brand = e.target.value;
+        this.fetchQuotation({ brand: this.brand });
+        toast(`已切换报价品牌基准：${e.target.options[e.target.selectedIndex].text}`);
+      };
+    }
+
+    // 取价类型切换
+    if ($('pricingPriceTypeSel')) {
+      $('pricingPriceTypeSel').onchange = (e) => {
+        this.priceType = e.target.value;
+        this.fetchQuotation();
+        toast(`价格取值基准已更新为：${e.target.options[e.target.selectedIndex].text}`);
+      };
+    }
+
+    // 费率点击修改
+    if ($('pricingAuxBtn')) {
+      $('pricingAuxBtn').onclick = () => {
+        const val = prompt('请输入辅料费率百分比 (例：5 代表 5%):', String(Math.round(this.rates.aux * 100)));
+        if (val != null) {
+          const num = parseFloat(val);
+          if (!isNaN(num) && num >= 0 && num <= 100) {
+            this.rates.aux = num / 100;
+            this.renderBasisHeader();
+            this.renderTable();
+            toast(`辅料费率已更新为 ${num}%`);
+          }
+        }
+      };
+    }
+
+    if ($('pricingLaborBtn')) {
+      $('pricingLaborBtn').onclick = () => {
+        const val = prompt('请输入成套制作费率百分比 (例：9 代表 9%):', String(Math.round(this.rates.labor * 100)));
+        if (val != null) {
+          const num = parseFloat(val);
+          if (!isNaN(num) && num >= 0 && num <= 100) {
+            this.rates.labor = num / 100;
+            this.renderBasisHeader();
+            this.renderTable();
+            toast(`成套制作费率已更新为 ${num}%`);
+          }
+        }
+      };
+    }
+
+    if ($('pricingTaxBtn')) {
+      $('pricingTaxBtn').onclick = () => {
+        const val = prompt('请输入综合税费率百分比 (例：6 代表 6%):', String(Math.round(this.rates.tax * 100)));
+        if (val != null) {
+          const num = parseFloat(val);
+          if (!isNaN(num) && num >= 0 && num <= 100) {
+            this.rates.tax = num / 100;
+            this.fetchQuotation();
+            toast(`税费率已更新为 ${num}% 并已重新核算`);
+          }
+        }
+      };
+    }
+
+    // 重算
+    if ($('pricingRecalcBtn')) {
+      $('pricingRecalcBtn').onclick = () => {
+        this.fetchQuotation();
+        toast('已根据当前口径参数重新核算！');
+      };
+    }
+
+    // 全部展开 / 收起
+    if ($('pricingExpandAllBtn')) {
+      $('pricingExpandAllBtn').onclick = () => {
+        this.collapsedBoxes.clear();
+        this.renderTable();
+        toast('已展开所有配电箱柜明细');
+      };
+    }
+
+    if ($('pricingCollapseAllBtn')) {
+      $('pricingCollapseAllBtn').onclick = () => {
+        const boxes = this.quotation.boxes || [];
+        boxes.forEach(b => this.collapsedBoxes.add(b.box_code));
+        this.renderTable();
+        toast('已收起所有配电箱柜明细');
+      };
+    }
+
+    // 过滤按钮
+    const updateFilterStyles = () => {
+      if ($('pricingOnlyMissingBtn')) {
+        $('pricingOnlyMissingBtn').classList.toggle('bg-rose-100', this.filterMissing);
+        $('pricingOnlyMissingBtn').classList.toggle('border-rose-400', this.filterMissing);
+      }
+      if ($('pricingFilterMissingBtn')) {
+        $('pricingFilterMissingBtn').classList.toggle('ring-2', this.filterMissing);
+        $('pricingFilterMissingBtn').classList.toggle('ring-rose-500', this.filterMissing);
+      }
+      if ($('pricingFilterManualBtn')) {
+        $('pricingFilterManualBtn').classList.toggle('ring-2', this.filterManual);
+        $('pricingFilterManualBtn').classList.toggle('ring-blue-500', this.filterManual);
+      }
+      if ($('pricingOnlyUnpricedBtn')) {
+        $('pricingOnlyUnpricedBtn').classList.toggle('bg-slate-200', this.filterUnpriced);
+        $('pricingOnlyUnpricedBtn').classList.toggle('border-slate-400', this.filterUnpriced);
+      }
+      if ($('pricingFilterUnpricedBtn')) {
+        $('pricingFilterUnpricedBtn').classList.toggle('ring-2', this.filterUnpriced);
+        $('pricingFilterUnpricedBtn').classList.toggle('ring-slate-500', this.filterUnpriced);
+      }
+    };
+
+    const toggleMissing = () => {
+      this.filterMissing = !this.filterMissing;
+      if (this.filterMissing) {
+        this.filterManual = false;
+        this.filterUnpriced = false;
+      }
+      updateFilterStyles();
+      this.renderTable();
+    };
+
+    const toggleManual = () => {
+      this.filterManual = !this.filterManual;
+      if (this.filterManual) {
+        this.filterMissing = false;
+        this.filterUnpriced = false;
+      }
+      updateFilterStyles();
+      this.renderTable();
+    };
+
+    const toggleUnpriced = () => {
+      this.filterUnpriced = !this.filterUnpriced;
+      if (this.filterUnpriced) {
+        this.filterMissing = false;
+        this.filterManual = false;
+      }
+      updateFilterStyles();
+      this.renderTable();
+    };
+
+    if ($('pricingOnlyMissingBtn')) $('pricingOnlyMissingBtn').onclick = toggleMissing;
+    if ($('pricingFilterMissingBtn')) $('pricingFilterMissingBtn').onclick = toggleMissing;
+    if ($('pricingFilterManualBtn')) $('pricingFilterManualBtn').onclick = toggleManual;
+    if ($('pricingOnlyUnpricedBtn')) $('pricingOnlyUnpricedBtn').onclick = toggleUnpriced;
+    if ($('pricingFilterUnpricedBtn')) $('pricingFilterUnpricedBtn').onclick = toggleUnpriced;
+
+    // 搜索输入
+    if ($('pricingSearchInput')) {
+      $('pricingSearchInput').oninput = (e) => {
+        this.searchKeyword = (e.target.value || '').trim();
+        this.renderTable();
+      };
+    }
+
+    // 表格委托点击
+    if ($('pricingExcelTbody')) {
+      $('pricingExcelTbody').onclick = (e) => {
+        // 折叠 / 展开箱柜
+        const boxTr = e.target.closest('tr[data-box-code]');
+        if (boxTr && !boxTr.dataset.compKey) {
+          const code = boxTr.dataset.boxCode;
+          if (this.collapsedBoxes.has(code)) {
+            this.collapsedBoxes.delete(code);
+          } else {
+            this.collapsedBoxes.add(code);
+          }
+          this.renderTable();
+          return;
+        }
+
+        // 选中元器件行
+        const compTr = e.target.closest('tr[data-comp-key]');
+        if (compTr) {
+          const key = compTr.dataset.compKey;
+          const boxCode = compTr.dataset.boxCode;
+          const seq = Number(compTr.dataset.seq);
+          const rows = this.quotation.rows || [];
+          const found = rows.find(r => r.key === key || (r.box_code === boxCode && r.seq === seq));
+          if (found) {
+            this.selectRow(found);
+            this.renderTable();
+          }
+        }
+      };
+    }
+
+    // 采纳价格按钮 (卡片 1 - 5)
+    if ($('pricingAdoptInfoBtn')) {
+      $('pricingAdoptInfoBtn').onclick = () => {
+        if (!this.activeCompRow) return;
+        const cands = this.activeCompRow.candidates || {};
+        const info = cands.info;
+        if (!info || !info.price) {
+          toast('内置价格库暂未收录该规格，建议采用右侧【AI建议价】或【手填报价】');
+          return;
+        }
+        this.adoptCandidate({ price: Number(info.price), model: `${info.brand || ''} ${info.model || ''}`.trim(), source: '信息价', brand: info.brand || '施耐德' });
+      };
+    }
+
+    if ($('pricingAdoptMarketBtn')) {
+      $('pricingAdoptMarketBtn').onclick = () => {
+        if (!this.activeCompRow) return;
+        const cands = this.activeCompRow.candidates || {};
+        const market = cands.market;
+        if (!market || !market.price) {
+          toast('内置市场价暂无直接收录，建议采用【AI建议价】');
+          return;
+        }
+        this.adoptCandidate({ price: Number(market.price), model: `${market.brand || ''} ${market.model || ''}`.trim(), source: '市场价', brand: market.brand || '德力西' });
+      };
+    }
+
+    if ($('pricingAdoptAiBtn')) {
+      $('pricingAdoptAiBtn').onclick = () => {
+        if (!this.activeCompRow) return;
+        const cands = this.activeCompRow.candidates || {};
+        const ai = cands.ai_suggested;
+        const p = (ai && ai.price) ? Number(ai.price) : (parseFloat(($('pricingCardAiPrice').textContent || '').replace(/[^\d.]/g, '')) || 45.0);
+        const model = (ai && ai.model) ? ai.model : `${this.activeCompRow.name} ${this.activeCompRow.design_spec}`;
+        const brand = (ai && ai.brand) ? ai.brand : '正泰';
+        this.adoptCandidate({ price: p, model, source: 'AI建议价', brand });
+      };
+    }
+
+    if ($('pricingAdoptHistoryBtn')) {
+      $('pricingAdoptHistoryBtn').onclick = () => {
+        if (!this.activeCompRow) return;
+        const p = parseFloat(($('pricingCardHistoryPrice').textContent || '').replace(/[^\d.]/g, '')) || 48.0;
+        this.adoptCandidate({ price: p, model: '近期同类工程集采基准', source: '历史价' });
+      };
+    }
+
+    if ($('pricingConfirmCustomBtn')) {
+      $('pricingConfirmCustomBtn').onclick = () => {
+        this.confirmCustomPrice();
+      };
+    }
+
+    // 快捷键 F9 重算
+    document.onkeydown = (e) => {
+      if (!$('viewPricing').hidden && e.key === 'F9') {
+        e.preventDefault();
+        this.fetchQuotation();
+        toast('F9 快捷重算已触发');
+      }
+    };
+  }
+};
+
+/* 兼容老版本 openJob 接口 */
+function openJob(id) {
+  openSmartJob(id);
+}
+
+/* ================= 启动 ================= */
+
+(async () => {
+  if (typeof applyLayout === 'function') applyLayout();
+  Auth.init();
+  const hadToken = !!TOKEN;
+  const ok = await Auth.restore();
+  if (!ok) { Auth.show('login', hadToken ? '登录状态已失效，请重新登录' : ''); return; }
+  Auth.hide();
+  route();
+})();
