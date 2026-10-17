@@ -32,15 +32,23 @@ db_recover_interrupted_jobs()
 
 # 2. 构建 Gradio 界面并挂载到 FastAPI 应用
 with gr.Blocks(title="电柜智核 · 配电箱智能工作台 (CabinetCore AI)") as demo:
+    # 显式绑定 ZeroGPU 探针事件以通过 Hugging Face ZeroGPU 运行环境检查
+    with gr.Row(visible=False):
+        _dummy_in = gr.Textbox(value="ping", visible=False)
+        _dummy_out = gr.Textbox(visible=False)
+        _dummy_btn = gr.Button("ZeroGPU Probe", visible=False)
+        _dummy_btn.click(fn=zero_gpu_pipeline, inputs=_dummy_in, outputs=_dummy_out)
+
     gr.HTML("""
     <div style="width: 100%; height: 95vh; margin: 0; padding: 0;">
         <iframe src="/index.html" style="width: 100%; height: 100%; border: none; border-radius: 8px;"></iframe>
     </div>
     """)
 
+# 将 Gradio 挂载到 FastAPI 应用上
 app = gr.mount_gradio_app(fastapi_app, demo, path="/gradio", ssr_mode=False)
 
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 7860))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run("app:app", host="0.0.0.0", port=port)
