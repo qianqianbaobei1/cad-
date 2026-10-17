@@ -1,0 +1,31 @@
+{
+  "tool": "dwg2dxf",
+  "exit_code": 0,
+  "output_nonempty": true,
+  "accepted": true,
+  "dxf_valid": true,
+  "warning_lines": 87,
+  "error_lines": 50,
+  "stderr_excerpt": "Warning: Unstable Class object 537 MATERIAL (0x481) 10/0\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Unstable Class object 536 DIMASSOC (0x0) 43087/0\nWarning: Unstable Class object 533 ACDB_BLOCKREPRESENTATION_DATA (0x481) 52362/0\nWarning: Unstable Class object 524 ACAD_EVALUATION_GRAPH (0x481) 52365/0\nWarning: Unstable Class object 530 BLOCKVISIBILITYPARAMETER (0x481) 52366/0\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Unstable Class object 533 ACDB_BLOCKREPRESENTATION_DATA (0x481) 58888/0\nWarning: Skip HATCH common handles due to short handle stream\nERROR: bit_read_BL: unexpected 2-bit code: '11'\nERROR: Invalid CMC flag 0x43 ignored\nERROR: Invalid CMC method 0x0 ignored\nERROR: bit_read_BL: unexpected 2-bit code: '11'\nERROR: bit_read_BL: unexpected 2-bit code: '11'\nERROR: Invalid CMC flag 0x43 ignored\nERROR: Invalid CMC method 0x0 ignored",
+  "log_missing": false,
+  "note": "退出码 0 且 DXF 结构校验通过。这不表示对象、依赖和单位已经读全",
+  "converter": "libredwg",
+  "attempts": [
+    {
+      "tool": "dwg2dxf",
+      "exit_code": 0,
+      "output_nonempty": true,
+      "accepted": true,
+      "dxf_valid": true,
+      "warning_lines": 87,
+      "error_lines": 50,
+      "stderr_excerpt": "Warning: Unstable Class object 537 MATERIAL (0x481) 10/0\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Unstable Class object 536 DIMASSOC (0x0) 43087/0\nWarning: Unstable Class object 533 ACDB_BLOCKREPRESENTATION_DATA (0x481) 52362/0\nWarning: Unstable Class object 524 ACAD_EVALUATION_GRAPH (0x481) 52365/0\nWarning: Unstable Class object 530 BLOCKVISIBILITYPARAMETER (0x481) 52366/0\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Unstable Class object 533 ACDB_BLOCKREPRESENTATION_DATA (0x481) 58888/0\nWarning: Skip HATCH common handles due to short handle stream\nERROR: bit_read_BL: unexpected 2-bit code: '11'\nERROR: Invalid CMC flag 0x43 ignored\nERROR: Invalid CMC method 0x0 ignored\nERROR: bit_read_BL: unexpected 2-bit code: '11'\nERROR: bit_read_BL: unexpected 2-bit code: '11'\nERROR: Invalid CMC flag 0x43 ignored\nERROR: Invalid CMC method 0x0 ignored",
+      "log_missing": false,
+      "note": "退出码 0 且 DXF 结构校验通过。这不表示对象、依赖和单位已经读全",
+      "converter": "libredwg"
+    }
+  ],
+  "fallback_used": false,
+  "source_sha256": "62b88fce7d01b45c65d1592f017eb0a935c66b03b4cc40ba51ba6b61282926fd",
+  "output_sha256": "4c6b438703ea8409fd80a1d4de95503ca56b512571c7d300124a9d36e8d0fe54"
+}

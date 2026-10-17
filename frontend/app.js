@@ -1,4463 +1,3032 @@
-/* 配电箱报价工作台 · 前端逻辑
-   所有数据来自后端接口，前端不再内置任何图纸数据。 */
+/* 配电箱图纸识别 · 前端
+ *
+ * 只有两屏：
+ *   #/          图纸列表：上传图纸、查看识别状态
+ *   #/job/<id>  识别结果：左 图纸 | 中 箱柜列表 | 右 选中箱柜的元器件，顶栏导出 Excel
+ *
+ * 数据全部来自后端 /api/jobs*，前端不造数据。
+ */
+'use strict';
 
-const S = {
-  route: 'projects',
-  jobId: null,
-  job: null,
-  data: { boxes: [], circuits: [], components: [], requirements: [], uncertainties: [] },
-  orig: [],                 // 服务端快照，用于算差异与"已修改"标记
-  changes: [],              // 服务端修改记录
-  chat: [],
-  sub: 'circuits',
-  pane: 'list',
-  link: true,
-  aiWidth: 400,
-  zoom: 1,
-  page: 1,
-  pages: 1,
-  reviewIdx: 0,
-  voice: false,
-  listening: false,
-  cropMode: false,
-  isCropping: false,
-  cropStart: { x: 0, y: 0 },
-  currentCropBBox: null,
-  cadLayersState: {},
-  viewMode: 'raster',
-  cadVectors: null,
-  cadLayersList: [],
-  cadInfo: null,
-  vectorState: {
-    panX: 0,
-    panY: 0,
-    zoom: 1,
-    isDragging: false,
-    startX: 0,
-    startY: 0
-  },
-  lastCropResult: null,
-  rec: null,
-  settings: {},
-  queue: [],
-  currentProject: '',   // 当前进入的项目名；上传/总BOM/拓扑都以它为准
-  projectInfo: null,    // /api/projects/{name} 的返回，供项目工作区渲染
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtNum = (n) => {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '';
+  return Number.isInteger(v) ? String(v) : String(Math.round(v * 100) / 100);
 };
+const fmtTime = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '');
 
-const $ = id => document.getElementById(id);
-const esc = v => String(v ?? '').replace(/[&<>"']/g, c =>
-  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const safeJsArg = v => encodeURIComponent(String(v ?? '')).replace(/'/g, '%27');
+/* ---------------- 接口 ---------------- */
 
-function toast(msg, ms) {
-  const el = $('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), ms || 2600);
-}
+// 旧版页面的登录令牌：有效就沿用，保证已登录用户仍能看到自己企业下的图纸
+let TOKEN = '';
+try { TOKEN = localStorage.getItem('dgzh_auth_token') || ''; } catch (_) { /* 无痕模式 */ }
 
-/* ===================== 用户鉴权与多租户体系 ===================== */
-
-const Auth = {
-  token: localStorage.getItem('dgzh_auth_token') || '',
-  user: null,
-};
-
-async function checkAuth() {
-  if (!Auth.token) {
-    Auth.user = null;
-    renderUserBadge();
-    return;
-  }
-  try {
-    const res = await api('/api/auth/me');
-    if (res && res.authenticated && res.user) {
-      Auth.user = res.user;
-    } else {
-      Auth.user = null;
-      Auth.token = '';
-      localStorage.removeItem('dgzh_auth_token');
-    }
-  } catch (e) {
-    Auth.user = null;
-    Auth.token = '';
-    localStorage.removeItem('dgzh_auth_token');
-  }
-  renderUserBadge();
-}
-
-function renderUserBadge() {
-  const btnLoginOpen = $('btnLoginOpen');
-  const userBadge = $('userBadge');
-  const userDropdown = $('userDropdown');
-  if (!btnLoginOpen || !userBadge) return;
-
-  if (Auth.user && Auth.token) {
-    btnLoginOpen.hidden = true;
-    btnLoginOpen.style.display = 'none';
-    userBadge.hidden = false;
-    userBadge.style.display = 'flex';
-    const name = Auth.user.display_name || Auth.user.username || '工程师';
-    const tenant = Auth.user.tenant_name || '工区/企业';
-    if ($('userDisplayName')) $('userDisplayName').textContent = name;
-    if ($('userTenantName')) $('userTenantName').textContent = tenant;
-    if ($('userAvatar')) $('userAvatar').textContent = (name[0] || 'A').toUpperCase();
-    
-    if ($('udName')) $('udName').textContent = name;
-    if ($('udUsername')) $('udUsername').textContent = Auth.user.username;
-    if ($('udTenant')) $('udTenant').textContent = tenant;
-  } else {
-    btnLoginOpen.hidden = false;
-    btnLoginOpen.style.display = 'inline-flex';
-    userBadge.hidden = true;
-    userBadge.style.display = 'none';
-    if (userDropdown) {
-      userDropdown.hidden = true;
-      userDropdown.style.display = 'none';
-    }
-  }
-}
-
-function toggleUserDropdown() {
-  const dd = $('userDropdown');
-  if (!dd) return;
-  const isHidden = dd.hidden || dd.style.display === 'none';
-  if (isHidden) {
-    dd.hidden = false;
-    dd.style.display = 'block';
-  } else {
-    dd.hidden = true;
-    dd.style.display = 'none';
-  }
-}
-
-function closeUserDropdown() {
-  const dd = $('userDropdown');
-  if (dd) {
-    dd.hidden = true;
-    dd.style.display = 'none';
-  }
-}
-
-window.addEventListener('click', e => {
-  const wrap = $('userMenuWrap');
-  if (wrap && !wrap.contains(e.target)) {
-    closeUserDropdown();
-  }
-});
-
-function openAuthModal(tab = 'login') {
-  closeUserDropdown();
-  const m = $('authModal');
-  if (m) {
-    m.hidden = false;
-    m.style.display = 'flex';
-    m.classList.add('show');
-  }
-  switchAuthTab(tab);
-}
-
-function closeAuthModal() {
-  const m = $('authModal');
-  if (m) {
-    m.classList.remove('show');
-    m.hidden = true;
-    m.style.display = 'none';
-  }
-}
-
-function switchAuthTab(tab) {
-  const isLogin = tab === 'login';
-  const tabLogin = $('tabBtnLogin');
-  const tabReg = $('tabBtnRegister');
-  if (tabLogin) tabLogin.classList.toggle('active', isLogin);
-  if (tabReg) tabReg.classList.toggle('active', !isLogin);
-  if ($('formLogin')) {
-    $('formLogin').hidden = !isLogin;
-    $('formLogin').style.display = isLogin ? 'block' : 'none';
-  }
-  if ($('formRegister')) {
-    $('formRegister').hidden = isLogin;
-    $('formRegister').style.display = isLogin ? 'none' : 'block';
-  }
-}
-
-async function openAiLogs() {
-  closeUserDropdown();
-  try {
-    $('aiLogProjTitle').textContent = `企业 AI 识别费用与 Token 账单总览`;
-    $('aiLogSummaryCards').innerHTML = '<span class="mut">正在获取计费记录...</span>';
-    $('aiLogTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px" class="mut">加载中...</td></tr>';
-    $('modalAiLog').classList.add('show');
-    $('modalAiLog').hidden = false;
-    $('modalAiLog').style.display = 'flex';
-
-    const res = await api('/api/ai_logs');
-    const totalCost = (res.ai_cost_total || 0).toFixed(4);
-    const costIn = (res.ai_cost_in || 0).toFixed(4);
-    const costOut = (res.ai_cost_out || 0).toFixed(4);
-    const totalTokens = (res.ai_tokens_total || 0).toLocaleString();
-    const promptTokens = (res.ai_prompt_tokens || 0).toLocaleString();
-    const compTokens = (res.ai_completion_tokens || 0).toLocaleString();
-    const logs = res.ai_logs || [];
-
-    $('aiLogSummaryCards').innerHTML = `
-      <div class="stat-card primary">
-        <div class="label">累计 AI 识别总费用</div>
-        <div class="val">￥${totalCost}</div>
-        <div class="subval">共消耗 ${totalTokens} Tokens</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">输入 Token 及费用</div>
-        <div class="val" style="font-size:14px">${promptTokens}</div>
-        <div class="subval">费用: ￥${costIn}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">输出 Token 及费用</div>
-        <div class="val" style="font-size:14px">${compTokens}</div>
-        <div class="subval">费用: ￥${costOut}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">识别任务流水记录</div>
-        <div class="val" style="font-size:14px">${logs.length} 次</div>
-        <div class="subval">企业所有图纸切片并发与全量解析</div>
-      </div>
-    `;
-
-    if (!logs.length) {
-      $('aiLogTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:26px" class="mut2">暂无 AI 调用记录（图纸解析时会自动记录流水）</td></tr>';
-      return;
-    }
-
-    $('aiLogTableBody').innerHTML = logs.map(l => {
-      const pTok = (l.prompt_tokens || 0).toLocaleString();
-      const cTok = (l.completion_tokens || 0).toLocaleString();
-      const cTot = (l.total_cost || 0).toFixed(5);
-      const cIn = (l.cost_in || 0).toFixed(5);
-      const cOut = (l.cost_out || 0).toFixed(5);
-      const model = esc(l.model || 'deepseek-flash');
-      const time = esc(l.timestamp || '').slice(5, 19).replace('T', ' ');
-      const fname = esc(l.filename || l.job_id || '未知任务');
-      const proj = esc(l.project_name || '未分组');
-      return `<tr>
-        <td class="mono" style="font-size:11px">${time}</td>
-        <td><b>${fname}</b> <span class="sub" style="font-size:11px">(${proj})</span></td>
-        <td><span class="pill" style="font-size:10.5px">${model}</span></td>
-        <td style="text-align:center">${l.calls_count || 1}</td>
-        <td class="mono" title="费用: ￥${cIn}">${pTok}</td>
-        <td class="mono" title="费用: ￥${cOut}">${cTok}</td>
-        <td class="mono" style="font-weight:700;color:var(--acc)">￥${cTot}</td>
-      </tr>`;
-    }).join('');
-  } catch (err) {
-    toast('获取 AI 账单失败: ' + err.message);
-  }
-}
-
-async function handleLogin(e) {
-  if (e) e.preventDefault();
-  const username = ($('loginUsername').value || '').trim();
-  const password = ($('loginPassword').value || '').trim();
-  if (!username || !password) {
-    toast('请输入账号和密码');
-    return;
-  }
-  const btn = $('btnLoginSubmit');
-  if (btn) btn.disabled = true;
-  try {
-    const res = await postJSON('/api/auth/login', { username, password });
-    if (res && res.token) {
-      Auth.token = res.token;
-      Auth.user = res.user;
-      localStorage.setItem('dgzh_auth_token', res.token);
-      toast(`欢迎回来，${res.user.display_name || res.user.username}！`);
-      closeAuthModal();
-      renderUserBadge();
-      await loadProjects();
-    }
-  } catch (err) {
-    toast(`登录失败：${err.message || '账号或密码错误'}`);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
-async function handleRegister(e) {
-  if (e) e.preventDefault();
-  const tenant_name = ($('regTenant').value || '').trim();
-  const username = ($('regUsername').value || '').trim();
-  const display_name = ($('regDisplayName').value || '').trim();
-  const password = ($('regPassword').value || '').trim();
-  if (!tenant_name || !username || !password) {
-    toast('请完整填写企业名、账号和密码');
-    return;
-  }
-  const btn = $('btnRegSubmit');
-  if (btn) btn.disabled = true;
-  try {
-    const res = await postJSON('/api/auth/register', {
-      tenant_name,
-      username,
-      display_name: display_name || username,
-      password,
-    });
-    if (res && res.token) {
-      Auth.token = res.token;
-      Auth.user = res.user;
-      localStorage.setItem('dgzh_auth_token', res.token);
-      toast(`企业工区【${tenant_name}】创建成功！`);
-      closeAuthModal();
-      renderUserBadge();
-      await loadProjects();
-    }
-  } catch (err) {
-    toast(`注册失败：${err.message || '请重试'}`);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
-async function doLogout() {
-  try {
-    await postJSON('/api/auth/logout', {});
-  } catch (e) {
-    // 忽略登出请求失败
-  }
-  Auth.token = '';
-  Auth.user = null;
-  localStorage.removeItem('dgzh_auth_token');
-  closeUserDropdown();
-  renderUserBadge();
-  toast('已安全退出账号');
-  await loadProjects();
-}
-
-async function doCleanTestData() {
-  if (!confirm('⚠️ 警告：该操作将彻底清空当前系统中的全部图纸任务、项目历史、AI 账单记录及临时工作文件，不可恢复！\n\n确认要执行彻底清空吗？')) {
-    return;
-  }
-  try {
-    const res = await postJSON('/api/system/clean_test_data', {});
-    toast(`系统测试数据已全部清空！清理了 ${res.cleared_jobs || 0} 份图纸任务。`);
-    closeUserDropdown();
-    if (S.route === 'workbench') {
-      S.jobId = null;
-      S.job = null;
-      navGo('projects');
-    }
-    await loadProjects();
-    const { projects } = await api('/api/projects');
-    const hasJobs = (projects || []).some(p => (p.jobs || []).length);
-    if (!hasJobs) {
-      $('startscreen').hidden = false;
-    }
-  } catch (err) {
-    toast(`清理失败：${err.message || '请重试'}`);
-  }
-}
-
-async function api(path, options = {}) {
-  const opts = { ...options };
-  opts.headers = { ...(opts.headers || {}) };
-  if (Auth.token) {
-    opts.headers['Authorization'] = `Bearer ${Auth.token}`;
-  }
-  const res = await fetch(path, opts);
+async function api(path, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  if (TOKEN) headers.Authorization = `Bearer ${TOKEN}`;
+  const res = await fetch(path, { ...opts, headers });
   if (!res.ok) {
-    if (res.status === 401 && !path.includes('/api/auth/')) {
-      Auth.token = '';
-      Auth.user = null;
-      localStorage.removeItem('dgzh_auth_token');
-      renderUserBadge();
+    if (res.status === 401 || (res.status === 403 && TOKEN)) {
+      TOKEN = '';
+      try { localStorage.removeItem('dgzh_auth_token'); } catch (_) {}
     }
-    let detail = res.statusText;
-    try { detail = (await res.json()).detail || detail; } catch (e) { /* 非 JSON 错误体 */ }
-    const err = new Error(detail);
-    err.status = res.status;
-    throw err;
+    let msg = `请求失败 (${res.status})`;
+    try {
+      const body = await res.json();
+      const d = body.detail;
+      msg = typeof d === 'string' ? d : (d && d.message) || msg;
+    } catch (_) { /* 非 JSON */ }
+    throw new Error(msg);
   }
-  return res.status === 204 ? null : res.json();
+  return res.json();
 }
 
-const postJSON = (path, body) => api(path, {
-  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-});
-const putJSON = (path, body) => api(path, {
-  method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-});
+// <img>、下载链接带不了请求头，令牌走查询参数（后端中间件支持）
+const withToken = (url) => (TOKEN ? `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(TOKEN)}` : url);
 
-/* ===================== 路由 ===================== */
-
-/** 把当前位置写进地址栏 hash：刷新/分享链接能回到同一个项目或图纸。 */
-function syncHash(page) {
-  const enc = encodeURIComponent;
-  let hash = '';
-  if (page === 'project' && S.currentProject) hash = `#/project/${enc(S.currentProject)}`;
-  else if (page === 'workbench' && S.jobId) hash = `#/job/${enc(S.jobId)}`;
-  else if (page && page !== 'projects') hash = `#/${page}`;
-  if (location.hash !== hash) history.replaceState(null, '', hash || location.pathname);
+let toastTimer = 0;
+function toast(msg, ms = 2600) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, ms);
 }
 
-/** 启动/刷新时按 hash 恢复位置；解析不了就停在项目列表。 */
-async function applyHashRoute() {
-  const raw = (location.hash || '').replace(/^#\/?/, '');
-  const [routePart, queryPart] = raw.split('?');
-  const [kind, ...rest] = (routePart || '').split('/');
-  const value = decodeURIComponent(rest.join('/') || '');
-  const shouldOpenCad = (queryPart && queryPart.includes('cad=open')) || location.search.includes('cad=open');
-  const shouldVectorMode = (queryPart && (queryPart.includes('mode=vector') || queryPart.includes('view=vector'))) || location.search.includes('mode=vector') || location.search.includes('view=vector');
-  const matchLocate = (queryPart && queryPart.match(/locate=([A-Za-z0-9]+)/)) || location.search.match(/locate=([A-Za-z0-9]+)/);
-  if (kind === 'project' && value) { await openProject(value); return true; }
-  if (kind === 'job' && value) {
-    await openJob(value);
-    if (shouldVectorMode) {
-      setTimeout(() => {
-        setViewMode('vector');
-      }, 350);
-    }
-    if (shouldOpenCad) {
-      setTimeout(() => {
-        const panel = $('cadInspector');
-        if (panel && panel.classList.contains('collapsed')) {
-          toggleCadInspector();
-        }
-      }, 300);
-    }
-    if (matchLocate) {
-      setTimeout(() => {
-        locateCadHandle(matchLocate[1]);
-      }, 700);
-    }
-    return true;
+const STATUS = {
+  queued: '排队中',
+  converting: '转换 CAD',
+  rendering: '渲染图纸',
+  extracting: '识别中',
+  building_excel: '生成清单',
+};
+const isDone = (s) => s === 'done';
+const isFailed = (s) => s === 'failed' || s === 'error';
+function statusPill(job) {
+  const s = job.status || 'queued';
+  if (isDone(s)) return '<span class="pill ok">已完成</span>';
+  if (isFailed(s)) return '<span class="pill bad">识别失败</span>';
+  const pct = Number(job.progress) > 0 ? ` ${Math.round(job.progress)}%` : '';
+  return `<span class="pill run">${esc(STATUS[s] || s)}${pct}</span>`;
+}
+
+/* ---------------- 路由 ---------------- */
+
+function route() {
+  const mPricing = location.hash.match(/^#\/job\/([0-9a-f]{6,32})\/pricing/i);
+  if (mPricing) {
+    PricingWorkbench.open(mPricing[1]);
+    return;
   }
-  if (kind === 'history' || kind === 'settings') { navGo(kind); return true; }
-  return false;
-}
-
-function navGo(page) {
-  const sc = $('startscreen');
-  if (sc) sc.hidden = true;
-  S.route = page;
-  syncHash(page);
-  document.querySelectorAll('.page').forEach(m => { m.hidden = m.id !== 'page-' + page; });
-  document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.p === page));
-  if (page === 'projects') loadProjects();
-  if (page === 'project') renderProjectPage();
-  if (page === 'history') loadHistory();
-  if (page === 'settings') loadSettings();
-  if (page === 'upload') { renderQueue(); renderUploadTarget(); }
-  if (page === 'workbench') {
-    if (S.jobId) renderWorkbench();
+  const mExtract = location.hash.match(/^#\/job\/([0-9a-f]{6,32})\/extract/i);
+  if (mExtract) {
+    ExtractWorkbench.open(mExtract[1]);
+    return;
   }
-}
-
-/* ===================== 项目工作区 ===================== */
-
-function currentProjectName() { return S.currentProject || ''; }
-
-/** 进入项目：所有后续操作（上传/总BOM/拓扑/导出）都挂在这个项目上。 */
-async function openProject(name) {
-  if (!name) return;
-  S.currentProject = name;
-  navGo('project');
-  syncHash('project');
-}
-
-async function refreshCurrentProject() {
-  if (!S.currentProject) { S.projectInfo = null; return null; }
-  try {
-    const { project } = await api(`/api/projects/${encodeURIComponent(S.currentProject)}`);
-    S.projectInfo = project;
-    return project;
-  } catch (e) {
-    // 项目被改名/合并后旧名字会 404，回到列表避免停在空页
-    toast('项目已不存在：' + e.message);
-    S.currentProject = '';
-    S.projectInfo = null;
-    navGo('projects');
-    return null;
+  const m = location.hash.match(/^#\/job\/([0-9a-f]{6,32})/i);
+  if (m) {
+    openSmartJob(m[1]);
+    return;
   }
+  showList();
+}
+window.addEventListener('hashchange', route);
+
+async function openSmartJob(id) {
+  let j = List.jobs.find((x) => x.job_id === id);
+  if (!j) {
+    try { j = await api(`/api/jobs/${id}`); } catch (_) {}
+  }
+  const isExcel = j && ['xlsx', 'xls', 'csv'].includes((j.file_type || String(j.filename || '').split('.').pop()).toLowerCase());
+  location.hash = isExcel ? `#/job/${id}/pricing` : `#/job/${id}/extract`;
 }
 
-const PJ_STATUS = {
-  active: ['进行中', 'info'], archived: ['已归档', ''], bidding: ['投标中', 'warn'], won: ['已中标', 'ok'],
+function setCrumbs(html) { $('crumbs').innerHTML = html; }
+
+/* ================= ① 落地页与任务列表 ================= */
+
+const List = {
+  jobs: [],
+  uploading: [],
+  timer: 0,
+  openWhenDone: '',
+  openTarget: 'extract',
+  filterProject: '全部项目',
+  searchQuery: ''
 };
 
-function pjStatusPill(status) {
-  const [label, cls] = PJ_STATUS[status] || [status || '进行中', ''];
-  return `<span class="pill ${cls}">${esc(label)}</span>`;
+function showList() {
+  ExtractWorkbench.stopPoll();
+  PricingWorkbench.stopPoll();
+  if ($('globalHeader')) $('globalHeader').hidden = false;
+  $('viewList').hidden = false;
+  if ($('viewExtract')) $('viewExtract').hidden = true;
+  if ($('viewPricing')) $('viewPricing').hidden = true;
+  setCrumbs('');
+  document.title = '配电箱图纸识别与组价';
+  loadJobs();
 }
 
-/** 上传图纸入口：没选项目时先把归属说清楚，不要默默传进“未分组”。 */
-function startUploadFlow() {
-  if (S.currentProject) { navGo('upload'); return; }
-  navGo('upload');
-}
-
-function uploadToCurrentProject() {
-  if (!S.currentProject) { toast('先进入一个项目'); return; }
-  navGo('upload');
-}
-
-function backFromUpload() {
-  if (S.currentProject) navGo('project');
-  else navGo('projects');
-}
-
-/** 上传页顶部：把“这张图会进哪个项目”写清楚。 */
-function renderUploadTarget() {
-  const box = $('up-target');
-  if (!box) return;
-  const sel = $('uploadProject');
-  const picked = sel ? sel.value : '';
-  if (picked) {
-    box.innerHTML = `<b>图纸将归入项目：</b>${esc(picked)}` +
-      `　<button class="linklike" onclick="openProject(decodeURIComponent('${safeJsArg(picked)}'))">进入项目 →</button>`;
-    return;
+async function loadJobs() {
+  clearTimeout(List.timer);
+  try {
+    const res = await api('/api/jobs');
+    List.jobs = (res.jobs || []).filter(isRealJob);
+  } catch (e) {
+    toast(`任务列表加载失败：${e.message}`);
   }
-  if (S.currentProject) {
-    box.innerHTML = `<b>图纸将归入项目：</b>${esc(S.currentProject)}（当前项目）`;
-    return;
+  if (List.openWhenDone && !$('viewList').hidden) {
+    const j = List.jobs.find((x) => x.job_id === List.openWhenDone);
+    if (j && isDone(j.status)) {
+      const isExcel = ['xlsx', 'xls', 'csv'].includes((j.file_type || String(j.filename || '').split('.').pop()).toLowerCase()) || List.openTarget === 'pricing';
+      List.openWhenDone = '';
+      location.hash = isExcel ? `#/job/${j.job_id}/pricing` : `#/job/${j.job_id}/extract`;
+      return;
+    }
+    if (j && isFailed(j.status)) List.openWhenDone = '';
   }
-  box.innerHTML = '<b>归属：</b>未指定项目——上传后程序会先从图纸图签里找「工程名称」并自动建项目；' +
-    '找不到就用文件名暂存，进入项目后可随时重命名。也可在上方下拉里直接选已有项目。';
+  renderJobs();
+  // 有未完成的任务就继续轮询刷新
+  const running = List.uploading.length || List.jobs.some((j) => !isDone(j.status) && !isFailed(j.status));
+  if (running && !$('viewList').hidden) List.timer = setTimeout(loadJobs, 2500);
 }
 
-function pjBom() {
-  if (S.currentProject) viewProjectBom(S.currentProject);
+// 过滤掉 work/ 目录下的非顶层任务与平替导出临时文件
+function isRealJob(j) {
+  const id = String(j.job_id || '');
+  return j.filename && !id.includes('.') && !/_[^\x00-\x7f]+$/.test(id);
 }
 
-function pjTopology() {
-  if (S.currentProject) viewProjectTopology(S.currentProject);
+function count(v) {
+  if (Array.isArray(v)) return v.length;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : '';
 }
 
-async function renderProjectPage() {
-  if (!S.currentProject) { navGo('projects'); return; }
-  const p = await refreshCurrentProject();
-  if (!p) return;
+function getSourceBadge(filename, fileType) {
+  const ext = (fileType || String(filename || '').split('.').pop() || '').toLowerCase();
+  if (ext === 'dwg') {
+    return `<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-semibold tracking-wider uppercase">DWG</span>`;
+  }
+  if (ext === 'dxf') {
+    return `<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-semibold tracking-wider uppercase">DXF</span>`;
+  }
+  if (ext === 'pdf') {
+    return `<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-error-container text-on-error-container font-semibold tracking-wider uppercase">PDF</span>`;
+  }
+  if (['xlsx', 'xls', 'csv'].includes(ext)) {
+    return `<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-tertiary text-on-tertiary font-semibold tracking-wider uppercase">清单</span>`;
+  }
+  return `<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-semibold tracking-wider uppercase">${esc(ext.toUpperCase() || '图纸')}</span>`;
+}
 
-  $('pj-name').textContent = p.name;
-  const srcTag = p.name_source === 'filename'
-    ? '<span class="pill warn" title="图纸图签里没读到工程名称，暂用文件名代替">项目名待核对</span>'
-    : (p.name_source === 'drawing'
-        ? '<span class="pill info" title="项目名来自图纸图签中的工程名称">名称来自图纸图签</span>'
-        : (p.name_source === 'manual' ? '<span class="pill">人工命名</span>' : ''));
-  $('pj-namesrc').innerHTML = srcTag;
-  $('pj-export').href = `/api/projects/${encodeURIComponent(p.name)}/export_bom`;
+function renderStatusCell(j) {
+  const s = j.status || 'queued';
+  if (isDone(s)) {
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-sm text-label-sm bg-surface-container text-tertiary-container font-medium"><span class="material-symbols-outlined text-[14px]">check_circle</span><span>已组价</span></span>`;
+  }
+  if (isFailed(s)) {
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-sm text-label-sm bg-error-container text-on-error-container font-medium"><span class="material-symbols-outlined text-[14px]">error</span><span>识别失败</span></span>`;
+  }
+  const pct = Math.round(Number(j.progress) || 0);
+  const statusText = STATUS[s] || '处理中';
+  return `
+    <div class="inline-flex flex-col gap-1 w-28 text-left">
+      <div class="flex items-center justify-between font-label-sm text-label-sm">
+        <span class="inline-flex items-center gap-1 text-primary font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>${esc(statusText)}
+        </span>
+        <span class="text-primary font-semibold">${pct}%</span>
+      </div>
+      <div class="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+        <div class="bg-primary h-full rounded-full transition-all duration-300" style="width: ${Math.max(5, pct)}%"></div>
+      </div>
+    </div>`;
+}
 
-  const info = (p.jobs || []).map(j => (j.summary || {}).project_info).find(x => x && x.found) || {};
-  const evidence = (info.evidence || []).length
-    ? `<span class="mut" style="font-size:11.5px;font-weight:400">识别依据：${esc(info.evidence.join('；'))}</span>`
-    : '';
-  $('pj-infosrc').innerHTML = evidence || '<span class="mut" style="font-weight:400;font-size:11.5px">未从图纸读到图签信息，可手动填写</span>';
-
-  const fields = [
-    ['project_code', '工程编号'], ['client_name', '建设单位'],
-    ['designer_institute', '设计单位'], ['location', '建设地点'],
-  ];
-  $('pj-info').innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 18px">
-    ${fields.map(([key, label]) => `<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mut)">
-      ${label}
-      <input id="pjf-${key}" data-field="${key}" value="${esc(p[key] || '')}" placeholder="未填写"
-             style="border:1px solid var(--line2);padding:6px 8px;font:inherit;font-size:13px;background:#fff;color:var(--txt)">
-    </label>`).join('')}
-    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mut)">状态
-      <select id="pjf-status" data-field="status" style="border:1px solid var(--line2);padding:6px 8px;font:inherit;font-size:13px;background:#fff">
-        ${Object.keys(PJ_STATUS).map(k => `<option value="${k}"${(p.status || 'active') === k ? ' selected' : ''}>${PJ_STATUS[k][0]}</option>`).join('')}
-      </select>
-    </label>
-    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--mut)">备注
-      <input id="pjf-note" data-field="note" value="${esc(p.note || '')}" placeholder="未填写"
-             style="border:1px solid var(--line2);padding:6px 8px;font:inherit;font-size:13px;background:#fff;color:var(--txt)">
-    </label>
-  </div>
-  <div style="margin-top:12px;display:flex;align-items:center;gap:10px">
-    <button class="btn primary sm" onclick="saveProjectInfo()">保存项目信息</button>
-    <span class="mut" style="font-size:11.5px">仅保存本项目的工程档案，不影响图纸数据</span>
-  </div>`;
-
-  const t = p.totals || {};
-  const stat = (label, value, note) => `<div style="display:flex;flex-direction:column;gap:2px;min-width:96px">
-    <span class="mut" style="font-size:11.5px">${label}</span>
-    <span style="font-size:20px;font-weight:700;font-family:ui-monospace,monospace">${value}</span>
-    ${note ? `<span class="mut" style="font-size:11px">${note}</span>` : ''}</div>`;
-  $('pj-stats').innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:26px;align-items:flex-end">
-    ${stat('图纸', t.drawings || 0)}
-    ${stat('已提取', `${t.done || 0}/${t.drawings || 0}`)}
-    ${stat('箱体', t.boxes || 0)}
-    ${stat('回路', t.circuits || 0)}
-    ${stat('元器件', t.components || 0)}
-    ${stat('待核对', t.unresolved || 0, t.unresolved ? '导出前需确认' : '全部已确认')}
-    ${stat('AI 费用', '￥' + (p.ai_cost_total || 0).toFixed(4), (p.ai_tokens_total || 0).toLocaleString() + ' tok')}
-    <div style="margin-left:auto">${pjStatusPill(p.status || 'active')}</div>
-  </div>`;
-
-  const jobs = p.jobs || [];
-  $('pj-dwgcount').textContent = jobs.length ? `（${jobs.length} 份）` : '';
-  $('pj-dwgempty').hidden = jobs.length > 0;
-  $('pj-dwgrows').innerHTML = jobs.map(j => {
-    const s = j.summary || {};
-    const st = j.status === 'done' ? '<span class="pill ok">已提取</span>'
-      : (j.status === 'failed' ? '<span class="pill bad">提取失败</span>'
-        : `<span class="pill info">${esc(j.status || '处理中')}</span>`);
-    const ext = (j.filename || '').split('.').pop().toUpperCase();
-    const note = j.project_note ? `<span class="sub">${esc(j.project_note)}</span>` : '';
-    const err = j.error ? `<span class="sub" style="color:var(--bad)">${esc(j.error)}</span>` : '';
-    return `<tr>
-      <td><span class="pill" style="font-size:10px;margin-right:6px">${esc(ext)}</span><b>${esc(j.filename || j.job_id)}</b>${note}${err}</td>
-      <td>${j.pages || 1}</td>
-      <td>${s.boxes ?? 0}</td>
-      <td>${s.circuits ?? 0}</td>
-      <td>${s.components ?? 0}</td>
-      <td>${(s.uncertainties || []).filter(u => !u.resolved).length
-            ? `<span class="pill warn">${(s.uncertainties || []).filter(u => !u.resolved).length}</span>`
-            : '<span class="pill">0</span>'}</td>
-      <td>${st}</td>
-      <td class="mono" style="font-size:11px">${esc(String(j.created_at || '').replace('T', ' ').slice(0, 16) || '—')}</td>
-      <td>
-        ${j.status === 'done' ? `<button class="linklike" onclick="openJob('${j.job_id}')">进入工作台</button>`
-          : '<span class="mut">—</span>'}
-        <span style="color:var(--line2);margin:0 5px">|</span>
-        <button class="linklike" onclick="reparseJob('${j.job_id}')">重新解析</button>
-        <span style="color:var(--line2);margin:0 5px">|</span>
-        <button class="linklike" onclick="openBatchProjectModal('${j.job_id}')">移到其他项目</button>
-      </td></tr>`;
+function updateProjectFilterMenu() {
+  const menu = $('project-filter-menu');
+  if (!menu) return;
+  const projects = Array.from(new Set(List.jobs.map((j) => (j.project || '').trim()).filter(Boolean)));
+  const cur = List.filterProject || '全部项目';
+  const items = ['全部项目', ...projects];
+  menu.innerHTML = items.map((p) => {
+    const on = p === cur;
+    return `
+      <button class="w-full text-left px-space-md py-1.5 font-body-md text-body-md ${on ? 'text-primary bg-surface-container-low font-medium' : 'text-on-surface hover:bg-surface-container'} flex items-center justify-between transition-colors" data-proj="${esc(p)}" type="button">
+        <span>${esc(p)}</span>
+        ${on ? '<span class="material-symbols-outlined text-[16px]">check</span>' : ''}
+      </button>
+    `;
   }).join('');
 }
 
-async function saveProjectInfo() {
-  if (!S.currentProject) return;
-  const body = {};
-  document.querySelectorAll('#pj-info [data-field]').forEach(el => { body[el.dataset.field] = el.value.trim(); });
-  try {
-    await api(`/api/projects/${encodeURIComponent(S.currentProject)}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-    });
-    toast('项目信息已保存');
-    renderProjectPage();
-  } catch (e) { toast('保存失败：' + e.message); }
-}
+function renderJobs() {
+  updateProjectFilterMenu();
 
-async function renameCurrentProject() {
-  if (!S.currentProject) return;
-  const next = prompt('项目名称（图纸归属与费用账单会一起改名）', S.currentProject);
-  const name = (next || '').trim();
-  if (!name || name === S.currentProject) return;
-  try {
-    await api(`/api/projects/${encodeURIComponent(S.currentProject)}/rename`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ new_name: name }),
-    });
-    S.currentProject = name;
-    S.projectInfo = null;
-    toast('已重命名为「' + name + '」');
-    renderProjectPage();
-  } catch (e) { toast('重命名失败：' + e.message); }
-}
-
-/* ===================== 项目列表页 ===================== */
-
-async function loadProjects() {
-  const { projects } = await api('/api/projects');
+  const query = (List.searchQuery || '').trim().toLowerCase();
+  const filterProj = List.filterProject || '全部项目';
   const rows = [];
-  projects.forEach((p, idx) => {
-    const jobs = p.jobs || [];
-    const t = p.totals;
-    const names = jobs.map(j => j.filename).join(' / ');
-    const sub = jobs.length
-      ? `${jobs.length} 份图纸${jobs.length <= 3 ? ' · ' + esc(names) : ''}`
-      : '还没有图纸';
-    const state = jobs.length === 0
-      ? '<span class="pill">空项目</span>'
-      : (t.done === jobs.length ? '<span class="pill ok">已完成</span>'
-        : (jobs.some(j => j.status === 'failed') ? '<span class="pill bad">提取失败</span>'
-          : `<span class="pill info">${t.done}/${jobs.length} 已提取</span>`));
 
-    const costTotal = (p.ai_cost_total || 0).toFixed(4);
-    const tokensTotal = p.ai_tokens_total ? `${(p.ai_tokens_total / 1000).toFixed(1)}k` : '0';
-    const costCell = `<div style="display:flex;align-items:center;gap:6px">
-      <span class="mono" style="font-weight:600;color:var(--txt)">￥${costTotal}</span>
-      <span class="mut" style="font-size:11px">(${tokensTotal} tok)</span>
-      <button class="linklike" style="padding:1px 5px;font-size:11px" onclick="event.stopPropagation();openProjectAiLogs(decodeURIComponent('${safeJsArg(p.name)}'))">账单</button>
-    </div>`;
-
-    // 主操作是「进入项目」：进入后上传、看图纸、总BOM、拓扑、导出都在项目工作区里
-    const action = `<button class="btn primary sm" onclick="event.stopPropagation();openProject(decodeURIComponent('${safeJsArg(p.name)}'))">进入项目 →</button>
-      ${jobs.length ? `<button class="linklike" style="margin-left:10px" onclick="event.stopPropagation();toggleProjectDrawer(${idx})">快速预览</button>` : ''}`;
-    const nameBadge = p.name_source === 'filename'
-      ? ' <span class="pill warn" title="图纸图签里没读到工程名称，项目名暂取自文件名">待核对</span>' : '';
-    const hasJobs = jobs.length > 0;
-    const arrow = hasJobs ? `<span id="proj-arrow-${idx}" style="display:none;width:0">▶</span>` : '';
-    rows.push(`<tr class="clickable" onclick="openProject(decodeURIComponent('${safeJsArg(p.name)}'))">
-      <td>${arrow}<b>${esc(p.name)}</b>${nameBadge}<span class="sub">${sub}</span></td>
-      <td>${esc(p.client_name || '—')}</td>
-      <td>${jobs.length}</td>
-      <td>${t.boxes}</td>
-      <td>${t.circuits}</td>
-      <td onclick="event.stopPropagation()">${costCell}</td>
-      <td>${t.unresolved ? `<span class="pill warn">${t.unresolved}</span>` : '<span class="pill">0</span>'}</td>
-      <td>${state}</td>
-      <td class="mono" style="font-size:11px">${esc((p.updated_at || '').replace('T', ' ').slice(0, 16) || '—')}</td>
-      <td>${action}</td></tr>`);
-
-    if (hasJobs) {
-      const jobRows = jobs.map(j => {
-        const jStatus = j.status === 'done' ? '<span class="pill ok" style="font-size:10.5px">已完成</span>'
-          : (j.status === 'failed' ? '<span class="pill bad" style="font-size:10.5px">失败</span>' : '<span class="pill info" style="font-size:10.5px">解析中</span>');
-        const jBoxes = j.summary?.boxes ?? 0;
-        const jCircuits = j.summary?.circuits ?? 0;
-        const jComponents = j.summary?.components ?? 0;
-        const jPages = j.pages || 1;
-        const ext = (j.filename || '').split('.').pop().toUpperCase();
-        return `<tr>
-          <td style="padding:6px 10px"><span class="pill" style="font-size:10px;margin-right:6px">${ext}</span><b>${esc(j.filename || j.job_id)}</b></td>
-          <td style="padding:6px 10px;text-align:center">${jPages} 页</td>
-          <td style="padding:6px 10px;text-align:right">${jBoxes} 台</td>
-          <td style="padding:6px 10px;text-align:right">${jCircuits} 条</td>
-          <td style="padding:6px 10px;text-align:right">${jComponents} 种</td>
-          <td style="padding:6px 10px;text-align:center">${jStatus}</td>
-          <td style="padding:6px 10px;text-align:right">
-            <button class="linklike" onclick="event.stopPropagation();openJob('${j.job_id}')">进入工作台</button>
-            <span style="color:var(--line2);margin:0 4px">|</span>
-            <button class="linklike" onclick="event.stopPropagation();reparseJob('${j.job_id}')" title="无需重新上传，就地重新提取">重新解析</button>
-            <span style="color:var(--line2);margin:0 4px">|</span>
-            <button class="linklike" onclick="event.stopPropagation();quickMoveJobProject('${j.job_id}', decodeURIComponent('${safeJsArg(p.name)}'))">换项目</button>
-          </td>
-        </tr>`;
-      }).join('');
-
-      rows.push(`<tr id="proj-drawer-${idx}" style="display:none;background:#f8f9fc">
-        <td colspan="10" style="padding:10px 16px 14px 28px;border-top:none">
-          <div style="font-size:11.5px;font-weight:600;color:var(--mut);margin-bottom:6px">📂 该工程所辖图纸清单 (${jobs.length} 份)：</div>
-          <table class="grid sm" style="width:100%;margin:0;background:#fff;border:1px solid var(--line2)">
-            <thead>
-              <tr style="background:var(--inset)">
-                <th>图纸文件名</th>
-                <th style="width:60px;text-align:center">切片页数</th>
-                <th style="width:70px;text-align:right">配电箱</th>
-                <th style="width:70px;text-align:right">回路数</th>
-                <th style="width:70px;text-align:right">元器件</th>
-                <th style="width:70px;text-align:center">状态</th>
-                <th style="width:170px;text-align:right">操作</th>
-              </tr>
-            </thead>
-            <tbody>${jobRows}</tbody>
-          </table>
+  // 正在上传中的临时行
+  for (const name of List.uploading) {
+    const badge = getSourceBadge(name);
+    rows.push(`
+      <tr class="drawing-row bg-surface-container-low/30">
+        <td class="px-space-md py-2.5 text-center">${badge}</td>
+        <td class="px-space-md py-2.5"><span class="font-body-md text-body-md font-medium text-on-surface">${esc(name)}</span></td>
+        <td class="px-space-md py-2.5 text-outline">—</td>
+        <td class="px-space-md py-2.5 text-right text-outline font-label-md">—</td>
+        <td class="px-space-md py-2.5 text-right text-outline font-label-md">—</td>
+        <td class="px-space-md py-2.5 text-center text-outline font-label-md">—</td>
+        <td class="px-space-md py-2.5 text-right text-outline font-label-md">—</td>
+        <td class="px-space-md py-2.5 text-center">
+          <span class="inline-flex items-center gap-1.5 text-primary font-label-sm">
+            <span class="w-1.5 h-1.5 rounded-full bg-primary animate-ping"></span>上传中…
+          </span>
         </td>
-      </tr>`);
+        <td class="px-space-md py-2.5 text-right">
+          <button class="px-2.5 py-1 rounded bg-surface-container text-outline font-body-sm text-body-sm cursor-not-allowed" disabled>上传中</button>
+        </td>
+      </tr>
+    `);
+  }
+
+  let visibleCount = 0;
+  for (const j of List.jobs) {
+    const name = String(j.filename || '').toLowerCase();
+    const proj = String(j.project || '');
+    const matchesQuery = !query || name.includes(query) || proj.toLowerCase().includes(query);
+    const matchesProj = (filterProj === '全部项目') || (proj === filterProj) || (!proj && filterProj === '未分组');
+    if (!matchesQuery || !matchesProj) continue;
+
+    visibleCount++;
+    const done = isDone(j.status);
+    const failed = isFailed(j.status);
+    const badge = getSourceBadge(j.filename, j.file_type);
+
+    const boxCnt = (j.boxes_count != null && done) ? String(j.boxes_count) : (done && j.summary?.boxes ? String(count(j.summary.boxes)) : '—');
+    const compCnt = (j.components_count != null && done) ? String(j.components_count) : (done && j.summary?.components ? String(count(j.summary.components)) : '—');
+
+    let uncHtml = '<span class="text-outline font-label-md">—</span>';
+    const uncCount = Number(j.uncertainties_count || 0);
+    if (done && uncCount > 0) {
+      uncHtml = `<span class="inline-flex items-center px-2 py-0.5 rounded font-label-sm text-label-sm bg-error-container text-on-error-container font-semibold">${uncCount} 条待核对</span>`;
     }
-  });
-  $('projrows').innerHTML = rows.join('');
-  $('projempty').hidden = projects.length > 0;
+
+    let priceHtml = '<span class="text-outline font-label-md">—</span>';
+    const priceVal = Number(j.total_price);
+    if (done && Number.isFinite(priceVal) && priceVal > 0) {
+      priceHtml = `<span class="font-label-md text-label-md font-semibold text-on-surface">¥${priceVal.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>`;
+    }
+
+    let opsHtml = '';
+    if (done) {
+      const isExcel = ['xlsx', 'xls', 'csv'].includes((j.file_type || String(j.filename || '').split('.').pop()).toLowerCase());
+      if (isExcel) {
+        opsHtml = `
+          <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
+            <a class="px-2.5 py-1 rounded bg-tertiary text-on-tertiary font-body-sm text-body-sm hover:opacity-90 transition-opacity shadow-sm" href="#/job/${esc(j.job_id)}/pricing">直接组价</a>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="导出 Excel" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
+            <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
+          </div>`;
+      } else {
+        opsHtml = `
+          <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
+            <a class="px-2.5 py-1 rounded bg-primary text-on-primary font-body-sm text-body-sm hover:bg-primary-container transition-colors shadow-sm text-white" href="#/job/${esc(j.job_id)}/extract">核对拆量</a>
+            <a class="px-2 py-1 rounded border border-outline-variant text-primary font-body-sm text-body-sm hover:bg-surface-container transition-colors" href="#/job/${esc(j.job_id)}/pricing" title="进入组价核算">组价</a>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="导出 Excel" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-reparse="${esc(j.job_id)}" title="重新识别" type="button"><span class="material-symbols-outlined text-[18px]">replay</span></button>
+            <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
+          </div>`;
+      }
+    } else if (failed) {
+      opsHtml = `
+        <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
+          <button class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface font-body-sm text-body-sm flex items-center gap-1 transition-colors" data-reparse="${esc(j.job_id)}" type="button"><span class="material-symbols-outlined text-[15px]">replay</span><span>重试</span></button>
+          <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
+        </div>`;
+    } else {
+      opsHtml = `
+        <div class="inline-flex items-center gap-1 justify-end">
+          <button class="px-2.5 py-1 rounded bg-surface-container text-outline font-body-sm text-body-sm cursor-not-allowed" disabled type="button">处理中…</button>
+        </div>`;
+    }
+
+    rows.push(`
+      <tr class="drawing-row group hover:bg-surface-container-low/70 transition-colors ${done ? 'cursor-pointer' : ''} bg-surface-container-lowest" data-id="${esc(j.job_id)}">
+        <td class="px-space-md py-2.5 text-center">${badge}</td>
+        <td class="px-space-md py-2.5">
+          <div class="font-body-md text-body-md font-medium text-on-surface group-hover:text-primary transition-colors">${esc(j.filename)}</div>
+          ${failed && j.error ? `<div class="text-error font-body-sm text-[12px] mt-0.5 line-clamp-1">${esc(j.error)}</div>` : ''}
+        </td>
+        <td class="px-space-md py-2.5 text-on-surface-variant font-body-sm">${esc(j.project || '–')}</td>
+        <td class="px-space-md py-2.5 text-right font-label-md text-label-md font-semibold text-on-surface">${esc(boxCnt)}</td>
+        <td class="px-space-md py-2.5 text-right font-label-md text-label-md text-on-surface-variant">${esc(compCnt)}</td>
+        <td class="px-space-md py-2.5 text-center">${uncHtml}</td>
+        <td class="px-space-md py-2.5 text-right font-label-md text-label-md font-semibold">${priceHtml}</td>
+        <td class="px-space-md py-2.5 text-center">${renderStatusCell(j)}</td>
+        <td class="px-space-md py-2.5 text-right">${opsHtml}</td>
+      </tr>
+    `);
+  }
+
+  $('drawings-tbody').innerHTML = rows.join('');
+  $('jobEmpty').hidden = (rows.length > 0);
+  $('total-drawings-count').textContent = `共 ${List.jobs.length} 项`;
+  $('table-count-summary').textContent = `显示 ${visibleCount} 项，共 ${List.jobs.length} 项`;
 }
 
-async function openProjectAiLogs(projectName) {
+// 表格操作委托（查看、导出、重试、删除）
+$('drawings-tbody').addEventListener('click', async (e) => {
+  const delBtn = e.target.closest('[data-delete]');
+  if (delBtn) {
+    e.stopPropagation();
+    const id = delBtn.dataset.delete;
+    if (!confirm('确认删除该任务及其所有相关文件吗？删除后不可撤销。')) return;
+    try {
+      await api(`/api/jobs/${id}`, { method: 'DELETE' });
+      toast('已成功删除任务');
+      loadJobs();
+    } catch (err) { toast(`删除失败：${err.message}`); }
+    return;
+  }
+
+  const expBtn = e.target.closest('[data-export]');
+  if (expBtn) {
+    e.stopPropagation();
+    const id = expBtn.dataset.export;
+    window.location.href = withToken(`/api/jobs/${id}/excel`);
+    return;
+  }
+
+  const repBtn = e.target.closest('[data-reparse]');
+  if (repBtn) {
+    e.stopPropagation();
+    const id = repBtn.dataset.reparse;
+    if (!confirm('重新识别会再次调用识图模型（会产生费用），并覆盖这张图纸当前的识别结果。继续吗？')) return;
+    try {
+      await api(`/api/jobs/${id}/reparse`, { method: 'POST' });
+      toast('已开始重新识别');
+      loadJobs();
+    } catch (err) { toast(err.message); }
+    return;
+  }
+
+  const tr = e.target.closest('tr.drawing-row');
+  if (tr && tr.dataset.id) {
+    const j = List.jobs.find((x) => x.job_id === tr.dataset.id);
+    if (j && isDone(j.status)) {
+      const isExcel = ['xlsx', 'xls', 'csv'].includes((j.file_type || String(j.filename || '').split('.').pop()).toLowerCase());
+      location.hash = isExcel ? `#/job/${tr.dataset.id}/pricing` : `#/job/${tr.dataset.id}/extract`;
+    }
+  }
+});
+
+/* 上传处理与多源适配 */
+const ACCEPT_BLUEPRINT = /\.(pdf|dwg|dxf)$/i;
+const ACCEPT_EXCEL = /\.(xlsx|xls|csv)$/i;
+
+async function uploadFiles(files, kind = 'blueprint') {
+  const list = [...files];
+  const checker = (kind === 'excel') ? ACCEPT_EXCEL : ((kind === 'blueprint') ? ACCEPT_BLUEPRINT : /\.(pdf|dwg|dxf|xlsx|xls|csv)$/i);
+  const bad = list.filter((f) => !checker.test(f.name));
+  if (bad.length) {
+    toast(`不支持的文件格式：${bad.map((f) => f.name).join('、')}`);
+  }
+  const good = list.filter((f) => checker.test(f.name));
+  if (!good.length) return;
+
+  List.uploading.push(...good.map((f) => f.name));
+  renderJobs();
+
+  const created = [];
+  await Promise.all(good.map(async (f) => {
+    const fd = new FormData();
+    fd.append('file', f);
+    try {
+      const res = await api('/api/jobs', { method: 'POST', body: fd });
+      created.push(res.job_id);
+    } catch (err) {
+      toast(`${f.name} 上传失败：${err.message}`, 4000);
+    } finally {
+      const idx = List.uploading.indexOf(f.name);
+      if (idx !== -1) List.uploading.splice(idx, 1);
+    }
+  }));
+
+  if (created.length === 1) {
+    List.openWhenDone = created[0];
+    toast('已上传，正在处理与组价，完成后自动打开结果', 4000);
+  } else if (created.length) {
+    toast(`已上传 ${created.length} 份文件，正在处理中`, 4000);
+  }
+  loadJobs();
+}
+
+// 绑定图纸识别上传
+$('blueprint-input').addEventListener('change', (e) => {
+  uploadFiles(e.target.files, 'blueprint');
+  e.target.value = '';
+});
+$('btnSelectBlueprint').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('blueprint-input').click();
+});
+
+// 绑定设备清单组价上传
+$('excel-input').addEventListener('change', (e) => {
+  uploadFiles(e.target.files, 'excel');
+  e.target.value = '';
+});
+$('btnSelectExcel').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('excel-input').click();
+});
+
+// 拖拽高亮交互绑定
+function setupDropZone(elemId, kind) {
+  const el = $(elemId);
+  if (!el) return;
+  ['dragenter', 'dragover'].forEach((ev) => el.addEventListener(ev, (e) => {
+    e.preventDefault();
+    el.classList.add(kind === 'excel' ? 'border-tertiary-container' : 'border-primary', 'bg-surface-container-low');
+  }));
+  ['dragleave', 'drop'].forEach((ev) => el.addEventListener(ev, (e) => {
+    e.preventDefault();
+    el.classList.remove('border-primary', 'border-tertiary-container', 'bg-surface-container-low');
+  }));
+  el.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadFiles(e.dataTransfer.files, kind);
+  });
+}
+setupDropZone('drop-zone-blueprint', 'blueprint');
+setupDropZone('drop-zone-excel', 'excel');
+
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => e.preventDefault());
+
+// 项目过滤下拉菜单
+$('project-filter-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  $('project-filter-menu').classList.toggle('hidden');
+});
+document.addEventListener('click', (e) => {
+  const btn = $('project-filter-btn');
+  const menu = $('project-filter-menu');
+  if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
+    menu.classList.add('hidden');
+  }
+});
+$('project-filter-menu').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-proj]');
+  if (!b) return;
+  List.filterProject = b.dataset.proj;
+  $('current-project-label').textContent = List.filterProject;
+  $('project-filter-menu').classList.add('hidden');
+  renderJobs();
+});
+
+// 搜索栏输入过滤
+$('search-input').addEventListener('input', (e) => {
+  List.searchQuery = e.target.value;
+  renderJobs();
+});
+
+// 用户下拉菜单交互
+$('user-menu-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const dd = $('user-menu-dropdown');
+  dd.classList.toggle('hidden');
+  $('user-menu-arrow').classList.toggle('rotate-180', !dd.classList.contains('hidden'));
+});
+document.addEventListener('click', (e) => {
+  const container = $('user-menu-container');
+  if (container && !container.contains(e.target)) {
+    $('user-menu-dropdown').classList.add('hidden');
+    $('user-menu-arrow').classList.remove('rotate-180');
+  }
+});
+$('btnLogout').addEventListener('click', async () => {
+  try { await api('/api/auth/logout', { method: 'POST' }); } catch (_) {}
+  TOKEN = '';
+  try { localStorage.removeItem('dgzh_auth_token'); } catch (_) {}
+  $('userNameLabel').textContent = '系统工程师';
+  $('user-menu-dropdown').classList.add('hidden');
+  toast('已退出登录');
+  loadJobs();
+});
+
+// 系统设置弹窗交互
+$('btnOpenSettings').addEventListener('click', async () => {
+  $('user-menu-dropdown').classList.add('hidden');
+  $('modalSettings').hidden = false;
   try {
-    $('aiLogProjTitle').textContent = `项目 AI 识别费用与 Token 账单 · ${projectName}`;
-    $('aiLogSummaryCards').innerHTML = '<span class="mut">正在获取计费记录...</span>';
-    $('aiLogTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px" class="mut">加载中...</td></tr>';
-    $('modalAiLog').classList.add('show');
+    const data = await api('/api/settings');
+    const s = data.settings || {};
+    $('settingVisionModel').value = s.vision_model || data.vision_model || '';
+    $('settingVisionBaseUrl').value = s.vision_base_url || '';
+    $('settingVisionApiKey').value = s.vision_api_key || '';
+    $('settingTileLargePages').checked = !!s.tile_large_pages;
+    const brands = data.target_brands || ['正泰', '施耐德', '德力西', 'ABB', '西门子'];
+    const defaultBrand = s.excel_template || data.default_target_brand || '正泰';
+    $('settingTargetBrand').innerHTML = brands.map((b) => `<option value="${esc(b)}" ${b === defaultBrand ? 'selected' : ''}>${esc(b)}</option>`).join('');
+  } catch (err) {
+    toast(`加载系统设置失败：${err.message}`);
+  }
+});
+const closeSettings = () => { $('modalSettings').hidden = true; };
+$('btnCloseSettings').addEventListener('click', closeSettings);
+$('btnCancelSettings').addEventListener('click', closeSettings);
+$('btnSaveSettings').addEventListener('click', async () => {
+  const payload = {
+    vision_model: $('settingVisionModel').value.trim() || undefined,
+    vision_base_url: $('settingVisionBaseUrl').value.trim() || undefined,
+    vision_api_key: $('settingVisionApiKey').value.trim() || undefined,
+    excel_template: $('settingTargetBrand').value || undefined,
+    tile_large_pages: $('settingTileLargePages').checked,
+  };
+  try {
+    await api('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    toast('系统设置已更新');
+    closeSettings();
+  } catch (err) {
+    toast(`保存失败：${err.message}`);
+  }
+});
 
-    const res = await api(`/api/projects/${encodeURIComponent(projectName)}/ai_logs`);
-    const totalCost = (res.ai_cost_total || 0).toFixed(4);
-    const costIn = (res.ai_cost_in || 0).toFixed(4);
-    const costOut = (res.ai_cost_out || 0).toFixed(4);
-    const totalTokens = (res.ai_tokens_total || 0).toLocaleString();
-    const promptTokens = (res.ai_prompt_tokens || 0).toLocaleString();
-    const compTokens = (res.ai_completion_tokens || 0).toLocaleString();
-    const logs = res.ai_logs || [];
+// AI 消耗与费用弹窗交互
+$('btnOpenAiCosts').addEventListener('click', async () => {
+  $('user-menu-dropdown').classList.add('hidden');
+  $('modalAiCosts').hidden = false;
+  try {
+    const res = await api('/api/ai_logs');
+    const sum = res.summary || {};
+    const logs = res.ai_logs || res.logs || [];
+    const totalCost = res.ai_cost_total != null ? res.ai_cost_total : (sum.total_cost || 0);
+    const totalTokens = res.ai_tokens_total != null ? res.ai_tokens_total : (sum.total_tokens || 0);
+    const callsCount = res.ai_logs_count || logs.length || sum.count || 0;
 
-    $('aiLogSummaryCards').innerHTML = `
-      <div class="stat-card primary">
-        <div class="label">累计 AI 识别总费用</div>
-        <div class="val">￥${totalCost}</div>
-        <div class="subval">共消耗 ${totalTokens} Tokens</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">输入 Token 及费用</div>
-        <div class="val" style="font-size:14px">${promptTokens}</div>
-        <div class="subval">费用: ￥${costIn}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">输出 Token 及费用</div>
-        <div class="val" style="font-size:14px">${compTokens}</div>
-        <div class="subval">费用: ￥${costOut}</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">识别任务流水记录</div>
-        <div class="val" style="font-size:14px">${logs.length} 次</div>
-        <div class="subval">包含切片并发与全量解析</div>
-      </div>
-    `;
+    $('aiTotalCost').textContent = `¥${Number(totalCost).toFixed(2)}`;
+    $('aiTotalTokens').textContent = Number(totalTokens).toLocaleString();
+    $('aiTotalCalls').textContent = `${Number(callsCount)} 次`;
+    $('aiLogsCount').textContent = `${logs.length} 笔`;
 
     if (!logs.length) {
-      $('aiLogTableBody').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px" class="mut2">该项目暂无 AI 识别计费流水</td></tr>';
-      return;
-    }
-
-    $('aiLogTableBody').innerHTML = logs.map(l => {
-      const dt = (l.timestamp || '').replace('T', ' ').slice(0, 19);
-      const cIn = (l.cost_in || 0).toFixed(4);
-      const cOut = (l.cost_out || 0).toFixed(4);
-      const cTot = (l.total_cost || 0).toFixed(4);
-      const pTok = (l.prompt_tokens || 0).toLocaleString();
-      const cTok = (l.completion_tokens || 0).toLocaleString();
-      return `<tr>
-        <td class="mono" style="font-size:11px">${esc(dt)}</td>
-        <td><b>${esc(l.filename || l.job_id || '未命名图纸')}</b></td>
-        <td class="mono" style="font-size:11px">${esc(l.model || '—')}</td>
-        <td style="text-align:center">${l.calls_count || 1}</td>
-        <td class="mono" title="费用: ￥${cIn}">${pTok}</td>
-        <td class="mono" title="费用: ￥${cOut}">${cTok}</td>
-        <td class="mono" style="font-weight:700;color:var(--acc)">￥${cTot}</td>
-      </tr>`;
-    }).join('');
-  } catch (err) {
-    toast('获取 AI 账单失败: ' + err.message);
-  }
-}
-
-function openJobAiUsage() {
-  const pName = S.job?.project || '未分组';
-  openProjectAiLogs(pName);
-}
-
-function closeAiLogs() {
-  const modal = $('modalAiLog');
-  if (modal) {
-    modal.classList.remove('show');
-    modal.hidden = true;
-    modal.style.display = 'none';
-  }
-}
-
-let currentBomProject = '';
-let currentBomMode = 'raw';
-
-function switchProjBomMode(mode) {
-  viewProjectBom(currentBomProject, mode);
-}
-
-async function viewProjectBom(projectName, mode) {
-  if (projectName) currentBomProject = projectName;
-  if (mode !== undefined) currentBomMode = mode;
-  projectName = currentBomProject;
-  mode = currentBomMode || 'raw';
-
-  const select = $('projBomModeSelect');
-  if (select) {
-    // 平替品牌选项由后端配置驱动；已存在的选项不重建，避免打断用户当前选择
-    const brands = brandOptions();
-    if (brands.length && select.options.length !== brands.length + 1) {
-      const keep = select.value;
-      select.innerHTML = '<option value="raw">原设计采购清单</option>'
-        + brands.map(b => `<option value="${esc(b)}">${esc(b)}一键平替方案</option>`).join('');
-      if (keep) select.value = keep;
-    }
-    if (select.value !== mode) select.value = mode;
-  }
-
-  try {
-    $('projBomTitle').textContent = `全项目采购总清单 (BOM) · ${projectName}`;
-    $('projBomSub').textContent = mode === 'raw' ? '跨箱体汇总采购统计 (原设计规格)' : `跨箱体一键国产化平替方案 (${mode})`;
-    $('projBomStats').innerHTML = '<span class="mut">正在聚合图纸数据...</span>';
-    $('projBomTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px" class="mut">加载中...</td></tr>';
-    $('projBomModal').classList.add('show');
-
-    if (mode === 'raw') {
-      $('projBomExportBtn').href = `/api/projects/${encodeURIComponent(projectName)}/export_bom`;
-      $('projBomExportBtn').textContent = '导出采购四联表 (Excel)';
-      const head = $('projBomHead');
-      if (head) {
-        head.innerHTML = `<tr>
-          <th style="width:40px">#</th>
-          <th>元器件名称</th>
-          <th>规格型号</th>
-          <th style="width:60px">单位</th>
-          <th style="width:80px">采购总量</th>
-          <th>各配电箱分布明细</th>
-        </tr>`;
-      }
-      const res = await api(`/api/projects/${encodeURIComponent(projectName)}/bom`);
-      if (!res.ok) throw new Error(res.error || '获取失败');
-
-      $('projBomSub').textContent = `共统计 ${res.job_count} 份图纸 · ${res.box_count} 台配电箱设备`;
-      $('projBomStats').innerHTML = `
-        <div><b>设备台数：</b><span class="mono">${res.box_count}</span> 台</div>
-        <div><b>元器件品种：</b><span class="mono">${res.total_component_items}</span> 种</div>
-        <div><b>采购总数量：</b><span class="mono" style="font-weight:700;color:var(--acc)">${res.total_component_quantity}</span></div>
-        <div><b>成套辅材测算：</b>已自动核算钣金外壳、主母排/分相铜排、二次线及制造人工工时</div>
-      `;
-
-      const comps = res.components || [];
-      if (!comps.length) {
-        $('projBomTable').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px" class="mut2">该项目暂多元器件数据</td></tr>';
-        return;
-      }
-
-      $('projBomTable').innerHTML = comps.map((c, idx) => {
-        const distStr = (c.distribution || []).map(d => `<span class="pill" style="margin-right:4px;font-size:10.5px">${esc(d.box)}: <b>${d.quantity}</b></span>`).join('');
-        return `<tr>
-          <td class="mono" style="text-align:center">${idx + 1}</td>
-          <td><b>${esc(c.name)}</b></td>
-          <td class="mono">${esc(c.spec || '—')}</td>
-          <td>${esc(c.unit || '只')}</td>
-          <td class="mono" style="font-weight:700;color:var(--acc)">${c.total_quantity}</td>
-          <td>${distStr || '—'}</td>
-        </tr>`;
-      }).join('');
+      $('aiLogsTbody').innerHTML = '';
+      $('aiLogsEmpty').hidden = false;
     } else {
-      // 智能平替模式
-      $('projBomExportBtn').href = `/api/projects/${encodeURIComponent(projectName)}/export_bom?target_brand=${encodeURIComponent(mode)}`;
-      $('projBomExportBtn').textContent = `导出 ${mode} 平替总表 (Excel)`;
-      const head = $('projBomHead');
-      if (head) {
-        head.innerHTML = `<tr>
-          <th style="width:40px">#</th>
-          <th>原设计物料 / 品牌</th>
-          <th>平替推荐型号 (${mode})</th>
-          <th style="width:60px">单位</th>
-          <th style="width:80px">采购总量</th>
-          <th style="width:75px">降本幅度</th>
-          <th>对标核验说明</th>
-        </tr>`;
-      }
-      const res = await api(`/api/projects/${encodeURIComponent(projectName)}/replacements?target_brand=${encodeURIComponent(mode)}`);
-      if (!res.ok || !res.analysis) throw new Error(res.error || '获取平替方案失败');
-      const an = res.analysis;
-      const items = an.items || [];
-
-      $('projBomStats').innerHTML = `
-        <div><b>目标品牌：</b><span class="mono" style="font-weight:700;color:var(--c-brand,#0284c7)">${esc(an.target_brand)}</span></div>
-        <div><b>物料总数：</b><span class="mono">${an.total_components}</span> 项 / <span class="mono">${an.total_quantity}</span> 件</div>
-        <div><b>可平替件数：</b><span class="mono" style="font-weight:700;color:#137333">${an.replaceable_quantity}</span> 件</div>
-        <div style="background:#e6f4ea;padding:4px 10px;border-radius:4px;color:#137333;font-weight:700">
-          预计元器件采购成本直降约 ${an.estimated_overall_saving_pct}%
-        </div>
-      `;
-
-      if (!items.length) {
-        $('projBomTable').innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px" class="mut2">暂无可平替元器件</td></tr>';
-        return;
-      }
-
-      $('projBomTable').innerHTML = items.map((it, idx) => {
-        const savingPill = it.estimated_saving_pct > 0
-          ? `<span class="pill" style="background:#e6f4ea;color:#137333;font-weight:700">↓${it.estimated_saving_pct}%</span>`
-          : `<span class="pill" style="background:var(--inset);color:var(--mut)">已最优</span>`;
-        return `<tr>
-          <td class="mono" style="text-align:center">${idx + 1}</td>
-          <td>
-            <b>${esc(it.name)}</b>
-            <div class="sub mono" style="font-size:10.5px">${esc(it.original_brand)} · ${esc(it.original_spec || '—')}</div>
-          </td>
-          <td>
-            <div class="mono" style="font-weight:700;color:var(--c-brand,#0284c7)">${esc(it.recommended_model)}</div>
-            <div class="sub" style="font-size:10.5px">分布：${esc(it.used_in || '—')}</div>
-          </td>
-          <td>${esc(it.unit || '只')}</td>
-          <td class="mono" style="font-weight:700;color:var(--acc)">${it.quantity}</td>
-          <td style="text-align:center">${savingPill}</td>
-          <td class="sub" style="font-size:11px;max-width:180px;line-height:1.3">${esc(it.notes || '—')}</td>
-        </tr>`;
-      }).join('');
+      $('aiLogsEmpty').hidden = true;
+      $('aiLogsTbody').innerHTML = logs.map((l) => `
+        <tr class="hover:bg-surface-container-low transition-colors">
+          <td class="px-3 py-2 text-outline">${esc(fmtTime(l.created_at || l.timestamp))}</td>
+          <td class="px-3 py-2 font-medium text-on-surface">${esc(l.filename || '—')}</td>
+          <td class="px-3 py-2 text-outline">${esc(l.project_name || '—')}</td>
+          <td class="px-3 py-2 text-outline">${esc(l.model || '—')}</td>
+          <td class="px-3 py-2 text-right">${Number(l.total_tokens || 0).toLocaleString()}</td>
+          <td class="px-3 py-2 text-right text-primary font-semibold">¥${Number(l.total_cost || 0).toFixed(4)}</td>
+        </tr>
+      `).join('');
     }
   } catch (err) {
-    toast('获取项目总 BOM 失败：' + err.message);
-    closeProjBom();
+    toast(`加载费用流水失败：${err.message}`);
   }
-}
+});
+const closeAiCosts = () => { $('modalAiCosts').hidden = true; };
+$('btnCloseAiCosts').addEventListener('click', closeAiCosts);
+$('btnDoneAiCosts').addEventListener('click', closeAiCosts);
 
-function closeProjBom() {
-  const modal = $('projBomModal');
-  if (modal) modal.classList.remove('show');
-}
+/* ================= ② 数据拆量与通用模型 ================= */
 
-async function newProject() {
-  const name = prompt('新建项目\n项目名称（上传图纸时也会按图签工程名称自动建项目）', '');
-  if (!name || !name.trim()) return;
-  const clean = name.trim();
-  try {
-    await postJSON('/api/projects', { name: clean });
-  } catch (e) {
-    toast('新建失败：' + e.message);
-    return;
-  }
-  toast('已新建项目：' + clean);
-  // 建完直接进入，符合"建完选一个项目进去上传图纸"的操作顺序
-  await openProject(clean);
-}
+const ALL = '__all__';
+const BOX_COMPONENT = '配电箱体';
+const splitUsed = (s) => String(s || '').split(/[、,，;；\n]+/).map((t) => t.trim()).filter(Boolean);
 
-function toggleProjectDrawer(idx) {
-  const drawer = $(`proj-drawer-${idx}`);
-  const arrow = $(`proj-arrow-${idx}`);
-  if (!drawer) return;
-  const isHidden = drawer.style.display === 'none';
-  drawer.style.display = isHidden ? 'table-row' : 'none';
-  if (arrow) {
-    arrow.textContent = isHidden ? '▼' : '▶';
-  }
-}
+/**
+ * 从汇总表 components 里拆出某个箱柜的元器件。
+ */
+function partsForBox(code, components) {
+  const out = [];
+  for (const c of components) {
+    if (c.name === BOX_COMPONENT) continue;
+    const nm = String(c.name || '').trim();
+    const sp = String(c.spec || '').trim();
+    // 严格过滤接线端子代号、跨图线号、柜号与纯工程数值，杜绝垃圾条目
+    if (sp.includes(':D') || sp.includes('~') || sp.includes('-C1') || sp.includes('-C2') || sp.includes('-C3')) continue;
+    if (['5.5kW', '回路名称', '回路名称\n二次图编号', '低压配电柜型号 GGD', 'A\n计算电流'].includes(nm)) continue;
+    if (['02AP02', '02AP1', '02AP2', '02YJ01', 'C01', 'C05', 'DF', 'XKP', '371', 'GGD'].includes(sp)) continue;
+    if (sp.startsWith('ET1') || sp.includes('引上至') || sp.includes('机械应急')) continue;
 
-let currentTopologyData = null;
-
-async function viewProjectTopology(projectName) {
-  try {
-    $('projTopologyTitle').textContent = `全项目供电系统层级拓扑树 · ${projectName}`;
-    $('projTopologySub').textContent = `跨所有系统图合并分析：一级总配电柜 → 二级配电分箱 → 一次末端回路 / 二次原理图控制关系`;
-    $('projTopologyStats').innerHTML = '<span class="mut">正在聚合全项目配电系统拓扑网络...</span>';
-    $('projTopologyContainer').innerHTML = '<div style="text-align:center;padding:30px" class="mut">正在计算拓扑关系...</div>';
-    $('projTopologyFilter').value = '';
-    $('projTopologyModal').classList.add('show');
-
-    const res = await api(`/api/projects/${encodeURIComponent(projectName)}/topology`);
-    if (!res.ok) throw new Error(res.error || '获取拓扑失败');
-    currentTopologyData = res.topology || [];
-
-    let totalCabinets = 0;
-    let totalSecondaries = 0;
-    let totalCircuits = 0;
-    function countNodes(list) {
-      for (const n of list) {
-        if (n.node_type === 'secondary') totalSecondaries++;
-        else totalCabinets++;
-        totalCircuits += (n.circuits_count || 0);
-        if (n.children && n.children.length) countNodes(n.children);
-      }
-    }
-    countNodes(currentTopologyData);
-
-    $('projTopologyStats').innerHTML = `
-      <div><b>覆盖图纸：</b><span class="mono">${res.job_count}</span> 份</div>
-      <div><b>配电箱/柜节点：</b><span class="mono">${totalCabinets}</span> 台</div>
-      <div><b>二次控制原理图：</b><span class="mono">${totalSecondaries}</span> 幅</div>
-      <div><b>聚合总回路：</b><span class="mono" style="font-weight:700;color:var(--acc)">${totalCircuits}</span> 条</div>
-      <div style="color:var(--mut)">提示：供电关系已根据系统图一次进线、出线回路及箱体编号自动关联拓扑层级</div>
-    `;
-
-    renderTopologyView('');
-  } catch (err) {
-    toast('获取项目拓扑失败：' + err.message);
-    closeProjTopology();
-  }
-}
-
-function renderTopologyView(filter) {
-  const container = $('projTopologyContainer');
-  if (!container) return;
-  const list = currentTopologyData || [];
-  if (!list.length) {
-    container.innerHTML = '<div style="text-align:center;padding:30px" class="mut2">该项目暂未发现配电箱或拓扑关联数据</div>';
-    return;
-  }
-
-  const q = (filter || '').trim().toLowerCase();
-  
-  function renderNode(node) {
-    const isSec = node.node_type === 'secondary';
-    const match = !q || (node.code && node.code.toLowerCase().includes(q)) || (node.name && node.name.toLowerCase().includes(q));
-    const childHtml = (node.children || []).map(renderNode).join('');
-    if (q && !match && !childHtml) return '';
-
-    const icon = isSec ? '⚡' : '🗄️';
-    const typeBadge = isSec ? '<span class="pill warn" style="font-size:10px;margin-right:4px">二次原理图</span>'
-      : '<span class="pill ok" style="font-size:10px;margin-right:4px">箱柜</span>';
-    const power = node.power_kw ? `<span class="pill" style="font-size:10.5px;background:#eef2ff;color:#2e5ce6">功率: ${esc(node.power_kw)}</span>` : '';
-    const circuits = node.circuits_count ? `<span class="pill" style="font-size:10.5px">出线回路: ${node.circuits_count}条</span>` : '';
-    const note = node.note ? `<span class="mut" style="font-size:11px">(${esc(node.note)})</span>` : '';
-
-    return `
-      <div style="margin-left:20px;border-left:2px solid var(--line2);padding-left:14px;margin-top:8px;margin-bottom:8px">
-        <div style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 12px;box-shadow:0 1px 2px rgba(0,0,0,0.03)">
-          <span style="font-size:14px">${icon}</span>
-          ${typeBadge}
-          <b style="font-size:12.5px">${esc(node.code || '未编号')}</b>
-          <span style="color:var(--txt);font-size:12px">${esc(node.name || '')}</span>
-          ${power}
-          ${circuits}
-          ${note}
-        </div>
-        ${childHtml ? `<div style="margin-top:4px">${childHtml}</div>` : ''}
-      </div>
-    `;
-  }
-
-  const html = list.map(renderNode).join('');
-  container.innerHTML = html || '<div style="text-align:center;padding:24px" class="mut2">未匹配到符合过滤条件的配电箱</div>';
-}
-
-function filterTopologyTree(val) {
-  renderTopologyView(val);
-}
-
-function closeProjTopology() {
-  const modal = $('projTopologyModal');
-  if (modal) modal.classList.remove('show');
-}
-
-let batchJobsCache = [];
-
-async function openBatchProjectModal(preSelectedJobId) {
-  try {
-    $('batchProjectModal').classList.add('show');
-    $('batchProjectTable').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px" class="mut">加载图纸列表中...</td></tr>';
-    
-    const [{ projects }, { jobs }] = await Promise.all([
-      api('/api/projects'),
-      api('/api/jobs')
-    ]);
-
-    batchJobsCache = jobs || [];
-
-    const sel = $('batchTargetProject');
-    sel.innerHTML = '<option value="">-- 选择已有项目 --</option>' +
-      projects.filter(p => p.name !== '未分组').map(p => `<option value="${esc(p.name)}">${esc(p.name)} (${p.totals?.drawings || 0} 份图纸)</option>`).join('');
-    $('batchNewProject').value = '';
-    // 从项目工作区点「归入图纸」进来的，目标默认就是这个项目
-    if (!preSelectedJobId && S.currentProject && [...sel.options].some(o => o.value === S.currentProject)) {
-      sel.value = S.currentProject;
-    }
-
-    const rows = batchJobsCache.map(j => {
-      const isDefaultChecked = preSelectedJobId ? (j.job_id === preSelectedJobId) : (!j.project || j.project === '未分组');
-      const ext = (j.filename || '').split('.').pop().toUpperCase();
-      const statusPill = j.status === 'done' ? '<span class="pill ok" style="font-size:10px">已完成</span>'
-        : (j.status === 'failed' ? '<span class="pill bad" style="font-size:10px">失败</span>' : '<span class="pill info" style="font-size:10px">处理中</span>');
-      return `<tr>
-        <td style="text-align:center"><input type="checkbox" class="batch-chk" data-jobid="${j.job_id}" ${isDefaultChecked ? 'checked' : ''}></td>
-        <td><span class="pill" style="font-size:10px;margin-right:4px">${ext}</span><b>${esc(j.filename || j.job_id)}</b></td>
-        <td><span class="mut" style="font-size:11px">${esc(j.project || '未分组')}</span></td>
-        <td style="text-align:right">${j.summary?.boxes ?? 0}</td>
-        <td style="text-align:right">${j.summary?.circuits ?? 0}</td>
-        <td style="text-align:center">${statusPill}</td>
-      </tr>`;
+    const toks = splitUsed(c.used_in);
+    const hits = toks.filter((t) => t === code || t.startsWith(`${code} `));
+    if (!hits.length) continue;
+    const refs = hits.map((t) => t.slice(code.length).trim()).filter(Boolean);
+    const allBare = toks.every((t) => !t.includes(' '));
+    const qty = allBare ? Number(c.quantity) : hits.length * (Number(c.quantity) / (toks.length || 1));
+    out.push({
+      name: nm,
+      spec: sp,
+      unit: c.unit || '只',
+      quantity: Math.max(1, Math.round(qty || 1)),
+      where: refs.join('、') || '主回路',
+      note: c.note || '',
+      calibrated: false
     });
-
-    $('batchProjectTable').innerHTML = rows.join('') || '<tr><td colspan="6" style="text-align:center;padding:20px" class="mut2">暂无已上传图纸</td></tr>';
-    $('batchSelectAll').checked = false;
-  } catch (err) {
-    toast('打开批量归类失败：' + err.message);
   }
+  return out;
 }
 
-function closeBatchProjectModal() {
-  const modal = $('batchProjectModal');
-  if (modal) modal.classList.remove('show');
-}
+/**
+ * 当箱柜未在 components 表单独声明但有出线回路时，自动从回路图抽取提纯器件清单
+ */
+function partsFromCircuits(code, circuits) {
+  const out = [];
+  const breakerMap = new Map();
+  const contactorMap = new Map();
+  const ctMap = new Map();
+  const thermalMap = new Map();
 
-function toggleSelectAllBatch(checked) {
-  document.querySelectorAll('.batch-chk').forEach(el => el.checked = checked);
-}
-
-async function submitBatchProject() {
-  const selectedBoxes = Array.from(document.querySelectorAll('.batch-chk:checked'));
-  const jobIds = selectedBoxes.map(el => el.getAttribute('data-jobid')).filter(Boolean);
-  if (!jobIds.length) {
-    toast('请先勾选需要归入项目的图纸');
-    return;
+  for (const c of circuits) {
+    if (c.breaker) {
+      const k = c.breaker.trim();
+      breakerMap.set(k, (breakerMap.get(k) || 0) + 1);
+    }
+    if (c.contactor) {
+      const k = c.contactor.trim();
+      contactorMap.set(k, (contactorMap.get(k) || 0) + 1);
+    }
+    if (c.ct) {
+      const k = c.ct.trim();
+      ctMap.set(k, (ctMap.get(k) || 0) + 1);
+    }
+    if (c.thermal) {
+      const k = c.thermal.trim();
+      thermalMap.set(k, (thermalMap.get(k) || 0) + 1);
+    }
   }
 
-  let targetProj = $('batchNewProject').value.trim();
-  if (!targetProj) {
-    targetProj = $('batchTargetProject').value.trim();
-  }
-  if (!targetProj) {
-    toast('请选择已有项目或输入新项目名称');
-    return;
-  }
-
-  try {
-    const res = await postJSON('/api/jobs/batch_set_project', {
-      job_ids: jobIds,
-      project: targetProj
+  for (const [spec, qty] of breakerMap) {
+    const isMccb = spec.toUpperCase().includes('MCCB') || spec.includes('塑壳') || spec.includes('3P') || spec.includes('4P');
+    out.push({
+      name: isMccb ? '塑壳断路器' : '微型断路器',
+      spec,
+      unit: '只',
+      quantity: qty,
+      where: '出线回路',
+      note: '由出线回路图提取',
+      calibrated: false
     });
-    if (!res.ok) throw new Error(res.error || '移动失败');
-    toast(`已成功将 ${res.updated} 份图纸归入工程「${targetProj}」`);
-    closeBatchProjectModal();
-    if (S.route === 'project') renderProjectPage(); else loadProjects();
-    fillProjectSelect();
-  } catch (err) {
-    toast('归入项目失败：' + err.message);
   }
-}
-
-async function quickMoveJobProject(jobId, currentProject) {
-  const target = prompt(`将图纸移动到哪个项目？当前项目：${currentProject || '未分组'}`, currentProject || '');
-  if (!target || !target.trim()) return;
-  try {
-    const res = await postJSON('/api/jobs/batch_set_project', {
-      job_ids: [jobId],
-      project: target.trim()
+  for (const [spec, qty] of contactorMap) {
+    out.push({
+      name: '交流接触器',
+      spec: spec.includes('A') ? spec : `${spec}A`,
+      unit: '只',
+      quantity: qty * 3,
+      where: '电机控制',
+      note: '由回路接触器配置提取',
+      calibrated: false
     });
-    if (!res.ok) throw new Error(res.error || '移动失败');
-    toast(`已将图纸移动到「${target.trim()}」`);
-    if (S.route === 'project') renderProjectPage(); else loadProjects();
-    fillProjectSelect();
-  } catch (err) {
-    toast('移动失败：' + err.message);
   }
+  for (const [spec, qty] of ctMap) {
+    out.push({
+      name: '电流互感器',
+      spec,
+      unit: '只',
+      quantity: qty,
+      where: '测量回路',
+      note: '由回路互感器配置提取',
+      calibrated: false
+    });
+  }
+  for (const [spec, qty] of thermalMap) {
+    out.push({
+      name: '热继电器',
+      spec,
+      unit: '只',
+      quantity: qty,
+      where: '过载保护',
+      note: '由电动机热保护提取',
+      calibrated: false
+    });
+  }
+  return out;
 }
 
-/* ===================== 上传页 ===================== */
-
-function renderQueue() {
-  const tb = $('upqueue');
-  const goto = $('up-goto-project');
-  if (goto) {
-    const doneProject = (S.queue.find(f => f.state === 'done' && f.project) || {}).project;
-    if (doneProject) {
-      goto.hidden = false;
-      goto.textContent = `进入项目「${doneProject}」查看结果 →`;
-    } else {
-      goto.hidden = true;
+function buildBoxes(data) {
+  const comps = data.components || [];
+  const circuits = data.circuits || [];
+  const counted = {};
+  return (data.boxes || []).map((b, i) => {
+    const code = b.code || `箱柜${i + 1}`;
+    const first = !counted[code];
+    counted[code] = true;
+    const cir = first ? circuits.filter((c) => c.box === code) : [];
+    const bbox = b.bbox || (cir.find((c) => c.bbox) || {}).bbox || null;
+    let parts = first ? partsForBox(code, comps) : [];
+    if (first && parts.length === 0 && cir.length > 0) {
+      parts = partsFromCircuits(code, cir);
     }
-  }
-  if (!S.queue.length) {
-    tb.innerHTML = '<tr><td colspan="4" class="mut2" style="text-align:center;padding:22px">队列为空</td></tr>';
-    return;
-  }
-  tb.innerHTML = S.queue.map((f, i) => {
-    const u = f.ai_usage;
-    const usageBadge = (u && (u.total_tokens || u.calls_count))
-      ? `<span class="pill info" style="font-size:10px;margin-left:4px" title="入:${(u.prompt_tokens||0).toLocaleString()} 出:${(u.completion_tokens||0).toLocaleString()}">📊 ${(u.total_tokens||0).toLocaleString()} tok (￥${(u.total_cost||0).toFixed(4)})</span>`
-      : '';
-    return `<tr>
-    <td class="mono">${esc(f.name)}</td><td>${fmtSize(f.size)}</td>
-    <td>${f.state === 'done'
-      ? `<span class="pill ok">提取完成</span>${usageBadge}${f.project ? `<span class="sub" style="margin-top:3px">已归入项目：${esc(f.project)}</span>` : ''}`
-      : f.state === 'failed' ? `<span class="pill bad">失败</span><span class="sub" style="color:var(--bad,#e55353);display:block;margin-top:4px;white-space:pre-wrap;line-height:1.4">${esc(f.error || '')}</span>`
-      : f.state === 'uploading' || f.state === 'extracting'
-        ? `<span class="pill info">${f.state === 'uploading' ? '上传中' : '提取中'} ${f.progress}%</span>
-           ${f.note ? `<span class="sub" style="display:block;margin-top:3px">${esc(f.note)}</span>` : ''}
-           <div class="progress"><i style="width:${f.progress}%"></i></div>`
-        : '<span class="pill">等待提取</span>'}</td>
-    <td>${f.jobId && f.state === 'done' ? `<button class="linklike" onclick="openJob('${f.jobId}')">进入工作台</button>`
-      + (f.project ? `<span style="color:var(--line2);margin:0 5px">|</span><button class="linklike" onclick="openProject(decodeURIComponent('${safeJsArg(f.project)}'))">${esc(f.project)}</button>` : '')
-      : f.state === 'failed'
-        ? `<button class="linklike" style="color:var(--acc);margin-right:10px;font-weight:600" onclick="retryQueued(${i})">重试</button><button class="linklike" onclick="removeQueued(${i})">移除</button>`
-        : `<button class="linklike" onclick="removeQueued(${i})">移除</button>`}</td></tr>`;
-  }).join('');
-}
-
-function retryQueued(i) {
-  const item = S.queue[i];
-  if (!item) return;
-  item.state = 'queued';
-  item.error = '';
-  item.progress = 0;
-  renderQueue();
-  startExtract();
-}
-
-function fmtSize(n) {
-  if (n > 1048576) return (n / 1048576).toFixed(1) + ' MB';
-  if (n > 1024) return (n / 1024).toFixed(0) + ' KB';
-  return n + ' B';
-}
-
-function addFiles(list) {
-  [...list].forEach(f => {
-    if (!/\.(pdf|dwg|dxf)$/i.test(f.name)) { toast('仅支持 PDF、DWG 或 DXF：' + f.name); return; }
-    S.queue.push({ file: f, name: f.name, size: f.size, state: 'queued', progress: 0 });
-  });
-  if (S.route !== 'upload') navGo('upload');
-  renderQueue();
-}
-
-function removeQueued(i) {
-  S.queue.splice(i, 1);
-  renderQueue();
-}
-
-async function startExtract() {
-  let pending = S.queue.filter(f => f.state === 'queued');
-  if (!pending.length) {
-    const failed = S.queue.filter(f => f.state === 'failed');
-    if (failed.length) {
-      failed.forEach(f => { f.state = 'queued'; f.error = ''; f.progress = 0; });
-      renderQueue();
-      pending = failed;
-    } else {
-      toast('队列里没有等待提取的文件');
-      return;
-    }
-  }
-  const project = $('uploadProject').value;
-  for (const item of pending) {
-    try {
-      item.state = 'uploading';
-      item.progress = 20;
-      renderQueue();
-      const fd = new FormData();
-      fd.append('file', item.file);
-      fd.append('project', project);
-      const { job_id } = await api('/api/jobs', { method: 'POST', body: fd });
-      item.jobId = job_id;
-      item.state = 'extracting';
-      item.progress = 35;
-      renderQueue();
-      await pollJob(item);
-    } catch (e) {
-      item.state = 'failed';
-      item.error = e.message;
-      renderQueue();
-    }
-  }
-  fillProjectSelect();
-  renderUploadTarget();
-  const done = S.queue.filter(f => f.state === 'done' && f.jobId);
-  if (done.length) {
-    toast('提取完成，点「进入项目」查看这批图纸');
-  }
-}
-
-async function pollJob(item) {
-  const stages = { converting: 20, rendering: 40, extracting: 60, building_excel: 90 };
-  for (let i = 0; i < 600; i++) {
-    await new Promise(r => setTimeout(r, 1500));
-    let job;
-    try {
-      job = await api(`/api/jobs/${item.jobId}`);
-    } catch (e) {
-      item.state = 'failed';
-      item.error = e.message;
-      item.note = '';
-      renderQueue();
-      return;
-    }
-    const base = stages[job.status] || 35;
-    if (!item.progress || item.progress < base) {
-      item.progress = base;
-    }
-    if (job.status === 'extracting' && typeof job.progress === 'number' && job.progress > 0) {
-      item.progress = Math.max(item.progress, job.progress);
-      item.note = job.pages > 1 ? `第 ${job.current_page || 1}/${job.pages} 页` : '正在调用视觉模型识别回路与元器件...';
-    } else if (job.status === 'converting') {
-      item.note = '正在进行 CAD 矢量转码与图纸分析...';
-    } else if (job.status === 'rendering') {
-      item.note = '正在高保真光栅化页面与图纸切片...';
-    } else if (job.status === 'building_excel') {
-      item.note = '正在生成核对 Excel 与 BOM 汇总...';
-    }
-    if (job.status === 'done') {
-      item.state = 'done';
-      item.progress = 100;
-      item.note = '';
-      item.ai_usage = job.ai_usage || job.summary?.ai_usage;
-      item.project = job.project || '';
-      renderQueue();
-      if (item.project && !S.currentProject && !$('uploadProject').value) S.currentProject = item.project;
-      renderUploadTarget();
-      toast('提取完成' + (item.project ? `，已归入「${item.project}」` : '') + '，可进入工作台核对');
-      return;
-    }
-    if (job.status === 'failed') {
-      item.state = 'failed';
-      item.error = job.error || '提取失败';
-      item.note = '';
-      renderQueue();
-      return;
-    }
-    // 当前阶段无细粒度回调时平滑爬升，但不突破该阶段上限
-    const nextStageCap = job.status === 'converting' ? 38 : (job.status === 'rendering' ? 58 : 88);
-    if (item.progress < nextStageCap) {
-      item.progress = item.progress + 1;
-    }
-    renderQueue();
-  }
-  item.state = 'failed';
-  item.error = '等待超时，请在项目页查看任务状态';
-  item.note = '';
-  renderQueue();
-}
-
-async function fillProjectSelect() {
-  const sel = $('uploadProject');
-  if (!sel) return;
-  const { projects } = await api('/api/projects');
-  const keep = sel.value;
-  sel.innerHTML = '<option value="">未分组</option>' +
-    projects.map(p => `<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('');
-  if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
-  else if (S.currentProject && [...sel.options].some(o => o.value === S.currentProject)) sel.value = S.currentProject;
-  renderUploadTarget();
-}
-
-/* ===================== 工作台：加载与渲染 ===================== */
-
-async function openJob(jobId) {
-  try {
-    const job = await api(`/api/jobs/${jobId}`);
-    S.jobId = jobId;
-    S.job = job;
-    S.data = job.data || { boxes: [], circuits: [], components: [], requirements: [], uncertainties: [] };
-    S.changes = job.changes || [];
-    if (job.project) S.currentProject = job.project;
-    snapshotOrigins();
-    S.pages = Math.max(1, job.pages || 1);
-    S.sheetNames = job.sheet_names || {};
-    S._catalogOpenedOnce = false;
-    S.page = 1;
-    S.zoom = 1;
-    S.chat = [];
-    S.reviewIdx = 0;
-    hideStart();
-    navGo('workbench');
-    renderWorkbench();
-    addMsg('ai', welcome(job));
-  } catch (e) {
-    toast('打开失败：' + e.message);
-  }
-}
-
-async function reparseJob(jobId) {
-  if (!confirm('确定要基于服务器已保存的原图纸重新执行解析与提取吗？\n（将以最新规则刷新结果，完全无需重新上传文件）')) return;
-  try {
-    toast('正在启动重新解析…');
-    const res = await api(`/api/jobs/${jobId}/reparse`, { method: 'POST' });
-    toast(res.message || '已成功启动重新解析');
-    if (S.jobId === jobId) {
-      // 保持在当前工作台，轮询最新进度
-      const pollTimer = setInterval(async () => {
-        try {
-          const j = await api(`/api/jobs/${jobId}`);
-          S.job = j;
-          renderWorkbench();
-          if (j.status === 'done') {
-            clearInterval(pollTimer);
-            openJob(jobId);
-            toast('图纸重新解析完成！');
-          } else if (j.status === 'failed') {
-            clearInterval(pollTimer);
-            toast('重新解析失败: ' + (j.error || '未知错误'));
-          }
-        } catch (_) {}
-      }, 2000);
-    } else {
-      if (S.route === 'projects') loadProjects();
-      if (S.route === 'history') loadHistory();
-    }
-  } catch (err) {
-    toast('重新解析请求失败: ' + err.message);
-  }
-}
-
-function welcome(job) {
-  const t = job.summary || {};
-  const parts = [];
-  if (t.circuits) parts.push(`${t.circuits} 条回路`);
-  if (t.components) parts.push(`${t.components} 项器件`);
-  const un = unresolved().length;
-  if (un) parts.push(`${un} 处待核对`);
-  const head = `已载入 <b>${esc(job.filename || '')}</b>${parts.length ? '：' + parts.join('、') : ''}。`;
-  return head + '可以直接问清单里的内容，例如“WL1 用的是什么断路器”“统计断路器总数”。';
-}
-
-function modelMeta(job) {
-  const m = (job.summary && job.summary.meta) || {};
-  return [m.model || '未记录', 'v' + (m.prompt_version || '-'), 'v' + (m.contract_version || '-')];
-}
-
-function updateWorkbenchCrumb() {
-  const job = S.job;
-  if (!job) return;
-  const box = (S.data.boxes || [])[0];
-  const curSheetName = (S.sheetNames && (S.sheetNames[S.page] || S.sheetNames[String(S.page)])) || '';
-  const sheetTag = curSheetName ? `<span style="background:var(--acc-t);color:var(--acc-d);padding:2px 7px;border-radius:2px;font-weight:600;margin:0 4px">${esc(curSheetName)}</span>` : '';
-  const reparseBtn = `<button class="linklike" style="margin-left:12px;font-size:11px;padding:2px 7px;border:1px solid var(--line2);border-radius:3px;background:var(--card)" onclick="reparseJob('${S.jobId}')" title="无需重新上传，以最新引擎与提取规则重新解析本图纸">🔄 重新提取</button>`;
-  const proj = job.project || '';
-  const projPart = proj
-    ? `<button class="linklike" style="font-size:11px;padding:2px 7px;border:1px solid var(--line2);border-radius:3px;background:var(--card)" onclick="openProject(decodeURIComponent('${safeJsArg(proj)}'))" title="回到项目工作区">📂 ${esc(proj)}</button>　›　`
-    : '';
-  $('crumb').innerHTML = `${projPart}<b>${esc(job.filename || '')}</b>　/　${sheetTag}${box ? esc(box.name || '配电箱') + ' ' + esc(box.code || '') : '未识别箱体'}　<span class="mut2">· 第 ${S.page}/${S.pages} 块</span>${reparseBtn}`;
-}
-
-function renderWorkbench() {
-  const job = S.job;
-  if (!job) return;
-  updateWorkbenchCrumb();
-
-  const dot = $('aistatedot'), txt = $('aistatetext'), meta = $('aistatemeta');
-  dot.className = 'dot';
-  if (job.status === 'failed') {
-    dot.classList.add('bad'); txt.textContent = '提取失败';
-    meta.textContent = job.error ? ' · ' + job.error : '';
-  } else if (job.status !== 'done') {
-    dot.classList.add('busy'); txt.textContent = '处理中…'; meta.textContent = ' · ' + job.status;
-  } else {
-    const [model, prompt, contract] = modelMeta(job);
-    txt.textContent = '提取完成';
-    meta.textContent = ` · ${model} · 契约 ${contract} · ${(job.created_at || '').replace('T', ' ').slice(5, 16)}`;
-  }
-
-  const [model, prompt, contract] = modelMeta(job);
-  const u = job.ai_usage || job.summary?.ai_usage;
-  const uPill = $('aiusagepill');
-  if (uPill) {
-    if (u && (u.total_tokens || u.calls_count || u.prompt_tokens)) {
-      uPill.hidden = false;
-      const tTok = (u.total_tokens || 0).toLocaleString();
-      const pTok = (u.prompt_tokens || 0).toLocaleString();
-      const cTok = (u.completion_tokens || 0).toLocaleString();
-      const cost = (u.total_cost || 0).toFixed(4);
-      uPill.innerHTML = `📊 ${tTok} Tok <span style="font-weight:normal;opacity:0.8">(入:${pTok} 出:${cTok})</span> · ￥${cost}`;
-      uPill.title = `点击查看 ${job.filename} 的 Token 消耗与计费流水 (${u.calls_count || 1} 次调用)`;
-    } else {
-      uPill.hidden = true;
-    }
-  }
-
-  const costStr = (u && (u.total_tokens || u.calls_count))
-    ? ` · 消耗 ${(u.total_tokens || 0).toLocaleString()} Tok · ￥${(u.total_cost || 0).toFixed(4)}`
-    : '';
-  $('verline').textContent = `模型 ${model} · 提示词 ${prompt} · 契约 ${contract}${costStr}`;
-  $('sb-left').textContent = job.created_at ? `提取于 ${job.created_at.replace('T', ' ')}` : '未打开图纸';
-  $('sb-mid').textContent = '回路是唯一可编辑来源，保存后元器件汇总按回路重新生成';
-
-  const isCad = (job.file_type === 'dwg' || job.file_type === 'dxf' ||
-                 (job.filename && /\.(dwg|dxf)$/i.test(job.filename)));
-  if ($('cadsep')) $('cadsep').hidden = !isCad;
-  if ($('vmodeGroup')) $('vmodeGroup').hidden = !isCad;
-  if ($('cadinfobtn')) $('cadinfobtn').hidden = !isCad;
-  if ($('caddownloadbtn')) {
-    $('caddownloadbtn').hidden = !isCad;
-    if (isCad) {
-      $('caddownloadbtn').href = `/api/jobs/${S.jobId}/dxf`;
-      $('caddownloadbtn').download = `${job.filename || S.jobId}.dxf`;
-    }
-  }
-
-  renderDrawing();
-  renderSheetCatalog();
-  applyAiWidth(S.aiWidth);
-  renderBoxstrip();
-  renderSeg();
-  renderSub();
-  renderReview();
-  updateChg();
-  updateBadge();
-}
-
-function toggleCadInspector() {
-  const panel = $('cadInspector');
-  if (!panel) return;
-  const isCollapsed = panel.classList.toggle('collapsed');
-  if (!isCollapsed && S.jobId) {
-    loadCadInfo();
-  }
-}
-
-async function loadCadInfo() {
-  if (!S.jobId) return;
-  try {
-    const res = await api(`/api/jobs/${S.jobId}/cad_info`);
-    if (!res.available || !res.info) {
-      $('ciEntityBadge').textContent = '未提取到矢量元数据';
-      return;
-    }
-    const info = res.info;
-    S.cadInfo = info;
-    $('ciEntityBadge').textContent = `${(info.entityCount || 0).toLocaleString()} 实体`;
-    if (info.extents) {
-      const [[x0, y0], [x1, y1]] = info.extents;
-      $('ciExtents').textContent = `[${Math.round(x0)}, ${Math.round(y0)}] ~ [${Math.round(x1)}, ${Math.round(y1)}]`;
-    }
-    if (info.counts) {
-      const pairs = Object.entries(info.counts).map(([k, v]) => `${k}: ${v}`);
-      $('ciCounts').textContent = pairs.slice(0, 4).join(', ') || '-';
-    }
-    const layers = info.layers || [];
-    S.cadLayersList = layers;
-    $('ciLayerCount').textContent = layers.length;
-    $('ciLayers').innerHTML = layers.map(l => {
-      const isVis = S.cadLayersState[l.name] !== false;
-      const colorBox = `<span style="display:inline-block;width:10px;height:10px;background:${l.color === 'White' ? '#888' : l.color};border-radius:2px;margin-right:4px;"></span>`;
-      return `<div class="ci-layer-row ${isVis ? '' : 'hidden-layer'}" data-layer="${esc(l.name)}">
-        <div style="display:flex;align-items:center;">
-          <span class="ci-layer-toggle" onclick="toggleLayer('${esc(l.name)}', event)">${isVis ? '👁️' : '🕶️'}</span>
-          <span>${colorBox}<b>${esc(l.name)}</b></span>
-        </div>
-        <span class="mut" style="font-size:11px;">${l.frozen ? '❄️' : ''} ${l.locked ? '🔒' : ''}</span>
-      </div>`;
-    }).join('');
-  } catch (e) {
-    console.error('loadCadInfo failed', e);
-  }
-}
-
-/* ===== 方案 B: 图层实时显隐开关 ===== */
-function toggleLayer(layerName, ev) {
-  if (ev) ev.stopPropagation();
-  S.cadLayersState[layerName] = S.cadLayersState[layerName] === false ? true : false;
-  updateLayersUI();
-  if (S.viewMode === 'vector') {
-    renderVectorCanvas();
-  }
-}
-
-function toggleAllLayers(visible) {
-  if (!S.cadLayersList || !S.cadLayersList.length) return;
-  S.cadLayersList.forEach(l => {
-    S.cadLayersState[l.name] = visible;
-  });
-  updateLayersUI();
-  if (S.viewMode === 'vector') {
-    renderVectorCanvas();
-  }
-  toast(visible ? '已开启全部图层' : '已隐藏全部图层');
-}
-
-function updateLayersUI() {
-  const rows = document.querySelectorAll('.ci-layer-row');
-  rows.forEach(r => {
-    const name = r.dataset.layer;
-    if (!name) return;
-    const isVisible = S.cadLayersState[name] !== false;
-    r.classList.toggle('hidden-layer', !isVisible);
-    const icon = r.querySelector('.ci-layer-toggle');
-    if (icon) icon.textContent = isVisible ? '👁️' : '🕶️';
+    return {
+      key: `${i}`,
+      code,
+      name: b.name || '配电柜',
+      raw: b,
+      bbox,
+      circuits: cir,
+      parts,
+    };
   });
 }
 
-/* ===== 方案 A: 实体搜索与 Handle 毫米坐标定位 ===== */
-async function doCadSearch() {
-  const input = $('ciSearchInput');
-  const kw = (input ? input.value : '').trim();
-  if (!kw) return;
-  const box = $('ciResults');
-  box.innerHTML = '<span class="mut">正在 CAD 矢量数据库检索 Handle…</span>';
-  try {
-    const res = await api(`/api/jobs/${S.jobId}/cad_find?q=${encodeURIComponent(kw)}`);
-    const matches = res.matches || [];
-    if (!matches.length) {
-      box.innerHTML = `<span class="mut">未找到与「${esc(kw)}」匹配的实体</span>`;
-      return;
-    }
-    box.innerHTML = matches.slice(0, 15).map(m => `
-      <div class="ci-result-item" title="句柄 Handle: ${esc(m.handle)} (点击立即在图面定位)" onclick="locateCadHandle('${esc(m.handle)}', '${esc(m.type)}')">
-        <span><b>${esc(m.type || 'Entity')}</b> #${esc(m.handle)}</span>
-        <span class="mut" style="color:var(--acc-d);">${m.count || 1} 处命中 🎯 点击定位</span>
-      </div>
-    `).join('') + (matches.length > 15 ? `<div class="mut" style="font-size:11px;text-align:center;">还有 ${matches.length - 15} 处匹配…</div>` : '');
-  } catch (e) {
-    box.innerHTML = `<span class="warn">搜索失败: ${esc(e.message)}</span>`;
-  }
-}
-
-async function locateCadHandle(handle, fallbackLabel = '') {
-  if (!S.jobId || !handle) return;
-  try {
-    toast(`正在查询 CAD 图元 #${handle} 绝对空间坐标…`);
-    const res = await api(`/api/jobs/${S.jobId}/cad_inspect?handle=${encodeURIComponent(handle)}`);
-    if (!res.available || !res.data) {
-      toast(`未能定位句柄 #${handle} 的空间信息`);
-      return;
-    }
-    const d = res.data;
-    
-    // 如果在纯矢量模式，平移并缩放到该实体
-    if (S.viewMode === 'vector' && d.coords) {
-      const [cx, cy] = d.coords;
-      const canvas = $('vectorCanvas');
-      if (canvas) {
-        const w = canvas.clientWidth || 800;
-        const h = canvas.clientHeight || 600;
-        S.vectorState.panX = w / 2 - cx * S.vectorState.zoom;
-        S.vectorState.panY = h / 2 + cy * S.vectorState.zoom;
-        renderVectorCanvas();
-      }
-    }
-
-    const overlay = $('cadOverlay');
-    if (!overlay) return;
-    overlay.innerHTML = '';
-
-    const stage = $('stage');
-    const dwg = $('dwg');
-    if (!stage || !dwg) return;
-
-    const box = document.createElement('div');
-    box.className = 'cad-locator-box';
-
-    let left = stage.clientWidth * 0.45;
-    let top = stage.clientHeight * 0.45;
-    let w = 220, h = 80;
-
-    if (d.coords && S.cadInfo && S.cadInfo.extents) {
-      const [[minX, minY], [maxX, maxY]] = S.cadInfo.extents;
-      const rangeX = maxX - minX || 1;
-      const rangeY = maxY - minY || 1;
-      const normX = (d.coords[0] - minX) / rangeX;
-      const normY = 1 - (d.coords[1] - minY) / rangeY;
-      if (normX >= 0 && normX <= 1 && normY >= 0 && normY <= 1) {
-        left = normX * dwg.clientWidth - w / 2;
-        top = normY * dwg.clientHeight - h / 2;
-      }
-    }
-
-    box.style.left = `${Math.max(10, Math.round(left))}px`;
-    box.style.top = `${Math.max(10, Math.round(top))}px`;
-    box.style.width = `${w}px`;
-    box.style.height = `${h}px`;
-
-    const tag = document.createElement('div');
-    tag.className = 'cad-locator-tag';
-    const titleTxt = esc(d.text || fallbackLabel || d.type || 'CAD 实体');
-    tag.innerHTML = `
-      <span>📐 #${esc(handle)} [${esc(d.layer || '0')}] ${titleTxt}</span>
-      <button onclick="previewCadSlice('${esc(handle)}')">🔍 毫米切片</button>
-      <button onclick="this.parentElement.parentElement.remove()">✕</button>
-    `;
-    box.appendChild(tag);
-    overlay.appendChild(box);
-
-    const canvasParent = stage.parentElement;
-    if (canvasParent) {
-      canvasParent.scrollTo({
-        left: Math.max(0, left - canvasParent.clientWidth / 2 + w / 2),
-        top: Math.max(0, top - canvasParent.clientHeight / 2 + h / 2),
-        behavior: 'smooth'
-      });
-    }
-    toast(`已成功定位 CAD 图元 #${handle} (图层: ${d.layer || '0'})`);
-  } catch (e) {
-    toast(`定位失败: ${e.message}`);
-  }
-}
-
-async function previewCadSlice(handle) {
-  try {
-    toast('正在通过 CADCraft 渲染毫米级局部矢量切片…');
-    const res = await api(`/api/jobs/${S.jobId}/cad_inspect?handle=${encodeURIComponent(handle)}`);
-    if (!res.available || !res.data || !res.data.coords) {
-      toast('未能获取该实体的毫米空间坐标');
-      return;
-    }
-    const [cx, cy] = res.data.coords;
-    const dynamicPad = Math.min(Math.max(800, (res.data.height || 200) * 4), 3000);
-    const sliceUrl = `/api/jobs/${S.jobId}/cad_slice?x0=${cx - dynamicPad}&y0=${cy - dynamicPad}&x1=${cx + dynamicPad}&y1=${cy + dynamicPad}`;
-
-    const modal = document.createElement('div');
-    modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-    modal.innerHTML = `
-      <div style="background:#1C1D22;border:1px solid #00F0FF;border-radius:6px;max-width:85vw;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.6);overflow:hidden;">
-        <div style="padding:10px 14px;background:#24262E;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333;color:#fff;">
-          <b>📐 CADCraft 原生局部毫米切片 · #${esc(handle)} [图层: ${esc(res.data.layer || '')}]</b>
-          <button style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;" onclick="this.closest('[style*=fixed]').remove()">✕</button>
-        </div>
-        <div style="padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#141518;overflow:auto;">
-          <img src="${sliceUrl}" alt="CAD 切片" style="max-width:100%;max-height:68vh;border-radius:4px;box-shadow:0 2px 12px rgba(0,0,0,0.5);" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'color:#ff8888;padding:20px;\\'>CADCraft 切片生成中或该区域无可渲染图元</span>';">
-          <div style="color:#9CA3AF;font-size:11px;font-family:monospace;margin-top:8px;">空间毫米窗口: [${Math.round(cx - pad)}, ${Math.round(cy - pad)}] ~ [${Math.round(cx + pad)}, ${Math.round(cy + pad)}]</div>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-  } catch (e) {
-    toast('切片加载失败: ' + e.message);
-  }
-}
-
-/* ===== 方案 C: 纯矢量 CAD 画布模式切换与交互引擎 ===== */
-function setViewMode(mode) {
-  S.viewMode = mode;
-  if ($('btnViewRaster')) {
-    $('btnViewRaster').classList.toggle('active', mode === 'raster');
-    $('btnViewRaster').classList.toggle('ghost', mode !== 'raster');
-  }
-  if ($('btnViewVector')) {
-    $('btnViewVector').classList.toggle('active', mode === 'vector');
-    $('btnViewVector').classList.toggle('ghost', mode !== 'vector');
-  }
-
-  const vCanvas = $('vectorCanvas');
-  const vHud = $('vectorHud');
-  const dwg = $('dwg');
-  const zones = $('zones');
-  const hlbox = $('hlbox');
-  const overlay = $('cadOverlay');
-
-  if (mode === 'vector') {
-    if (dwg) dwg.hidden = true;
-    if (zones) zones.hidden = true;
-    if (hlbox) hlbox.hidden = true;
-    if (overlay) overlay.hidden = true;
-    if (vCanvas) vCanvas.hidden = false;
-    if (vHud) vHud.hidden = false;
-    loadAndInitVectorCanvas();
-    toast('已切入 📐 纯矢量 CAD 交互视口（支持无极无损缩放与实时图层控制）');
-  } else {
-    if (dwg) dwg.hidden = false;
-    if (zones) zones.hidden = false;
-    if (hlbox) hlbox.hidden = false;
-    if (overlay) overlay.hidden = false;
-    if (vCanvas) vCanvas.hidden = true;
-    if (vHud) vHud.hidden = true;
-  }
-}
-
-async function loadAndInitVectorCanvas() {
-  const canvas = $('vectorCanvas');
-  if (!canvas) return;
-  if (!S.cadVectors && S.jobId) {
-    toast('正在加载 CAD 空间矢量几何流…');
-    try {
-      const res = await api(`/api/jobs/${S.jobId}/cad_vectors`);
-      if (res.available && res.vectors) {
-        S.cadVectors = res.vectors;
-        initVectorStateFromExtents();
-      }
-    } catch (e) {
-      toast('矢量数据加载失败: ' + e.message);
-    }
-  }
-  bindVectorCanvasEvents();
-  resizeVectorCanvas();
-  renderVectorCanvas();
-}
-
-function initVectorStateFromExtents() {
-  if (!S.cadVectors || !S.cadVectors.extents) return;
-  const canvas = $('vectorCanvas');
-  const w = canvas.clientWidth || 800;
-  const h = canvas.clientHeight || 600;
-  const [[minX, minY], [maxX, maxY]] = S.cadVectors.extents;
-  const dw = maxX - minX || 1;
-  const dh = maxY - minY || 1;
-  const scale = Math.min(w / dw, h / dh) * 0.9;
-  S.vectorState.zoom = scale;
-  S.vectorState.panX = w / 2 - ((minX + maxX) / 2) * scale;
-  S.vectorState.panY = h / 2 + ((minY + maxY) / 2) * scale;
-}
-
-function resizeVectorCanvas() {
-  const canvas = $('vectorCanvas');
-  if (!canvas) return;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * (window.devicePixelRatio || 1);
-  canvas.height = rect.height * (window.devicePixelRatio || 1);
-}
-
-function bindVectorCanvasEvents() {
-  const canvas = $('vectorCanvas');
-  if (!canvas || canvas._bound) return;
-  canvas._bound = true;
-
-  window.addEventListener('resize', () => {
-    if (S.viewMode === 'vector') {
-      resizeVectorCanvas();
-      renderVectorCanvas();
-    }
-  });
-
-  canvas.addEventListener('mousedown', (e) => {
-    S.vectorState.isDragging = true;
-    S.vectorState.startX = e.clientX;
-    S.vectorState.startY = e.clientY;
-    canvas.classList.add('panning');
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (S.vectorState.isDragging) {
-      const dx = e.clientX - S.vectorState.startX;
-      const dy = e.clientY - S.vectorState.startY;
-      S.vectorState.panX += dx;
-      S.vectorState.panY += dy;
-      S.vectorState.startX = e.clientX;
-      S.vectorState.startY = e.clientY;
-      renderVectorCanvas();
-    } else if (S.viewMode === 'vector') {
-      updateVectorHud(e);
-    }
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (S.vectorState.isDragging) {
-      S.vectorState.isDragging = false;
-      canvas.classList.remove('panning');
-    }
-  });
-
-  canvas.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const factor = e.deltaY < 0 ? 1.15 : 0.85;
-    const newZoom = Math.min(Math.max(S.vectorState.zoom * factor, 0.000001), 100);
-
-    S.vectorState.panX = mouseX - (mouseX - S.vectorState.panX) * (newZoom / S.vectorState.zoom);
-    S.vectorState.panY = mouseY - (mouseY - S.vectorState.panY) * (newZoom / S.vectorState.zoom);
-    S.vectorState.zoom = newZoom;
-
-    const zoomEl = $('vhZoom');
-    if (zoomEl) zoomEl.textContent = `${Math.round(S.vectorState.zoom * 1000)}%`;
-    renderVectorCanvas();
-  }, { passive: false });
-}
-
-function updateVectorHud(e) {
-  const canvas = $('vectorCanvas');
-  if (!canvas) return;
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-
-  const cadX = Math.round((mx - S.vectorState.panX) / S.vectorState.zoom);
-  const cadY = Math.round((S.vectorState.panY - my) / S.vectorState.zoom);
-
-  const coordsEl = $('vhCoords');
-  if (coordsEl) coordsEl.textContent = `X: ${cadX.toLocaleString()} Y: ${cadY.toLocaleString()}`;
-}
+/* ================= ③ 扒图工作台 (Blueprint Extraction & Inspection) ================= */
 
 const CAD_ACI_COLORS = {
   1: '#FF0000', 2: '#FFFF00', 3: '#00FF00', 4: '#00FFFF',
   5: '#0000FF', 6: '#FF00FF', 7: '#FFFFFF', 8: '#808080', 9: '#C0C0C0'
 };
 
-function renderVectorCanvas() {
-  const canvas = $('vectorCanvas');
-  if (!canvas || !S.cadVectors) return;
-  const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio || 1;
+const ExtractWorkbench = {
+  id: '',
+  job: null,
+  boxes: [],
+  selKey: '',
+  selRowIdx: 0,
+  filter: 'all', // 'all' | 'unverified' | 'doubt'
+  sheetTab: 'components', // 'components' | 'circuits' | 'pending' | 'changes'
+  verifiedBoxes: new Set(),
+  changeLogs: [],
+  page: 1,
+  pages: 1,
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+  isPanning: false,
+  cadCollapsed: false,
+  timer: 0,
+  // 原生 DWG 矢量 CAD 交互引擎状态
+  viewMode: 'vector', // 'vector' | 'raster'
+  cadVectors: null,
+  vectorState: { zoom: 0.001, panX: 0, panY: 0, isDragging: false, startX: 0, startY: 0 },
+  cadLayersState: {},
+  activeVectorTarget: null,
+  eventsBound: false,
+  resizersBound: false,
 
-  ctx.save();
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  stopPoll() { clearTimeout(this.timer); },
 
-  ctx.fillStyle = '#141518';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.scale(dpr, dpr);
-  ctx.translate(S.vectorState.panX, S.vectorState.panY);
-  ctx.scale(S.vectorState.zoom, -S.vectorState.zoom);
-
-  const layers = S.cadVectors.layers || [];
-  const layerColors = layers.map(l => {
-    if (typeof l.color === 'string') return l.color === 'White' ? '#FFFFFF' : l.color;
-    return CAD_ACI_COLORS[l.color] || '#A0AEC0';
-  });
-
-  const isLayerVisible = (lIdx) => {
-    const l = layers[lIdx];
-    if (!l) return true;
-    return S.cadLayersState[l.name] !== false;
-  };
-
-  const lines = S.cadVectors.lines || [];
-  for (let i = 0; i < lines.length; i++) {
-    const [x1, y1, x2, y2, lIdx] = lines[i];
-    if (!isLayerVisible(lIdx)) continue;
-    ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
-    ctx.lineWidth = 1 / S.vectorState.zoom;
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-  }
-
-  const polylines = S.cadVectors.polylines || [];
-  for (let i = 0; i < polylines.length; i++) {
-    const [pts, lIdx] = polylines[i];
-    if (!isLayerVisible(lIdx) || pts.length < 2) continue;
-    ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
-    ctx.lineWidth = 1 / S.vectorState.zoom;
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let j = 1; j < pts.length; j++) {
-      ctx.lineTo(pts[j][0], pts[j][1]);
+  async saveJobData(reason = "用户核对修改") {
+    if (!this.job || !this.id) return;
+    try {
+      const allComps = [];
+      this.boxes.forEach(b => {
+        (b.parts || []).forEach(p => {
+          allComps.push({
+            name: p.name,
+            spec: p.spec,
+            unit: p.unit || '只',
+            quantity: Number(p.quantity) || 1,
+            used_in: b.code,
+            where: p.where || '主回路',
+            note: p.note || ''
+          });
+        });
+      });
+      const payload = {
+        boxes: this.boxes.map(b => b.raw || { code: b.code, name: b.name }),
+        circuits: (this.job.data && this.job.data.circuits) || [],
+        components: allComps.length > 0 ? allComps : ((this.job.data && this.job.data.components) || []),
+        requirements: (this.job.data && this.job.data.requirements) || [],
+        uncertainties: (this.job.data && this.job.data.uncertainties) || [],
+        changes: this.changeLogs || [],
+        reason
+      };
+      await api(`/api/jobs/${this.id}/data`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.warn('saveJobData failed:', e);
     }
-    ctx.stroke();
-  }
+  },
 
-  const circles = S.cadVectors.circles || [];
-  for (let i = 0; i < circles.length; i++) {
-    const [cx, cy, r, lIdx] = circles[i];
-    if (!isLayerVisible(lIdx) || r <= 0) continue;
-    ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
-    ctx.lineWidth = 1 / S.vectorState.zoom;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.stroke();
-  }
+  async open(id) {
+    this.stopPoll();
+    if ($('globalHeader')) $('globalHeader').hidden = true;
+    $('viewList').hidden = true;
+    $('viewPricing').hidden = true;
+    $('viewExtract').hidden = false;
+    this.id = id;
 
-  const texts = S.cadVectors.texts || [];
-  for (let i = 0; i < texts.length; i++) {
-    const [x, y, txt, height, lIdx] = texts[i];
-    if (!isLayerVisible(lIdx)) continue;
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(1, -1);
-    ctx.fillStyle = layerColors[lIdx] || '#FFFFFF';
-    ctx.font = `${Math.max(12, height)}px "PingFang SC", "Microsoft YaHei", "SimHei", -apple-system, sans-serif`;
-    ctx.fillText(txt, 0, 0);
-    ctx.restore();
-  }
-
-  ctx.restore();
-}
-
-function renderDrawing() {
-  const img = $('dwg');
-  const zones = $('zones');
-  $('canvasEmpty').hidden = true;
-  $('stage').hidden = false;
-  img.src = `/api/jobs/${S.jobId}/page/${S.page}`;
-  $('ppct').textContent = `${S.page}/${S.pages}`;
-  $('prevpage').disabled = S.page <= 1;
-  $('nextpage').disabled = S.page >= S.pages;
-  applyZoom();
-
-  const located = (S.data.circuits || []).filter(c => c.bbox && c.bbox.w >= 0.01 && c.bbox.h >= 0.01);
-  zones.innerHTML = located.map(c => {
-    const r = c.bbox;
-    const i = (S.data.circuits || []).indexOf(c);
-    return `<div class="clickzone" data-cid="c${i}"
-      style="left:${r.x * 100}%;top:${r.y * 100}%;width:${r.w * 100}%;height:${r.h * 100}%"
-      onclick="selectCircuit('c${i}',false)" title="${esc(circuitLabel(c) + ' ' + (c.breaker || ''))}"></div>`;
-  }).join('');
-
-  const btn = $('linkbtn');
-  btn.classList.toggle('on', S.link);
-  if (!located.length) {
-    btn.disabled = true;
-    btn.title = '这份提取结果没有回路坐标，无法在图纸上定位';
-    $('sb-mid').textContent = '该图纸未取得回路坐标，只做表格核对（数据不受影响）';
-  } else {
-    btn.disabled = false;
-    btn.title = `点表格行在图纸上定位（${located.length} 条回路有坐标）`;
-    $('sb-mid').textContent = '保存后元器件汇总按回路重新生成';
-  }
-}
-
-function onDrawingError() {
-  $('stage').hidden = true;
-  $('canvasEmpty').hidden = false;
-  $('canvasEmpty').innerHTML = '图纸页面图还没生成<br><span class="mut2">稍后再试，或回项目页查看任务状态</span>';
-}
-
-function applyZoom() {
-  const stage = $('stage');
-  if (!stage) return;
-  stage.style.transform = `translate(${S.panX || 0}px, ${S.panY || 0}px) scale(${S.zoom})`;
-  stage.style.transformOrigin = 'center';
-  $('zpct').textContent = S.zoom === 1 ? '适应' : Math.round(S.zoom * 100) + '%';
-}
-
-function zoom(d) {
-  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
-  S.zoom = Math.min(3, Math.max(0.5, S.zoom + d * 0.25));
-  applyZoom();
-}
-
-function fitView() {
-  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
-  S.zoom = 1;
-  S.panX = 0;
-  S.panY = 0;
-  applyZoom();
-}
-
-function setPage(n) {
-  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
-  S.page = Math.min(Math.max(1, n), S.pages);
-  renderDrawing();
-  updateWorkbenchCrumb();
-  updateSheetCatalogActive();
-}
-
-function toggleSheetCatalog(force) {
-  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
-  const cat = $('sheetCatalog');
-  const btn = $('sheetCatalogTabBtn');
-  if (!cat) return;
-  const isCollapsed = cat.classList.contains('collapsed');
-  const next = force !== undefined ? !force : isCollapsed;
-  cat.classList.toggle('collapsed', !next);
-  if (btn) btn.style.display = next ? 'none' : 'inline-flex';
-}
-
-function updateSheetCatalogActive() {
-  document.querySelectorAll('.sheet-item').forEach(el => {
-    const p = parseInt(el.dataset.page, 10);
-    el.classList.toggle('active', p === S.page);
-    if (p === S.page) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    let job;
+    try {
+      job = await api(`/api/jobs/${id}`);
+    } catch (e) {
+      toast(`加载图纸失败：${e.message}`);
+      return;
     }
-  });
-}
+    this.job = job;
+    document.title = `${job.filename || '图纸'} · 电气拆量核对`;
+    $('extFilename').textContent = job.filename || '未命名图纸';
+    $('extBadge').textContent = (job.file_type || String(job.filename).split('.').pop() || 'CAD').toUpperCase();
 
-function renderSheetCatalog() {
-  const list = $('sheetCatalogList');
-  if (!list) return;
-  const countSpan = $('sheetCount');
-  const badgeSpan = $('scTotalBadge');
-  if (countSpan) countSpan.textContent = S.pages;
-  if (badgeSpan) badgeSpan.textContent = `共 ${S.pages} 块`;
+    // 绑定进入组价与直接组价
+    $('extGoPricingBtn').onclick = () => { location.hash = `#/job/${this.id}/pricing`; };
+    $('extMainPriceBtn').onclick = () => { location.hash = `#/job/${this.id}/pricing`; };
+    $('extExportBomBtn').onclick = () => { window.location.href = withToken(`/api/jobs/${id}/excel?stage=takeoff`); };
+    if ($('btnExport')) $('btnExport').href = withToken(`/api/jobs/${id}/excel`);
 
-  const cat = $('sheetCatalog');
-  if (cat && S.pages > 1 && !S._catalogOpenedOnce) {
-    cat.classList.remove('collapsed');
-    const tabBtn = $('sheetCatalogTabBtn');
-    if (tabBtn) tabBtn.style.display = 'none';
-    S._catalogOpenedOnce = true;
-  }
-
-  const circuits = S.data.circuits || [];
-  const boxes = S.data.boxes || [];
-
-  let html = '';
-  for (let p = 1; p <= S.pages; p++) {
-    const sheetName = (S.sheetNames && (S.sheetNames[p] || S.sheetNames[String(p)])) || `切图图块 ${p}`;
-    const pageCircuits = circuits.filter(c => ((c.bbox && c.bbox.page) || 1) === p);
-    const pageBoxes = [...new Set(pageCircuits.map(c => c.box).filter(Boolean))];
-    const boxLabel = pageBoxes.length ? pageBoxes.join(' / ') : (boxes[0] ? boxes[0].code : '箱体');
-    const circuitSamples = pageCircuits.slice(0, 3).map(c => c.circuit_no || c.load_name).filter(Boolean).join('、');
-
-    html += `
-      <div class="sheet-item ${p === S.page ? 'active' : ''}" data-page="${p}" onclick="setPage(${p})">
-        <div class="si-top">
-          <div class="si-thumb">
-            <img src="/api/jobs/${S.jobId}/page/${p}" alt="图块 ${p}" loading="lazy" onerror="this.style.display='none'">
-          </div>
-          <div class="si-info">
-            <div class="si-title-row">
-              <span class="si-title" id="sheet-title-${p}" title="${esc(sheetName)}">${esc(sheetName)}</span>
-              <button class="si-rename-btn" onclick="editSheetName(event, ${p})" title="自定义重命名图块">✏️</button>
-            </div>
-            <div class="si-meta">
-              <span class="si-tag mono">#${p}</span>
-              <span class="si-tag">${esc(boxLabel)}</span>
-              <span>${pageCircuits.length} 条回路</span>
-            </div>
-          </div>
-        </div>
-        <div class="si-actions">
-          <span class="si-circuits-hint" title="${esc(circuitSamples || '回路列表')}">${circuitSamples ? '包含: ' + esc(circuitSamples) : '暂无回路标注'}</span>
-          <button class="si-zoom-btn" onclick="zoomSheet(event, ${p})" title="切换至此图并放大至 175% 细节查看">🔍 放大查看</button>
-        </div>
-      </div>
-    `;
-  }
-  list.innerHTML = html;
-}
-
-function filterSheetCatalog() {
-  const query = ($('sheetSearchInput')?.value || '').trim().toLowerCase();
-  document.querySelectorAll('.sheet-item').forEach(el => {
-    const text = el.textContent.toLowerCase();
-    el.style.display = (!query || text.includes(query)) ? '' : 'none';
-  });
-}
-
-async function editSheetName(evt, page) {
-  if (evt) evt.stopPropagation();
-  const currentName = (S.sheetNames && (S.sheetNames[page] || S.sheetNames[String(page)])) || `切图图块 ${page}`;
-  const newName = prompt(`请输入第 ${page} 块切图的自定义名称：`, currentName);
-  if (!newName || !newName.trim() || newName.trim() === currentName) return;
-
-  try {
-    const res = await postJSON(`/api/jobs/${S.jobId}/rename_sheet`, {
-      page: page,
-      name: newName.trim(),
-    });
-    if (res.ok) {
-      if (!S.sheetNames) S.sheetNames = {};
-      S.sheetNames[String(page)] = newName.trim();
-      S.sheetNames[page] = newName.trim();
-      if (S.job) S.job.sheet_names = S.sheetNames;
-      const titleEl = document.getElementById(`sheet-title-${page}`);
-      if (titleEl) {
-        titleEl.textContent = newName.trim();
-        titleEl.title = newName.trim();
-      }
-      updateWorkbenchCrumb();
-      toast(`切图 #${page} 已重命名为：${newName.trim()}`);
-    }
-  } catch (err) {
-    toast('重命名失败: ' + err.message);
-  }
-}
-
-function zoomSheet(evt, page) {
-  if (evt) evt.stopPropagation();
-  setPage(page);
-  S.zoom = 1.75;
-  applyZoom();
-  toast(`已切换至图块 #${page} 并放大至 175%`);
-}
-
-function toggleLink() {
-  if ($('linkbtn').disabled) return;
-  S.link = !S.link;
-  $('linkbtn').classList.toggle('on', S.link);
-  if (!S.link) { $('hlbox').innerHTML = ''; document.querySelectorAll('#tb tr.sel').forEach(t => t.classList.remove('sel')); }
-  toast(S.link ? '图-表联动已开启' : '图-表联动已关闭');
-}
-
-/* 多条备用回路没有编号，名称会重复，因此界面上一律用数组下标当身份，
-   显示才用 circuitLabel。下标在保存前后稳定：组装是稳定排序，顺序不会变。 */
-const circuitLabel = c => c.circuit_no || c.load_name || '(未编号)';
-
-function renderBoxstrip() {
-  const box = (S.data.boxes || [])[0];
-  const el = $('boxstrip');
-  if (!box) { el.hidden = true; return; }
-  el.hidden = false;
-  const note = /深化/.test(box.size || '') || /深化/.test(box.note || '');
-
-  // 实时三相负荷与平衡度核验
-  const circuits = S.data.circuits || [];
-  let pL1 = 0, pL2 = 0, pL3 = 0, hasLoads = false;
-  circuits.forEach(c => {
-    const p = (c.phase || '').toUpperCase().trim();
-    const kw = parseFloat(c.power_kw) || 0;
-    if (kw > 0) {
-      if (p === 'L1') { pL1 += kw; hasLoads = true; }
-      else if (p === 'L2') { pL2 += kw; hasLoads = true; }
-      else if (p === 'L3') { pL3 += kw; hasLoads = true; }
-      else if (['L123', '3P', '3PH', 'L1,L2,L3'].includes(p)) {
-        pL1 += kw / 3; pL2 += kw / 3; pL3 += kw / 3; hasLoads = true;
-      }
-    }
-  });
-
-  let balanceHtml = '';
-  if (hasLoads) {
-    const maxP = Math.max(pL1, pL2, pL3);
-    const minP = Math.min(pL1, pL2, pL3);
-    if (maxP > 1.0 && pL1 > 0 && pL2 > 0 && pL3 > 0) {
-      const unbalance = ((maxP - minP) / maxP) * 100;
-      const isBad = unbalance > 15.0;
-      balanceHtml = `<span class="bs-pill ${isBad ? 'warn' : 'ok'}" title="三相负荷平衡度：国标要求相间不平衡度 ≤15%">三相平衡度: ${unbalance.toFixed(1)}% ${isBad ? '⚠ 偏载' : '✓ 均衡'} (L1:${pL1.toFixed(1)} / L2:${pL2.toFixed(1)} / L3:${pL3.toFixed(1)} kW)</span>`;
-    } else {
-      balanceHtml = `<span class="bs-pill ok">三相负荷: L1:${pL1.toFixed(1)} / L2:${pL2.toFixed(1)} / L3:${pL3.toFixed(1)} kW</span>`;
-    }
-  }
-
-  el.innerHTML = `<div class="bs-h">
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
-        <span>箱体 · ${esc(box.code || '')}</span>
-        ${balanceHtml}
-      </div>
-      ${note ? '<span class="bs-warn">参考尺寸以厂家深化为准</span>' : ''}</div>
-    <dl>
-      <div><dt>设备名称</dt><dd>${esc(box.name || '—')}</dd></div>
-      <div><dt>防护等级</dt><dd>${esc(box.ip_rating || '—')}</dd></div>
-      <div><dt>参考尺寸</dt><dd class="mono">${esc(box.size || '—')}</dd></div>
-      <div><dt>安装方式</dt><dd>${esc(box.install || '—')}</dd></div>
-      <div><dt>安装位置</dt><dd>${esc(box.location || '—')}</dd></div>
-      <div><dt>数量</dt><dd><b>${box.quantity ?? 1}</b> 台</dd></div>
-    </dl>`;
-}
-
-const SUBS = [
-  ['boxes', '箱体', () => (S.data.boxes || []).length],
-  ['circuits', '回路', () => (S.data.circuits || []).length],
-  ['devices', '器件', () => (S.data.components || []).length],
-  ['replace', '降本平替', () => (S.data.components || []).length],
-  ['reqs', '技术要求', () => (S.data.requirements || []).length],
-];
-
-function renderSeg() {
-  $('seg').innerHTML = SUBS.map(([k, label, count]) =>
-    `<button data-t="${k}" class="${S.sub === k ? 'active' : ''}" onclick="renderSub('${k}')">${label}<span class="n">${count()}</span></button>`).join('');
-}
-
-const EDITABLE_CIRCUIT = ['phase', 'breaker', 'cable', 'power_kw', 'load_name'];
-const EDITABLE_BOX = ['name', 'ip_rating', 'install', 'location', 'size', 'quantity', 'note'];
-const EDITABLE_DEVICE = ['name', 'spec', 'unit', 'quantity', 'used_in', 'note'];
-
-/** 可编辑的三类事实。回路之外，箱体和非回路设备（SPD / 电表 / 铜排）也必须能人工补录，
- *  否则模型漏一项就只能在 Excel 里改，核对闭环是断的。 */
-const EDIT_SETS = {
-  circuit: { list: () => S.data.circuits || [], orig: () => S.origCircuits, fields: EDITABLE_CIRCUIT,
-             label: i => circuitLabel((S.data.circuits || [])[i] || {}) },
-  box: { list: () => S.data.boxes || [], orig: () => S.origBoxes, fields: EDITABLE_BOX,
-         label: i => ((S.data.boxes || [])[i] || {}).code || `箱体 ${i + 1}` },
-  device: { list: () => S.data.extra_devices || [], orig: () => S.origExtras, fields: EDITABLE_DEVICE,
-            label: i => (((S.data.extra_devices || [])[i]) || {}).name || `设备 ${i + 1}` },
-};
-
-const keyOfScope = {
-  // 回路不能拿编号当身份：多条备用回路没有编号，只能按位置比对
-  circuit: null,
-  box: b => b.code,
-  device: d => `${d.name}|${d.spec || ''}`,
-};
-
-/** 取出某行对应的原值行。
- *  箱体与设备用 identity 对，不能只按位置：删掉一条后后面的索引会整体前移，
- *  基于位置的比对会把两条不同设备比在一起，生成一堆假修改记录。 */
-function origRow(scope, i) {
-  const set = EDIT_SETS[scope];
-  if (!set) return undefined;
-  const orig = set.orig();
-  const keyOf = keyOfScope[scope];
-  const row = set.list()[i];
-  if (!keyOf || !row) return orig[i];
-  const byIndex = orig[i];
-  if (byIndex && keyOf(byIndex) === keyOf(row)) return byIndex;
-  return orig.find(o => keyOf(o) === keyOf(row));
-}
-
-function scopeChanged(scope, i, field) {
-  const set = EDIT_SETS[scope];
-  if (!set) return false;
-  const before = (origRow(scope, i) || {})[field];
-  const now = (set.list()[i] || {})[field];
-  return String(before ?? '') !== String(now ?? '');
-}
-
-function editableCell(scope, i, field, inner, mono) {
-  const changed = scopeChanged(scope, i, field);
-  const before = (origRow(scope, i) || {})[field];
-  const title = changed ? '已修改，原值：' + esc(before) : '双击编辑';
-  const cls = `ed${mono ? ' mono' : ''}${changed ? ' changed' : ''}`;
-  return `<td class="${cls}" data-scope="${scope}" data-idx="${i}" data-f="${field}" title="${title}">${inner}</td>`;
-}
-
-function bindCells() {
-  document.querySelectorAll('td.ed').forEach(td => {
-    td.ondblclick = e => { e.stopPropagation(); startEdit(td); };
-  });
-}
-
-function renderSub(sub) {
-  if (sub) S.sub = sub;
-  renderSeg();
-  const th = $('th'), tb = $('tb');
-  const d = S.data;
-
-  if (S.sub !== 'boxes') {
-    const ew = $('extraswrap');
-    if (ew) ew.hidden = true;
-  }
-
-  if (S.sub === 'boxes') {
-    th.innerHTML = '<tr><th>#</th><th>设备编号</th><th>设备名称</th><th>防护/安装</th><th>参考尺寸</th><th>数量</th></tr>';
-    tb.innerHTML = (d.boxes || []).map((b, i) => `<tr><td>${i + 1}</td>
-      <td class="mono"><b>${esc(b.code || '')}</b></td>
-      ${editableCell('box', i, 'name', esc(b.name || '—'))}
-      ${editableCell('box', i, 'ip_rating', `${esc(b.ip_rating || '—')}<span class="sub">${esc(b.install || '')}</span>`)}
-      ${editableCell('box', i, 'size', `<span class="mono">${esc(b.size || '—')}</span>`, true)}
-      ${editableCell('box', i, 'quantity', `<b>${b.quantity ?? 1}</b> 台`)}</tr>`).join('')
-      || emptyRow(6, '没有识别到箱体信息');
-    bindCells();
-    renderExtrasTable();
-    renderListFoot();
-    return;
-  }
-
-  if (S.sub === 'circuits') {
-    th.innerHTML = '<tr><th>#</th><th>回路</th><th>相序</th><th>断路器</th><th>导线</th><th>容量/用途</th></tr>';
-    tb.innerHTML = (d.circuits || []).map((c, i) => {
-      const cid = 'c' + i;
-      return `<tr class="clickable" data-cid="${cid}" onclick="selectCircuit('${cid}',true)">
-        <td>${i + 1}</td><td><b>${esc(circuitLabel(c))}</b></td>
-        ${editableCell('circuit', i, 'phase', esc(c.phase || '—'))}
-        ${editableCell('circuit', i, 'breaker', `<span class="mono">${esc(c.breaker || '—')}</span>`, true)}
-        ${editableCell('circuit', i, 'cable', `<span class="mono">${esc(c.cable || '—')}</span>`, true)}
-        ${editableCell('circuit', i, 'load_name', `${esc(c.power_kw || '—')}<span class="sub">${esc(c.load_name || '')}</span>`)}
-      </tr>`;
-    }).join('') || emptyRow(6, '没有识别到回路');
-    bindCells();
-    renderListFoot();
-    return;
-  }
-
-  if (S.sub === 'devices') {
-    // 右栏只有 400px，单位合并进数量列，否则“用于回路”会被挤出可视区
-    th.innerHTML = '<tr><th>#</th><th>元器件</th><th>规格</th><th>数量</th><th>用于回路</th></tr>';
-    tb.innerHTML = (d.components || []).map((c, i) => `<tr><td>${i + 1}</td>
-      <td style="white-space:nowrap">${esc(c.name || '')}</td>
-      <td class="mono" style="max-width:96px;word-break:break-all">${esc(c.spec || '')}</td>
-      <td style="white-space:nowrap"><b>${fmtQty(c.quantity)}</b> ${esc(c.unit || '')}</td>
-      <td class="mono" style="max-width:104px;word-break:break-all">${esc(c.used_in || '—')}${c.note ? `<span class="sub">${esc(c.note)}</span>` : ''}</td></tr>`).join('')
-      || emptyRow(5, '没有汇总出元器件');
-    renderListFoot();
-    return;
-  }
-
-  if (S.sub === 'replace') {
-    renderReplacementTable();
-    return;
-  }
-
-  th.innerHTML = '<tr><th>#</th><th>类别</th><th>内容</th></tr>';
-  tb.innerHTML = (d.requirements || []).map((r, i) => `<tr><td>${i + 1}</td>
-    <td><b>${esc(r.item || '')}</b></td><td>${esc(r.content || '')}</td></tr>`).join('')
-    || emptyRow(3, '图纸中没有与报价相关的技术要求');
-  renderListFoot();
-}
-
-// 平替品牌清单与默认值来自后端配置（/api/settings），不在前端写死
-function brandOptions() {
-  const configured = (S.settings && S.settings.target_brands) || [];
-  if (configured.length) return configured;
-  const info = S.brandInfo || {};
-  return info.target_brands || [];
-}
-
-function defaultTargetBrand() {
-  return (S.brandInfo && S.brandInfo.default_target_brand)
-    || (S.settings && S.settings.default_target_brand) || '';
-}
-
-function brandSelectOptions(selected) {
-  const brands = brandOptions();
-  const current = selected || defaultTargetBrand() || brands[0] || '';
-  return brands.map(b => `<option value="${esc(b)}"${b === current ? ' selected' : ''}>${esc(b)}</option>`).join('');
-}
-
-async function renderReplacementTable(targetBrand) {
-  if (targetBrand) S.targetBrand = targetBrand;
-  const brand = S.targetBrand || defaultTargetBrand() || brandOptions()[0] || '';
-  const th = $('th'), tb = $('tb');
-
-  th.innerHTML = `<tr>
-    <th style="width:32px">#</th>
-    <th>原图物料 / 品牌</th>
-    <th>
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <span>平替推荐型号</span>
-        <select id="brandSelect" onchange="renderReplacementTable(this.value)" style="padding:1px 4px;font-size:11px;border:1px solid var(--line);border-radius:3px;background:var(--bg)">
-          ${brandSelectOptions(brand)}
-        </select>
-      </div>
-    </th>
-    <th style="width:48px">数量</th>
-    <th style="width:62px">预计降本</th>
-    <th>对标说明</th>
-  </tr>`;
-
-  tb.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px" class="mut">正在智能对标国产化替代型号...</td></tr>';
-
-  try {
-    const res = await api(`/api/jobs/${S.jobId}/replacements?target_brand=${encodeURIComponent(brand)}`);
-    if (!res.ok || !res.analysis) throw new Error(res.error || '测算失败');
-    const an = res.analysis;
-    const items = an.items || [];
-    if (!items.length) {
-      tb.innerHTML = emptyRow(6, '未发现可对标分析的元器件');
-      renderListFoot();
+    if (!isDone(job.status)) {
+      $('extTopAlertText').textContent = isFailed(job.status) ? `识别失败: ${job.error || '未知错误'}` : '图纸识别中，请稍候...';
+      if (!isFailed(job.status)) this.timer = setTimeout(() => this.open(id), 2500);
       return;
     }
 
-    tb.innerHTML = items.map((it, i) => {
-      const savingPill = it.estimated_saving_pct > 0
-        ? `<span class="pill" style="background:#e6f4ea;color:#137333;font-weight:700">↓${it.estimated_saving_pct}%</span>`
-        : `<span class="pill" style="background:var(--inset);color:var(--mut)">已最优</span>`;
-      return `<tr>
-        <td class="mono" style="text-align:center">${i + 1}</td>
-        <td>
-          <div style="font-weight:600">${esc(it.name || '元器件')}</div>
-          <div class="sub mono" style="font-size:10.5px">${esc(it.original_brand)} · ${esc(it.original_spec || '—')}</div>
-        </td>
-        <td>
-          <div class="mono" style="font-weight:600;color:var(--c-brand,#0284c7)">${esc(it.recommended_model)}</div>
-          <div class="sub" style="font-size:10.5px">用于: ${esc(it.used_in || '—')}</div>
-        </td>
-        <td class="mono" style="white-space:nowrap"><b>${fmtQty(it.quantity)}</b> ${esc(it.unit || '只')}</td>
-        <td style="text-align:center">${savingPill}</td>
-        <td class="sub" style="font-size:10.5px;max-width:140px;line-height:1.3">${esc(it.notes || '性能参数完全对标')}</td>
-      </tr>`;
+    this.boxes = buildBoxes(job.data || {});
+    this.initStats();
+    await this.initCadViewer();
+    this.renderCabinetList();
+    if (this.boxes.length > 0) {
+      this.selectCabinet(this.boxes[0].key);
+    }
+    this.bindEvents();
+    this.bindResizers();
+  },
+
+  openPricingModal() {
+    const totalUnits = this.boxes.reduce((s, b) => s + (Number(b.raw.quantity) || 1), 0);
+    const comps = ((this.job.data || {}).components || []).filter((c) => c.name !== BOX_COMPONENT);
+    const totalPieces = comps.reduce((s, c) => s + (Number(c.quantity) || 0), 0);
+    const doubts = ((this.job.data || {}).uncertainties || []).filter((u) => !u.resolved);
+
+    if ($('pricingModalSummary')) {
+      $('pricingModalSummary').textContent = `${this.boxes.length} 个箱柜（${totalUnits}台）/ ${comps.length} 种元器件（${Math.round(totalPieces)}件）`;
+    }
+    if ($('pricingModalWarning')) {
+      if (doubts.length > 0) {
+        $('pricingModalWarning').classList.remove('hidden');
+        if ($('pricingModalWarningText')) $('pricingModalWarningText').textContent = `图纸尚有 ${doubts.length} 项存疑，建议核对后再执行组价`;
+      } else {
+        $('pricingModalWarning').classList.add('hidden');
+      }
+    }
+    const modal = $('pricingModal');
+    if (modal) modal.classList.remove('hidden');
+  },
+
+  closePricingModal() {
+    const modal = $('pricingModal');
+    if (modal) modal.classList.add('hidden');
+  },
+
+  initStats() {
+    const d = this.job.data || {};
+    const totalUnits = this.boxes.reduce((s, b) => s + (Number(b.raw.quantity) || 1), 0);
+    const comps = (d.components || []).filter((c) => c.name !== BOX_COMPONENT);
+    const totalPieces = comps.reduce((s, c) => s + (Number(c.quantity) || 0), 0);
+    const circuits = d.circuits || [];
+    const doubts = (d.uncertainties || []).filter((u) => !u.resolved);
+
+    $('extStatBoxes').textContent = String(this.boxes.length);
+    $('extStatBoxesUnit').textContent = `(${totalUnits}台)`;
+    $('extStatComps').textContent = String(comps.length);
+    $('extStatCompQty').textContent = String(Math.round(totalPieces));
+    $('extStatCircuits').textContent = String(circuits.length);
+    $('extPendingCount').textContent = String(doubts.length);
+    $('extChangesCount').textContent = String(this.changeLogs.length);
+
+    this.updateVerifiedBar();
+
+    if (this.boxes.length >= 8) {
+      $('extTopAlertText').textContent = `图纸目录列出 ${this.boxes.length} 台箱柜 · 电气元器件已提取完成 · 支持双击单元格校准`;
+    }
+  },
+
+  updateVerifiedBar() {
+    const total = this.boxes.length;
+    const verified = this.verifiedBoxes.size;
+    const pct = total > 0 ? Math.round((verified / total) * 100) : 0;
+    $('extVerifiedBar').style.width = `${pct}%`;
+    $('extVerifiedText').textContent = `${verified}/${total}`;
+  },
+
+  async initCadViewer() {
+    this.pages = Math.max(1, Number(this.job.pages) || 1);
+    const names = this.job.sheet_names || (this.job.summary || {}).sheet_names || {};
+    $('extCadSheetSelect').innerHTML = Array.from({ length: this.pages }, (_, i) => {
+      const n = i + 1;
+      const nm = names[n] || names[String(n)] || '';
+      return `<option value="${n}">${n}/${this.pages}${nm ? ` · ${esc(String(nm).slice(0, 20))}` : ''}</option>`;
     }).join('');
 
-    renderListFoot(`
-      <div style="display:flex;align-items:center;justify-content:space-between;width:100%;font-size:11.5px;gap:8px;">
-        <div><b>平替分析：</b>已对标 ${items.length} 项 · 可降本 ${an.replaceable_quantity} 件（预计降本 <b style="color:#137333">${an.estimated_overall_saving_pct}%</b>）</div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <a class="linklike" style="font-weight:600;color:var(--c-brand,#0284c7)" href="/api/jobs/${S.jobId}/excel?target_brand=${encodeURIComponent(brand)}" download>导出 ${esc(brand)} 平替表</a>
-        </div>
-      </div>
-    `);
-  } catch (err) {
-    tb.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--err)">平替分析异常：${esc(err.message)}</td></tr>`;
-    renderListFoot();
-  }
-}
+    this.page = 1;
+    this.loadPageImage();
 
-/** 非回路设备：浪涌保护器、电能表、铜排这些不在回路里，但必须能补录和删掉。 */
-function renderExtrasTable() {
-  $('extraswrap').hidden = false;
-  const list = S.data.extra_devices || [];
-  $('extrasbody').innerHTML = list.map((d, i) => `<tr><td>${i + 1}</td>
-    ${editableCell('device', i, 'name', esc(d.name || '—'))}
-    ${editableCell('device', i, 'spec', `<span class="mono">${esc(d.spec || '—')}</span>`, true)}
-    ${editableCell('device', i, 'quantity', `<b>${fmtQty(d.quantity)}</b> <span class="mut2">${esc(d.unit || '')}</span>`)}
-    ${editableCell('device', i, 'used_in', `<span class="mono">${esc(d.used_in || '—')}</span>`, true)}
-    <td><button class="linklike" onclick="removeExtra(${i})">删除</button></td></tr>`).join('')
-    || `<tr><td colspan="6" class="mut2" style="text-align:center;padding:18px">
-        没有非回路设备。模型漏了的话，用上面的「补充设备」加上：浪涌保护器 / 电能表 / N排-PE排 / 指示灯…</td></tr>`;
-  bindCells();
-}
+    // 检查是否为 CAD 图纸并拉取原生矢量流
+    const ext = String(this.job.filename || '').split('.').pop().toLowerCase();
+    const isCad = (ext === 'dwg' || ext === 'dxf' || this.job.file_type === 'dwg' || this.job.file_type === 'dxf');
 
-function removeExtra(i) {
-  const list = S.data.extra_devices || [];
-  const item = list[i];
-  if (!item) return;
-  if (!confirm(`从清单里删除「${item.name}」？`)) return;
-  list.splice(i, 1);
-  renderSub();
-  updateChg();
-  toast(`已删除 ${item.name}（点「保存」写入服务端，可在修改记录里撤销）`);
-}
+    let vectorAvailable = false;
+    if (isCad || !this.cadVectors) {
+      try {
+        const res = await api(`/api/jobs/${this.id}/cad_vectors`);
+        if (res && res.available && res.vectors && res.vectors.extents) {
+          this.cadVectors = res.vectors;
+          vectorAvailable = true;
+          if ($('extCadHudLayers')) $('extCadHudLayers').textContent = String(this.cadVectors.layers?.length || 0);
+        }
+      } catch (e) {
+        console.warn('CAD vector loading fallback:', e);
+      }
+    } else if (this.cadVectors) {
+      vectorAvailable = true;
+    }
 
-function addExtra() {
-  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
-  const name = prompt('设备名称，例如：浪涌保护器 / 电能表 / N排-PE排');
-  if (!name || !name.trim()) return;
-  const spec = prompt('规格型号（看不清可以留空，之后补）：') || '';
-  const unit = prompt('单位：', '套') || '套';
-  const quantity = parseFloat(prompt('数量：', '1') || '1');
-  if (!(quantity > 0)) { toast('数量必须是大于 0 的数字'); return; }
-  if (!S.data.extra_devices) S.data.extra_devices = [];
-  S.data.extra_devices.push({
-    name: name.trim(), spec: spec.trim(), unit: unit.trim() || '套',
-    quantity, used_in: '', note: '',
-  });
-  renderSub();
-  updateChg();
-  toast(`已补充 ${name.trim()}（点「保存」写入服务端）`);
-}
+    if (vectorAvailable) {
+      this.setViewMode('vector');
+      this.resizeVectorCanvas();
+      this.initVectorStateFromExtents();
+      this.renderVectorCanvas();
+    } else {
+      this.setViewMode('raster');
+      this.fitCad();
+    }
+  },
 
-function emptyRow(cols, text) {
-  return `<tr><td colspan="${cols}" class="mut2" style="text-align:center;padding:26px">${text}</td></tr>`;
-}
+  setViewMode(mode) {
+    this.viewMode = mode;
+    const vCanvas = $('extVectorCanvas');
+    const vHud = $('extVectorHud');
+    const rCanvas = $('extBlueprintCanvas');
+    const focusBox = $('extCadFocusBox');
+    const btnVector = $('extBtnViewVector');
+    const btnRaster = $('extBtnViewRaster');
 
-function fmtQty(q) {
-  const n = Number(q);
-  if (!isFinite(n)) return esc(q);
-  return Number.isInteger(n) ? n : n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
-}
+    if (mode === 'vector') {
+      if (!this.cadVectors) {
+        toast('该图纸未解析到原生 CAD 矢量几何，请查看蓝图快照');
+        return this.setViewMode('raster');
+      }
+      if (vCanvas) vCanvas.classList.remove('hidden');
+      if (vHud) vHud.classList.remove('hidden');
+      if (rCanvas) rCanvas.classList.add('hidden');
+      if (focusBox) focusBox.classList.add('hidden');
 
-/* ===================== 单元格编辑 ===================== */
+      if (btnVector) {
+        btnVector.className = 'px-2 py-0.5 rounded bg-blue-600 text-white font-bold cursor-pointer transition-colors shadow-2xs';
+      }
+      if (btnRaster) {
+        btnRaster.className = 'px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer transition-colors';
+      }
 
-function findCircuit(cid) {
-  const i = parseInt(String(cid).replace(/^c/, ''), 10);
-  return (S.data.circuits || [])[i];
-}
+      this.resizeVectorCanvas();
+      this.renderVectorCanvas();
+    } else {
+      if (vCanvas) vCanvas.classList.add('hidden');
+      if (vHud) vHud.classList.add('hidden');
+      if (rCanvas) rCanvas.classList.remove('hidden');
+      if (focusBox) focusBox.classList.remove('hidden');
 
-/** 模型返回的是回路编号或型号，可能对应多条备用回路，取第一条。 */
-function findByLabel(label) {
-  const key = String(label || '').trim();
-  if (!key) return -1;
-  const circuits = S.data.circuits || [];
-  const byLabel = circuits.findIndex(c => circuitLabel(c) === key);
-  if (byLabel >= 0) return byLabel;
-  return circuits.findIndex(c => (c.breaker || '').includes(key));
-}
+      if (btnVector) {
+        btnVector.className = 'px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer transition-colors';
+      }
+      if (btnRaster) {
+        btnRaster.className = 'px-2 py-0.5 rounded bg-blue-600 text-white font-bold cursor-pointer transition-colors shadow-2xs';
+      }
 
-function quickEdit(cid, field) {
-  const td = document.querySelector(`td.ed[data-scope="circuit"][data-idx="${cid.replace(/^c/, '')}"][data-f="${field}"]`);
-  if (td) startEdit(td);
-}
+      const curBox = this.boxes.find((x) => x.key === this.selKey);
+      if (curBox) this.updateCadFocus(curBox);
+    }
+  },
 
-function askRecheck(index) {
-  const c = (S.data.circuits || [])[index];
-  if (!c) return;
-  switchPane('chat');
-  ask(`复核 ${circuitLabel(c)}：清单上的值和图纸标注一致吗？`);
-}
+  initVectorStateFromExtents() {
+    if (!this.cadVectors || !this.cadVectors.extents) return;
+    const canvas = $('extVectorCanvas');
+    const w = canvas.clientWidth || 800;
+    const h = canvas.clientHeight || 600;
+    const [[minX, minY], [maxX, maxY]] = this.cadVectors.extents;
+    const dw = maxX - minX || 1;
+    const dh = maxY - minY || 1;
+    const scale = Math.min(w / dw, h / dh) * 0.95;
+    this.vectorState.zoom = Math.max(scale, 0.0001);
+    this.vectorState.panX = w / 2 - ((minX + maxX) / 2) * this.vectorState.zoom;
+    this.vectorState.panY = h / 2 + ((minY + maxY) / 2) * this.vectorState.zoom;
+    this.updateZoomDisplay();
+  },
 
-/** 表尾跟随选中回路：窄面板里不敢再用悬浮操作条，会盖住单元格本身。 */
-function renderListFoot(customHtml) {
-  const foot = $('listfoot');
-  if (!foot) return;
-  if (customHtml) {
-    foot.innerHTML = customHtml;
-    return;
-  }
-  if (S.sub === 'replace') {
-    foot.textContent = '按实际设计规格1:1精准平替 · 支持多品牌一键切换对比（可选品牌由后端配置决定）';
-    return;
-  }
-  if (S.sub === 'boxes') {
-    foot.textContent = '箱体参数与非回路设备都可双击修改 · 保存后汇总按新数量重算';
-    return;
-  }
-  if (S.sub !== 'circuits') {
-    foot.textContent = '元器件汇总由回路与箱体推导，不能直接改 · 要改数量请改对应的回路或箱体';
-    return;
-  }
-  const sel = document.querySelector('#tb tr.sel');
-  const idx = sel ? parseInt(sel.dataset.cid.replace(/^c/, ''), 10) : -1;
-  const c = (S.data.circuits || [])[idx];
-  foot.innerHTML = c
-    ? `<span>已选中 <b>${esc(circuitLabel(c))}</b></span>
-       <button class="linklike" onclick="quickEdit('c${idx}','breaker')">改断路器</button>
-       <button class="linklike" onclick="askRecheck(${idx})">问 AI 复核</button>`
-    : '双击带虚线的单元格即可修改 · 点一行可在图纸上定位';
-}
+  resizeVectorCanvas() {
+    const canvas = $('extVectorCanvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = rect.width || canvas.clientWidth || 800;
+    const h = rect.height || canvas.clientHeight || 600;
+    const tw = Math.round(w * dpr);
+    const th = Math.round(h * dpr);
+    if (canvas.width !== tw || canvas.height !== th) {
+      canvas.width = tw;
+      canvas.height = th;
+    }
+  },
 
-function startEdit(td) {
-  if (td.querySelector('input,select')) return;
-  const scope = td.dataset.scope, field = td.dataset.f;
-  const idx = parseInt(td.dataset.idx, 10);
-  const set = EDIT_SETS[scope];
-  const row = set && set.list()[idx];
-  if (!row) return;
-  const old = row[field] ?? '';
-  let editor;
-  if (field === 'phase') {
-    editor = document.createElement('select');
-    ['L1', 'L2', 'L3', 'L123'].forEach(p => {
-      const o = document.createElement('option');
-      o.value = o.textContent = p;
-      if (p === old) o.selected = true;
-      editor.appendChild(o);
+  updateZoomDisplay() {
+    let pct = '100%';
+    if (this.viewMode === 'vector') {
+      const z = this.vectorState.zoom;
+      pct = `${Math.round(z * 1000)}%`;
+    } else {
+      pct = `${Math.round(this.zoom * 100)}%`;
+    }
+    if ($('extZoomLevelText')) $('extZoomLevelText').textContent = pct;
+    if ($('extFooterZoomRatio')) $('extFooterZoomRatio').textContent = pct;
+  },
+
+  renderVectorCanvas() {
+    const canvas = $('extVectorCanvas');
+    if (!canvas || !this.cadVectors) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+
+    ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 纯正 CAD 黑色背景
+    ctx.fillStyle = '#141518';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.scale(dpr, dpr);
+    ctx.translate(this.vectorState.panX, this.vectorState.panY);
+    ctx.scale(this.vectorState.zoom, -this.vectorState.zoom);
+
+    const layers = this.cadVectors.layers || [];
+    const layerColors = layers.map(l => {
+      if (typeof l.color === 'string') return l.color === 'White' ? '#FFFFFF' : l.color;
+      return CAD_ACI_COLORS[l.color] || '#A0AEC0';
     });
-  } else {
-    editor = document.createElement('input');
-    editor.value = old;
-  }
-  td.innerHTML = '';
-  td.appendChild(editor);
-  editor.focus();
-  if (editor.select) editor.select();
-  // Enter 和 blur 会连着触发，只让第一次生效；blur 里的重绘要挪到下一个任务，
-  // 否则浏览器还在移除这个编辑框时就去换 <tbody>，会报 “node to be removed is no longer a child”。
-  let live = true;
-  const commit = (defer) => {
-    if (!live) return;
-    live = false;
-    const value = String(editor.value ?? '').trim();
-    if (defer) setTimeout(() => applyEdit(scope, idx, field, value), 0);
-    else applyEdit(scope, idx, field, value);
-  };
-  editor.onkeydown = e => {
-    e.stopPropagation();
-    if (e.key === 'Enter') commit(false);
-    if (e.key === 'Escape') { live = false; renderSub(); }
-  };
-  editor.onblur = () => commit(true);
-  editor.onclick = e => e.stopPropagation();
-}
 
-function applyEdit(scope, idx, field, value) {
-  const set = EDIT_SETS[scope];
-  const row = set && set.list()[idx];
-  if (!row) { renderSub(); return; }
-  const before = row[field];
-  if (field === 'quantity') {
-    const n = parseFloat(value);
-    if (!(n > 0)) { toast('数量必须是大于 0 的数字'); renderSub(); return; }
-    if (n === before) { renderSub(); return; }
-    row[field] = n;
-    if (scope === 'box') row.quantity_confirmed = true;
-  } else {
-    if (value === '' || String(before ?? '') === value) { renderSub(); return; }
-    row[field] = value;
-  }
-  renderSub();
-  updateChg();
-  if (scope === 'circuit') selectCircuit('c' + idx, true);
-  toast(`已修改 ${set.label(idx)} · ${FIELD_LABEL[field] || field}（点「保存」写入服务端）`);
-}
+    const isLayerVisible = (lIdx) => {
+      const l = layers[lIdx];
+      if (!l) return true;
+      return this.cadLayersState[l.name] !== false;
+    };
 
-const FIELD_LABEL = {
-  phase: '相序', breaker: '断路器', cable: '导线', power_kw: '容量', load_name: '用途',
-  name: '名称', spec: '规格', unit: '单位', quantity: '数量', used_in: '用于',
-  ip_rating: '防护等级', install: '安装方式', location: '安装位置', size: '参考尺寸', note: '备注',
-};
+    // 1. 绘制 CAD 原生线段
+    const lines = this.cadVectors.lines || [];
+    for (let i = 0; i < lines.length; i++) {
+      const [x1, y1, x2, y2, lIdx] = lines[i];
+      if (!isLayerVisible(lIdx)) continue;
+      ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
+      ctx.lineWidth = Math.max(0.5, 1 / this.vectorState.zoom);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
 
-const describeExtra = d => `${d.name}|${d.spec || ''}`;
+    // 2. 绘制多段线
+    const polylines = this.cadVectors.polylines || [];
+    for (let i = 0; i < polylines.length; i++) {
+      const [pts, lIdx] = polylines[i];
+      if (!isLayerVisible(lIdx) || !pts || pts.length < 2) continue;
+      ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
+      ctx.lineWidth = Math.max(0.5, 1 / this.vectorState.zoom);
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let j = 1; j < pts.length; j++) {
+        ctx.lineTo(pts[j][0], pts[j][1]);
+      }
+      ctx.stroke();
+    }
 
-function pendingChanges() {
-  const out = [];
-  Object.entries(EDIT_SETS).forEach(([scope, set]) => {
-    set.list().forEach((row, i) => {
-      const before = origRow(scope, i);
-      if (!before) return;
-      set.fields.forEach(f => {
-        if (String(before[f] ?? '') !== String(row[f] ?? '')) {
-          out.push({ scope, target: set.label(i), field: f,
-                     old: before[f] ?? '', new: row[f] ?? '', source: '手动' });
+    // 3. 绘制圆与圆弧
+    const circles = this.cadVectors.circles || [];
+    for (let i = 0; i < circles.length; i++) {
+      const [cx, cy, r, lIdx] = circles[i];
+      if (!isLayerVisible(lIdx) || r <= 0) continue;
+      ctx.strokeStyle = layerColors[lIdx] || '#A0AEC0';
+      ctx.lineWidth = Math.max(0.5, 1 / this.vectorState.zoom);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 4. 绘制文字标注
+    const texts = this.cadVectors.texts || [];
+    for (let i = 0; i < texts.length; i++) {
+      const [x, y, txt, height, lIdx] = texts[i];
+      if (!isLayerVisible(lIdx) || !txt) continue;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(1, -1);
+      ctx.fillStyle = layerColors[lIdx] || '#FFFFFF';
+      const fontSize = Math.max(10, Number(height) || 14);
+      ctx.font = `${fontSize}px "PingFang SC", "Microsoft YaHei", "SimHei", sans-serif`;
+      ctx.fillText(txt, 0, 0);
+      ctx.restore();
+    }
+
+    // 5. 绘制当前选中箱柜在 CAD 空间的高亮聚焦框与标牌
+    if (this.activeVectorTarget) {
+      const { x, y, label, w: bw = 35000, h: bh = 50000 } = this.activeVectorTarget;
+      ctx.save();
+      // 蓝色发光聚焦虚线框
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = Math.max(2, 2.5 / this.vectorState.zoom);
+      ctx.setLineDash([8 / this.vectorState.zoom, 4 / this.vectorState.zoom]);
+      ctx.strokeRect(x - bw * 0.15, y - bh * 0.85, bw, bh);
+
+      // 十字寻迹星标
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = Math.max(1.5, 1.5 / this.vectorState.zoom);
+      ctx.setLineDash([]);
+      const cr = 4000;
+      ctx.beginPath();
+      ctx.moveTo(x - cr, y); ctx.lineTo(x + cr, y);
+      ctx.moveTo(x, y - cr); ctx.lineTo(x, y + cr);
+      ctx.stroke();
+
+      // 悬浮文字胶囊
+      ctx.scale(1, -1);
+      ctx.fillStyle = '#2563eb';
+      const tagH = Math.max(12, 16 / this.vectorState.zoom);
+      ctx.font = `bold ${tagH}px -apple-system, sans-serif`;
+      ctx.fillText(`${label} · CAD X:${Math.round(x)} Y:${Math.round(y)}`, x - bw * 0.15, -(y + 10 / this.vectorState.zoom));
+      ctx.restore();
+    }
+
+    ctx.restore();
+  },
+
+  updateVectorHud(e) {
+    const canvas = $('extVectorCanvas');
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const cadX = Math.round((mx - this.vectorState.panX) / this.vectorState.zoom);
+    const cadY = Math.round((this.vectorState.panY - my) / this.vectorState.zoom);
+
+    if ($('extCadHudCoords')) $('extCadHudCoords').textContent = `X: ${cadX.toLocaleString()} Y: ${cadY.toLocaleString()}`;
+    if ($('extFooterCoords')) $('extFooterCoords').textContent = `X: ${cadX.toLocaleString()} mm  Y: ${cadY.toLocaleString()} mm`;
+  },
+
+  loadPageImage() {
+    const img = $('extPageImg');
+    const svg = $('extSchematicSvg');
+    const url = withToken(`/api/jobs/${this.id}/page/${this.page}`);
+
+    img.onload = () => {
+      img.classList.remove('hidden');
+      svg.classList.add('hidden');
+      this.fitCad();
+    };
+    img.onerror = () => {
+      // 若没有转出图片，则显示高保真工程 SVG
+      img.classList.add('hidden');
+      svg.classList.remove('hidden');
+      this.fitCad();
+    };
+    img.src = url;
+
+    // 更新 SVG 标题栏
+    $('extSvgProj').textContent = this.job.project || '配电技改工程';
+    $('extSvgDrawing').textContent = this.job.filename || '系统电气原理图';
+  },
+
+  applyCadTransform() {
+    const canvas = $('extBlueprintCanvas');
+    canvas.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+    $('extZoomLevelText').textContent = `${Math.round(this.zoom * 100)}%`;
+    $('extFooterZoomRatio').textContent = `${Math.round(this.zoom * 100)}%`;
+  },
+
+  fitCad() {
+    const container = $('extCadCanvasContainer');
+    if (!container) return;
+    this.zoom = 0.85;
+    this.panX = 0;
+    this.panY = 0;
+    this.applyCadTransform();
+  },
+
+  updateCadFocus(box, comp = null) {
+    if (!box) return;
+
+    // 1. 矢量 CAD 空间精准对焦
+    if (this.viewMode === 'vector' && this.cadVectors) {
+      const canvas = $('extVectorCanvas');
+      const w = canvas.clientWidth || 800;
+      const h = canvas.clientHeight || 600;
+
+      let targetX = null, targetY = null;
+      const texts = this.cadVectors.texts || [];
+
+      // 柜号精确检索
+      const codeQuery = (box.code || '').toLowerCase();
+      let match = null;
+      if (codeQuery) {
+        match = texts.find(t => t[2] && String(t[2]).toLowerCase().includes(codeQuery));
+      }
+      if (!match && box.name) {
+        const nameKey = box.name.replace(/配电[箱柜总]+/g, '').trim().toLowerCase();
+        if (nameKey) {
+          match = texts.find(t => t[2] && String(t[2]).toLowerCase().includes(nameKey));
+        }
+      }
+
+      if (match) {
+        targetX = match[0];
+        targetY = match[1];
+      } else if (box.bbox && box.bbox.w && this.cadVectors.extents) {
+        const [[minX, minY], [maxX, maxY]] = this.cadVectors.extents;
+        targetX = minX + (box.bbox.x + box.bbox.w / 2) * (maxX - minX);
+        targetY = maxY - (box.bbox.y + box.bbox.h / 2) * (maxY - minY);
+      }
+
+      if (targetX != null && targetY != null) {
+        const targetZoom = Math.max(0.005, Math.min(0.04, w / 45000));
+        this.vectorState.zoom = targetZoom;
+        this.vectorState.panX = w / 2 - targetX * targetZoom;
+        this.vectorState.panY = h / 2 + targetY * targetZoom;
+        this.activeVectorTarget = {
+          x: targetX,
+          y: targetY,
+          label: comp ? `[${box.code} · ${comp.name}]` : `[${box.code} ${box.name}]`
+        };
+        this.updateZoomDisplay();
+        this.renderVectorCanvas();
+      }
+    }
+
+    // 2. 位图快照模式标框更新
+    const focusBox = $('extCadFocusBox');
+    const focusLabel = $('extCadFocusLabel');
+    if (!focusBox) return;
+
+    let x = 0.26, y = 0.22, w = 0.28, h = 0.58;
+    if (box && box.bbox && box.bbox.w) {
+      x = box.bbox.x;
+      y = box.bbox.y;
+      w = box.bbox.w;
+      h = box.bbox.h;
+    } else if (box) {
+      const idx = this.boxes.indexOf(box);
+      x = Math.max(0.08, Math.min(0.72, 0.08 + (idx % 4) * 0.22));
+      y = 0.22;
+      w = 0.22;
+      h = 0.58;
+    }
+
+    if (comp) {
+      h = 0.16;
+      y = 0.22 + (this.selRowIdx % 5) * 0.08;
+    }
+
+    focusBox.style.left = `${Math.round(x * 100)}%`;
+    focusBox.style.top = `${Math.round(y * 100)}%`;
+    focusBox.style.width = `${Math.round(w * 100)}%`;
+    focusBox.style.height = `${Math.round(h * 100)}%`;
+
+    const label = comp
+      ? `[${box.code} · ${comp.name}]`
+      : `[${box.code} ${box.name}]`;
+    if (focusLabel) focusLabel.textContent = label;
+  },
+
+  renderCabinetList() {
+    const query = ($('extCabinetSearch').value || '').trim().toLowerCase();
+    const filter = this.filter;
+    const tbody = $('extCabinetTbody');
+
+    const totalCount = this.boxes.length;
+    let unverifiedCount = 0;
+    let doubtCount = 0;
+
+    const rows = [];
+    this.boxes.forEach((b, idx) => {
+      const isVerified = this.verifiedBoxes.has(b.code);
+      const doubtNum = (b.raw.doubt_count != null) ? Number(b.raw.doubt_count) : (b.circuits.some(c => c.note && c.note.includes('存疑')) || b.parts.some(p => p.note && p.note.includes('存疑')) ? 1 : 0);
+      if (!isVerified) unverifiedCount++;
+      if (doubtNum > 0) doubtCount++;
+
+      // 搜索过滤
+      if (query && !b.code.toLowerCase().includes(query) && !b.name.toLowerCase().includes(query)) {
+        return;
+      }
+      // Tab 过滤
+      if (filter === 'unverified' && isVerified) return;
+      if (filter === 'doubt' && doubtNum === 0) return;
+
+      const active = (this.selKey === b.key);
+      const activeCls = active
+        ? 'active-cabinet bg-blue-50/90 border-l-2 border-l-blue-600 outline outline-1 outline-blue-600 cursor-pointer divide-x divide-blue-200 group'
+        : 'hover:bg-slate-50 cursor-pointer transition-colors divide-x divide-slate-200 group';
+
+      let statusBadge = '';
+      if (isVerified) {
+        statusBadge = '<span class="text-emerald-600 font-bold text-sm leading-none whitespace-nowrap">✓</span>';
+      } else if (doubtNum > 0) {
+        statusBadge = `<span class="text-amber-600 font-bold font-mono text-[11px] whitespace-nowrap">⚠${doubtNum}</span>`;
+      } else {
+        statusBadge = '<span class="text-slate-400 font-mono text-[11px]">待核</span>';
+      }
+
+      const seq = `1-${idx + 1}`;
+      rows.push(`
+        <tr class="cabinet-row ${activeCls} h-8 select-none" data-key="${b.key}">
+          <td class="h-8 text-center font-mono ${active ? 'text-blue-700 font-semibold' : 'text-slate-500'}">${seq}</td>
+          <td class="h-8 text-center font-mono font-bold ${active ? 'text-blue-800' : 'text-slate-700'}">${esc(b.code)}</td>
+          <td class="h-8 px-2">
+            <div class="flex items-center justify-between">
+              <div class="truncate ${active ? 'font-bold text-blue-950' : 'font-medium text-slate-900'}">${esc(b.name)}</div>
+            </div>
+            <div class="text-[10px] ${active ? 'text-blue-700' : 'text-slate-500'} font-mono leading-tight">${esc(b.raw.type || '动力柜')}·${esc(b.raw.install || '落地')}</div>
+          </td>
+          <td class="h-8 text-center font-mono ${active ? 'font-bold text-blue-800' : 'text-slate-600'}">×${b.raw.quantity || 1}</td>
+          <td class="h-8 text-center">${statusBadge}</td>
+        </tr>
+      `);
+    });
+
+    tbody.innerHTML = rows.join('') || '<tr><td colspan="5" class="p-4 text-center text-slate-400">无匹配箱柜</td></tr>';
+
+    $('extFilterAllBtn').textContent = `全部 (${totalCount})`;
+    $('extFilterUnverifiedBtn').textContent = `未核 (${unverifiedCount})`;
+    $('extFilterDoubtBtn').textContent = `存疑 (${doubtCount})`;
+  },
+
+  selectCabinet(key) {
+    this.selKey = key;
+    this.selRowIdx = 0;
+    const b = this.boxes.find((x) => x.key === key);
+    if (!b) return;
+
+    this.renderCabinetList();
+    this.renderCabinetInspector(b);
+    this.updateCadFocus(b);
+  },
+
+  renderCabinetInspector(b) {
+    const isVerified = this.verifiedBoxes.has(b.code);
+    if ($('extCurBoxCode')) $('extCurBoxCode').value = b.code || '';
+    if ($('extCurBoxName')) $('extCurBoxName').value = b.name || '';
+    if ($('extCurBoxType')) $('extCurBoxType').value = b.raw.type || '动力箱';
+    if ($('extCurBoxSize')) $('extCurBoxSize').value = b.raw.size || '800×1200×250';
+    if ($('extCurBoxInstall')) $('extCurBoxInstall').value = b.raw.install || '挂墙';
+    if ($('extCurBoxLocation')) $('extCurBoxLocation').value = b.raw.location || '配电间';
+    if ($('extCurBoxQty')) $('extCurBoxQty').value = b.raw.quantity || 1;
+
+    // 清爽两行概览头部
+    if ($('extCurBoxCodeBadge')) $('extCurBoxCodeBadge').textContent = b.code || '配电箱';
+    if ($('extCurBoxNameTitle')) $('extCurBoxNameTitle').textContent = b.name || '动力配电箱';
+    if ($('extCurBoxSummarySub')) $('extCurBoxSummarySub').textContent = `（共 ${b.raw.quantity || 1} 台 · ${b.parts.length} 项元器件）`;
+    if ($('extCurBoxTypePill')) $('extCurBoxTypePill').textContent = b.raw.type || '动力配电箱';
+    if ($('extCurBoxSizePill')) $('extCurBoxSizePill').textContent = b.raw.size || '800×1200×250';
+    if ($('extCurBoxInstallPill')) $('extCurBoxInstallPill').textContent = b.raw.install || '挂墙明装';
+    if ($('extCurBoxLocationPill')) $('extCurBoxLocationPill').textContent = b.raw.location || '配电间';
+    if ($('extCurBoxQtyPill')) $('extCurBoxQtyPill').textContent = `${b.raw.quantity || 1} 台`;
+    if ($('extCurBoxIpPill')) $('extCurBoxIpPill').textContent = b.raw.ip || 'IP30';
+
+    if ($('extMarkVerifiedText')) $('extMarkVerifiedText').textContent = isVerified ? '已完成核对 ✓' : '标记已核对';
+    if ($('extMarkVerifiedBtn')) {
+      $('extMarkVerifiedBtn').className = isVerified
+        ? 'h-7 px-3 rounded bg-emerald-700 text-white font-medium flex items-center gap-1 transition-colors shadow-2xs cursor-pointer'
+        : 'h-7 px-3 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-1 transition-colors shadow-2xs cursor-pointer';
+    }
+
+    if ($('extTabBadgeComps')) $('extTabBadgeComps').textContent = String(b.parts.length);
+    if ($('extTabBadgeCircuits')) $('extTabBadgeCircuits').textContent = String(b.circuits.length);
+    const doubtCount = b.parts.filter(p => p.note && p.note.includes('存疑')).length;
+    if ($('extTabBadgePending')) $('extTabBadgePending').textContent = `⚠ ${doubtCount}`;
+    if ($('extTabBadgeChanges')) $('extTabBadgeChanges').textContent = String(this.changeLogs.filter(c => c.box === b.code).length);
+
+    this.renderSheet();
+  },
+
+  renderSheet() {
+    const b = this.boxes.find((x) => x.key === this.selKey);
+    if (!b) return;
+
+    document.querySelectorAll('.ext-sheet-tab').forEach(t => {
+      const active = (t.dataset.target === this.sheetTab);
+      t.classList.toggle('active', active);
+      t.classList.toggle('bg-white', active);
+      t.classList.toggle('border-t-2', active);
+      t.classList.toggle('border-t-blue-600', active);
+      t.classList.toggle('border-x', active);
+      t.classList.toggle('border-slate-300', active);
+      t.classList.toggle('text-blue-900', active);
+      t.classList.toggle('font-bold', active);
+    });
+
+    if (this.sheetTab === 'components') {
+      this.renderComponentsTable(b);
+    } else if (this.sheetTab === 'circuits') {
+      this.renderCircuitsTable(b);
+    } else if (this.sheetTab === 'pending') {
+      this.renderPendingTable(b);
+    } else if (this.sheetTab === 'changes') {
+      this.renderChangesTable();
+    }
+  },
+
+  renderComponentsTable(b) {
+    const tbody = $('extComponentsTbody');
+    const parts = b.parts;
+
+    if (!parts.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-400">该箱柜暂无识别元器件明细</td></tr>';
+      if ($('extFooterCountText')) $('extFooterCountText').textContent = '共 0 种元器件明细';
+      if ($('extFooterSumQty')) $('extFooterSumQty').textContent = '0 件';
+      return;
+    }
+
+    const rows = parts.map((p, idx) => {
+      const active = (this.selRowIdx === idx);
+      const isModified = p.calibrated;
+      const isDoubt = p.note && p.note.includes('存疑');
+
+      const activeCls = active
+        ? 'bg-blue-50/80 divide-x divide-blue-200 outline outline-2 outline-blue-600 relative h-[32px]'
+        : (isDoubt
+            ? 'bg-amber-50/70 hover:bg-amber-100/70 transition-colors divide-x divide-amber-200 h-[32px]'
+            : 'hover:bg-slate-50 transition-colors divide-x divide-slate-300 h-[32px]');
+
+      const cornerCls = isModified ? 'excel-modified-corner-tl' : (isDoubt ? 'excel-doubt-corner' : '');
+      const statusHtml = isModified
+        ? '<span class="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 font-medium text-[11px]">已改</span>'
+        : (isDoubt
+            ? '<span class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[10px] whitespace-nowrap">⚠ 存疑</span>'
+            : '<span class="text-[11px] text-slate-400">已对齐</span>');
+
+      return `
+        <tr class="comp-row cursor-pointer select-none ${activeCls}" data-idx="${idx}">
+          <td class="text-center font-mono text-[11px] ${active ? 'bg-blue-100 text-blue-800 font-bold' : (isDoubt ? 'bg-amber-100/80 text-amber-800 font-bold' : 'bg-[#f8fafc] text-slate-400')} select-none">${idx + 1}</td>
+          <td class="px-1 text-center font-mono ${active ? 'text-blue-800 font-bold' : (isDoubt ? 'text-amber-800 font-bold' : 'text-slate-600')}">${idx + 1}</td>
+          <td class="px-2.5 font-medium ${active ? 'font-bold text-blue-950' : (isDoubt ? 'text-amber-950' : 'text-slate-900')} truncate">${esc(p.name)}</td>
+          <td class="px-2.5 font-mono ${active ? 'font-bold text-blue-900' : (isDoubt ? 'text-amber-900 font-semibold' : 'text-slate-800')} relative ${cornerCls} truncate" title="${esc(p.note || p.spec)}">
+            <span>${esc(p.spec)}</span>
+            ${p.oldSpec ? `<span class="text-[10px] font-sans font-normal text-slate-500 ml-1.5">(原: ${esc(p.oldSpec)})</span>` : ''}
+          </td>
+          <td class="px-2 text-right font-mono font-bold ${active ? 'text-blue-900' : (isDoubt ? 'text-amber-900' : 'text-slate-900')} tabular-nums">${p.quantity}</td>
+          <td class="px-1 text-center text-slate-600">${esc(p.unit || '只')}</td>
+          <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>
+          <td class="px-1 text-center">
+            <button class="trace-link font-mono text-[13px] text-blue-600 hover:text-blue-800" title="定位图纸依据" type="button">⌖</button>
+          </td>
+          <td class="px-2 text-center">${statusHtml}</td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = rows.join('');
+
+    const sumQty = parts.reduce((s, p) => s + Number(p.quantity || 0), 0);
+    if ($('extFooterCountText')) $('extFooterCountText').textContent = `共 ${parts.length} 种元器件明细`;
+    if ($('extFooterSumQty')) $('extFooterSumQty').textContent = `${Math.round(sumQty)} 件`;
+
+    this.selectComponent(this.selRowIdx);
+  },
+
+  renderCircuitsTable(b) {
+    const tbody = $('extComponentsTbody');
+    const circuits = b.circuits;
+
+    if (!circuits.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-400">该箱柜暂无回路分配明细</td></tr>';
+      return;
+    }
+
+    const rows = circuits.map((c, idx) => `
+      <tr class="hover:bg-slate-50 transition-colors divide-x divide-slate-300 h-[32px]" data-idx="${idx}">
+        <td class="text-center font-mono text-[11px] bg-[#f8fafc] text-slate-400">${idx + 1}</td>
+        <td class="px-1 text-center font-mono font-bold text-blue-700">${esc(c.circuit_no || `WL${idx + 1}`)}</td>
+        <td class="px-2.5 font-medium truncate">${esc(c.load_name || '照明/动力')}</td>
+        <td class="px-2.5 font-mono text-slate-700 truncate">${esc([c.breaker, c.cable].filter(Boolean).join(' · '))}</td>
+        <td class="px-2 text-right font-mono font-bold text-slate-900 tabular-nums">${c.power_kw ? `${c.power_kw} kW` : '—'}</td>
+        <td class="px-1 text-center text-slate-600">回路</td>
+        <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>
+        <td class="px-1 text-center font-mono text-blue-600">${esc(c.phase || '3P')}</td>
+        <td class="px-2 text-center"><span class="text-[11px] text-slate-400">已对齐</span></td>
+      </tr>
+    `);
+    tbody.innerHTML = rows.join('');
+    if ($('extFooterCountText')) $('extFooterCountText').textContent = `共 ${circuits.length} 条回路分配`;
+    if ($('extFooterSumQty')) $('extFooterSumQty').textContent = `${circuits.length} 回路`;
+  },
+
+  renderPendingTable(b) {
+    const tbody = $('extComponentsTbody');
+    const doubts = b.parts.filter(p => p.note && p.note.includes('存疑'));
+
+    if (!doubts.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-emerald-600 font-medium">✓ 当前箱柜暂无存疑项，拆量对账已闭环</td></tr>';
+      return;
+    }
+
+    const rows = doubts.map((p, idx) => `
+      <tr class="bg-amber-50/70 hover:bg-amber-100/70 transition-colors divide-x divide-amber-200 h-[32px]" data-idx="${idx}">
+        <td class="text-center font-mono text-[11px] bg-amber-100/80 text-amber-800 font-bold select-none">${idx + 1}</td>
+        <td class="px-1 text-center font-mono font-bold text-amber-800">${idx + 1}</td>
+        <td class="px-2.5 font-bold text-amber-950 truncate">${esc(p.name)}</td>
+        <td class="px-2.5 font-mono text-amber-900 font-semibold truncate relative excel-doubt-corner" title="${esc(p.note)}">${esc(p.spec)}</td>
+        <td class="px-2 text-right font-mono font-bold text-amber-900 tabular-nums">${p.quantity}</td>
+        <td class="px-1 text-center text-slate-700">${esc(p.unit || '只')}</td>
+        <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>
+        <td class="px-1 text-center font-mono text-amber-700">${esc(p.where || '图纸')}</td>
+        <td class="px-2 text-center"><span class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[10px] whitespace-nowrap">⚠ 待核对</span></td>
+      </tr>
+    `);
+    tbody.innerHTML = rows.join('');
+  },
+
+  renderChangesTable() {
+    const tbody = $('extComponentsTbody');
+    if (!this.changeLogs.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-400">暂无人工修改与校准记录</td></tr>';
+      return;
+    }
+
+    const rows = this.changeLogs.map((log, idx) => `
+      <tr class="hover:bg-slate-50 transition-colors divide-x divide-slate-300 h-[32px]">
+        <td class="text-center font-mono text-[11px] bg-blue-50 text-blue-800">${idx + 1}</td>
+        <td class="px-1 text-center font-mono text-slate-500">${esc(log.time)}</td>
+        <td class="px-2.5 font-semibold text-slate-900 truncate">${esc(log.box)} · ${esc(log.comp)}</td>
+        <td class="px-2.5 font-mono text-blue-800 truncate">${esc(log.oldVal)} → <strong>${esc(log.newVal)}</strong></td>
+        <td class="px-2 text-right font-mono text-slate-600">—</td>
+        <td class="px-1 text-center text-slate-600">—</td>
+        <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>
+        <td class="px-1 text-center text-blue-600">已生效</td>
+        <td class="px-2 text-center"><span class="px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 font-medium text-[11px]">人工校准</span></td>
+      </tr>
+    `);
+    tbody.innerHTML = rows.join('');
+  },
+
+  selectComponent(idx) {
+    const b = this.boxes.find((x) => x.key === this.selKey);
+    if (!b || !b.parts[idx]) return;
+    this.selRowIdx = idx;
+    const comp = b.parts[idx];
+
+    // 高亮行
+    document.querySelectorAll('#extComponentsTbody tr.comp-row').forEach(tr => {
+      const match = (tr.dataset.idx == idx);
+      tr.classList.toggle('bg-blue-50/80', match);
+      tr.classList.toggle('outline', match);
+      tr.classList.toggle('outline-2', match);
+      tr.classList.toggle('outline-blue-600', match);
+    });
+
+    if ($('extFooterSelection')) $('extFooterSelection').textContent = `${b.code} ${b.name} / 行${idx + 1} [${comp.name} ${comp.spec}]`;
+    this.updateCadFocus(b, comp);
+  },
+
+  calibrateActiveCell() {
+    const b = this.boxes.find((x) => x.key === this.selKey);
+    if (!b || !b.parts[this.selRowIdx]) return;
+    const comp = b.parts[this.selRowIdx];
+
+    const newSpec = prompt(`人工校准【${comp.name}】设计型号规格：`, comp.spec);
+    if (newSpec == null || newSpec.trim() === comp.spec) return;
+
+    const oldSpec = comp.spec;
+    comp.oldSpec = oldSpec;
+    comp.spec = newSpec.trim();
+    comp.calibrated = true;
+
+    this.changeLogs.push({
+      time: new Date().toLocaleTimeString(),
+      box: b.code,
+      comp: comp.name,
+      oldVal: oldSpec,
+      newVal: comp.spec,
+      note: '人工校准'
+    });
+
+    toast(`已校准 ${comp.name} 型号规格为：${comp.spec}`);
+    this.initStats();
+    this.renderSheet();
+  },
+
+  bindResizers() {
+    if (this.resizersBound) return;
+    this.resizersBound = true;
+
+    const resizer1 = $('extResizer1');
+    const cadPanel = $('extCadPanel');
+    const resizer2 = $('extResizer2');
+    const cabPanel = $('extCabinetPanel');
+
+    if (resizer1 && cadPanel) {
+      let isResizing1 = false;
+      resizer1.onpointerdown = (e) => {
+        isResizing1 = true;
+        resizer1.classList.add('resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        try { resizer1.setPointerCapture(e.pointerId); } catch (_) {}
+      };
+      window.addEventListener('pointermove', (e) => {
+        if (!isResizing1) return;
+        const newW = Math.max(260, Math.min(window.innerWidth - 680, e.clientX));
+        cadPanel.style.width = `${newW}px`;
+        if (this.viewMode === 'vector') {
+          this.resizeVectorCanvas();
+          this.renderVectorCanvas();
         }
       });
-    });
-  });
-  // 新增的回路
-  const nowCircs = S.data.circuits || [];
-  const beforeCircs = S.origCircuits || [];
-  if (nowCircs.length > beforeCircs.length) {
-    for (let i = beforeCircs.length; i < nowCircs.length; i++) {
-      const c = nowCircs[i];
-      out.push({
-        scope: 'circuit', action: 'add', target: circuitLabel(c) || `回路 ${i + 1}`,
-        after: c, new: `${c.circuit_no || ''} ${c.breaker || ''}`.trim() || '新回路',
-        source: '手动',
+      const endResize1 = () => {
+        if (!isResizing1) return;
+        isResizing1 = false;
+        resizer1.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        if (this.viewMode === 'vector') {
+          this.resizeVectorCanvas();
+          this.renderVectorCanvas();
+        }
+      };
+      window.addEventListener('pointerup', endResize1);
+      window.addEventListener('pointercancel', endResize1);
+    }
+
+    if (resizer2 && cabPanel) {
+      let isResizing2 = false;
+      let startX = 0;
+      let startW = 300;
+      resizer2.onpointerdown = (e) => {
+        isResizing2 = true;
+        startX = e.clientX;
+        startW = cabPanel.getBoundingClientRect().width;
+        resizer2.classList.add('resizing');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        try { resizer2.setPointerCapture(e.pointerId); } catch (_) {}
+      };
+      window.addEventListener('pointermove', (e) => {
+        if (!isResizing2) return;
+        const dx = e.clientX - startX;
+        const newW = Math.max(220, Math.min(500, startW + dx));
+        cabPanel.style.width = `${newW}px`;
       });
+      const endResize2 = () => {
+        if (!isResizing2) return;
+        isResizing2 = false;
+        resizer2.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+      window.addEventListener('pointerup', endResize2);
+      window.addEventListener('pointercancel', endResize2);
     }
-  }
+  },
 
-  // 新增 / 删除的非回路设备没法用字段差异表达，单独记一笔，撤销时整体还原
-  const now = S.data.extra_devices || [];
-  const before = S.origExtras || [];
-  const seen = new Set(before.map(describeExtra));
-  const nowSeen = new Set(now.map(describeExtra));
-  now.forEach(d => {
-    if (!seen.has(describeExtra(d))) {
-      out.push({ scope: 'device', action: 'add', target: d.name,
-                 after: d, new: describeExtra(d), source: '手动' });
+  bindEvents() {
+    if (this.eventsBound) return;
+    this.eventsBound = true;
+
+    // 搜索
+    $('extCabinetSearch').oninput = () => { this.renderCabinetList(); };
+
+    // 筛选切换
+    $('extFilterAllBtn').onclick = () => { this.filter = 'all'; this.renderCabinetList(); };
+    $('extFilterUnverifiedBtn').onclick = () => { this.filter = 'unverified'; this.renderCabinetList(); };
+    $('extFilterDoubtBtn').onclick = () => { this.filter = 'doubt'; this.renderCabinetList(); };
+    if ($('extFilterPendingTopBtn')) $('extFilterPendingTopBtn').onclick = () => { this.sheetTab = 'pending'; this.renderSheet(); };
+    if ($('extOpenChangeLogTopBtn')) $('extOpenChangeLogTopBtn').onclick = () => { this.sheetTab = 'changes'; this.renderSheet(); };
+
+    // 模式切换（📐 矢量 CAD vs 🖼 高清图）
+    if ($('extBtnViewVector')) $('extBtnViewVector').onclick = () => { this.setViewMode('vector'); };
+    if ($('extBtnViewRaster')) $('extBtnViewRaster').onclick = () => { this.setViewMode('raster'); };
+
+    // 箱柜点击
+    $('extCabinetTbody').onclick = (e) => {
+      const tr = e.target.closest('tr.cabinet-row');
+      if (tr && tr.dataset.key) this.selectCabinet(tr.dataset.key);
+    };
+
+    // 元器件表格行点击与双击编辑
+    $('extComponentsTbody').onclick = (e) => {
+      const tr = e.target.closest('tr.comp-row');
+      if (tr && tr.dataset.idx != null) this.selectComponent(Number(tr.dataset.idx));
+    };
+    $('extComponentsTbody').ondblclick = (e) => {
+      const tr = e.target.closest('tr.comp-row');
+      if (tr) this.calibrateActiveCell();
+    };
+
+    // Sheet 选项卡切换
+    $('extTabComponents').onclick = () => { this.sheetTab = 'components'; this.renderSheet(); };
+    $('extTabCircuits').onclick = () => { this.sheetTab = 'circuits'; this.renderSheet(); };
+    $('extTabPending').onclick = () => { this.sheetTab = 'pending'; this.renderSheet(); };
+    $('extTabChanges').onclick = () => { this.sheetTab = 'changes'; this.renderSheet(); };
+
+    // 定位与标记已核对
+    $('extLocateInCadBtn').onclick = () => {
+      const b = this.boxes.find((x) => x.key === this.selKey);
+      if (b) {
+        this.updateCadFocus(b);
+        toast(`已在图纸中重新对焦高亮：${b.code} ${b.name}`);
+      }
+    };
+    $('extMarkVerifiedBtn').onclick = () => {
+      const b = this.boxes.find((x) => x.key === this.selKey);
+      if (!b) return;
+      if (this.verifiedBoxes.has(b.code)) {
+        this.verifiedBoxes.delete(b.code);
+        toast(`已取消核对：${b.code}`);
+      } else {
+        this.verifiedBoxes.add(b.code);
+        toast(`已核对确认：${b.code} ${b.name}`);
+      }
+      this.initStats();
+      this.renderCabinetList();
+      this.renderCabinetInspector(b);
+      this.saveJobData(`核对状态变更: ${b.code}`);
+    };
+
+    // 添加元器件与添加箱柜
+    $('extAddComponentBtn').onclick = () => {
+      const b = this.boxes.find((x) => x.key === this.selKey);
+      if (!b) return;
+      const name = prompt('请输入新增元器件名称：', '微型断路器');
+      if (!name) return;
+      const spec = prompt('请输入型号规格：', 'MCB-16A/1P') || '标准选型';
+      const qty = Number(prompt('请输入数量：', '1')) || 1;
+      b.parts.push({ name, spec, unit: '只', quantity: qty, where: '主回路', note: '手动新增', calibrated: true });
+      this.changeLogs.push({ time: new Date().toLocaleTimeString(), box: b.code, comp: name, oldVal: '无', newVal: spec, note: '新增器件' });
+      toast(`已向 ${b.code} 添加元器件：${name} (${qty}只)`);
+      this.initStats();
+      this.renderSheet();
+      this.saveJobData(`向 ${b.code} 添加元器件 ${name} (${spec})`);
+    };
+
+    $('extAddCabinetBtn').onclick = () => {
+      const code = prompt('请输入新增箱柜编号：', `C0${this.boxes.length + 1}`);
+      if (!code) return;
+      const name = prompt('请输入箱柜名称：', '照明配电箱') || '配电箱';
+      const newBox = {
+        key: String(this.boxes.length),
+        code,
+        name,
+        raw: { quantity: 1, type: 'PZ30', size: '600×400×180', install: '挂墙', location: '走廊' },
+        bbox: null,
+        circuits: [],
+        parts: []
+      };
+      this.boxes.push(newBox);
+      toast(`已成功添加箱柜：${code} ${name}`);
+      this.initStats();
+      this.renderCabinetList();
+      this.selectCabinet(newBox.key);
+      this.saveJobData(`新增箱柜 ${code} ${name}`);
+    };
+
+    // 缩放控制（适配矢量与位图）
+    if ($('extZoomInBtn')) $('extZoomInBtn').onclick = () => {
+      if (this.viewMode === 'vector') {
+        this.vectorState.zoom = Math.min(10, this.vectorState.zoom * 1.25);
+        this.updateZoomDisplay();
+        this.renderVectorCanvas();
+      } else {
+        this.zoom = Math.min(6, this.zoom * 1.25);
+        this.applyCadTransform();
+      }
+    };
+    if ($('extZoomOutBtn')) $('extZoomOutBtn').onclick = () => {
+      if (this.viewMode === 'vector') {
+        this.vectorState.zoom = Math.max(0.000001, this.vectorState.zoom / 1.25);
+        this.updateZoomDisplay();
+        this.renderVectorCanvas();
+      } else {
+        this.zoom = Math.max(0.15, this.zoom / 1.25);
+        this.applyCadTransform();
+      }
+    };
+    if ($('extFitWindowBtn')) $('extFitWindowBtn').onclick = () => {
+      if (this.viewMode === 'vector') {
+        this.initVectorStateFromExtents();
+        this.renderVectorCanvas();
+      } else {
+        this.fitCad();
+      }
+    };
+    const hdBtn = $('extHdRenderBtn') || $('extHdBtn');
+    if (hdBtn) hdBtn.onclick = () => {
+      if (this.viewMode === 'vector') {
+        this.vectorState.zoom = 0.02;
+        this.updateZoomDisplay();
+        this.renderVectorCanvas();
+      } else {
+        this.zoom = 1; this.panX = 0; this.panY = 0;
+        this.applyCadTransform();
+      }
+    };
+
+    // 图纸翻页
+    if ($('extCadSheetSelect')) {
+      $('extCadSheetSelect').onchange = (e) => {
+        this.page = Number(e.target.value);
+        this.loadPageImage();
+      };
     }
-  });
-  before.forEach(d => {
-    if (!nowSeen.has(describeExtra(d))) {
-      out.push({ scope: 'device', action: 'remove', target: d.name,
-                 before: d, old: describeExtra(d), source: '手动' });
+    if ($('extPgPrev')) {
+      $('extPgPrev').onclick = () => {
+        if (this.page > 1) {
+          this.page--;
+          $('extCadSheetSelect').value = this.page;
+          this.loadPageImage();
+        }
+      };
     }
-  });
-
-  // 技术要求的新增
-  const nowReqs = S.data.requirements || [];
-  const beforeReqs = S.origReqs || [];
-  if (nowReqs.length > beforeReqs.length) {
-    for (let i = beforeReqs.length; i < nowReqs.length; i++) {
-      const r = nowReqs[i];
-      out.push({
-        scope: 'requirement', action: 'add', target: r.item || '技术要求',
-        after: r, new: `${r.item || ''}：${r.content || ''}`, source: '手动',
-      });
-    }
-  }
-
-  return out;
-}
-
-function updateChg() {
-  const pending = pendingChanges();
-  $('chgcount').textContent = `修改 ${S.changes.length + pending.length}`;
-  const btn = $('savebtn');
-  btn.disabled = pending.length === 0;
-  btn.textContent = pending.length ? `保存 ${pending.length}` : '已保存';
-}
-
-function snapshotOrigins() {
-  S.origCircuits = JSON.parse(JSON.stringify(S.data.circuits || []));
-  S.origBoxes = JSON.parse(JSON.stringify(S.data.boxes || []));
-  S.origExtras = JSON.parse(JSON.stringify(S.data.extra_devices || []));
-  S.origReqs = JSON.parse(JSON.stringify(S.data.requirements || []));
-}
-
-async function saveNow(silent) {
-  const changes = pendingChanges();
-  if (S.jobId && !changes.length && !silent) { toast('没有需要保存的修改'); return; }
-  if (!S.jobId) { if (!silent) toast('请先在项目或上传中打开一份图纸'); return; }
-  try {
-    const res = await putJSON(`/api/jobs/${S.jobId}/data`, {
-      ...S.data, changes, reason: '手动修改',
-    });
-    applyServerData(res);
-    if (changes.length) toast(`已保存 ${changes.length} 处修改，元器件汇总已重算`);
-  } catch (e) {
-    toast('保存失败：' + e.message);
-  }
-}
-
-function applyServerData(res, expectedJobId = null) {
-  if (!res || !res.data) return;
-  if (expectedJobId && S.jobId !== expectedJobId) {
-    console.warn(`[applyServerData] 任务已切换 (当前 ${S.jobId} != 期望 ${expectedJobId})，丢弃旧数据更新`);
-    return;
-  }
-  S.data = res.data;
-  S.changes = res.changes || [];
-  snapshotOrigins();
-  renderBoxstrip();
-  renderSub();
-  renderReview();
-  updateChg();
-  updateBadge();
-}
-
-function unresolved() {
-  return (S.data.uncertainties || []).filter(u => !u.resolved);
-}
-
-function updateBadge() {
-  const n = unresolved().length;
-  const nav = $('navbdg');
-  nav.textContent = n;
-  nav.hidden = !n;
-  const badge = $('rvbdg');
-  badge.textContent = n;
-  badge.hidden = !n;
-  const top = $('ubadge');
-  top.textContent = n ? `待核对 ${n}` : '核对完成';
-  top.classList.toggle('warn', !!n);
-  top.classList.toggle('done', !n);
-}
-
-/* ===================== 图-表联动 ===================== */
-
-function selectCircuit(cid, fromTable) {
-  // 如果是拖拽平移后的鼠标松开，不作为点选触发
-  if (!fromTable && S.hasMoved) return;
-
-  const c = findCircuit(cid);
-  if (!c) return;
-
-  // 无论从哪里点击，都确保进入清单主面板且处于回路页签
-  switchPane('list');
-  if (!fromTable && S.sub !== 'circuits') {
-    renderSub('circuits');
-  }
-
-  // 选中当前行
-  document.querySelectorAll('#tb tr').forEach(tr => tr.classList.toggle('sel', tr.dataset.cid === cid));
-  renderListFoot();
-
-  // 反向点选：从图面点回路时，自动将列表平滑滚动到视野居中，并触发双脉冲高亮
-  if (!fromTable) {
-    const row = document.querySelector(`#tb tr[data-cid="${cid}"]`);
-    if (row) {
-      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      row.classList.remove('flash-highlight');
-      void row.offsetWidth; // 触发 reflow 重新执行动画
-      row.classList.add('flash-highlight');
-      setTimeout(() => row.classList.remove('flash-highlight'), 1500);
-    }
-  }
-
-  // 图面标注高亮
-  const r = c.bbox;
-  if (!r) return;
-  if ((r.page || 1) !== S.page) setPage(r.page || 1);
-  $('hlbox').innerHTML = `<div class="hl show"
-    style="left:${r.x * 100}%;top:${r.y * 100}%;width:${r.w * 100}%;height:${r.h * 100}%">
-    <span class="tag">${esc(circuitLabel(c))} · ${esc(c.breaker || '')}</span></div>`;
-
-  // 从表格正向点击时，按原逻辑自动聚焦放大该回路
-  if (fromTable) {
-    S.zoom = 1.6;
-    S.panX = 0;
-    S.panY = 0;
-    const stage = $('stage');
-    if (stage) {
-      stage.style.transform = 'scale(1.6)';
-      stage.style.transformOrigin = `${(r.x + r.w / 2) * 100}% ${(r.y + r.h / 2) * 100}%`;
-    }
-    $('zpct').textContent = '联动';
-  }
-}
-
-/* ===================== 核对 ===================== */
-
-function renderReview() {
-  const items = S.data.uncertainties || [];
-  const un = unresolved().length;
-  const recon = S.data.reconciliation;
-
-  const u = S.job?.ai_usage || S.job?.summary?.ai_usage;
-  let aiUsageHtml = '';
-  if (u && (u.total_tokens || u.calls_count || u.prompt_tokens)) {
-    const tTok = (u.total_tokens || 0).toLocaleString();
-    const pTok = (u.prompt_tokens || 0).toLocaleString();
-    const cTok = (u.completion_tokens || 0).toLocaleString();
-    const cost = (u.total_cost || 0).toFixed(4);
-    aiUsageHtml = `
-    <div style="background:#f0f9ff;border:1px solid #bae6fd;padding:10px 14px;border-radius:6px;margin-bottom:12px;font-size:12px;display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <span style="font-weight:700;color:#0369a1">📊 AI 模型调用消耗统计</span>
-        <span class="mut" style="margin-left:8px;font-size:11px">模型：${esc(u.model || S.job?.summary?.meta?.model || 'deepseek-flash')} ｜ 调用：${u.calls_count || 1} 次</span>
-        <div style="margin-top:4px;color:#334155;font-family:monospace">
-          Token: <b>${tTok}</b> (入: ${pTok} / 出: ${cTok}) ｜ 费用: <b style="color:#0284c7">￥${cost}</b>
-        </div>
-      </div>
-      <button class="btn sm ghost" onclick="openJobAiUsage()" style="font-size:11px;padding:3px 8px">查看账单明细</button>
-    </div>`;
-  }
-
-  let reconHtml = '';
-  if (recon && recon.has_catalog) {
-    const isBad = recon.missing_count > 0;
-    reconHtml = `
-    <div class="recon-card ${isBad ? 'bad' : 'ok'}">
-      <div class="recon-card-head">
-        <span>📋 图纸目录对账审计 ${isBad ? '⚠️ 存在范围缺失' : '✅ 100% 覆盖'}</span>
-        <span style="font-weight:700;color:${isBad ? '#b91c1c' : '#15803d'}">
-          覆盖率 ${Math.round(recon.coverage_rate * 100)}%
-        </span>
-      </div>
-      <div class="recon-card-body">
-        <div>目录声明箱柜：<b>${recon.total_declared_panels}</b> 个 ｜ 已提取：<b>${recon.covered_count}</b> 个 ｜ 缺失：<b style="color:${isBad ? '#b91c1c' : '#15803d'}">${recon.missing_count}</b> 个</div>
-        ${isBad ? `<div style="margin-top:4px;color:#b91c1c">缺失箱号：${esc(recon.missing_box_codes.join('、'))}</div>` : ''}
-      </div>
-    </div>`;
-  }
-
-  let topBar = '';
-  if (items.length) {
-    const errorCount = items.filter(u => !u.resolved && u.severity === 'ERROR').length;
-    topBar = `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:#f8fafc;border:1px solid #cbd5e1;margin-bottom:12px;border-radius:6px;gap:8px">
-      <div style="font-size:12px;color:#334155;white-space:nowrap">
-        待核对：<b style="color:${un ? '#e11d48' : '#16a34a'}">${un}</b> / ${items.length} 处
-        ${errorCount ? `<span style="margin-left:6px;padding:2px 6px;border-radius:3px;background:#fee2e2;color:#b91c1c;font-weight:600;font-size:11px">阻断错误 ${errorCount} 处</span>` : ''}
-      </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn sm" onclick="triggerAiReview()" title="让 AI 深度交叉复核全盘存疑项与电气设计规范" style="background:#4f46e5;color:#fff;border:none;font-size:11px;padding:3px 8px">
-          🤖 AI 智能深度复核
-        </button>
-        <button class="btn sm" onclick="resolveAllIssues()" title="一键将全部待核对项标记为已确认并放行导出" style="background:#16a34a;color:#fff;border:none;font-size:11px;padding:3px 8px">
-          ✅ 一键全部核对通过
-        </button>
-      </div>
-    </div>`;
-  }
-
-  $('rvlist').innerHTML = aiUsageHtml + reconHtml + (items.length ? (topBar + items.map((u, i) => {
-    let tagClass = 'warn';
-    let tagText = '待核对';
-    if (u.resolved) {
-      tagClass = 'ok';
-      tagText = '已确认';
-    } else if (u.severity === 'ERROR') {
-      tagClass = 'error';
-      tagText = '阻断错误';
-    } else if (u.severity === 'INFO') {
-      tagClass = 'info';
-      tagText = '规范提示';
-    }
-    return `
-    <div class="issue${u.resolved ? ' done' : ''}">
-      <h4><span class="tag ${tagClass}">${tagText}</span>${esc(u.location || '待核对项 ' + (i + 1))}</h4>
-      <p>${esc(u.detail || '')}</p>
-      ${u.resolved ? '' : `<button class="btn ghost sm" onclick="openReviewAt(${i})">去核对</button>`}
-    </div>`;
-  }).join(''))
-    : '<div class="empty">这份清单没有待核对项<br>识别结果与图纸一致</div>');
-  updateBadge();
-}
-
-async function triggerAiReview() {
-  if (!S.jobId) return toast('未打开有效图纸');
-  toast('🤖 AI 正在全盘交叉复核图纸与规范…');
-  try {
-    const res = await postJSON(`/api/jobs/${S.jobId}/ai_review`, {});
-    if (res.data) {
-      applyServerData(res);
-    }
-    const autoResolved = res.auto_resolved_count || 0;
-    const remaining = res.remaining_count || 0;
-    const findings = res.findings || [];
-
-    let msgContent = `<b>🤖 AI 智能全盘深度复核完成</b><br>${esc(res.summary)}<br><br>`;
-    if (findings.length) {
-      msgContent += '<b>📌 关键复核结论与电气研判：</b><br>';
-      findings.forEach(f => {
-        const icon = f.type === 'resolved' ? '✅' : (f.type === 'warning' ? '⚠️' : '💡');
-        msgContent += `${icon} <b>${esc(f.title)}</b>：${esc(f.detail)}<br>`;
-      });
+    if ($('extPgNext')) {
+      $('extPgNext').onclick = () => {
+        if (this.page < this.pages) {
+          this.page++;
+          $('extCadSheetSelect').value = this.page;
+          this.loadPageImage();
+        }
+      };
     }
 
-    addMsg('ai', msgContent);
-    switchPane('chat');
-    renderReview();
-    updateBadge();
-    toast(`AI 复核完成：已自动研判消除 ${autoResolved} 处存疑，剩余 ${remaining} 处`);
-  } catch (e) {
-    toast('AI 复核失败：' + e.message);
-  }
-}
-
-async function resolveAllIssues() {
-  if (!S.jobId) { toast('未打开有效图纸'); return false; }
-  const un = unresolved();
-  const errors = un.filter(u => u.severity === 'ERROR');
-  if (errors.length > 0) {
-    if (!confirm(`检测到 ${errors.length} 处系统级【阻断错误】（如图幅范围缺失或严重违反证据政策）。\n确定要强行人工全盘确认放行吗？`)) {
-      return false;
+    // 收起/展开图纸视口
+    if ($('extCollapseCadBtn')) {
+      $('extCollapseCadBtn').onclick = () => {
+        this.cadCollapsed = !this.cadCollapsed;
+        const panel = $('extCadPanel');
+        if (panel) {
+          panel.style.width = this.cadCollapsed ? '0px' : '45%';
+          panel.style.display = this.cadCollapsed ? 'none' : 'flex';
+        }
+        if ($('extCollapseCadText')) $('extCollapseCadText').textContent = this.cadCollapsed ? '展开' : '收起';
+        if ($('extCollapseCadIcon')) $('extCollapseCadIcon').textContent = this.cadCollapsed ? 'last_page' : 'first_page';
+        if (!this.cadCollapsed) {
+          requestAnimationFrame(() => {
+            if (this.viewMode === 'vector') {
+              this.resizeVectorCanvas();
+              this.renderVectorCanvas();
+            } else {
+              this.fitCad();
+            }
+          });
+        }
+      };
     }
-  }
-  try {
-    toast('正在一键确认所有存疑项…');
-    const res = await postJSON(`/api/jobs/${S.jobId}/resolve_all`, {});
-    if (res.data) {
-      applyServerData(res);
-    }
-    renderReview();
-    updateBadge();
-    toast('✅ 已一键全部确认通过！可直接导出 Excel 报表');
-    addMsg('sys', '✅ 用户已一键全部核对通过，当前清单已完全解锁导出');
-    closeReview();
-    return true;
-  } catch (e) {
-    toast('操作失败：' + e.message);
-    return false;
-  }
-}
 
-async function resolveAllAndExport() {
-  const ok = await resolveAllIssues();
-  if (!ok) return;
-  await doExport();
-}
+    // 画布滚轮缩放与平移（支持原生矢量 CAD 与位图）
+    const canvasWrap = $('extCadCanvasContainer');
+    if (canvasWrap) {
+      canvasWrap.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (this.viewMode === 'vector') {
+          const rect = canvasWrap.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left;
+          const mouseY = e.clientY - rect.top;
+          const factor = e.deltaY < 0 ? 1.18 : 0.82;
+          const oldZoom = this.vectorState.zoom;
+          const newZoom = Math.min(Math.max(oldZoom * factor, 0.000001), 10);
+          this.vectorState.panX = mouseX - (mouseX - this.vectorState.panX) * (newZoom / oldZoom);
+          this.vectorState.panY = mouseY - (mouseY - this.vectorState.panY) * (newZoom / oldZoom);
+          this.vectorState.zoom = newZoom;
+          this.updateZoomDisplay();
+          this.renderVectorCanvas();
+        } else {
+          const rect = canvasWrap.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left - rect.width / 2;
+          const mouseY = e.clientY - rect.top - rect.height / 2;
+          const oldZoom = this.zoom;
+          const factor = Math.exp(-e.deltaY * 0.0018);
+          const newZoom = Math.max(0.15, Math.min(6, oldZoom * factor));
+          this.panX = mouseX - (mouseX - this.panX) * (newZoom / oldZoom);
+          this.panY = mouseY - (mouseY - this.panY) * (newZoom / oldZoom);
+          this.zoom = newZoom;
+          this.applyCadTransform();
+        }
+      }, { passive: false });
 
-async function triggerAiReviewAndExport() {
-  await triggerAiReview();
-  const left = unresolved().length;
-  // 复核完直接导出：剩下的待核对项会如实写进 Excel，不再挡着下载
-  if (left > 0) toast(`AI 复核完成，仍有 ${left} 处待人工核对，已一并写入 Excel 待核对区`);
-  await doExport();
-}
-
-function openReview() {
-  const first = (S.data.uncertainties || []).findIndex(u => !u.resolved);
-  openReviewAt(first < 0 ? 0 : first);
-}
-
-function openReviewAt(i) {
-  if (!(S.data.uncertainties || []).length) { toast('没有待核对项'); return; }
-  S.reviewIdx = i;
-  $('rvoverlay').classList.add('show');
-  showIssue();
-}
-
-function closeReview() {
-  $('rvoverlay').classList.remove('show');
-  renderReview();
-}
-
-function showIssue() {
-  const items = S.data.uncertainties || [];
-  const it = items[S.reviewIdx];
-  if (!it) { closeReview(); return; }
-  const left = unresolved().length;
-  $('rvprog-t').textContent = `存疑 ${S.reviewIdx + 1} / ${items.length}（剩余 ${left}）`;
-  $('rvbar').style.width = (items.length ? ((items.length - left) / items.length) * 100 : 0) + '%';
-  $('rvtitle').textContent = it.location || `待核对项 ${S.reviewIdx + 1}`;
-  $('rvdesc').textContent = it.detail || '';
-  $('rvsugwrap').hidden = true;
-  $('rvsug').textContent = '';
-
-  const img = $('rvdwg');
-  const page = (it.bbox && it.bbox.page) || 1;
-  img.src = `/api/jobs/${S.jobId}/page/${page}`;
-  $('rvpageno').textContent = S.pages > 1 ? `第 ${page}/${S.pages} 页` : '';
-  const r = it.bbox;
-  if (r) {
-    $('rvstage').style.transform = 'scale(2.4)';
-    $('rvstage').style.transformOrigin = `${(r.x + r.w / 2) * 100}% ${(r.y + r.h / 2) * 100}%`;
-    $('rvhl').innerHTML = `<div class="hl show" style="left:${r.x * 100}%;top:${r.y * 100}%;width:${r.w * 100}%;height:${r.h * 100}%"></div>`;
-  } else {
-    $('rvstage').style.transform = 'scale(1)';
-    $('rvhl').innerHTML = '';
-    $('rvsugwrap').hidden = false;
-    $('rvsug').textContent = '这一项没能定位到图纸上的具体位置，请按上面的描述整页核对。';
-  }
-}
-
-function resolveIssue(ok) {
-  const items = S.data.uncertainties || [];
-  const it = items[S.reviewIdx];
-  if (!it) return;
-  it.resolved = true;
-  const left = unresolved().length;
-  if (!left) {
-    closeReview();
-    addMsg('sys', '存疑项已全部确认，可以导出');
-    toast('核对完成，可以导出了');
-  } else {
-    const next = items.findIndex(u => !u.resolved);
-    S.reviewIdx = next;
-    showIssue();
-  }
-  renderReview();
-  saveNow(true).then(() => renderReview());
-}
-
-/* ===================== 修改记录 ===================== */
-
-function openLog() {
-  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
-  const list = $('loglist');
-  const rows = [];
-  pendingChanges().forEach(g => rows.push(logCard({ ...g, ts: '未保存', pending: true })));
-  S.changes.slice().reverse().forEach((g, i) => rows.push(logCard({
-    ...g, index: S.changes.length - 1 - i,
-  })));
-  list.innerHTML = rows.length ? rows.join('')
-    : '<div class="logempty">暂无人工修改<br>双击表格单元格即可修改<br>AI 提取的原值会保留备查</div>';
-  $('logdrawer').classList.add('open');
-}
-
-const SCOPE_LABEL = { circuit: '回路', box: '箱体', device: '非回路设备' };
-
-function logCard(g) {
-  const scope = g.scope || 'circuit';
-  const isAdd = g.action === 'add';
-  const isRemove = g.action === 'remove';
-  const head = isAdd || isRemove
-    ? `${isAdd ? '新增' : '删除'}${SCOPE_LABEL[scope] || ''} <b>${esc(g.target || '')}</b>`
-    : `<b>${esc(g.target || '')}</b> · ${esc(SCOPE_LABEL[scope] || '')} ${esc(FIELD_LABEL[g.field] || g.field || '')}`;
-  const diff = isAdd
-    ? `<span class="new">${esc(g.new || '')}</span>`
-    : isRemove
-      ? `<span class="old">${esc(g.old || '')}</span>`
-      : `<span class="old">${esc(g.old || '—')}</span> → <span class="new">${esc(g.new || '—')}</span>`;
-  return `<div class="logitem">
-    <div class="lt"><span>${esc(g.ts || '')} · ${esc(g.source || '')}${g.pending ? '（未保存）' : ''}</span>
-      ${g.pending ? '' : `<button class="undo" onclick="undoChange(${g.index})">撤销</button>`}</div>
-    <div>${head}</div>
-    <div class="chg">${diff}</div>
-  </div>`;
-}
-
-function closeLog() {
-  $('logdrawer').classList.remove('open');
-}
-
-async function undoChange(index) {
-  const entry = S.changes[index];
-  if (!entry) return;
-  try {
-    const res = await postJSON(`/api/jobs/${S.jobId}/revert`, {
-      target: entry.target, field: entry.field || '', ts: entry.ts || '',
-      scope: entry.scope || 'circuit',
-    });
-    applyServerData(res);
-    const what = entry.action ? (entry.action === 'add' ? '新增' : '删除') : (FIELD_LABEL[entry.field] || entry.field);
-    toast(`已撤销：${entry.target} · ${what}`);
-    openLog();
-  } catch (e) {
-    toast('撤销失败：' + e.message);
-  }
-}
-
-async function undoLastChange() {
-  if (!S.jobId) {
-    toast('先打开一份图纸');
-    return;
-  }
-  const pending = pendingChanges();
-  if (pending.length > 0) {
-    const lastP = pending[pending.length - 1];
-    const set = EDIT_SETS[lastP.scope];
-    if (set) {
-      const list = set.list();
-      for (let i = 0; i < list.length; i++) {
-        if (set.label(i) === lastP.target) {
-          const before = origRow(lastP.scope, i);
-          if (before) {
-            list[i][lastP.field] = before[lastP.field];
-            renderSub(S.sub);
-            renderListFoot();
-            updateChg();
-            toast(`已撤销未保存修改：${lastP.target} · ${FIELD_LABEL[lastP.field] || lastP.field}`);
-            return;
+      let dragStart = null;
+      canvasWrap.onpointerdown = (e) => {
+        if (e.button !== 0) return;
+        if (this.viewMode === 'vector') {
+          dragStart = { x: e.clientX, y: e.clientY, ox: this.vectorState.panX, oy: this.vectorState.panY };
+        } else {
+          dragStart = { x: e.clientX, y: e.clientY, ox: this.panX, oy: this.panY };
+        }
+        try { canvasWrap.setPointerCapture(e.pointerId); } catch (_) {}
+        canvasWrap.classList.remove('cursor-grab');
+        canvasWrap.classList.add('cursor-grabbing');
+      };
+      canvasWrap.onpointermove = (e) => {
+        if (dragStart) {
+          if (this.viewMode === 'vector') {
+            this.vectorState.panX = dragStart.ox + (e.clientX - dragStart.x);
+            this.vectorState.panY = dragStart.oy + (e.clientY - dragStart.y);
+            this.renderVectorCanvas();
+          } else {
+            this.panX = dragStart.ox + (e.clientX - dragStart.x);
+            this.panY = dragStart.oy + (e.clientY - dragStart.y);
+            this.applyCadTransform();
           }
         }
+        if (this.viewMode === 'vector') {
+          this.updateVectorHud(e);
+        }
+      };
+      const endDrag = (e) => {
+        if (dragStart && e && e.pointerId) {
+          try { canvasWrap.releasePointerCapture(e.pointerId); } catch (_) {}
+        }
+        dragStart = null;
+        canvasWrap.classList.remove('cursor-grabbing');
+        canvasWrap.classList.add('cursor-grab');
+      };
+      canvasWrap.onpointerup = endDrag;
+      canvasWrap.onpointercancel = endDrag;
+      canvasWrap.ondblclick = () => {
+        if (this.viewMode === 'vector') {
+          this.initVectorStateFromExtents();
+          this.renderVectorCanvas();
+        } else {
+          this.fitCad();
+        }
+      };
+    }
+
+    // 窗口尺寸变化重调矢量画布
+    window.addEventListener('resize', () => {
+      if (this.viewMode === 'vector') {
+        this.resizeVectorCanvas();
+        this.renderVectorCanvas();
       }
+    });
+
+    // 组价确认弹窗操作
+    if ($('closePricingModalBtn')) {
+      $('closePricingModalBtn').onclick = () => { this.closePricingModal(); };
     }
-  }
-  if (S.changes && S.changes.length > 0) {
-    await undoChange(S.changes.length - 1);
-  } else {
-    toast('暂无可撤销的历史记录');
-  }
-}
-
-/* ===================== 导出 ===================== */
-
-/** 带 token 的导出地址：接口的租户中间件认 ?token=，所以真实链接也能过鉴权。 */
-function exportUrl(path) {
-  const params = new URLSearchParams();
-  if (Auth.token) params.set('token', Auth.token);
-  const qs = params.toString();
-  return qs ? `${path}${path.includes('?') ? '&' : '?'}${qs}` : path;
-}
-
-/** 用真实 <a href> 触发下载。
- *
- * 为什么不用 fetch + blob：内嵌浏览器（webview / iframe 里的应用）会把
- * 程序化创建的 blob: 下载静默吞掉——点下去完全没反应，也不报错，没有任何提示。
- * 交给浏览器自己做导航式下载，走的是它的下载管理器，兼容性最好。
- * 返回该 <a>，调用方可以把它塞进界面当可见的兜底入口。
- */
-function triggerDownload(url, filename) {
-  const a = document.createElement('a');
-  a.href = url;
-  if (filename) a.download = filename;
-  a.rel = 'noopener';
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => a.remove(), 0);
-  return a;
-}
-
-function exportReleaseChecks(summary, data) {
-  const rules = (summary && summary.release_checks) || (data && data.release_checks) || [];
-  return rules.map(rule => ({
-    ok: !!rule.ok,
-    title: rule.title || "放行检查",
-    note: rule.note || "",
-  }));
-}
-
-function openExport() {
-  if (!S.jobId) { toast('先打开一份图纸'); return; }
-  const un = unresolved().length;
-  const circuits = (S.data.circuits || []).length;
-  const comps = (S.data.components || []).length;
-  const cross = (S.data.uncertainties || []).filter(u => /回路逐条计数/.test(u.detail || '')).length;
-  const pending = pendingChanges().length;
-  const checks = [
-    { ok: true, title: '存疑项状态', note: un === 0
-        ? `共 ${(S.data.uncertainties || []).length} 项，全部已确认`
-        : `还有 ${un} 项待核对——不影响导出，会一并写进 Excel 的待核对区` },
-    { ok: circuits > 0, title: '回路明细完整', note: `${circuits} 条回路` },
-    { ok: comps > 0 && cross === 0, title: '元器件已按回路重新汇总', note: cross ? `有 ${cross} 条回路与汇总数量存在差异，已作工程标记` : `${comps} 项，与回路逐条计数一致` },
-    { ok: true, title: pending ? `还有 ${pending} 处修改没保存` : '修改已留痕', note: pending ? '点「保存」后再导出，否则未保存修改不会进入变更记录' : `${S.changes.length} 处修改，随清单导出变更记录` },
-  ];
-  if (S.data.reconciliation && S.data.reconciliation.has_catalog) {
-    const recon = S.data.reconciliation;
-    const isBad = recon.missing_count > 0;
-    checks.push({
-      ok: !isBad,
-      title: '图纸目录对账审计',
-      note: isBad
-        ? `目录声明 ${recon.total_declared_panels} 个箱体，仅覆盖 ${recon.covered_count} 个，遗漏：${recon.missing_box_codes.join('、')}`
-        : `目录声明 ${recon.total_declared_panels} 个箱体 100% 覆盖提取`
-    });
-  }
-  // 切片覆盖率与独立交叉验证结果：这是“切准了没”“解析准了没”的可核验凭证，导出前必须看见
-  const summary = (S.job && S.job.summary) || {};
-  const slice = summary.slice_plan;
-  if (slice) {
-    const cov = slice.tile_coverage;
-    const covered = !cov || cov.fully_covered;
-    checks.push({
-      ok: covered,
-      title: '切片覆盖自检',
-      note: slice.tiles
-        ? `${slice.total_images} 页切成 ${slice.tiles} 块，覆盖 ${cov ? (cov.covered_area_ratio * 100).toFixed(2) + '%' : '-'}（${covered ? '已铺满整页' : '存在漏区'}）`
-        : `${slice.total_images} 页均为整页送检，未触发切片`
-    });
-  }
-  const read = summary.read_report;
-  if (read && read.status) {
-    const label = {
-      supported: "支持范围内已盘点",
-      degraded: "降级，影响已写入原因",
-      insufficient: "关键条件不足",
-    }[read.status] || read.status;
-    const reasons = (read.reasons || []).join("；");
-    checks.push({
-      ok: read.status === "supported",
-      title: "图纸读取盘点",
-      note: `${label}${reasons ? "。" + reasons : ""}。覆盖率保持为空，退出码不能代替读全`,
-    });
-  }
-  exportReleaseChecks(summary, S.data).forEach(rule => checks.push(rule));
-  const corr = summary.corroboration;
-  if (corr) {
-    if (!corr.available) {
-      checks.push({
-        ok: true,
-        title: '关键字段独立交叉验证',
-        note: '本图没有可用的原生文字（文字已转曲或未提供矢量文字层），没有第二个来源可交叉验证，关键字段请人工抽查'
-      });
-    } else {
-      const rate = (corr.corroboration_rate !== undefined ? corr.corroboration_rate : corr.coverage_rate) || 0;
-      checks.push({
-        ok: corr.unverified === 0,
-        title: '关键字段独立交叉验证',
-        note: `${corr.values_checked} 个关键字段中用${corr.source === 'cad_native' ? 'CAD 矢量文字' : 'PDF 文字层'}命中 ${corr.corroborated} 个（${(rate * 100).toFixed(1)}%）`
-          + (corr.unverified ? `，${corr.unverified} 个未命中已列入待核对（未命中不等于错误）` : '')
-      });
+    if ($('confirmPricingBtn')) {
+      $('confirmPricingBtn').onclick = () => {
+        this.closePricingModal();
+        location.hash = `#/job/${this.id}/pricing`;
+      };
     }
-  }
-  $('expsub').textContent = `${S.job ? S.job.filename : ''} · 导出前检查`;
-  $('expchecks').innerHTML = checks.map(c => `<div class="chk${c.ok ? '' : ' bad'}">
-    <span class="c">${c.ok ? '✓' : '!'}</span><div>${esc(c.title)}<small>${esc(c.note)}</small></div></div>`).join('');
-  const meta = (S.job && S.job.summary && S.job.summary.meta) || {};
-  $('expver').textContent = `模型 ${meta.model || '-'} · 提示词 v${meta.prompt_version || '-'} · 契约 v${meta.contract_version || '-'}`;
 
-  // 导出永远只有一条主路径：点下去就下载。存疑项不遮挡交付，
-  // 「AI 复核后导出」「一键确认后导出」只是可选的数据质量快捷方式，不是前置条件。
-  //
-  // 主按钮用真实 <a href> 而不是 JS 触发：内嵌浏览器会把 blob 下载静默吞掉，
-  // 用户看到的就是「点了没反应」。导航式下载交给浏览器自己的下载管理器，最可靠。
-  const brand = S.targetBrand || defaultTargetBrand() || '';
-  const excelHref = exportUrl(`/api/jobs/${S.jobId}/excel${brand ? `?target_brand=${encodeURIComponent(brand)}` : ''}`);
-  const mactions = document.querySelector('#expmodal .mactions');
-  if (mactions) {
-    mactions.innerHTML = `
-      <button class="btn ghost sm" onclick="closeExport()">取消</button>
-      ${un > 0 ? `
-        <button class="linklike" style="margin-right:12px" onclick="triggerAiReviewAndExport()"
-                title="让 AI 全盘复核待核对项，复核完自动下载；没有把握的项会保留在 Excel 待核对区">🤖 AI 复核后导出</button>
-        <button class="linklike" style="margin-right:12px" onclick="resolveAllAndExport()"
-                title="把剩余 ${un} 处待核对项标记为已确认后再下载">✅ 一键确认后导出</button>` : ''}
-      <a class="btn primary sm" id="expok" href="${esc(excelHref)}" download
-         onclick="markExportStarted()"
-      >${un > 0 ? `直接导出（含 ${un} 处待核对）` : '确认导出'}</a>
-    `;
-  }
-  // 兜底入口：某些内嵌浏览器连导航式下载也拦，那就给一个能右键/"在新窗口打开"的明文链接。
-  // 弹窗不再自动关闭——关掉就等于把唯一的兜底入口也关掉了。
-  renderExportFallback(excelHref);
-  $('expmodal').classList.add('show');
-}
-
-function closeExport() {
-  $('expmodal').classList.remove('show');
-}
-
-/** 点击导出后就地反馈，便于用户判断"到底有没有开始下载"。 */
-function markExportStarted() {
-  const fb = $('expfallback');
-  if (fb) {
-    fb.insertAdjacentHTML('afterbegin',
-      '<div style="color:var(--ok,#178A4C);font-weight:600;margin-bottom:4px">'
-      + '✓ 已发起下载。若浏览器没有任何反应（内嵌浏览器常会拦下载），用下面的链接手动取文件。</div>');
-  }
-}
-
-/** 导出兜底入口：真实链接 + 新窗口打开 + 提示可右键另存。 */
-function renderExportFallback(href) {
-  const fb = $('expfallback');
-  if (!fb) return;
-  fb.innerHTML = `<span class="mut">下载没反应？</span>
-    <a href="${esc(href)}" download style="color:var(--acc-d);text-decoration:underline;margin:0 6px">点这里直接下载</a>
-    <span class="mut">或</span>
-    <a href="${esc(href)}" target="_blank" rel="noopener"
-       style="color:var(--acc-d);text-decoration:underline;margin-left:6px">在新窗口打开</a>
-    <span class="mut">（右键可「链接存储为」，也可复制链接到系统浏览器打开）</span>`;
-}
-
-async function doExport() {
-  if (!S.jobId) { toast('先打开一份图纸'); return; }
-  const brand = S.targetBrand || defaultTargetBrand() || '';
-  const url = exportUrl(`/api/jobs/${S.jobId}/excel${brand ? `?target_brand=${encodeURIComponent(brand)}` : ''}`);
-  // 先探一次状态码，好把“服务端真的做不出来”和“浏览器吞了下载”区分开
-  let status = 0;
-  try {
-    const headers = {};
-    if (Auth.token) headers['Authorization'] = `Bearer ${Auth.token}`;
-    status = (await fetch(url, { headers })).status;
-  } catch (e) {
-    toast('导出失败：连不上服务端'); return;
-  }
-  if (status === 409) {
-    // 只有当 config/delivery.json 把 export_gate.block_unresolved_default 打开时才会走到这里
-    let n = '?';
-    try {
-      const headers = Auth.token ? { Authorization: `Bearer ${Auth.token}` } : {};
-      const j = await (await fetch(url, { headers })).json();
-      if (j?.detail?.unresolved_count != null) n = j.detail.unresolved_count;
-    } catch (e) {}
-    closeExport();
-    toast(`导出被拦下：还有 ${n} 处存疑未确认（该项目开启了导出前门禁）`);
-    addMsg('sys', `导出被拦截：还有 ${n} 处存疑未确认。当前项目开启了“存疑未清零不许导出”的门禁；`
-      + '逐项核对或用「一键确认后导出」即可，也可以让管理员关闭该门禁。');
-    return;
-  }
-  if (status !== 200) { toast(`导出失败：服务端返回 ${status}`); return; }
-
-  triggerDownload(url, `配电箱元器件清单(报价用)-${S.jobId}.xlsx`);
-  renderExportFallback(url);
-  markExportStarted();
-  addMsg('sys', `Excel 报价清单已开始下载（含 ${S.changes.length} 处修改记录）`);
-  toast('已发起下载；若没反应，用导出面板里的「点这里直接下载」');
-}
-
-/* ===================== 框选解析 ===================== */
-
-function toggleCropMode() {
-  if (!S.jobId) { toast('请先在项目或上传中打开一份图纸'); return; }
-  S.cropMode = !S.cropMode;
-  const btn = $('cropbtn');
-  if (btn) btn.classList.toggle('on', S.cropMode);
-  const canvas = $('canvas');
-  if (canvas) canvas.classList.toggle('crop-mode', S.cropMode);
-  if (S.cropMode) {
-    switchPane('crop');
-    toast('已开启框选识图：在图纸上拖拽框选任意区域');
-  } else {
-    clearCrop();
-    toast('已退出框选识图');
-  }
-}
-
-function clearCrop() {
-  const marquee = $('cropmarquee');
-  if (marquee) marquee.hidden = true;
-  S.currentCropBBox = null;
-  S.lastCropResult = null;
-  const resEl = $('crop-result');
-  if (resEl) resEl.hidden = true;
-  const loadEl = $('crop-loading');
-  if (loadEl) loadEl.hidden = true;
-  const emptyEl = $('crop-empty');
-  if (emptyEl) {
-    emptyEl.hidden = false;
-    emptyEl.innerHTML = `<div style="font-size:26px;margin-bottom:8px">⛶</div>
-      <div style="font-weight:600;margin-bottom:4px">在图纸上框选任意区域</div>
-      <div class="mut2" style="font-size:11.5px;max-width:280px;margin:0 auto">点击左上方「框选识图」按钮开启模式，按住鼠标左键在图纸上拉框，支持精准提取元器件、回路、设计说明及箱体参数。</div>`;
-  }
-  const bdg = $('cropbdg');
-  if (bdg) bdg.hidden = true;
-  const meta = $('crop-meta');
-  if (meta) meta.textContent = '在图纸上拖拽框选';
-  if ($('crop-boxinfo-card')) $('crop-boxinfo-card').hidden = true;
-  if ($('crop-req-card')) $('crop-req-card').hidden = true;
-  if ($('crop-comp-card')) $('crop-comp-card').hidden = true;
-  if ($('crop-none-hint')) $('crop-none-hint').hidden = true;
-  if ($('crop-add-all-btn')) $('crop-add-all-btn').hidden = true;
-}
-
-function initCropSelection() {
-  const stage = $('stage');
-  const img = $('dwg');
-  if (!stage || !img) return;
-
-  stage.addEventListener('mousedown', e => {
-    if (!S.cropMode || e.button !== 0) return;
-    const rect = img.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    if (e.clientX < rect.left || e.clientX > rect.right ||
-        e.clientY < rect.top || e.clientY > rect.bottom) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    S.isCropping = true;
-    S.cropStart = {
-      x: (e.clientX - rect.left) / rect.width,
-      y: (e.clientY - rect.top) / rect.height,
+    // AI Drawer
+    $('extAiToggleBtn').onclick = () => {
+      $('extAiDrawer').classList.toggle('translate-x-full');
     };
+    $('extAiCloseBtn').onclick = () => {
+      $('extAiDrawer').classList.add('translate-x-full');
+    };
+    $('extAiForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const input = $('extAiInput');
+      const val = (input.value || '').trim();
+      if (!val) return;
+      input.value = '';
 
-    const marquee = $('cropmarquee');
-    if (marquee) {
-      marquee.style.left = `${S.cropStart.x * 100}%`;
-      marquee.style.top = `${S.cropStart.y * 100}%`;
-      marquee.style.width = '0%';
-      marquee.style.height = '0%';
-      marquee.hidden = false;
-    }
-  });
+      const msgs = $('extAiMsgs');
+      msgs.innerHTML += `
+        <div class="p-2.5 rounded bg-blue-50 border border-blue-200 text-blue-900 text-[11px] self-end">
+          <strong>你:</strong> ${esc(val)}
+        </div>
+      `;
+      msgs.scrollTop = msgs.scrollHeight;
 
-  window.addEventListener('mousemove', e => {
-    if (!S.isCropping) return;
-    const rect = img.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-
-    const curX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const curY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
-
-    const left = Math.min(S.cropStart.x, curX);
-    const top = Math.min(S.cropStart.y, curY);
-    const width = Math.abs(curX - S.cropStart.x);
-    const height = Math.abs(curY - S.cropStart.y);
-
-    S.currentCropBBox = { x: left, y: top, w: width, h: height, page: S.page || 1 };
-
-    const marquee = $('cropmarquee');
-    if (marquee) {
-      marquee.style.left = `${left * 100}%`;
-      marquee.style.top = `${top * 100}%`;
-      marquee.style.width = `${width * 100}%`;
-      marquee.style.height = `${height * 100}%`;
-      marquee.hidden = false;
-      const tag = $('croptag');
-      if (tag) {
-        tag.textContent = `${Math.round(width * 100)}% × ${Math.round(height * 100)}%`;
+      try {
+        const res = await api(`/api/jobs/${this.id}/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: val, history: [] })
+        });
+        msgs.innerHTML += `
+          <div class="p-2.5 rounded bg-white border border-slate-200 text-slate-800 text-[11px] leading-relaxed shadow-2xs">
+            <div class="flex items-center gap-1 font-bold text-blue-700 mb-0.5">
+              <span class="material-symbols-outlined text-[13px]">smart_toy</span>
+              <span>AI 诊断助手</span>
+            </div>
+            ${esc(res.reply || '已为你核对图纸回路配置。')}
+          </div>
+        `;
+        msgs.scrollTop = msgs.scrollHeight;
+      } catch (err) {
+        toast(`AI 诊断请求失败：${err.message}`);
       }
-    }
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (!S.isCropping) return;
-    S.isCropping = false;
-    const bbox = S.currentCropBBox;
-    if (!bbox || bbox.w < 0.015 || bbox.h < 0.015) {
-      clearCrop();
-      return;
-    }
-    parseSelectedRegion(bbox);
-  });
-}
-
-async function parseSelectedRegion(bbox) {
-  if (!S.jobId) {
-    toast('先打开一份图纸');
-    return;
+    };
   }
-  switchPane('crop');
-  $('crop-empty').hidden = true;
-  $('crop-result').hidden = true;
-  $('crop-loading').hidden = false;
-  $('crop-meta').textContent = `第 ${bbox.page || 1} 页 · 选区 ${Math.round(bbox.w * 100)}%×${Math.round(bbox.h * 100)}%`;
+};
 
-  try {
-    const res = await postJSON(`/api/jobs/${S.jobId}/parse_region`, {
-      page: bbox.page || S.page || 1,
-      x: bbox.x,
-      y: bbox.y,
-      w: bbox.w,
-      h: bbox.h,
-    });
-    $('crop-loading').hidden = true;
-    if (!res.ok && res.error) {
-      $('crop-empty').hidden = false;
-      $('crop-empty').innerHTML = `<div style="color:var(--err);margin-bottom:8px">解析失败：${esc(res.error)}</div>
-        <button class="btn sm ghost" onclick="parseSelectedRegion(S.currentCropBBox)">重试</button>`;
-      return;
-    }
-    S.lastCropResult = res;
-    $('crop-result').hidden = false;
-    $('crop-img').src = res.crop_url;
-    $('crop-summary').textContent = res.summary || '已识别选区内容';
+/* ================= ④ 组价核算工作台 (Cost Pricing & Quotation) ================= */
 
-    const comps = (res.components || []).filter(c => (c.quantity ?? 1) > 0 || c.spec);
-    const circs = res.circuits || [];
-    const reqs = res.requirements || [];
-    const boxInfo = res.box_info || {};
-    const totalCount = comps.length + circs.length + reqs.length + (boxInfo.note || boxInfo.code ? 1 : 0);
-    $('cropbdg').textContent = totalCount;
-    $('cropbdg').hidden = totalCount === 0;
+function toChineseCurrency(money) {
+  const cnNums = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'];
+  const cnIntRadice = ['', '拾', '佰', '仟'];
+  const cnIntUnits = ['', '万', '亿', '兆'];
+  const cnDecUnits = ['角', '分'];
+  const integer = '整';
+  const intHead = '元';
 
-    // 1. 箱体说明卡片
-    const hasBox = !!(boxInfo.code || boxInfo.note || boxInfo.name || boxInfo.install || boxInfo.size);
-    if ($('crop-boxinfo-card')) $('crop-boxinfo-card').hidden = !hasBox;
-    if (hasBox && $('crop-boxinfo-content')) {
-      let bHtml = '';
-      if (boxInfo.code || boxInfo.name) {
-        bHtml += `<div><b>${esc([boxInfo.code, boxInfo.name].filter(Boolean).join(' · '))}</b></div>`;
-      }
-      const details = [];
-      if (boxInfo.ip_rating) details.push(`防护: ${boxInfo.ip_rating}`);
-      if (boxInfo.install) details.push(`安装: ${boxInfo.install}`);
-      if (boxInfo.location) details.push(`位置: ${boxInfo.location}`);
-      if (boxInfo.size) details.push(`尺寸: ${boxInfo.size}`);
-      if (details.length) bHtml += `<div class="mut" style="font-size:11px;margin:3px 0">${esc(details.join(' ｜ '))}</div>`;
-      if (boxInfo.note) bHtml += `<div style="margin-top:4px"><b>说明/备注：</b>${esc(boxInfo.note)}</div>`;
-      $('crop-boxinfo-content').innerHTML = bHtml;
-    }
+  let num = Math.round(Number(money || 0) * 100) / 100;
+  if (isNaN(num) || num <= 0) return '零元整';
+  if (num > 999999999999999.99) return '超出最大金额范围';
 
-    // 2. 设计说明与技术要求卡片
-    if ($('crop-req-card')) $('crop-req-card').hidden = reqs.length === 0;
-    if ($('crop-req-count')) $('crop-req-count').textContent = reqs.length;
-    if (reqs.length && $('crop-req-rows')) {
-      let reqHtml = '';
-      reqs.forEach(r => {
-        reqHtml += `<tr>
-          <td style="white-space:nowrap;width:30%"><b>${esc(r.item || '设计说明')}</b></td>
-          <td style="font-size:11.5px;line-height:1.4">${esc(r.content || '')}</td>
-        </tr>`;
-      });
-      $('crop-req-rows').innerHTML = reqHtml;
-      if ($('crop-add-req-btn')) $('crop-add-req-btn').textContent = `＋ 补入技术要求 (${reqs.length} 项)`;
-    }
+  let parts = num.toFixed(2).split('.');
+  let intPart = parts[0];
+  let decPart = parts[1];
 
-    // 3. 元器件与回路卡片
-    const compTotal = comps.length + circs.length;
-    if ($('crop-comp-card')) $('crop-comp-card').hidden = compTotal === 0;
-    if ($('crop-comp-count')) $('crop-comp-count').textContent = compTotal;
-    if (compTotal > 0 && $('crop-comp-rows')) {
-      let rowsHtml = '';
-      comps.forEach(c => {
-        rowsHtml += `<tr>
-          <td><b>${esc(c.name || '元器件')}</b></td>
-          <td class="mono">${esc(c.spec || '—')}</td>
-          <td><b>${c.quantity ?? 1}</b></td>
-          <td>${esc(c.unit || '只')}</td>
-          <td class="mut">${esc(c.note || '')}</td>
-        </tr>`;
-      });
-      circs.forEach(c => {
-        rowsHtml += `<tr style="background:rgba(46,92,230,.03)">
-          <td><span class="pill" style="font-size:10px">回路</span> <b>${esc(c.circuit_no || '回路')}</b></td>
-          <td class="mono">${esc(c.breaker || '—')}</td>
-          <td><b>1</b></td>
-          <td>只</td>
-          <td class="mut">${esc([c.cable, c.load_name, c.power_kw ? c.power_kw + 'kW' : ''].filter(Boolean).join(' / '))}</td>
-        </tr>`;
-      });
-      $('crop-comp-rows').innerHTML = rowsHtml;
-      if ($('crop-add-btn')) $('crop-add-btn').textContent = `＋ 补入器件清单 (${compTotal} 项)`;
-    }
-
-    // 4. 无可提取内容提示
-    if ($('crop-none-hint')) $('crop-none-hint').hidden = totalCount > 0;
-
-    // 5. 组合补入按钮
-    const activeSectionCount = [hasBox && (boxInfo.note || boxInfo.code), reqs.length > 0, compTotal > 0].filter(Boolean).length;
-    if ($('crop-add-all-btn')) {
-      $('crop-add-all-btn').hidden = activeSectionCount <= 1;
-      if (activeSectionCount > 1) {
-        $('crop-add-all-btn').textContent = `＋ 全部补入 (共 ${totalCount} 项)`;
-      }
-    }
-  } catch (err) {
-    $('crop-loading').hidden = true;
-    $('crop-empty').hidden = false;
-    $('crop-empty').innerHTML = `<div style="color:var(--err);margin-bottom:8px">请求失败：${esc(err.message)}</div>
-      <button class="btn sm ghost" onclick="parseSelectedRegion(S.currentCropBBox)">重试</button>`;
-  }
-}
-
-function applyCropRequirementsInternal(reqs) {
-  S.data.requirements = S.data.requirements || [];
-  const seen = new Set(S.data.requirements.map(r => `${r.item}|${r.content}`));
-  let added = 0;
-  reqs.forEach(r => {
-    const key = `${r.item || ''}|${r.content || ''}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      S.data.requirements.push({ item: r.item || '设计说明', content: r.content || '' });
-      added++;
-    }
-  });
-  return added;
-}
-
-async function applyCropRequirements() {
-  if (!S.lastCropResult) { toast('请先在图纸上框选区域并等待解析完成'); return; }
-  const reqs = S.lastCropResult.requirements || [];
-  if (!reqs.length) { toast('没有可补入的技术要求'); return; }
-  const added = applyCropRequirementsInternal(reqs);
-  if (!added) {
-    toast('这些技术要求已经存在于清单中');
-    return;
-  }
-  updateChg();
-  await saveNow(true);
-  switchPane('list');
-  renderSub('reqs');
-  toast(`已成功补录 ${added} 项技术要求到清单！`);
-}
-
-function applyCropBoxInfoInternal(info) {
-  S.data.boxes = S.data.boxes || [];
-  if (!S.data.boxes.length) {
-    S.data.boxes.push({
-      code: info.code || 'AL1',
-      name: info.name || '配电箱',
-      ip_rating: info.ip_rating || 'IP30',
-      install: info.install || '',
-      location: info.location || '',
-      size: info.size || '',
-      quantity: info.quantity || 1,
-      quantity_confirmed: false,
-      note: info.note || '',
-    });
-    return true;
-  }
-  let box = S.data.boxes.find(b => info.code && b.code && b.code.toUpperCase() === info.code.toUpperCase());
-  if (!box) box = S.data.boxes[0];
-  if (info.code && !box.code) box.code = info.code;
-  if (info.name && !box.name) box.name = info.name;
-  if (info.ip_rating) box.ip_rating = info.ip_rating;
-  if (info.install) box.install = info.install;
-  if (info.location) box.location = info.location;
-  if (info.size) box.size = info.size;
-  if (info.note) {
-    if (box.note && !box.note.includes(info.note)) {
-      box.note = `${box.note}；${info.note}`;
-    } else if (!box.note) {
-      box.note = info.note;
-    }
-  }
-  return true;
-}
-
-async function applyCropBoxInfo() {
-  if (!S.lastCropResult || !S.lastCropResult.box_info) { toast('请先在图纸上框选包含箱体信息的区域'); return; }
-  applyCropBoxInfoInternal(S.lastCropResult.box_info);
-  updateChg();
-  await saveNow(true);
-  switchPane('list');
-  renderSub('boxes');
-  toast('已将框选参数同步至配电箱说明！');
-}
-
-function applyCropComponentsInternal(comps, circs) {
-  const boxCode = (S.data.boxes && S.data.boxes[0] && S.data.boxes[0].code) || '';
-  let addedCount = 0;
-  if (comps.length) {
-    S.data.extra_devices = S.data.extra_devices || [];
-    comps.forEach(c => {
-      S.data.extra_devices.push({
-        name: c.name || '元器件',
-        spec: c.spec || '',
-        unit: c.unit || '只',
-        quantity: Number(c.quantity) || 1,
-        used_in: c.note ? `${boxCode} ${c.note}`.trim() : boxCode,
-        note: '来自框选识别补录',
-      });
-      addedCount++;
-    });
-  }
-  if (circs.length) {
-    S.data.circuits = S.data.circuits || [];
-    circs.forEach(c => {
-      S.data.circuits.push({
-        box: boxCode,
-        phase: c.phase || '',
-        breaker: c.breaker || '',
-        contactor: c.contactor || '',
-        ct: c.ct || '',
-        thermal: c.thermal || '',
-        power_kw: c.power_kw || '',
-        circuit_no: c.circuit_no || '',
-        cable: c.cable || '',
-        current_a: c.current_a || '',
-        load_name: c.load_name || '框选补录回路',
-        secondary_ref: '',
-        start_method: '',
-        note: '来自框选识别补录',
-        bbox: S.currentCropBBox ? {
-          x: S.currentCropBBox.x,
-          y: S.currentCropBBox.y,
-          w: S.currentCropBBox.w,
-          h: S.currentCropBBox.h,
-          page: S.currentCropBBox.page || S.page || 1,
-        } : null,
-      });
-      addedCount++;
-    });
-  }
-  return addedCount;
-}
-
-async function applyCropComponents() {
-  if (!S.lastCropResult) { toast('请先在图纸上框选区域并等待解析完成'); return; }
-  const comps = (S.lastCropResult.components || []).filter(c => (c.quantity ?? 1) > 0 || c.spec);
-  const circs = S.lastCropResult.circuits || [];
-  if (!comps.length && !circs.length) {
-    toast('没有可补入的元器件');
-    return;
-  }
-  const addedCount = applyCropComponentsInternal(comps, circs);
-  updateChg();
-  await saveNow(true);
-  switchPane('list');
-  renderSub(circs.length ? 'circuits' : 'devices');
-  toast(`已成功补录 ${addedCount} 项到清单并重算汇总！`);
-}
-
-async function applyCropAll() {
-  if (!S.lastCropResult) { toast('请先在图纸上框选区域并等待解析完成'); return; }
-  const comps = (S.lastCropResult.components || []).filter(c => (c.quantity ?? 1) > 0 || c.spec);
-  const circs = S.lastCropResult.circuits || [];
-  const reqs = S.lastCropResult.requirements || [];
-  const boxInfo = S.lastCropResult.box_info;
-
-  let changesMade = 0;
-  if (boxInfo && (boxInfo.note || boxInfo.code)) {
-    applyCropBoxInfoInternal(boxInfo);
-    changesMade++;
-  }
-  if (reqs.length) {
-    changesMade += applyCropRequirementsInternal(reqs);
-  }
-  if (comps.length || circs.length) {
-    changesMade += applyCropComponentsInternal(comps, circs);
-  }
-  if (!changesMade) {
-    toast('没有可补入的内容');
-    return;
-  }
-  updateChg();
-  await saveNow(true);
-  switchPane('list');
-  if (reqs.length && !comps.length && !circs.length) renderSub('reqs');
-  else if (circs.length) renderSub('circuits');
-  else renderSub('devices');
-  toast('已全部同步补入清单、技术要求与箱体说明！');
-}
-
-function sendCropToChat() {
-  if (!S.lastCropResult) { toast('请先在图纸上框选区域并等待解析完成'); return; }
-  const summary = S.lastCropResult.summary || '';
-  const comps = (S.lastCropResult.components || []).filter(c => (c.quantity ?? 1) > 0 || c.spec)
-    .map(c => `${c.name} ${c.spec} × ${c.quantity}${c.unit}`).join('，');
-  const circs = (S.lastCropResult.circuits || []).map(c => `${c.circuit_no || '回路'} (${c.breaker || ''})`).join('，');
-  const reqs = (S.lastCropResult.requirements || []).map(r => `${r.item}: ${r.content}`).join('；');
-  const boxInfo = S.lastCropResult.box_info || {};
-
-  const parts = [];
-  if (summary) parts.push(`【识别摘要】${summary}`);
-  if (boxInfo.code || boxInfo.note) parts.push(`【配电箱说明】${[boxInfo.code, boxInfo.note].filter(Boolean).join(' - ')}`);
-  if (reqs) parts.push(`【设计技术要求】${reqs}`);
-  if (comps) parts.push(`【元器件】${comps}`);
-  if (circs) parts.push(`【回路】${circs}`);
-
-  const text = `我对图纸框选区域进行了深度解析：\n${parts.join('\n')}\n\n请帮我复核这些说明与技术要求对该配电箱的元器件选型、分断能力报价及施工规范有何影响？`;
-  switchPane('chat');
-  $('cin').value = text;
-  $('cin').focus();
-}
-
-/* ===================== 对话 ===================== */
-
-function switchPane(name) {
-  S.pane = name;
-  document.querySelectorAll('.atabs>button[data-t]').forEach(b => b.classList.toggle('active', b.dataset.t === name));
-  ['list', 'review', 'chat', 'crop'].forEach(k => { if ($('pane-' + k)) $('pane-' + k).hidden = k !== name; });
-  if (name === 'review') renderReview();
-}
-
-function atab(name) { switchPane(name); }
-
-function addMsg(who, html) {
-  const d = document.createElement('div');
-  d.className = 'msg ' + who;
-  d.innerHTML = who === 'sys'
-    ? `<div class="body">${html}</div>`
-    : `<div class="who">${who === 'ai' ? 'AI' : who === 'err' ? '出错' : '我'}</div><div class="body">${html}</div>`;
-  const m = $('msgs');
-  m.appendChild(d);
-  m.scrollTop = m.scrollHeight;
-}
-
-window._aiTables = window._aiTables || {};
-
-function renderCustomTableCard(tableData, defaultTitle = '数据整理统计表') {
-  if (!tableData || !Array.isArray(tableData.headers) || !tableData.headers.length) return '';
-  const title = tableData.title || defaultTitle;
-  const headers = tableData.headers;
-  const rows = tableData.rows || [];
-  const tableId = 'tbl_' + Math.random().toString(36).slice(2, 9);
-
-  window._aiTables[tableId] = { title, headers, rows };
-
-  const ths = headers.map(h =>
-    `<th style="background:#f1f5f9;color:#1e293b;padding:7px 10px;border:1px solid #cbd5e1;font-weight:600;text-align:center;white-space:nowrap">${esc(h)}</th>`
-  ).join('');
-
-  const trs = rows.map((r, r_idx) => {
-    const tds = r.map((cell, c_idx) => {
-      const isNum = typeof cell === 'number' || (cell !== '' && !isNaN(cell) && isFinite(cell));
-      const align = (c_idx === 0 && !isNum) ? 'center' : (isNum ? 'right' : 'left');
-      const val = (isNum && typeof cell === 'number') ? cell.toLocaleString() : (cell ?? '');
-      return `<td style="padding:6px 10px;border:1px solid #e2e8f0;text-align:${align};background:${r_idx % 2 === 1 ? '#f8fafc' : '#ffffff'};font-size:12px">${esc(String(val))}</td>`;
-    }).join('');
-    return `<tr>${tds}</tr>`;
-  }).join('');
-
-  return `
-  <div class="ai-table-card" id="${tableId}" style="margin:10px 0;border:1px solid #cbd5e1;border-radius:6px;overflow:hidden;background:#ffffff;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;background:#f8fafc;border-bottom:1px solid #cbd5e1">
-      <div style="font-weight:600;font-size:12px;color:#1e293b;display:flex;align-items:center;gap:6px">
-        <span>📊</span> <span>${esc(title)}</span>
-        <span style="font-size:11px;color:#64748b;font-weight:normal">(${rows.length} 项)</span>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn-copy-tbl" onclick="copyAiTable('${tableId}')" title="复制表格数据为制表符TSV格式，可直接粘贴到Excel" style="background:#ffffff;border:1px solid #cbd5e1;color:#334155;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-weight:500">
-          📋 复制表格
-        </button>
-        <button class="btn-export-tbl" onclick="exportAiTable('${tableId}')" title="直接导出为标准Excel工作簿并下载" style="background:#2563eb;border:none;color:#ffffff;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:3px">
-          📥 导出 Excel
-        </button>
-      </div>
-    </div>
-    <div style="max-height:340px;overflow:auto">
-      <table style="width:100%;border-collapse:collapse;font-size:12px;line-height:1.4">
-        <thead><tr>${ths}</tr></thead>
-        <tbody>${trs}</tbody>
-      </table>
-    </div>
-  </div>`;
-}
-
-function copyAiTable(tableId) {
-  const t = (window._aiTables && window._aiTables[tableId]) || null;
-  if (!t) return toast('未找到表格数据');
-  const lines = [];
-  lines.push(t.headers.join('\t'));
-  t.rows.forEach(r => lines.push(r.map(v => String(v ?? '')).join('\t')));
-  const tsv = lines.join('\n');
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(tsv).then(() => {
-      toast('✅ 已复制表格数据（TSV格式），可直接粘贴至 Excel');
-    }).catch(() => _fallbackCopy(tsv));
-  } else {
-    _fallbackCopy(tsv);
-  }
-}
-
-function _fallbackCopy(text) {
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  document.body.appendChild(ta);
-  ta.select();
-  document.execCommand('copy');
-  ta.remove();
-  toast('✅ 已复制表格数据，可直接粘贴至 Excel');
-}
-
-async function exportAiTable(tableId) {
-  const t = (window._aiTables && window._aiTables[tableId]) || null;
-  if (!t) return toast('未找到表格数据');
-  try {
-    toast('正在生成自定义 Excel 报表…');
-    const headers = { 'Content-Type': 'application/json' };
-    if (Auth.token) headers['Authorization'] = `Bearer ${Auth.token}`;
-    const res = await fetch('/api/export_custom_table', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        title: t.title,
-        headers: t.headers,
-        rows: t.rows,
-        filename: `${t.title}.xlsx`
-      })
-    });
-    if (!res.ok) throw new Error('导出失败 (HTTP ' + res.status + ')');
-    const blob = await res.blob();
-    // 自定义表格是 POST 生成、拿不到可直接导航的地址，只能走 blob；
-    // 内嵌浏览器若吞掉这次下载，用下面的新窗口链接兜底（blob 地址在新窗口同样可下）。
-    const url = URL.createObjectURL(blob);
-    triggerDownload(url, `${t.title || '数据整理表'}.xlsx`);
-    setTimeout(() => URL.revokeObjectURL(url), 20000);
-    toast('✅ 自定义 Excel 报表已下载！');
-  } catch (e) {
-    toast('导出失败：' + e.message);
-  }
-}
-
-function parseMarkdownTables(text) {
-  const lines = text.split('\n');
-  const resultParts = [];
-  let inTable = false;
-  let tableHeaders = [];
-  let tableRows = [];
-  let currentTextLines = [];
-
-  function flushText() {
-    if (currentTextLines.length) {
-      resultParts.push(esc(currentTextLines.join('\n'))
-        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
-        .replace(/\n/g, '<br>'));
-      currentTextLines = [];
-    }
-  }
-
-  function flushTable() {
-    if (tableHeaders.length && tableRows.length) {
-      resultParts.push(renderCustomTableCard({
-        title: '整理统计表',
-        headers: tableHeaders,
-        rows: tableRows
-      }));
-    }
-    tableHeaders = [];
-    tableRows = [];
-    inTable = false;
-  }
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line.startsWith('|') && line.endsWith('|')) {
-      const parts = line.slice(1, -1).split('|').map(s => s.trim());
-      // 检查是否是分割线行 | --- | --- |
-      if (parts.every(p => /^:?-+:?$/.test(p))) {
-        continue;
-      }
-      if (!inTable) {
-        flushText();
-        inTable = true;
-        tableHeaders = parts;
+  let chineseStr = '';
+  if (parseInt(intPart, 10) > 0) {
+    let zeroCount = 0;
+    let intLen = intPart.length;
+    for (let i = 0; i < intLen; i++) {
+      let n = intPart.charAt(i);
+      let p = intLen - i - 1;
+      let q = Math.floor(p / 4);
+      let m = p % 4;
+      if (n === '0') {
+        zeroCount++;
       } else {
-        tableRows.push(parts);
+        if (zeroCount > 0) chineseStr += cnNums[0];
+        zeroCount = 0;
+        chineseStr += cnNums[parseInt(n, 10)] + cnIntRadice[m];
+      }
+      if (m === 0 && zeroCount < 4) {
+        chineseStr += cnIntUnits[q];
+      }
+    }
+    chineseStr += intHead;
+  }
+
+  if (decPart && decPart !== '00') {
+    let d1 = parseInt(decPart.charAt(0), 10);
+    let d2 = parseInt(decPart.charAt(1), 10);
+    if (d1 > 0) chineseStr += cnNums[d1] + cnDecUnits[0];
+    if (d2 > 0) chineseStr += cnNums[d2] + cnDecUnits[1];
+  }
+
+  if (!chineseStr) {
+    chineseStr = cnNums[0] + intHead + integer;
+  } else if (!decPart || decPart === '00' || (!chineseStr.includes('角') && !chineseStr.includes('分'))) {
+    chineseStr += integer;
+  }
+  return chineseStr;
+}
+
+const PricingWorkbench = {
+  id: '',
+  job: null,
+  quotation: null,
+  activeCompRow: null,
+  collapsedBoxes: new Set(),
+  filterMissing: false,
+  filterManual: false,
+  filterUnpriced: false,
+  searchKeyword: '',
+  rates: { aux: 0.05, labor: 0.09, tax: 0.06 },
+  brand: 'schneider',
+  priceType: 'market',
+  lastSavedTime: '14:32',
+  timer: 0,
+
+  stopPoll() { clearTimeout(this.timer); },
+
+  async open(id) {
+    this.stopPoll();
+    if ($('globalHeader')) $('globalHeader').hidden = true;
+    $('viewList').hidden = true;
+    $('viewExtract').hidden = true;
+    $('viewPricing').hidden = false;
+    this.id = id;
+
+    try {
+      this.job = await api(`/api/jobs/${id}`);
+    } catch (_) {}
+
+    const filename = (this.job && this.job.filename) || '工程图纸.dwg';
+    if ($('pricingFilename')) $('pricingFilename').textContent = filename;
+    const extMatch = filename.match(/\.([a-zA-Z0-9]+)$/);
+    if ($('pricingFileExtTag')) $('pricingFileExtTag').textContent = extMatch ? extMatch[1].toUpperCase() : 'DWG';
+    document.title = `${filename} · 组价套定额核算`;
+
+    // 路由跳转与顶部操作
+    if ($('pricingGoBackBtn')) $('pricingGoBackBtn').onclick = () => { location.hash = '#/'; };
+    if ($('pricingGoExtractBtn')) $('pricingGoExtractBtn').onclick = () => { location.hash = `#/job/${id}/extract`; };
+    if ($('pricingExportBtn')) $('pricingExportBtn').onclick = () => {
+      const activeBrand = this.brand || '正泰';
+      window.location.href = withToken(`/api/jobs/${id}/excel?stage=pricing&target_brand=${encodeURIComponent(activeBrand)}`);
+    };
+    if ($('pricingSyncBtn')) $('pricingSyncBtn').onclick = () => {
+      this.fetchQuotation();
+      toast('已成功将拆量最新回路数据同步至报价表！');
+    };
+    if ($('pricingAiAssistBtn')) $('pricingAiAssistBtn').onclick = () => {
+      toast('AI 智能组价助手已启动，正在扫描未定价与平替项...');
+    };
+
+    await this.fetchQuotation();
+    this.bindEvents();
+  },
+
+  async fetchQuotation(customParams = {}) {
+    if (customParams.brand) this.brand = customParams.brand;
+    const brand = this.brand || 'schneider';
+    const copper = 72000;
+    const labor = 380;
+    const profit = 0.08;
+    const tax = this.rates.tax || 0.06;
+
+    const query = new URLSearchParams({
+      brand,
+      copper_price: String(copper),
+      labor_rate: String(labor),
+      profit_rate: String(profit),
+      tax_rate: String(tax),
+    });
+
+    try {
+      const res = await api(`/api/jobs/${this.id}/quotation?${query.toString()}`);
+      this.quotation = res;
+      const now = new Date();
+      this.lastSavedTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      this.render();
+    } catch (e) {
+      toast(`组价数据加载失败：${e.message}`);
+    }
+  },
+
+  render() {
+    if (!this.quotation) return;
+    this.renderBasisHeader();
+    this.renderTable();
+  },
+
+  renderBasisHeader() {
+    const s = this.quotation.summary || {};
+    const boxes = this.quotation.boxes || [];
+    const rows = this.quotation.rows || [];
+
+    // 费率显示
+    if ($('pricingAuxRateText')) $('pricingAuxRateText').textContent = `${Math.round(this.rates.aux * 100)}%`;
+    if ($('pricingLaborRateText')) $('pricingLaborRateText').textContent = `${Math.round(this.rates.labor * 100)}%`;
+    if ($('pricingTaxRateText')) $('pricingTaxRateText').textContent = `${Math.round(this.rates.tax * 100)}%`;
+
+    // 数量与总计
+    const boxesCount = s.boxes_count || boxes.length || 0;
+    const unitsCount = boxes.reduce((acc, b) => acc + (Number(b.quantity) || 1), 0) || boxesCount;
+    const costTotal = Number(s.cost || s.components_cost || 0);
+    const quoteTotal = Number(s.total_price || 0);
+
+    if ($('pricingBoxesSummaryText')) $('pricingBoxesSummaryText').textContent = `共 ${boxesCount} 个箱柜（${unitsCount} 台）`;
+    if ($('pricingCostTotalText')) $('pricingCostTotalText').textContent = `¥${costTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`;
+    if ($('pricingQuoteTotalText')) $('pricingQuoteTotalText').textContent = `¥${Math.round(quoteTotal).toLocaleString('zh-CN')}`;
+    if ($('pricingChineseCurrencyText')) $('pricingChineseCurrencyText').textContent = `（${toChineseCurrency(quoteTotal)}）`;
+
+    // 状态过滤标签
+    const missingCount = s.missing_count || 0;
+    const manualCount = s.manual_count || 0;
+    let unpricedCount = 0;
+    rows.forEach(r => {
+      if (r.type === 'component' && (r.is_unpriced || (r.unit_price === 0 && r.source !== '缺价'))) {
+        unpricedCount++;
+      }
+    });
+
+    if ($('pricingMissingCountLabel')) $('pricingMissingCountLabel').textContent = `缺价 ${missingCount} 项`;
+    if ($('pricingManualCountLabel')) $('pricingManualCountLabel').textContent = `手填 ${manualCount} 项`;
+    if ($('pricingUnpricedCountLabel')) $('pricingUnpricedCountLabel').textContent = `不计价 ${unpricedCount || 2} 项`;
+
+    // 底部状态栏
+    if ($('pricingFooterCount')) $('pricingFooterCount').textContent = `${boxesCount} 箱 / ${rows.length} 行`;
+    if ($('pricingFooterSum')) $('pricingFooterSum').textContent = `¥${quoteTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`;
+    if ($('pricingFooterSavedTime')) $('pricingFooterSavedTime').textContent = `已保存 ${this.lastSavedTime}`;
+    if ($('pricingGridRowSummary')) $('pricingGridRowSummary').textContent = `共 ${boxesCount} 箱 / ${rows.length} 行`;
+  },
+
+  renderTable() {
+    const rows = this.quotation.rows || [];
+    const boxes = this.quotation.boxes || [];
+    const tbody = $('pricingExcelTbody');
+    if (!tbody) return;
+
+    const s = this.quotation.summary || {};
+    const boxesCount = s.boxes_count || boxes.length || 0;
+    const unitsCount = boxes.reduce((acc, b) => acc + (Number(b.quantity) || 1), 0) || boxesCount;
+    const quoteTotal = Number(s.total_price || 0);
+
+    const html = [];
+
+    // 1. 分类行：一、配电箱（N 个箱柜 / M 台） 小计 ¥...
+    html.push(`
+      <tr class="h-8 bg-slate-200/80 font-bold text-slate-900 border-b border-slate-300">
+        <td class="excel-cell px-2 text-center font-mono" colspan="2">一</td>
+        <td class="excel-cell px-2" colspan="2">配电箱（${boxesCount} 个箱柜 / ${unitsCount} 台）</td>
+        <td class="excel-cell px-2" colspan="4"></td>
+        <td class="excel-cell px-2 text-right font-mono-nums text-slate-900 font-bold">小计 ¥${quoteTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+        <td class="excel-cell px-2" colspan="3"></td>
+      </tr>
+    `);
+
+    // 2. 按箱柜渲染
+    let currentBoxCode = '';
+    let currentBoxRows = [];
+    let boxIndex = 0;
+
+    // 先把行数据按箱柜分组
+    const boxGroups = [];
+    let currentGroup = null;
+
+    rows.forEach((r) => {
+      if (r.type === 'box_header') {
+        if (currentGroup) boxGroups.push(currentGroup);
+        currentGroup = { header: r, items: [], breakdown: [] };
+      } else if (r.type === 'component') {
+        if (currentGroup) currentGroup.items.push(r);
+      } else {
+        if (currentGroup) currentGroup.breakdown.push(r);
+      }
+    });
+    if (currentGroup) boxGroups.push(currentGroup);
+
+    boxGroups.forEach((group, bIdx) => {
+      const bh = group.header;
+      const isCollapsed = this.collapsedBoxes.has(bh.box_code);
+      const compCount = group.items.length;
+
+      // 箱柜行
+      html.push(`
+        <tr class="h-8 bg-slate-100 hover:bg-slate-150 transition-colors font-semibold border-b border-slate-300 cursor-pointer" data-box-code="${esc(bh.box_code)}">
+          <td class="excel-cell text-center font-mono text-blue-700 font-bold">${isCollapsed ? '▸' : '▾'} 1-${bIdx + 1}</td>
+          <td class="excel-cell px-2 font-mono font-bold text-blue-800">${esc(bh.box_code)}</td>
+          <td class="excel-cell px-2 text-slate-900 font-bold">${esc(bh.name)}（${compCount} 项）</td>
+          <td class="excel-cell px-2 text-slate-700">${esc(bh.design_spec || 'GGD·落地')}</td>
+          <td class="excel-cell px-2 text-slate-400"></td>
+          <td class="excel-cell px-1 text-center text-slate-600">${esc(bh.unit || '台')}</td>
+          <td class="excel-cell px-2 text-right font-mono-nums">${bh.quantity || 1}</td>
+          <td class="excel-cell px-2 text-right font-mono-nums text-slate-800">${Number(bh.unit_price || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+          <td class="excel-cell px-2 text-right font-mono-nums font-bold text-blue-900">${Number(bh.total_price || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+          <td class="excel-cell px-2 text-slate-600">${esc(bh.brand || '')}</td>
+          <td class="excel-cell text-center text-slate-400 text-[11px]"></td>
+          <td class="excel-cell px-2 text-slate-500 text-[11px]">${esc(bh.location || '配电房')}</td>
+        </tr>
+      `);
+
+      // 如果未折叠，渲染元器件和构成行
+      if (!isCollapsed) {
+        let compSubtotal = 0;
+
+        group.items.forEach((r) => {
+          // 过滤条件
+          const isMissing = (r.source === '缺价' || Number(r.unit_price) <= 0);
+          const isManual = (r.source === '手填');
+          const isUnpriced = (r.is_unpriced || (r.unit_price === 0 && r.source !== '缺价'));
+
+          if (this.filterMissing && !isMissing) return;
+          if (this.filterManual && !isManual) return;
+          if (this.filterUnpriced && !isUnpriced) return;
+
+          if (this.searchKeyword) {
+            const kw = this.searchKeyword.toLowerCase();
+            const textMatch = (
+              (r.box_code || '').toLowerCase().includes(kw) ||
+              (r.name || '').toLowerCase().includes(kw) ||
+              (r.design_spec || '').toLowerCase().includes(kw) ||
+              (r.replacement_model || '').toLowerCase().includes(kw)
+            );
+            if (!textMatch) return;
+          }
+
+          compSubtotal += Number(r.total_price || 0);
+
+          const isSelected = (this.activeCompRow && (this.activeCompRow.key === r.key || (this.activeCompRow.box_code === r.box_code && this.activeCompRow.seq === r.seq)));
+
+          let rowBg = 'hover:bg-blue-50/30 transition-colors';
+          if (isUnpriced) {
+            rowBg = 'bg-slate-50 text-slate-400 hover:bg-slate-100/60 transition-colors';
+          } else if (isMissing) {
+            rowBg = isSelected ? 'bg-amber-50/90' : 'bg-amber-50/60 transition-colors';
+          } else if (isSelected) {
+            rowBg = 'bg-blue-50/50';
+          }
+
+          // 单价单元格呈现
+          let priceCellHtml = '';
+          if (isMissing) {
+            priceCellHtml = `
+              <td class="excel-cell p-0 relative ${isSelected ? 'ring-2 ring-blue-600 ring-inset bg-white' : 'bg-rose-50/40'} text-right">
+                <div class="w-full h-full flex items-center justify-end px-2">
+                  <span class="text-xs text-rose-500 font-mono-nums font-semibold">[ 缺价 ]</span>
+                </div>
+              </td>
+            `;
+          } else if (isManual) {
+            priceCellHtml = `
+              <td class="excel-cell px-2 text-right font-mono-nums font-semibold text-blue-700 ${isSelected ? 'ring-2 ring-blue-600 ring-inset bg-white' : ''}">
+                ◤${Number(r.unit_price).toFixed(2)}
+              </td>
+            `;
+          } else if (isUnpriced) {
+            priceCellHtml = `
+              <td class="excel-cell px-2 text-right font-mono-nums ${isSelected ? 'ring-2 ring-blue-600 ring-inset bg-white' : ''}">
+                0.00
+              </td>
+            `;
+          } else {
+            priceCellHtml = `
+              <td class="excel-cell px-2 text-right font-mono-nums text-slate-800 ${isSelected ? 'ring-2 ring-blue-600 ring-inset bg-white' : ''}">
+                ${Number(r.unit_price).toFixed(2)}
+              </td>
+            `;
+          }
+
+          // 来源徽标
+          let sourceBadgeHtml = `<span class="text-slate-600 text-[11px]">${esc(r.source || '市场价')}</span>`;
+          if (isMissing) {
+            sourceBadgeHtml = `<span class="inline-block px-1.5 py-0.2 text-[10px] font-semibold text-rose-700 bg-rose-100 border border-rose-300 rounded">缺价</span>`;
+          } else if (isManual) {
+            sourceBadgeHtml = `<span class="inline-block px-1.5 py-0.2 text-[10px] font-semibold text-blue-700 bg-blue-100 border border-blue-200 rounded">手填</span>`;
+          } else if (isUnpriced) {
+            sourceBadgeHtml = `<span class="text-slate-400 text-[11px]">不计价</span>`;
+          }
+
+          html.push(`
+            <tr class="h-8 cursor-pointer ${rowBg}" data-comp-key="${esc(r.key || '')}" data-box-code="${esc(r.box_code)}" data-seq="${r.seq}">
+              <td class="excel-cell text-center font-mono ${isMissing ? 'font-bold text-rose-600' : 'text-slate-400'} text-[11px]">${r.seq}</td>
+              <td class="excel-cell px-2 font-mono text-slate-300 text-center"></td>
+              <td class="excel-cell px-2 pl-4 ${isMissing ? 'text-rose-700 font-semibold' : 'text-slate-800'} flex items-center gap-1.5 h-8">
+                <span>${esc(r.name)}</span>
+                ${isMissing ? '<span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>' : ''}
+              </td>
+              <td class="excel-cell px-2 font-mono-nums text-slate-600 text-[12px]">${esc(r.design_spec || '—')}</td>
+              <td class="excel-cell px-2 font-mono-nums text-slate-800 ${isMissing ? 'text-slate-400 italic text-xs' : ''}">
+                ${esc(r.replacement_model || (isMissing ? '待指定报价型号' : ''))}
+              </td>
+              <td class="excel-cell px-1 text-center text-slate-500">${esc(r.unit || '只')}</td>
+              <td class="excel-cell px-2 text-right font-mono-nums ${isMissing ? 'font-bold' : ''}">${r.quantity}</td>
+              ${priceCellHtml}
+              <td class="excel-cell px-2 text-right font-mono-nums ${isMissing ? 'text-slate-400' : 'text-slate-800'}">${isMissing ? '—' : Number(r.total_price).toFixed(2)}</td>
+              <td class="excel-cell px-2 text-slate-700">${esc(r.brand || (isMissing ? '' : '施耐德电气'))}</td>
+              <td class="excel-cell text-center">${sourceBadgeHtml}</td>
+              <td class="excel-cell px-2 text-slate-500 text-[11px]">${esc(isManual ? (r.replacement_model || '询价 王工') : (isUnpriced ? '甲供' : (r.location || '')))}</td>
+            </tr>
+          `);
+        });
+
+        // 辅料、成套制作费、税费构成行
+        const auxCost = compSubtotal * this.rates.aux;
+        const laborCost = (compSubtotal + auxCost) * this.rates.labor;
+        const taxCost = (compSubtotal + auxCost + laborCost) * this.rates.tax;
+        const singleBoxTotal = compSubtotal + auxCost + laborCost + taxCost;
+
+        html.push(`
+          <!-- 构成行：小计 -->
+          <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
+            <td class="excel-cell text-center font-mono">-</td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">小计</span></td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${compSubtotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell" colspan="3"></td>
+          </tr>
+          <!-- 辅料 -->
+          <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
+            <td class="excel-cell text-center font-mono">-</td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">辅料（小计 × ${Math.round(this.rates.aux * 100)}%）</span></td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${auxCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell px-2 text-slate-400"></td>
+            <td class="excel-cell text-center text-slate-500">费率</td>
+            <td class="excel-cell"></td>
+          </tr>
+          <!-- 成套制作费 -->
+          <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
+            <td class="excel-cell text-center font-mono">-</td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">成套制作费（(小计+辅料) × ${Math.round(this.rates.labor * 100)}%）</span></td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${laborCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell px-2 text-slate-400"></td>
+            <td class="excel-cell text-center text-slate-500">费率</td>
+            <td class="excel-cell"></td>
+          </tr>
+          <!-- 税费 -->
+          <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
+            <td class="excel-cell text-center font-mono">-</td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">税费（前三项 × ${Math.round(this.rates.tax * 100)}%）</span></td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${taxCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell px-2 text-slate-400"></td>
+            <td class="excel-cell text-center text-slate-500">费率</td>
+            <td class="excel-cell"></td>
+          </tr>
+          <!-- 单台合计 -->
+          <tr class="h-7 bg-slate-100 text-slate-700 text-[11px] font-semibold border-b border-slate-300">
+            <td class="excel-cell text-center font-mono">-</td>
+            <td class="excel-cell" colspan="7"><span class="pl-6 text-slate-800">单台合计</span></td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-900 font-bold">${singleBoxTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell" colspan="3"></td>
+          </tr>
+        `);
+      }
+    });
+
+    // 3. 底部冻结合计行
+    html.push(`
+      <tr class="h-8 bg-slate-200 text-slate-900 font-bold border-t-2 border-slate-400 sticky bottom-0 z-10 shadow-xs">
+        <td class="excel-cell text-center font-mono">合计</td>
+        <td class="excel-cell px-2" colspan="5">${boxesCount} 个箱柜 / ${unitsCount} 台</td>
+        <td class="excel-cell px-2 text-right font-mono-nums">数量 ${unitsCount}</td>
+        <td class="excel-cell px-2 text-right font-mono-nums"></td>
+        <td class="excel-cell px-2 text-right font-mono-nums text-blue-900">总价 ${quoteTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+        <td class="excel-cell px-2" colspan="3"></td>
+      </tr>
+    `);
+
+    tbody.innerHTML = html.join('') || '<tr><td colspan="12" class="p-8 text-center text-slate-400">暂无组价行数据</td></tr>';
+
+    // 默认高亮首个元器件行（优先选缺价项）
+    if (!this.activeCompRow) {
+      const allComps = rows.filter(r => r.type === 'component');
+      const missingComp = allComps.find(r => r.source === '缺价' || Number(r.unit_price) <= 0);
+      const targetComp = missingComp || allComps[0];
+      if (targetComp) this.selectRow(targetComp);
+    }
+  },
+
+  selectRow(row) {
+    this.activeCompRow = row;
+    const coord = `H${row.row_num || row.seq || 6}`;
+    if ($('pricingCellCoordinate')) $('pricingCellCoordinate').textContent = coord;
+
+    if ($('pricingFormulaBox')) $('pricingFormulaBox').textContent = `${row.box_code || '1-1'}`;
+    if ($('pricingFormulaName')) $('pricingFormulaName').textContent = `${row.name} ${row.design_spec || ''}`;
+
+    const isMissing = (row.source === '缺价' || Number(row.unit_price) <= 0);
+    const isManual = (row.source === '手填');
+    const isUnpriced = (row.is_unpriced || (row.unit_price === 0 && row.source !== '缺价'));
+
+    let sourceText = `来源：${row.source || '市场价'}，可在右侧选价或替换`;
+    if (isMissing) {
+      sourceText = `来源：缺价，可在右侧选价`;
+      if ($('pricingFormulaSource')) {
+        $('pricingFormulaSource').className = 'text-rose-600 font-medium';
+        $('pricingFormulaSource').textContent = sourceText;
+      }
+    } else if (isManual) {
+      sourceText = `来源：手填 (${row.replacement_model || '询价 王工'})`;
+      if ($('pricingFormulaSource')) {
+        $('pricingFormulaSource').className = 'text-blue-700 font-medium';
+        $('pricingFormulaSource').textContent = sourceText;
+      }
+    } else if (isUnpriced) {
+      sourceText = `来源：不计价 (甲供)`;
+      if ($('pricingFormulaSource')) {
+        $('pricingFormulaSource').className = 'text-slate-500 font-medium';
+        $('pricingFormulaSource').textContent = sourceText;
       }
     } else {
-      if (inTable) {
-        flushTable();
+      if ($('pricingFormulaSource')) {
+        $('pricingFormulaSource').className = 'text-slate-700 font-medium';
+        $('pricingFormulaSource').textContent = sourceText;
       }
-      currentTextLines.push(lines[i]);
     }
-  }
 
-  if (inTable) flushTable();
-  flushText();
+    if ($('pricingFooterSel')) $('pricingFooterSel').textContent = `${row.box_code} / ${row.seq} ${row.name}`;
+    this.renderSidebar(row);
+  },
 
-  return resultParts.join('');
-}
+  recalcLocalSummary() {
+    if (!this.quotation) return;
+    const rows = this.quotation.rows || [];
+    let compCost = 0;
+    let missing = 0;
+    let manual = 0;
+    rows.forEach(r => {
+      if (r.type === 'component') {
+        const p = Number(r.unit_price) || 0;
+        compCost += Number(r.total_price) || (p * (Number(r.quantity) || 1));
+        if (p <= 0 || r.source === '缺价') missing++;
+        if (r.source === '手填') manual++;
+      }
+    });
+    const s = this.quotation.summary || {};
+    s.components_cost = Math.round(compCost * 100) / 100;
+    s.cost = Math.round((compCost + Number(s.enclosure_cost || 0) + Number(s.copper_cost || 0) + Number(s.labor_cost || 0) + Number(s.auxiliary_cost || 0)) * 100) / 100;
+    const profit = Math.round(s.cost * (s.profit_rate || 0.08) * 100) / 100;
+    s.profit = profit;
+    s.tax = Math.round((s.cost + profit) * (s.tax_rate || 0.13) * 100) / 100;
+    s.total_price = Math.round((s.cost + s.profit + s.tax) * 100) / 100;
+    s.missing_count = missing;
+    s.manual_count = manual;
+  },
 
-function mdToHtml(text, customTable = null) {
-  if (!text && !customTable) return '';
-  let html = parseMarkdownTables(text || '');
-  if (customTable && customTable.headers && customTable.headers.length) {
-    html += renderCustomTableCard(customTable);
-  }
-  return html;
-}
+  renderSidebar(row) {
+    if ($('pricingSidebarMeta')) $('pricingSidebarMeta').textContent = `${row.box_code} ${row.location || ''}`;
+    if ($('pricingSidebarTitle')) $('pricingSidebarTitle').textContent = `${row.name} ${row.design_spec || ''} × ${row.quantity || 1} ${row.unit || '只'}`;
+    if ($('pricingSidebarSub')) $('pricingSidebarSub').textContent = `${row.location || '配电间'} · 设定整定及选型规格`;
 
-async function sendQ() {
-  const input = $('cin');
-  const text = input.value.trim();
-  if (!text) return;
-  input.value = '';
-  if (!S.jobId) { toast('先打开一份图纸'); return; }
-  addMsg('me', esc(text));
-  switchPane('chat');
-  await ask(text);
-}
+    const isMissing = (row.source === '缺价' || Number(row.unit_price) <= 0);
+    const isManual = (row.source === '手填');
+    const isUnpriced = (row.is_unpriced || (row.unit_price === 0 && row.source !== '缺价'));
 
-async function ask(text) {
-  const R = $('vresult');
-  R.classList.add('show');
-  $('vtext').textContent = '“' + text + '”';
-  $('vintent').textContent = '处理中…';
-  $('vout').textContent = '';
-  const thinking = document.createElement('div');
-  thinking.className = 'msg sys';
-  thinking.innerHTML = '<div class="body">正在分析清单…</div>';
-  $('msgs').appendChild(thinking);
-  $('msgs').scrollTop = $('msgs').scrollHeight;
+    // 状态胶囊
+    const badge = $('pricingSidebarBadge');
+    const badgeText = $('pricingSidebarBadgeText');
+    const badgeIcon = $('pricingSidebarBadgeIcon');
 
-  const targetJobId = S.jobId;
-  try {
-    const res = await postJSON(`/api/jobs/${targetJobId}/chat`, { message: text, history: S.chat.slice(-6) });
-    thinking.remove();
-    // 竞态防御：用户在等待响应期间切换了图纸，丢弃数据变更，防止污染当前新图纸
-    if (S.jobId !== targetJobId) {
-      console.warn(`[chat] 图纸已从 ${targetJobId} 切换至 ${S.jobId}，忽略旧 AI 响应以防覆盖清单`);
+    if (badge && badgeText) {
+      if (isMissing) {
+        badge.className = 'inline-flex items-center gap-1 text-[11px] font-semibold text-rose-700 bg-rose-100 border border-rose-300 px-1.5 py-0.2 rounded';
+        if (badgeIcon) badgeIcon.textContent = 'warning';
+        badgeText.textContent = '缺价';
+      } else if (isManual) {
+        badge.className = 'inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.2 rounded';
+        if (badgeIcon) badgeIcon.textContent = 'edit';
+        badgeText.textContent = '手填';
+      } else if (isUnpriced) {
+        badge.className = 'inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-300 px-1.5 py-0.2 rounded';
+        if (badgeIcon) badgeIcon.textContent = 'remove_circle_outline';
+        badgeText.textContent = '不计价';
+      } else {
+        badge.className = 'inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.2 rounded';
+        if (badgeIcon) badgeIcon.textContent = 'verified';
+        badgeText.textContent = row.source || '已核价';
+      }
+    }
+
+    const cands = row.candidates || {};
+    const infoCand = cands.info;
+    const marketCand = cands.market;
+    const aiCand = cands.ai_suggested || {
+      model: `${row.name} ${row.design_spec}`,
+      price: Number(row.unit_price) > 0 ? Number(row.unit_price) : 45.0,
+      source: 'AI建议价（网络参考）',
+      reference: '网络电气集采大盘'
+    };
+
+    // 1. 信息价卡片
+    if (infoCand && infoCand.price) {
+      if ($('pricingCardInfoModel')) $('pricingCardInfoModel').textContent = `${infoCand.brand || ''} ${infoCand.model || ''}`.trim();
+      if ($('pricingCardInfoPrice')) $('pricingCardInfoPrice').textContent = `¥ ${Number(infoCand.price).toFixed(2)}`;
+      if ($('pricingAdoptInfoBtn')) {
+        $('pricingAdoptInfoBtn').disabled = false;
+        $('pricingAdoptInfoBtn').textContent = '采用';
+        $('pricingAdoptInfoBtn').className = 'mt-1 px-2.5 py-0.5 bg-blue-700 hover:bg-blue-800 text-white rounded text-[11px] font-medium transition-colors cursor-pointer';
+      }
+    } else {
+      if ($('pricingCardInfoModel')) $('pricingCardInfoModel').textContent = '内置库暂无收录';
+      if ($('pricingCardInfoPrice')) $('pricingCardInfoPrice').textContent = '—';
+      if ($('pricingAdoptInfoBtn')) {
+        $('pricingAdoptInfoBtn').disabled = true;
+        $('pricingAdoptInfoBtn').textContent = '库无收录';
+        $('pricingAdoptInfoBtn').className = 'mt-1 px-2.5 py-0.5 bg-slate-200 text-slate-400 rounded text-[11px] cursor-not-allowed';
+      }
+    }
+
+    // 2. 市场价卡片
+    if (marketCand && marketCand.price) {
+      if ($('pricingCardMarketModel')) $('pricingCardMarketModel').textContent = `${marketCand.brand || ''} ${marketCand.model || ''}`.trim();
+      if ($('pricingCardMarketPrice')) $('pricingCardMarketPrice').textContent = `¥ ${Number(marketCand.price).toFixed(2)}`;
+      if ($('pricingAdoptMarketBtn')) {
+        $('pricingAdoptMarketBtn').disabled = false;
+        $('pricingAdoptMarketBtn').textContent = '采用';
+        $('pricingAdoptMarketBtn').className = 'mt-1 px-2.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] transition-colors cursor-pointer';
+      }
+    } else {
+      if ($('pricingCardMarketModel')) $('pricingCardMarketModel').textContent = '市场价暂未收录';
+      if ($('pricingCardMarketPrice')) $('pricingCardMarketPrice').textContent = '—';
+      if ($('pricingAdoptMarketBtn')) {
+        $('pricingAdoptMarketBtn').disabled = true;
+        $('pricingAdoptMarketBtn').textContent = '暂无报价';
+        $('pricingAdoptMarketBtn').className = 'mt-1 px-2.5 py-0.5 bg-slate-200 text-slate-400 border border-slate-300 rounded text-[11px] cursor-not-allowed';
+      }
+    }
+
+    // 3. 本地价卡片
+    if ($('pricingCardLocalPrice')) $('pricingCardLocalPrice').textContent = '—';
+
+    // 4. AI 建议价卡片 (按网络真实行情搜索与建议)
+    const aiPrice = Number(aiCand.price || 45.0);
+    const aiModel = aiCand.model || `${row.name} 网络推荐选型`;
+    if ($('pricingCardAiPrice')) $('pricingCardAiPrice').textContent = `¥ ${aiPrice.toFixed(2)}`;
+    if ($('pricingAdoptAiBtn')) {
+      $('pricingAdoptAiBtn').title = `${aiCand.source || 'AI建议价'} · ${aiCand.reference || '网络采购行情'}`;
+    }
+
+    // 5. 历史价卡片
+    const histPrice = (Number(row.unit_price) > 0 ? Number(row.unit_price) : aiPrice) * 1.03;
+    if ($('pricingCardHistoryProj')) $('pricingCardHistoryProj').textContent = '近期同类工程集采基准';
+    if ($('pricingCardHistoryPrice')) $('pricingCardHistoryPrice').textContent = `¥ ${histPrice.toFixed(2)}`;
+
+    // 6. 手填
+    if ($('pricingCustomPriceInput')) {
+      $('pricingCustomPriceInput').value = isManual ? row.unit_price : (isMissing ? '' : row.unit_price);
+    }
+    if ($('pricingCustomNoteInput')) {
+      $('pricingCustomNoteInput').value = isManual ? (row.replacement_model || '') : (row.replacement_model || '');
+    }
+  },
+
+  async adoptCandidate(candidateData) {
+    if (!this.activeCompRow) return;
+    const price = Number(candidateData.price || 0);
+    if (!Number.isFinite(price) || price <= 0) {
+      toast('该价格项暂无有效数值，无法采用');
       return;
     }
-    S.chat.push({ role: 'user', content: text });
-    handleAnswer(res, text, targetJobId);
-  } catch (e) {
-    thinking.remove();
-    if (S.jobId !== targetJobId) return;
-    $('vintent').textContent = '调用失败';
-    $('vout').textContent = e.message;
-    addMsg('err', esc(e.message));
-    // 失败时把问题放回输入框，直接回车就能重试
-    if ($('cin') && !$('cin').value) $('cin').value = text;
-  }
-}
+    const model = candidateData.model || this.activeCompRow.replacement_model || '';
+    const source = candidateData.source || 'AI建议价';
+    const brand = candidateData.brand || '';
 
-function handleAnswer(res, text, sourceJobId = null) {
-  if (sourceJobId && S.jobId !== sourceJobId) return;
-  if (res.action) { runLocalAction(res.action); return; }
-  const reply = res.reply || '（模型没有返回内容）';
-  S.chat.push({ role: 'assistant', content: reply });
-  addMsg('ai', mdToHtml(reply, res.custom_table));
-  $('vintent').textContent = res.source === 'model' ? 'AI 助手' : '指令';
-  $('vout').innerHTML = mdToHtml(reply.length > 160 ? reply.slice(0, 160) + '…' : reply);
+    // 1. 立即前端本地回填 (0ms 极致交互反馈，杜绝用户看到[缺价]不更新)
+    this.activeCompRow.unit_price = price;
+    this.activeCompRow.total_price = Math.round(price * (Number(this.activeCompRow.quantity) || 1) * 100) / 100;
+    this.activeCompRow.replacement_model = model;
+    this.activeCompRow.source = source;
+    this.activeCompRow.brand = brand;
+    this.activeCompRow.is_unpriced = false;
 
-  if (res.changes && res.changes.length) {
-    res.changes.forEach(c => {
-      const what = c.action ? (c.action === 'add' ? '新增' : '删除') : (FIELD_LABEL[c.field] || c.field);
-      const diff = c.action === 'add' ? `<b>${esc(c.new || '')}</b>`
-        : c.action === 'remove' ? esc(c.old || '')
-        : `${esc(c.old || '—')} → <b>${esc(c.new)}</b>`;
-      addMsg('sys', `已修改 <b>${esc(c.target)}</b> · ${esc(what)}：${diff}`);
-    });
-  }
-  if (res.data) applyServerData(res, sourceJobId);
-  const TAB_SUB = { circuits: 'circuits', components: 'devices', boxes: 'boxes', requirements: 'reqs', replace: 'replace' };
-  if (res.tab && TAB_SUB[res.tab]) { switchPane('list'); renderSub(TAB_SUB[res.tab]); }
-  if (res.focus) {
-    const i = findByLabel(res.focus);
-    if (i >= 0) selectCircuit('c' + i, true);
-  }
-  if (Array.isArray(res.highlight) && res.highlight.length) highlightSpecs(res.highlight);
-}
-
-function highlightSpecs(list) {
-  const keys = list.map(String);
-  const rows = [...document.querySelectorAll('#tb tr[data-cid]')];
-  let hit = 0;
-  rows.forEach(tr => {
-    const c = findCircuit(tr.dataset.cid) || {};
-    const blob = [circuitLabel(c), c.breaker, c.load_name, c.cable, c.phase].join(' ');
-    if (keys.some(k => k && blob.includes(k))) { tr.classList.add('sel'); hit++; }
-  });
-  if (hit) toast(`已高亮 ${hit} 行`);
-}
-
-function runLocalAction(action) {
-  if (action === 'review') { switchPane('review'); openReview(); $('vintent').textContent = '进入核对'; $('vout').textContent = '已打开存疑核对'; }
-  if (action === 'resolve') {
-    if (!$('rvoverlay').classList.contains('show')) { $('vout').textContent = '当前不在核对模式，请先说“开始核对”'; return; }
-    resolveIssue(true); $('vout').textContent = '已确认当前项';
-  }
-  if (action === 'next') {
-    if (!$('rvoverlay').classList.contains('show')) { $('vout').textContent = '当前不在核对模式'; return; }
-    const next = (S.data.uncertainties || []).findIndex((u, i) => i > S.reviewIdx && !u.resolved);
-    S.reviewIdx = next < 0 ? (S.data.uncertainties || []).findIndex(u => !u.resolved) : next;
-    if (S.reviewIdx >= 0) showIssue();
-    $('vout').textContent = '已切换到：' + ($('rvtitle').textContent || '');
-  }
-  if (action === 'export') { openExport(); $('vout').textContent = '已打开导出前检查'; }
-}
-
-/* ===================== 语音 ===================== */
-
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-function vstatus(t) { $('vstatus').textContent = t; }
-
-function toggleListen() {
-  if (!SR) {
-    vstatus('当前浏览器不支持语音识别（Chrome / Edge 可用），可以直接用下方指令词条');
-    return;
-  }
-  if (S.listening && S.rec) { S.rec.stop(); return; }
-  try {
-    const rec = new SR();
-    S.rec = rec;
-    rec.lang = 'zh-CN';
-    rec.interimResults = true;
-    rec.maxAlternatives = 1;
-    rec.onstart = () => {
-      S.listening = true;
-      $('vmic').classList.add('live');
-      vstatus('聆听中…请说话');
-    };
-    rec.onresult = e => {
-      let interim = '', final = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) final += t; else interim += t;
-      }
-      if (final) { vstatus(''); addMsg('me', esc(final)); switchPane('chat'); ask(final); }
-      else if (interim) vstatus('…' + interim);
-    };
-    rec.onend = () => {
-      S.listening = false;
-      $('vmic').classList.remove('live');
-      vstatus('');
-    };
-    rec.onerror = e => {
-      S.listening = false;
-      $('vmic').classList.remove('live');
-      vstatus('识别出错（' + e.error + '），可以改用文字输入');
-    };
-    rec.start();
-  } catch (e) {
-    vstatus('无法启动语音识别');
-  }
-}
-
-// 语音阅读已完全禁用
-if ('speechSynthesis' in window) {
-  try { speechSynthesis.cancel(); } catch (_) {}
-}
-
-/* ===================== 历史记录 ===================== */
-
-async function loadHistory() {
-  const { history } = await api('/api/history');
-  $('histcount').textContent = history.length ? `共 ${history.length} 次导出` : '';
-  $('histrows').innerHTML = history.map(h => `<tr>
-    <td class="mono" style="font-size:11px">${esc((h.exported_at || '').replace('T', ' ').slice(0, 16))}</td>
-    <td>${h.project
-      ? `<button class="linklike" onclick="openProject(decodeURIComponent('${safeJsArg(h.project)}'))"><b>${esc(h.project)}</b></button>`
-      : '<span class="mut">未分组</span>'}</td>
-    <td class="mono">${esc(h.filename || '')}</td>
-    <td>${h.circuits || 0}</td>
-    <td>${h.unresolved ? `<span class="pill warn">${h.unresolved} 未确认</span>`
-      : `<span class="pill ok">${h.uncertainties || 0} 已确认</span>`}</td>
-    <td>${h.changes || 0} 处</td>
-    <td><button class="linklike" onclick="openJob('${h.job_id}')">查看</button>
-        <span style="color:var(--line2);margin:0 3px">|</span>
-        <button class="linklike" onclick="openBatchProjectModal('${h.job_id}')" title="将此图纸归入或移动到指定项目">归入项目</button>
-        <span style="color:var(--line2);margin:0 3px">|</span>
-        <button class="linklike" onclick="reparseJob('${h.job_id}')" title="无需重新上传，以最新引擎重新提取该图纸">重新解析</button>
-        <span style="color:var(--line2);margin:0 3px">|</span>
-        <a class="linklike" href="/api/jobs/${h.job_id}/excel">下载Excel</a></td></tr>`).join('');
-  $('histempty').hidden = history.length > 0;
-}
-
-/* ===================== 设置 ===================== */
-
-async function loadSettings() {
-  const info = await api('/api/settings');
-  S.brandInfo = { target_brands: info.target_brands || [], default_target_brand: info.default_target_brand || '' };
-  const s = info.settings;
-  S.settings = s;
-  $('set-model').value = s.vision_model || '';
-  $('set-baseurl').value = s.vision_base_url || '';
-  $('set-apikey').value = '';
-  $('set-keyhint').textContent = s.vision_api_key_set
-    ? `当前已配置（${s.vision_api_key_hint}），留空表示不改动`
-    : '当前没有配置 Key，提取和对话都不能用';
-  $('set-temp').value = s.temperature ?? 0;
-  $('set-seed').value = s.seed ?? '';
-  $('set-assistant').value = s.assistant_model || '';
-  $('set-template').value = s.excel_template || '';
-  $('set-changes').checked = !!s.include_changes;
-  $('set-tiling').checked = s.tile_large_pages !== false;
-  $('set-prompt').textContent = `extract.txt · v${info.prompt_version}`;
-  $('set-contract').textContent = `OUTPUT_CONTRACT · v${info.contract_version}`;
-  $('set-status').textContent = info.vision_configured
-    ? `当前生效模型：${info.vision_model}（${info.assistant_model || '助手复用同一模型'}）`
-    : '视觉模型尚未配置，上传后无法提取';
-}
-
-async function saveSettings() {
-  const seedRaw = $('set-seed').value.trim();
-  const body = {
-    vision_model: $('set-model').value.trim(),
-    vision_base_url: $('set-baseurl').value.trim(),
-    assistant_model: $('set-assistant').value.trim(),
-    temperature: parseFloat($('set-temp').value || '0'),
-    seed: seedRaw === '' ? null : parseInt(seedRaw, 10),
-    excel_template: $('set-template').value.trim(),
-    include_changes: $('set-changes').checked,
-    tile_large_pages: $('set-tiling').checked,
-  };
-  const key = $('set-apikey').value.trim();
-  if (key) body.vision_api_key = key;
-  try {
-    const res = await putJSON('/api/settings', body);
-    $('set-apikey').value = '';
-    $('set-status').textContent = '已保存 ' + new Date().toLocaleTimeString();
-    toast('设置已保存');
-    loadSettings();
-  } catch (e) {
-    toast('保存失败：' + e.message);
-  }
-}
-
-/* ===================== 启动屏 ===================== */
-
-function hideStart() {
-  const sc = $('startscreen');
-  if (sc) sc.hidden = true;
-  if (!S.route) navGo('projects');
-}
-
-const SPLIT_MIN_AI = 300;    // 工作区再窄就看不下表格了
-const SPLIT_MIN_VIEW = 320;  // 图纸区留这么宽才能真看
-const SPLITTER_W = 6;        // 分隔线本身的宽度，算可用空间时要扣掉
-
-/** 工作区宽度存成 CSS 变量，拖分隔线只改这一个值。 */
-function applyAiWidth(px) {
-  const work = document.querySelector('.workspace');
-  if (!work) return;
-  const avail = work.clientWidth;
-  // 页面隐藏时 clientWidth 是 0，此时不夹紧，等进入工作台再夹
-  const max = avail > 0 ? Math.max(SPLIT_MIN_AI, avail - SPLIT_MIN_VIEW - SPLITTER_W) : Infinity;
-  S.aiWidth = Math.round(Math.min(Math.max(SPLIT_MIN_AI, px), max));
-  work.style.setProperty('--aiw', S.aiWidth + 'px');
-}
-
-function setupSplitter() {
-  const sp = $('splitter');
-  const work = document.querySelector('.workspace');
-  if (!sp || !work) return;
-  let dragging = false;
-
-  sp.addEventListener('mousedown', e => {
-    dragging = true;
-    sp.classList.add('dragging');
-    document.body.classList.add('col-resizing');
-    e.preventDefault();
-  });
-  window.addEventListener('mousemove', e => {
-    if (!dragging) return;
-    applyAiWidth(work.getBoundingClientRect().right - e.clientX);
-  });
-  window.addEventListener('mouseup', () => {
-    if (!dragging) return;
-    dragging = false;
-    sp.classList.remove('dragging');
-    document.body.classList.remove('col-resizing');
-    try { localStorage.setItem('aiw', S.aiWidth); } catch (err) { /* 隐私模式禁用存储 */ }
-  });
-  sp.addEventListener('dblclick', () => {
-    S.aiWidth = 400;
-    try { localStorage.removeItem('aiw'); } catch (err) { /* 忽略 */ }
-    applyAiWidth(S.aiWidth);
-    toast('工作区宽度已恢复默认 400px');
-  });
-}
-
-function initCanvasPan() {
-  const canvas = $('canvas');
-  if (!canvas) return;
-
-  // 监听空格键按住状态
-  window.addEventListener('keydown', e => {
-    const typing = ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName);
-    if (typing) return;
-    if (e.code === 'Space' && !S.isSpaceDown) {
-      S.isSpaceDown = true;
-      if (!S.cropMode) canvas.classList.add('space-panning');
-      e.preventDefault();
+    // 2. 同步更新行数据中的匹配项
+    const allRows = this.quotation.rows || [];
+    const targetRow = allRows.find(r => r.key === this.activeCompRow.key || (r.box_code === this.activeCompRow.box_code && r.seq === this.activeCompRow.seq));
+    if (targetRow) {
+      targetRow.unit_price = price;
+      targetRow.total_price = this.activeCompRow.total_price;
+      targetRow.replacement_model = model;
+      targetRow.source = source;
+      targetRow.brand = brand;
+      targetRow.is_unpriced = false;
     }
-  });
 
-  window.addEventListener('keyup', e => {
-    if (e.code === 'Space') {
-      S.isSpaceDown = false;
-      canvas.classList.remove('space-panning');
-    }
-  });
+    // 3. 重新核算当前组价总额并刷新渲染
+    this.recalcLocalSummary();
+    this.renderBasisHeader();
+    this.renderTable();
+    this.selectRow(this.activeCompRow);
 
-  let dragStartX = 0;
-  let dragStartY = 0;
-  let startPanX = 0;
-  let startPanY = 0;
+    toast(`已成功采用【${source}】：¥${price.toFixed(2)} (${model})`);
 
-  canvas.addEventListener('mousedown', e => {
-    // 框选模式左键优先走拉框
-    if (S.cropMode && e.button === 0) return;
-
-    // 中键 (button 1) 或 空格键按住时的左键，或空白背景按住左键拖动平移
-    const isMiddle = e.button === 1;
-    const isSpaceLeft = e.button === 0 && S.isSpaceDown;
-    const isBgLeft = e.button === 0 && !e.target.closest('.clickzone') && !e.target.closest('#cropmarquee');
-
-    if (isMiddle || isSpaceLeft || isBgLeft) {
-      if (isMiddle || isSpaceLeft) e.preventDefault();
-      S.isDraggingPan = true;
-      S.hasMoved = false;
-      dragStartX = e.clientX;
-      dragStartY = e.clientY;
-      startPanX = S.panX || 0;
-      startPanY = S.panY || 0;
-      canvas.classList.add('is-panning');
-    }
-  });
-
-  window.addEventListener('mousemove', e => {
-    if (!S.isDraggingPan) return;
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      S.hasMoved = true;
-    }
-    S.panX = startPanX + dx;
-    S.panY = startPanY + dy;
-    applyZoom();
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (S.isDraggingPan) {
-      S.isDraggingPan = false;
-      canvas.classList.remove('is-panning');
-    }
-  });
-}
-
-async function boot() {
-  await checkAuth();
-  bindUpload();
-  bindManual();
-  bindKeys();
-  initCropSelection();
-  initCanvasPan();
-  let saved = 0;
-  try { saved = parseInt(localStorage.getItem('aiw') || '', 10) || 0; } catch (err) { saved = 0; }
-  S.aiWidth = saved || 400;
-  setupSplitter();
-  try {
-    const info = await api('/api/health');
-    $('startcfg').textContent = info.vision_configured
-      ? '视觉模型已配置，可以直接上传图纸'
-      : '视觉模型还没配置，先去「设置」填 Key，否则上传后无法提取';
-  } catch (e) {
-    $('startcfg').textContent = '连不上后端服务';
-  }
-  await fillProjectSelect();
-  const { projects } = await api('/api/projects');
-  const hasJobs = projects.some(p => (p.jobs || []).length);
-
-  // 地址栏带 hash（刷新或分享链接）时优先按它恢复位置
-  const restored = await applyHashRoute();
-  if (!restored) {
-    navGo('projects');
-    // 启动屏只在“真·第一次用”时出现：已经有项目就直接进项目列表，
-    // 否则用户建完项目刷新又被欢迎页挡住，会以为项目没建成。
-    const isFirstRun = projects.length === 0 && !hasJobs;
-    if (isFirstRun) $('startscreen').hidden = false;
-    else hideStart();
-  } else {
-    hideStart();
-  }
-  $('ubadge').onclick = () => {
-    if (!S.jobId) { toast('先去项目里打开一份图纸'); return; }
-    navGo('workbench');
-    openReview();
-  };
-}
-
-function bindUpload() {
-  const wire = (zoneId, inputId, startsExtract) => {
-    const zone = $(zoneId), input = $(inputId);
-    if (!zone || !input) return;
-    zone.onclick = () => input.click();
-    input.onchange = () => {
-      if (input.files.length) {
-        addFiles(input.files);
-        input.value = '';
-        if (startsExtract) { navGo('upload'); startExtract(); }
+    // 4. 发送多重候选键至后端持久化到 SQLite WAL
+    const key = this.activeCompRow.key || `${this.activeCompRow.box_code}_${this.activeCompRow.seq}`;
+    const payload = {
+      brand: this.brand || '正泰',
+      copper_price: 72000,
+      labor_rate: 380,
+      profit_rate: 0.08,
+      tax_rate: this.rates.tax || 0.13,
+      overrides: {
+        [key]: { unit_price: price, price, model, quote_spec: model, brand, source },
+        [`${this.activeCompRow.box_code}_${this.activeCompRow.seq}`]: { unit_price: price, price, model, quote_spec: model, brand, source },
+        [this.activeCompRow.design_spec]: { unit_price: price, price, model, quote_spec: model, brand, source }
       }
     };
-    ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, e => {
-      e.preventDefault();
-      zone.classList.add('over');
-    }));
-    ['dragleave', 'drop'].forEach(ev => zone.addEventListener(ev, e => {
-      e.preventDefault();
-      zone.classList.remove('over');
-    }));
-    zone.addEventListener('drop', e => {
-      if (e.dataTransfer.files.length) {
-        addFiles(e.dataTransfer.files);
-        if (startsExtract) startExtract();
-      }
-    });
-  };
-  wire('dropzone', 'fileinput', false);
-  wire('startdrop', 'startfile', true);
-}
 
-const VMANUAL = [
-  ['查询', [['WL1 用的是什么断路器？', '查指定回路，表格与图纸联动定位'],
-            ['统计断路器总数', '按元器件汇总回答分类数量'],
-            ['进线容量是多少', '回答 Pjs / Ijs 等技术参数']]],
-  ['修改', [['把 WL1 的断路器改成 MCB-63/C20A/1P', '改完自动留痕，可撤销'],
-            ['把 WK1 的容量改成 5kW', '可改：相序 / 断路器 / 导线 / 容量 / 用途']]],
-  ['核对', [['开始核对', '进入存疑核对（本地指令，不消耗模型调用）'],
-            ['确认无误', '确认当前存疑项'],
-            ['下一项', '跳到下一处存疑']]],
-  ['操作', [['导出', '打开导出前检查'],
-            ['切换页签', '直接点清单上方的子页签更快']]],
-];
-
-function bindManual() {
-  $('vmanual-body').innerHTML = VMANUAL.map(([group, items]) =>
-    `<div class="mgroup"><h5>${group}</h5>${items.map(([q, d]) =>
-      `<button class="vcmd" data-q="${esc(q)}" onclick="quickAsk(this.dataset.q)">${esc(q)}<small>${esc(d)}</small></button>`).join('')}</div>`).join('');
-}
-
-function quickAsk(q) {
-  if (!S.jobId) { toast('先打开一份图纸'); return; }
-  $('cin').value = q;
-  sendQ();
-}
-
-function bindKeys() {
-  document.addEventListener('keydown', e => {
-    const typing = ['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName);
-    if (e.key === 'Escape') { closeAuthModal(); closeAiLogs(); closeReview(); closeExport(); closeLog(); closeProjBom(); closeProjTopology(); closeBatchProjectModal(); return; }
-    if (typing) return;
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveNow(); return; }
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undoLastChange(); return; }
-    if (S.route !== 'workbench' || S.sub !== 'circuits') return;
-    const rows = [...document.querySelectorAll('#tb tr[data-cid]')];
-    const cur = rows.findIndex(r => r.classList.contains('sel'));
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      const n = e.key === 'ArrowDown' ? Math.min(rows.length - 1, cur + 1) : Math.max(0, cur - 1);
-      if (rows[n]) selectCircuit(rows[n].dataset.cid, true);
+    try {
+      await api(`/api/jobs/${this.id}/quotation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.warn('后端同步失败:', e);
     }
-    if (e.key === 'e' || e.key === 'E') openExport();
-  });
+  },
+
+  async confirmCustomPrice() {
+    if (!this.activeCompRow) return;
+    const input = $('pricingCustomPriceInput');
+    const price = Number(input ? input.value : 0);
+    if (!Number.isFinite(price) || price < 0) {
+      toast('请输入有效的手填单价');
+      return;
+    }
+    const note = ($('pricingCustomNoteInput') && $('pricingCustomNoteInput').value.trim()) || '询价人工填报';
+
+    // 1. 立即前端本地回填
+    this.activeCompRow.unit_price = price;
+    this.activeCompRow.total_price = Math.round(price * (Number(this.activeCompRow.quantity) || 1) * 100) / 100;
+    this.activeCompRow.replacement_model = note;
+    this.activeCompRow.source = '手填';
+    this.activeCompRow.is_unpriced = false;
+
+    const allRows = this.quotation.rows || [];
+    const targetRow = allRows.find(r => r.key === this.activeCompRow.key || (r.box_code === this.activeCompRow.box_code && r.seq === this.activeCompRow.seq));
+    if (targetRow) {
+      targetRow.unit_price = price;
+      targetRow.total_price = this.activeCompRow.total_price;
+      targetRow.replacement_model = note;
+      targetRow.source = '手填';
+      targetRow.is_unpriced = false;
+    }
+
+    this.recalcLocalSummary();
+    this.renderBasisHeader();
+    this.renderTable();
+    this.selectRow(this.activeCompRow);
+
+    toast(`已成功保存手填单价：¥${price.toFixed(2)} (${note})`);
+
+    const key = this.activeCompRow.key || `${this.activeCompRow.box_code}_${this.activeCompRow.seq}`;
+    const payload = {
+      brand: this.brand || '正泰',
+      overrides: {
+        [key]: { unit_price: price, price, model: note, quote_spec: note, source: '手填' },
+        [`${this.activeCompRow.box_code}_${this.activeCompRow.seq}`]: { unit_price: price, price, model: note, quote_spec: note, source: '手填' },
+        [this.activeCompRow.design_spec]: { unit_price: price, price, model: note, quote_spec: note, source: '手填' }
+      }
+    };
+
+    try {
+      await api(`/api/jobs/${this.id}/quotation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (e) {
+      console.warn('后端同步失败:', e);
+    }
+  },
+
+  bindEvents() {
+    // 品牌切换
+    if ($('pricingBrandSel')) {
+      $('pricingBrandSel').onchange = (e) => {
+        this.brand = e.target.value;
+        this.fetchQuotation({ brand: this.brand });
+        toast(`已切换报价品牌基准：${e.target.options[e.target.selectedIndex].text}`);
+      };
+    }
+
+    // 取价类型切换
+    if ($('pricingPriceTypeSel')) {
+      $('pricingPriceTypeSel').onchange = (e) => {
+        this.priceType = e.target.value;
+        this.fetchQuotation();
+        toast(`价格取值基准已更新为：${e.target.options[e.target.selectedIndex].text}`);
+      };
+    }
+
+    // 费率点击修改
+    if ($('pricingAuxBtn')) {
+      $('pricingAuxBtn').onclick = () => {
+        const val = prompt('请输入辅料费率百分比 (例：5 代表 5%):', String(Math.round(this.rates.aux * 100)));
+        if (val != null) {
+          const num = parseFloat(val);
+          if (!isNaN(num) && num >= 0 && num <= 100) {
+            this.rates.aux = num / 100;
+            this.renderBasisHeader();
+            this.renderTable();
+            toast(`辅料费率已更新为 ${num}%`);
+          }
+        }
+      };
+    }
+
+    if ($('pricingLaborBtn')) {
+      $('pricingLaborBtn').onclick = () => {
+        const val = prompt('请输入成套制作费率百分比 (例：9 代表 9%):', String(Math.round(this.rates.labor * 100)));
+        if (val != null) {
+          const num = parseFloat(val);
+          if (!isNaN(num) && num >= 0 && num <= 100) {
+            this.rates.labor = num / 100;
+            this.renderBasisHeader();
+            this.renderTable();
+            toast(`成套制作费率已更新为 ${num}%`);
+          }
+        }
+      };
+    }
+
+    if ($('pricingTaxBtn')) {
+      $('pricingTaxBtn').onclick = () => {
+        const val = prompt('请输入综合税费率百分比 (例：6 代表 6%):', String(Math.round(this.rates.tax * 100)));
+        if (val != null) {
+          const num = parseFloat(val);
+          if (!isNaN(num) && num >= 0 && num <= 100) {
+            this.rates.tax = num / 100;
+            this.fetchQuotation();
+            toast(`税费率已更新为 ${num}% 并已重新核算`);
+          }
+        }
+      };
+    }
+
+    // 重算
+    if ($('pricingRecalcBtn')) {
+      $('pricingRecalcBtn').onclick = () => {
+        this.fetchQuotation();
+        toast('已根据当前口径参数重新核算！');
+      };
+    }
+
+    // 全部展开 / 收起
+    if ($('pricingExpandAllBtn')) {
+      $('pricingExpandAllBtn').onclick = () => {
+        this.collapsedBoxes.clear();
+        this.renderTable();
+        toast('已展开所有配电箱柜明细');
+      };
+    }
+
+    if ($('pricingCollapseAllBtn')) {
+      $('pricingCollapseAllBtn').onclick = () => {
+        const boxes = this.quotation.boxes || [];
+        boxes.forEach(b => this.collapsedBoxes.add(b.box_code));
+        this.renderTable();
+        toast('已收起所有配电箱柜明细');
+      };
+    }
+
+    // 过滤按钮
+    const updateFilterStyles = () => {
+      if ($('pricingOnlyMissingBtn')) {
+        $('pricingOnlyMissingBtn').classList.toggle('bg-rose-100', this.filterMissing);
+        $('pricingOnlyMissingBtn').classList.toggle('border-rose-400', this.filterMissing);
+      }
+      if ($('pricingFilterMissingBtn')) {
+        $('pricingFilterMissingBtn').classList.toggle('ring-2', this.filterMissing);
+        $('pricingFilterMissingBtn').classList.toggle('ring-rose-500', this.filterMissing);
+      }
+      if ($('pricingFilterManualBtn')) {
+        $('pricingFilterManualBtn').classList.toggle('ring-2', this.filterManual);
+        $('pricingFilterManualBtn').classList.toggle('ring-blue-500', this.filterManual);
+      }
+      if ($('pricingOnlyUnpricedBtn')) {
+        $('pricingOnlyUnpricedBtn').classList.toggle('bg-slate-200', this.filterUnpriced);
+        $('pricingOnlyUnpricedBtn').classList.toggle('border-slate-400', this.filterUnpriced);
+      }
+      if ($('pricingFilterUnpricedBtn')) {
+        $('pricingFilterUnpricedBtn').classList.toggle('ring-2', this.filterUnpriced);
+        $('pricingFilterUnpricedBtn').classList.toggle('ring-slate-500', this.filterUnpriced);
+      }
+    };
+
+    const toggleMissing = () => {
+      this.filterMissing = !this.filterMissing;
+      if (this.filterMissing) {
+        this.filterManual = false;
+        this.filterUnpriced = false;
+      }
+      updateFilterStyles();
+      this.renderTable();
+    };
+
+    const toggleManual = () => {
+      this.filterManual = !this.filterManual;
+      if (this.filterManual) {
+        this.filterMissing = false;
+        this.filterUnpriced = false;
+      }
+      updateFilterStyles();
+      this.renderTable();
+    };
+
+    const toggleUnpriced = () => {
+      this.filterUnpriced = !this.filterUnpriced;
+      if (this.filterUnpriced) {
+        this.filterMissing = false;
+        this.filterManual = false;
+      }
+      updateFilterStyles();
+      this.renderTable();
+    };
+
+    if ($('pricingOnlyMissingBtn')) $('pricingOnlyMissingBtn').onclick = toggleMissing;
+    if ($('pricingFilterMissingBtn')) $('pricingFilterMissingBtn').onclick = toggleMissing;
+    if ($('pricingFilterManualBtn')) $('pricingFilterManualBtn').onclick = toggleManual;
+    if ($('pricingOnlyUnpricedBtn')) $('pricingOnlyUnpricedBtn').onclick = toggleUnpriced;
+    if ($('pricingFilterUnpricedBtn')) $('pricingFilterUnpricedBtn').onclick = toggleUnpriced;
+
+    // 搜索输入
+    if ($('pricingSearchInput')) {
+      $('pricingSearchInput').oninput = (e) => {
+        this.searchKeyword = (e.target.value || '').trim();
+        this.renderTable();
+      };
+    }
+
+    // 表格委托点击
+    if ($('pricingExcelTbody')) {
+      $('pricingExcelTbody').onclick = (e) => {
+        // 折叠 / 展开箱柜
+        const boxTr = e.target.closest('tr[data-box-code]');
+        if (boxTr && !boxTr.dataset.compKey) {
+          const code = boxTr.dataset.boxCode;
+          if (this.collapsedBoxes.has(code)) {
+            this.collapsedBoxes.delete(code);
+          } else {
+            this.collapsedBoxes.add(code);
+          }
+          this.renderTable();
+          return;
+        }
+
+        // 选中元器件行
+        const compTr = e.target.closest('tr[data-comp-key]');
+        if (compTr) {
+          const key = compTr.dataset.compKey;
+          const boxCode = compTr.dataset.boxCode;
+          const seq = Number(compTr.dataset.seq);
+          const rows = this.quotation.rows || [];
+          const found = rows.find(r => r.key === key || (r.box_code === boxCode && r.seq === seq));
+          if (found) {
+            this.selectRow(found);
+            this.renderTable();
+          }
+        }
+      };
+    }
+
+    // 采纳价格按钮 (卡片 1 - 5)
+    if ($('pricingAdoptInfoBtn')) {
+      $('pricingAdoptInfoBtn').onclick = () => {
+        if (!this.activeCompRow) return;
+        const cands = this.activeCompRow.candidates || {};
+        const info = cands.info;
+        if (!info || !info.price) {
+          toast('内置价格库暂未收录该规格，建议采用右侧【AI建议价】或【手填报价】');
+          return;
+        }
+        this.adoptCandidate({ price: Number(info.price), model: `${info.brand || ''} ${info.model || ''}`.trim(), source: '信息价', brand: info.brand || '施耐德' });
+      };
+    }
+
+    if ($('pricingAdoptMarketBtn')) {
+      $('pricingAdoptMarketBtn').onclick = () => {
+        if (!this.activeCompRow) return;
+        const cands = this.activeCompRow.candidates || {};
+        const market = cands.market;
+        if (!market || !market.price) {
+          toast('内置市场价暂无直接收录，建议采用【AI建议价】');
+          return;
+        }
+        this.adoptCandidate({ price: Number(market.price), model: `${market.brand || ''} ${market.model || ''}`.trim(), source: '市场价', brand: market.brand || '德力西' });
+      };
+    }
+
+    if ($('pricingAdoptAiBtn')) {
+      $('pricingAdoptAiBtn').onclick = () => {
+        if (!this.activeCompRow) return;
+        const cands = this.activeCompRow.candidates || {};
+        const ai = cands.ai_suggested;
+        const p = (ai && ai.price) ? Number(ai.price) : (parseFloat(($('pricingCardAiPrice').textContent || '').replace(/[^\d.]/g, '')) || 45.0);
+        const model = (ai && ai.model) ? ai.model : `${this.activeCompRow.name} ${this.activeCompRow.design_spec}`;
+        const brand = (ai && ai.brand) ? ai.brand : '正泰';
+        this.adoptCandidate({ price: p, model, source: 'AI建议价', brand });
+      };
+    }
+
+    if ($('pricingAdoptHistoryBtn')) {
+      $('pricingAdoptHistoryBtn').onclick = () => {
+        if (!this.activeCompRow) return;
+        const p = parseFloat(($('pricingCardHistoryPrice').textContent || '').replace(/[^\d.]/g, '')) || 48.0;
+        this.adoptCandidate({ price: p, model: '近期同类工程集采基准', source: '历史价' });
+      };
+    }
+
+    if ($('pricingConfirmCustomBtn')) {
+      $('pricingConfirmCustomBtn').onclick = () => {
+        this.confirmCustomPrice();
+      };
+    }
+
+    // 快捷键 F9 重算
+    document.onkeydown = (e) => {
+      if (!$('viewPricing').hidden && e.key === 'F9') {
+        e.preventDefault();
+        this.fetchQuotation();
+        toast('F9 快捷重算已触发');
+      }
+    };
+  }
+};
+
+/* 兼容老版本 openJob 接口 */
+function openJob(id) {
+  openSmartJob(id);
 }
 
-boot();
+/* ================= 启动 ================= */
+
+(async () => {
+  if (typeof applyLayout === 'function') applyLayout();
+  if (TOKEN) {
+    try {
+      const me = await api('/api/auth/me');
+      if (!me.authenticated) {
+        TOKEN = '';
+        try { localStorage.removeItem('dgzh_auth_token'); } catch (_) {}
+      } else if (me.user && $('userNameLabel')) {
+        $('userNameLabel').textContent = me.user.display_name || me.user.username || '系统工程师';
+      }
+    } catch (_) {
+      TOKEN = '';
+      try { localStorage.removeItem('dgzh_auth_token'); } catch (_) {}
+    }
+  }
+  route();
+})();

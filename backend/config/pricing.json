@@ -433,7 +433,20 @@
       "正泰"
     ],
     "benchmark_brand": "施耐德",
-    "domestic_substitute": "正泰"
+    "domestic_substitute": "正泰",
+    "candidate_lookup": [
+      "正泰",
+      "德力西",
+      "施耐德"
+    ],
+    "info_price_order": [
+      "施耐德",
+      "正泰"
+    ],
+    "market_price_order": [
+      "德力西",
+      "正泰"
+    ]
   },
   "enclosure": {
     "hem_wh_mm": 50.0,
@@ -483,5 +496,218 @@
     "busbar_allowance_main_m": 0.4,
     "busbar_allowance_pe_n_m": 0.2,
     "enclosure_thickness_mm": 1.5
+  },
+  "reference_estimates": {
+    "_comment": "价格库未命中时给报价员的经验定额参考价。数字为内置经验值，不是联网行情或供应商报价，采用前必须人工核价。",
+    "source": "定额估算（非实时行情）",
+    "basis": "内置经验定额，未联网核价，采用前请人工确认",
+    "enclosure": {
+      "brand": "通用成套",
+      "floor_min_height_mm": 1800,
+      "power_min_height_mm": 1000,
+      "floor_keywords": [
+        "GGD",
+        "GCK",
+        "MNS"
+      ],
+      "floor": {
+        "price": 2250.0,
+        "model": "GGD 标准落地配电柜体 ({w}×{h}×{d} 冷轧钢板2.0mm)"
+      },
+      "power": {
+        "price": 560.0,
+        "model": "动力配电箱体 ({w}×{h}×{d} IP30挂墙明装)"
+      },
+      "small": {
+        "price": 165.0,
+        "model": "标准明装基业箱 ({w}×{h}×{d} 冷轧钢板1.5mm)"
+      },
+      "no_dims": {
+        "price": 280.0,
+        "model": "标准挂墙配电箱体 ({spec})"
+      }
+    },
+    "ct": {
+      "brand": "正泰",
+      "default_ratio": 50,
+      "model": "BH-0.66 {curr}/5A 0.5级 穿心式互感器",
+      "tiers": [
+        {
+          "max": 50,
+          "price": 26.0
+        },
+        {
+          "max": 200,
+          "price": 32.0
+        },
+        {
+          "max": 600,
+          "price": 52.0
+        },
+        {
+          "max": null,
+          "price": 98.0
+        }
+      ]
+    },
+    "spd": {
+      "t1_keywords": [
+        "T1",
+        "12.5",
+        "25KA",
+        "IIMP"
+      ],
+      "t1": {
+        "brand": "德力西",
+        "price": 320.0,
+        "model": "一级电涌保护器 T1级 4P (Iimp≥12.5kA Up≤2.5kV)"
+      },
+      "t2": {
+        "brand": "正泰",
+        "price": 125.0,
+        "model": "二级电涌保护器 T2级 4P (In=20kA Imax=40kA Up≤1.8kV)"
+      }
+    },
+    "meter": {
+      "brand": "安科瑞",
+      "price": 198.0,
+      "model": "DTSD1352 三相数显多功能电表 (RS485通讯)"
+    },
+    "contactor": {
+      "brand": "正泰",
+      "default_current": 32,
+      "model": "{series} ({curr}A) 交流接触器",
+      "tiers": [
+        {
+          "max": 12,
+          "price": 32.0,
+          "series": "CJX2-0910/1210"
+        },
+        {
+          "max": 32,
+          "price": 52.0,
+          "series": "CJX2-3210"
+        },
+        {
+          "max": 65,
+          "price": 95.0,
+          "series": "CJX2-6511"
+        },
+        {
+          "max": 115,
+          "price": 228.0,
+          "series": "CJX2-115"
+        },
+        {
+          "max": 185,
+          "price": 395.0,
+          "series": "CJX2-185"
+        },
+        {
+          "max": null,
+          "price": 580.0,
+          "series": "CJX2-330"
+        }
+      ]
+    },
+    "thermal_relay": {
+      "brand": "正泰",
+      "default_current": 10,
+      "model": "{series} (整定范围 {spec}) 热过载继电器",
+      "tiers": [
+        {
+          "max": 25,
+          "price": 36.0,
+          "series": "JR36-20"
+        },
+        {
+          "max": 63,
+          "price": 68.0,
+          "series": "JR36-63"
+        },
+        {
+          "max": null,
+          "price": 115.0,
+          "series": "JR36-160"
+        }
+      ]
+    },
+    "isolator": {
+      "brand": "正泰",
+      "default_current": 40,
+      "model": "HR6-{curr}/31 熔断器式隔离开关",
+      "tiers": [
+        {
+          "max": 63,
+          "price": 118.0
+        },
+        {
+          "max": 160,
+          "price": 158.0
+        },
+        {
+          "max": null,
+          "price": 245.0
+        }
+      ]
+    },
+    "rcbo": {
+      "brand": "正泰",
+      "default_current": 16,
+      "default_poles": "1P+N",
+      "multi_pole": {
+        "price": 125.0,
+        "model": "RCBO-63 3P+N C{curr}A 30mA 电子式漏电"
+      },
+      "single_pole": {
+        "price": 42.0,
+        "model": "RCBO-32 1P+N C{curr}A 30mA 家用/工用微断"
+      }
+    },
+    "mcb": {
+      "brand": "正泰",
+      "default_current": 16,
+      "default_poles": "1P",
+      "model": "NXB-63 {poles} C{curr}A 微型断路器",
+      "pole_prices": {
+        "1P": 18.0,
+        "2P": 36.0,
+        "3P": 52.0,
+        "4P": 68.0
+      },
+      "other_price": 25.0
+    },
+    "mccb": {
+      "brand": "正泰",
+      "default_current": 100,
+      "default_poles": "3P",
+      "min_frame": 125,
+      "model": "NM1-{frame}S/{poles} {curr}A 塑壳断路器",
+      "tiers": [
+        {
+          "max": 125,
+          "price": 195.0
+        },
+        {
+          "max": 250,
+          "price": 330.0
+        },
+        {
+          "max": 400,
+          "price": 720.0
+        },
+        {
+          "max": null,
+          "price": 1150.0
+        }
+      ]
+    },
+    "fallback": {
+      "brand": "正泰",
+      "price_no_current": 45.0,
+      "per_amp": 2.5,
+      "min": 35.0,
+      "max": 380.0
+    }
   }
 }

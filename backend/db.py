@@ -323,22 +323,6 @@ def get_current_user() -> str:
     return _user_var.get()
 
 
-def db_ensure_tenant(tenant_id: str, name: str = "") -> dict:
-    """确保租户记录存在。"""
-    t_id = (tenant_id or "default").strip() or "default"
-    t_name = (name or t_id).strip()
-    now_str = _now()
-    conn = _get_conn()
-    with conn:
-        conn.execute("""
-        INSERT OR IGNORE INTO tenants (id, name, status, created_at)
-        VALUES (?, ?, 'active', ?);
-        """, (t_id, t_name, now_str))
-        cur = conn.execute("SELECT * FROM tenants WHERE id = ?", (t_id,))
-        row = cur.fetchone()
-        return dict(row) if row else {"id": t_id, "name": t_name}
-
-
 # ---------- 任务落盘与查询 (原子持久化与中断自动恢复) ----------
 
 def db_save_job(job: dict) -> None:
@@ -362,7 +346,10 @@ def db_save_job(job: dict) -> None:
         summary["target_brand"] = job["target_brand"]
 
     summary_str = _safe_json_dumps(summary)
-    data_str = _safe_json_dumps(job.get("data") or {})
+    data = dict(job.get("data") or {})
+    if "quotation_overrides" in job and job["quotation_overrides"]:
+        data["quotation_overrides"] = job["quotation_overrides"]
+    data_str = _safe_json_dumps(data)
     raw_str = _safe_json_dumps(job.get("raw") or {})
     ai_usage_str = _safe_json_dumps(job.get("ai_usage") or {})
 
@@ -433,6 +420,18 @@ def db_get_job_tenant_by_id(job_id: str) -> str | None:
     return None
 
 
+def db_delete_job(job_id: str, tenant_id: str | None = None) -> bool:
+    """物理删除任务记录"""
+    t_id = tenant_id or get_current_tenant()
+    conn = _get_conn()
+    if t_id and t_id not in ("default", "guest"):
+        conn.execute("DELETE FROM jobs WHERE id = ? AND tenant_id = ?", (job_id, t_id))
+    else:
+        conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+    conn.commit()
+    return True
+
+
 def db_list_jobs(tenant_id: str | None = None) -> list[dict]:
     """获取当前租户下的所有图纸任务。"""
     t_id = tenant_id or get_current_tenant()
@@ -487,6 +486,7 @@ def _row_to_job(row: sqlite3.Row) -> dict:
     sheet_names = summary.get("sheet_names") or {}
     file_type = summary.get("file_type") or ""
     target_brand = summary.get("target_brand") or "正泰"
+    quotation_overrides = data.get("quotation_overrides") or summary.get("quotation_overrides") or {}
 
     return {
         "id": row["id"],
@@ -498,6 +498,7 @@ def _row_to_job(row: sqlite3.Row) -> dict:
         "file_type": file_type,
         "target_brand": target_brand,
         "sheet_names": sheet_names,
+        "quotation_overrides": quotation_overrides,
         "status": row["status"],
         "excel": f"/api/jobs/{row['id']}/excel" if row["status"] == "done" else None,
         "progress": row["progress"],

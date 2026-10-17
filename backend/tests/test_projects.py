@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app import app, _resolve_project_info
 from extractor.project_info import infer_from_filename, infer_from_texts, inferred_project_name, merge_info
-from extractor.schema import ProjectInfo, RawExtraction
+from extractor.schema import RawExtraction
 
 
 def _raw(project_info=None) -> RawExtraction:

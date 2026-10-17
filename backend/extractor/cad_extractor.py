@@ -7,7 +7,6 @@
 """
 
 from collections import defaultdict
-import math
 import os
 import re
 from typing import Any
@@ -774,6 +773,34 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
             text_sources[key] = source
             all_texts.append((t, x, y, h))
 
+    # 原生读取增强：表格（ACAD_TABLE 图形块）、多重引线、代理对象（天正等，含解密）、阵列块其余副本里的文字。
+    # 这些在上面两步里读不到；表格网格另交给下面的 GTable 解析。
+    # EXTRACTOR_NATIVE_SUPPLEMENT=0 可关闭（应急回退、对比基线用）。
+    native_tables: list = []
+    extra_texts: list = []
+    if os.environ.get("EXTRACTOR_NATIVE_SUPPLEMENT", "1") != "0":
+        try:
+            from .native_takeoff import extraction_supplements
+            extra_texts, native_tables = extraction_supplements(doc)
+        except Exception:
+            extra_texts, native_tables = [], []
+    for sub in extra_texts:
+        t = str(sub.get("text") or "").strip()
+        if not t:
+            continue
+        try:
+            x, y, h = float(sub["x"]), float(sub["y"]), float(sub.get("height") or 0)
+        except (KeyError, TypeError, ValueError):
+            continue
+        key = (round(x, 2), round(y, 2), t)
+        if key in text_sources:
+            continue
+        text_sources[key] = {"file_sha256": file_hash, "handle": str(sub.get("handle") or ""),
+                             "owner": str(sub.get("owner") or ""), "insert_path": "",
+                             "dxftype": str(sub.get("kind") or ""), "layout": "Model",
+                             "origin": "native_takeoff"}
+        all_texts.append((t, x, y, h))
+
     if not all_texts:
         return RawExtraction(
             boxes=[],
@@ -1189,6 +1216,33 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
     extracted_reqs: list[Requirement] = []
     extracted_uncertainties: list[Uncertainty] = []
 
+    # GTable 网格表格拓扑引擎提取 (逆向自 CAD快速看图 CADReaderMac 5.2.4 核心算法)
+    gtable_boxes: list[Box] = []
+    gtable_circuits: list[Circuit] = []
+    gtable_devices: list[ExtraDevice] = []
+    gtable_box_codes: set[str] = set()
+    try:
+        from .gtable import reconstruct_gtable_from_dxf, parse_switchgear_table
+        # 模型空间线框表 + ACAD_TABLE 表格对象（线在表格图形块里，模型空间扫不到）
+        gtable_tables = reconstruct_gtable_from_dxf(doc) + list(native_tables)
+        for tbl in gtable_tables:
+            tb_boxes, tb_circuits, tb_devices = parse_switchgear_table(tbl)
+            for b in tb_boxes:
+                # 仅当 GTable 确实解析出该箱柜的出线回路时，才作为已完成解析并阻止后续启发式重复
+                has_cir = any(c.box == b.code for c in tb_circuits)
+                if has_cir and b.code not in gtable_box_codes:
+                    gtable_boxes.append(b)
+                    gtable_box_codes.add(b.code)
+            gtable_circuits.extend(tb_circuits)
+            gtable_devices.extend(tb_devices)
+    except Exception:
+        pass
+
+    if gtable_boxes:
+        extracted_boxes.extend(gtable_boxes)
+        extracted_circuits.extend(gtable_circuits)
+        extracted_devices.extend(gtable_devices)
+
     # 自适应包围盒外扩距离（确保覆盖多列系统图表格横向跨度，通常跨越 50~80 倍字高）
     pad_x = max(float(_CAD_CONFIG["circuit_pad_x"]) * scale_factor,
                 base_h * float(_CAD_CONFIG["circuit_pad_x_height_ratio"]))
@@ -1247,6 +1301,9 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
     # 整张图只有一列干线箱号时，仍按干线留下。
     drawing_has_schedule = len(all_circuit_anchors) >= 3
     for code in sorted(best_headers.keys()):
+        if code in gtable_box_codes:
+            # 已由高精度 GTable 拓扑引擎精确解析，避免启发式重叠
+            continue
         title, hx, hy, hh = best_headers[code]
         c_anchors = assigned_circuits[code]
 
@@ -2290,6 +2347,38 @@ def extract_cad_table_data(dxf_or_doc: Any) -> RawExtraction:
             for code in unrecognized_qty:
                 extracted_uncertainties.append(Uncertainty.from_text(
                     f"{code}：{UNCONFIRMED_QTY_WARNING}"))
+
+    # 原生箱柜清单兜底：系统图标题写明“箱号 + 名称”、上面的版式规则却没认出的箱柜补上（台数、回路待核对）；
+    # 只在平面图（图例属性 / “箱号:回路”标注）出现、没有系统图标题的，只列入待核对，不直接算成箱柜。
+    if os.environ.get("EXTRACTOR_NATIVE_SUPPLEMENT", "1") != "0":
+        try:
+            from .native_takeoff import native_box_inventory
+            kinds = ((t, str((text_sources.get((round(x, 2), round(y, 2), t)) or {}).get("dxftype", "")))
+                     for t, x, y, _h in all_texts)
+            box_inventory = native_box_inventory(kinds)
+        except Exception:
+            box_inventory = {}
+        have = {b.code.upper() for b in extracted_boxes}
+        plan_only = []
+        for code, info in sorted(box_inventory.items()):
+            if code in have:
+                continue
+            circuits_note = (f"平面图回路标注 {len(info['plan_circuits'])} 条："
+                             f"{'、'.join(info['plan_circuits'][:20])}（进线、备用不在平面图上）"
+                             if info["plan_circuits"] else "")
+            if info["level"] == "confirmed":
+                extracted_boxes.append(Box(
+                    code=code, name=info["name"], quantity=1, quantity_confirmed=False,
+                    note="；".join(x for x in ("由系统图标题识别，回路明细未从系统图版式读出", circuits_note) if x),
+                ))
+                extracted_uncertainties.append(Uncertainty.from_text(
+                    f"{code}：系统图标题写明“{code} {info['name']}”，但未能按版式读出回路与元器件，请核对"))
+            else:
+                plan_only.append(code + (f"（{len(info['plan_circuits'])} 条回路）" if info["plan_circuits"] else ""))
+        if plan_only:
+            extracted_uncertainties.append(Uncertainty.from_text(
+                "平面图上还有这些编号带配电箱图例或回路标注，但没找到系统图："
+                + "、".join(plan_only[:30]) + "，请确认是否需要报价"))
 
     # 若未找到任何有效配电箱，如实记录存疑项，杜绝假装成功
     if not extracted_boxes:

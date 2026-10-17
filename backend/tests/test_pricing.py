@@ -242,5 +242,14 @@ class TestPricingEngine(unittest.TestCase):
         self.assertEqual(q_ab["final_tax_included"], q_ab["ab_quotation"]["sum_total"])
 
 
+class TestCurrentParsing(unittest.TestCase):
+    def test_space_separated_poles_not_glued_into_current(self):
+        from extractor.pricing import parse_component_features
+        cases = {"C16 2P": 16, "NXB-63 C20 1P": 20, "C32 3P+N 30mA": 32, "100mA/80A": 80,
+                 "MCB-MA C16A/1P": 16, "NM1-250S/3P 250A": 250, "D63": 63}
+        for spec, amps in cases.items():
+            self.assertEqual(parse_component_features(spec)["current_a"], amps, spec)
+
+
 if __name__ == "__main__":
     unittest.main()

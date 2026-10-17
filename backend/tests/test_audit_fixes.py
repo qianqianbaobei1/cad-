@@ -4,7 +4,7 @@ import test_support  # noqa: F401
 from fastapi.testclient import TestClient
 from app import app, jobs, WORKDIR
 import db
-from extractor.schema import Box, Circuit, Component, ExtractionResult
+from extractor.schema import Box, Circuit, ExtractionResult
 from extractor.excel import build_workbook, _estimate_box_costs
 
 
@@ -133,7 +133,7 @@ class TestAuditFixes(unittest.TestCase):
         try:
             build_workbook(result, "subtitle", path, layout="3_sheets")
             wb = openpyxl.load_workbook(path, data_only=False)
-            ws_detail = wb["屏柜分项表"]
+            ws_detail = wb["组价明细"]
             # 查找断路器型号行
             found_breakers = []
             for r in range(7, 20):
@@ -168,7 +168,7 @@ class TestAuditFixes(unittest.TestCase):
         from openpyxl import Workbook
         wb = Workbook()
         ws = wb.active
-        ws.title = "屏柜汇总表"
+        ws.title = "组价汇总"
         ws.cell(row=1, column=1, value="【箱柜编号：AP1】")
         wb.save(xlsx_path)
 

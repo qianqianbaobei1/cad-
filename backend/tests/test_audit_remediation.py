@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 import app
 import db
-from extractor.schema import Box, Circuit, ExtractionResult, RawExtraction, ReviewStatus
+from extractor.schema import Box, Circuit, RawExtraction, ReviewStatus
 from extractor.catalog import parse_component_spec, recommend_replacements
 from extractor.assemble import _breaker_name, assemble
 

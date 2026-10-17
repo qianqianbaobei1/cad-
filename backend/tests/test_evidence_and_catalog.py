@@ -11,13 +11,11 @@ from extractor.schema import (
     ExtractionResult,
     InferenceType,
     RawExtraction,
-    Uncertainty,
     validate_field_evidence,
 )
 from extractor.checker import (
     BREAKER_MODEL_REGEX,
     CheckSeverity,
-    check_result,
     check_result_issues,
     clean_rated_amp,
 )
@@ -615,14 +613,15 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
         try:
             build_workbook(result, "subtitle", path, layout="3_sheets")
             wb = openpyxl.load_workbook(path)
-            # 1. 检查屏柜汇总表：无尺寸时绝不猜测为 GGD(落地)
-            ws_sum = wb["屏柜汇总表"]
-            box_model_val = ws_sum.cell(row=8, column=4).value  # D列 型号规格
+            # 1. 检查组价汇总：无尺寸时绝不猜测为 GGD(落地)
+            # 汇总表版式：第 6 行表头，数据从第 7 行开始（上方 1-5 行是表名与项目信息）
+            ws_sum = wb["组价汇总"]
+            box_model_val = ws_sum.cell(row=7, column=4).value  # D列 箱柜型号
             self.assertNotEqual(box_model_val, "GGD(落地)")
             self.assertFalse(box_model_val)  # 应该为空字符串
 
-            # 2. 检查屏柜汇总表：无位置时备注写入 '待确认'，绝不能臆造为 '配电间/动力间'
-            loc_val = ws_sum.cell(row=8, column=9).value  # I列 使用部位/所属楼栋车间
+            # 2. 检查组价汇总：无位置时备注写入 '待确认'，绝不能臆造为 '配电间/动力间'
+            loc_val = ws_sum.cell(row=7, column=9).value  # I列 使用部位/所属楼栋车间
             self.assertEqual(loc_val, "待确认")
             self.assertNotIn("配电间/动力间", str(loc_val))
         finally:
@@ -656,10 +655,10 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
             # 指定目标品牌为 "正泰"
             build_workbook(result, "subtitle", path, layout="3_sheets", target_brand="正泰")
             wb = openpyxl.load_workbook(path)
-            ws_det = wb["屏柜分项表"]
+            ws_det = wb["组价明细"]
 
-            # 查看分项表数据行 (Row 7 是箱头横幅, Row 8 是卡片表头, 数据从 row 9 开始)
-            # Row 9: 进线隔离开关
+            # 明细表版式：Row 7 箱头横幅、Row 8 表头、数据从 Row 9 开始
+            # 列位：E 数量 / F 单价 / G 总价 / H 生产厂家
             inc_name = ws_det.cell(row=9, column=2).value
             inc_price = float(ws_det.cell(row=9, column=6).value)
             inc_brand = ws_det.cell(row=9, column=8).value
@@ -676,12 +675,12 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
             self.assertLess(brk_price, 15.08)
 
             # 验证 DZ47 没有被写成电涌保护器
-            all_dev_names = [ws_det.cell(row=r, column=2).value for r in range(9, 16) if ws_det.cell(row=r, column=2).value]
+            all_dev_names = [ws_det.cell(row=r, column=2).value for r in range(9, 17) if ws_det.cell(row=r, column=2).value]
             self.assertNotIn("电涌保护器", all_dev_names)
 
             # 查找壳体外壳行
             shell_row = None
-            for r in range(9, 16):
+            for r in range(9, 17):
                 if ws_det.cell(row=r, column=2).value == "壳体":
                     shell_row = r
                     break

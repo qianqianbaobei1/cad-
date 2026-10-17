@@ -12,7 +12,7 @@ import sys
 import json
 import time
 from pathlib import Path
-from collections import defaultdict, Counter
+from collections import defaultdict
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 
@@ -20,13 +20,10 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-from extractor.config import pipeline, domain, delivery, config_health
-from extractor.render import plan_tiles, coverage_report, page_size_mm, grid_for, plan_grid_clips, text_layer_stats
+from extractor.config import pipeline
+from extractor.render import coverage_report, page_size_mm, grid_for, plan_grid_clips
 from extractor.cad_extractor import extract_cad_table_data
 from extractor.assemble import assemble
-from extractor.checker import check_result_issues, check_result
-from extractor.excel import build_workbook, build_project_bom_workbook
-from extractor.corroborate import corroborate
 
 DESKTOP_DIR = Path(os.path.expanduser("~/Desktop/配电箱"))
 DELIVERY_DIR = Path(os.path.join(os.path.dirname(__file__), "..", "deliveries"))
@@ -170,8 +167,6 @@ def generate_audit_excel_and_verify(slicing_data, cad_data, gt_data) -> str:
     FONT_FAMILY = "Microsoft YaHei"
     HDR_FILL = PatternFill("solid", fgColor="1F497D")  # Navy
     HDR_FONT = Font(name=FONT_FAMILY, size=11, bold=True, color="FFFFFF")
-    SUB_FILL = PatternFill("solid", fgColor="DCE6F1")  # Light Ice Blue
-    SUB_FONT = Font(name=FONT_FAMILY, size=10, bold=True, color="1F497D")
     REG_FONT = Font(name=FONT_FAMILY, size=10)
     BOLD_FONT = Font(name=FONT_FAMILY, size=10, bold=True)
     BORDER = Border(left=Side(style="thin", color="D9D9D9"),
@@ -351,9 +346,9 @@ def generate_audit_excel_and_verify(slicing_data, cad_data, gt_data) -> str:
         elif "照明" in r["file"]:
             diag = f"提取到 {r['boxes_count']} 个箱体候选，存在大量回路编号与设备代号噪声，需图框/目录白名单过滤"
         elif "锅炉房" in r["file"]:
-            diag = f"提取到 17 个箱体、134 条回路，进出线回路抓取完整，断路器填充率 72.4%"
+            diag = "提取到 17 个箱体、134 条回路，进出线回路抓取完整，断路器填充率 72.4%"
         else:
-            diag = f"总图提取正常，箱体与进线回路拓扑清晰"
+            diag = "总图提取正常，箱体与进线回路拓扑清晰"
 
         vals = [
             r["file"], r["status"], r["elapsed_s"],

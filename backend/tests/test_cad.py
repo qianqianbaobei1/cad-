@@ -16,7 +16,6 @@ from extractor.cad import (
     extract_cad_entities,
     is_cad_path,
     process_cad_file,
-    render_dxf_to_pdf,
 )
 
 
@@ -122,7 +121,7 @@ class TestCADPipeline(unittest.TestCase):
         self.assertFalse(is_system_title("7. 所有消防电源监控模块及传感器均安装在本配电柜内，详见配电柜系统图；模块的正常供电电源取自"))
 
     def test_detect_system_sheets_and_slicing(self):
-        from extractor.cad import detect_system_sheets, MAX_TEXT_ENTITIES_LIMIT
+        from extractor.cad import detect_system_sheets
         dxf_path = os.path.join(self.temp_dir, "multi_sheets.dxf")
         pdf_path = os.path.join(self.temp_dir, "multi_sheets.pdf")
 

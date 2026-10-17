@@ -25,13 +25,12 @@ import os
 import re
 import sys
 import time
-from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from extractor.config import config_health, pipeline  # noqa: E402
-from extractor.render import coverage_report, grid_for, plan_grid_clips, render_pdf  # noqa: E402
+from extractor.render import coverage_report, grid_for, plan_grid_clips, plan_tiles, render_pdf  # noqa: E402
 
 DRAWING_SUFFIXES = (".pdf", ".dwg", ".dxf")
 
@@ -316,7 +315,7 @@ def main() -> int:
         cov = (("全部铺满" if r.get("slice_ok") else "有漏区") if is_pdf else "-")
         cad = r.get("cad")
         cad_txt = (f"{cad['boxes']}箱/{cad['circuits']}回路" if cad and "error" not in cad
-                   else (f"失败" if cad else "-"))
+                   else ("失败" if cad else "-"))
         vis = r.get("vision")
         vis_txt = (f"{vis['boxes']}箱/{vis['circuits']}回路/{vis['components']}器件"
                    if vis and "error" not in vis else (vis["error"] if vis else "-"))

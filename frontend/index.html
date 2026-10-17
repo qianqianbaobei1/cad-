@@ -3,776 +3,1269 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>电柜智核 · 配电箱智能工作台</title>
+<meta content="web_standard" name="shell-type">
+<title>配电箱图纸识别与组价</title>
 <link rel="icon" href="assets/brand/02_品牌Logo/17_App图标主体.png">
-<link rel="stylesheet" href="app.css?v=20261002_07">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=JetBrains+Mono:wght@100..900&amp;family=Space+Grotesk:wght@100..900&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script id="tailwind-config">
+tailwind.config={
+  darkMode:"class",
+  theme:{
+    extend:{
+      colors:{
+        "tertiary":"#003c36",
+        "on-primary-fixed-variant":"#173bab",
+        "on-tertiary":"#ffffff",
+        "error":"#ba1a1a",
+        "on-primary-container":"#a8b8ff",
+        "on-surface":"#131b2e",
+        "inverse-on-surface":"#eef0ff",
+        "surface-variant":"#dae2fd",
+        "on-primary":"#ffffff",
+        "tertiary-container":"#00554e",
+        "surface-container-highest":"#dae2fd",
+        "tertiary-fixed-dim":"#6bd8cb",
+        "primary-fixed-dim":"#b8c4ff",
+        "on-secondary-fixed":"#00174b",
+        "inverse-surface":"#283044",
+        "on-primary-fixed":"#001453",
+        "secondary-container":"#316bf3",
+        "primary-container":"#1e40af",
+        "surface-tint":"#3755c3",
+        "on-tertiary-fixed-variant":"#005049",
+        "on-surface-variant":"#444653",
+        "inverse-primary":"#b8c4ff",
+        "primary":"#00288e",
+        "secondary":"#0051d5",
+        "surface-container-high":"#e2e7ff",
+        "on-error":"#ffffff",
+        "surface-bright":"#faf8ff",
+        "on-secondary":"#ffffff",
+        "tertiary-fixed":"#89f5e7",
+        "outline-variant":"#c4c5d5",
+        "on-tertiary-fixed":"#00201d",
+        "on-tertiary-container":"#5fcdbf",
+        "surface":"#faf8ff",
+        "on-error-container":"#93000a",
+        "on-secondary-container":"#fefcff",
+        "on-secondary-fixed-variant":"#003ea8",
+        "primary-fixed":"#dde1ff",
+        "surface-container-low":"#f2f3ff",
+        "background":"#faf8ff",
+        "surface-container":"#eaedff",
+        "surface-container-lowest":"#ffffff",
+        "secondary-fixed":"#dbe1ff",
+        "outline":"#757684",
+        "on-background":"#131b2e",
+        "surface-dim":"#d2d9f4",
+        "secondary-fixed-dim":"#b4c5ff",
+        "error-container":"#ffdad6"
+      },
+      borderRadius:{
+        "DEFAULT":"0.125rem",
+        "lg":"0.25rem",
+        "xl":"0.5rem",
+        "full":"0.75rem"
+      },
+      spacing:{
+        "space-md":"0.75rem",
+        "space-lg":"1.25rem",
+        "margin-desktop":"2rem",
+        "gutter-desktop":"1.5rem",
+        "space-sm":"0.5rem",
+        "margin":"1rem",
+        "space-xs":"0.25rem",
+        "space-xl":"2rem",
+        "gutter":"1rem"
+      },
+      fontFamily:{
+        "body-md":["Geist","sans-serif"],
+        "label-sm":["JetBrains Mono","monospace"],
+        "headline-sm":["Space Grotesk","sans-serif"],
+        "label-md":["JetBrains Mono","monospace"],
+        "body-lg":["Geist","sans-serif"],
+        "label-lg":["JetBrains Mono","monospace"],
+        "headline-lg":["Space Grotesk","sans-serif"],
+        "headline-md":["Space Grotesk","sans-serif"],
+        "headline-xl-mobile":["Space Grotesk","sans-serif"],
+        "headline-xl":["Space Grotesk","sans-serif"],
+        "body-sm":["Geist","sans-serif"]
+      },
+      fontSize:{
+        "body-md":["14px",{lineHeight:"20px",fontWeight:"400"}],
+        "label-sm":["10px",{lineHeight:"14px",letterSpacing:"0.04em",fontWeight:"500"}],
+        "headline-sm":["15px",{lineHeight:"22px",fontWeight:"600"}],
+        "label-md":["11px",{lineHeight:"16px",letterSpacing:"0.03em",fontWeight:"500"}],
+        "body-lg":["16px",{lineHeight:"24px",fontWeight:"400"}],
+        "label-lg":["13px",{lineHeight:"18px",letterSpacing:"0.02em",fontWeight:"500"}],
+        "headline-lg":["24px",{lineHeight:"32px",letterSpacing:"-0.015em",fontWeight:"600"}],
+        "headline-md":["18px",{lineHeight:"26px",letterSpacing:"-0.01em",fontWeight:"600"}],
+        "headline-xl-mobile":["24px",{lineHeight:"32px",letterSpacing:"-0.01em",fontWeight:"600"}],
+        "headline-xl":["32px",{lineHeight:"40px",letterSpacing:"-0.02em",fontWeight:"600"}],
+        "body-sm":["12px",{lineHeight:"18px",fontWeight:"400"}]
+      }
+    }
+  }
+};
+</script>
+<link rel="stylesheet" href="app.css?v=20261017_3">
+<style>
+/* 避免原生顶栏与固定定位顶栏冲突 */
+.topbar { display: none !important; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* 极细专业 Excel 滚动条 */
+.excel-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.excel-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+.excel-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+.excel-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.font-mono-nums { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.excel-cell { border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
+.excel-th { border-right: 1px solid #cbd5e1; border-bottom: 1px solid #94a3b8; }
+/* Excel 批注小三角折角 */
+.excel-modified-corner::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 6px solid #2563eb;
+  border-left: 6px solid transparent;
+}
+.excel-doubt-corner::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 6px solid #ef4444;
+  border-left: 6px solid transparent;
+}
+</style>
 </head>
-<body>
+<body class="bg-surface font-body-md text-on-surface h-screen overflow-hidden flex flex-col">
 
-<!-- ===== 顶栏 ===== -->
-<header class="topbar">
-  <div class="brand" onclick="navGo('projects')" title="电柜智核 · 配电箱智能工作台">
-    <img src="assets/brand/02_品牌Logo/17_App图标主体.png" alt="电柜智核" class="brand-logo-img" width="32" height="32" style="width:32px;height:32px;object-fit:contain;border-radius:5px;flex-shrink:0;display:inline-block">
-    <div class="brand-text">
-      <span class="brand-title">电柜智核</span>
-      <span class="brand-sub">配电箱智能工作台</span>
-    </div>
+<!-- 统一设计规范顶部导航栏 -->
+<header id="globalHeader" class="fixed top-0 left-0 right-0 z-40 h-14 bg-surface/90 backdrop-blur-xl border-b border-surface-container shadow-[0_1px_8px_rgba(0,0,0,0.04)] px-4 md:px-margin-desktop flex items-center justify-between">
+  <div class="flex items-center gap-space-md">
+    <a href="#/" class="flex items-center gap-space-md text-inherit no-underline">
+      <div class="w-8 h-8 rounded bg-primary flex items-center justify-center">
+        <span class="material-symbols-outlined text-on-primary text-[20px]">developer_board</span>
+      </div>
+      <span class="font-headline-md text-headline-md text-on-surface tracking-tight">配电箱图纸识别与组价</span>
+    </a>
+    <nav class="crumbs flex items-center gap-2 text-sm text-outline ml-3" id="crumbs"></nav>
   </div>
-  <nav class="nav">
-    <button data-p="projects" onclick="navGo('projects')">项目</button>
-    <button data-p="workbench" onclick="navGo('workbench')">工作台<span class="bdg" id="navbdg" hidden>0</span></button>
-    <button data-p="history" onclick="navGo('history')">历史记录</button>
-    <button data-p="settings" onclick="navGo('settings')">设置</button>
-  </nav>
-  <div class="sp"></div>
-  <button class="tbtn warn" id="ubadge" onclick="navGo('workbench');openReview()">待核对 0</button>
-  <button class="btn primary sm" onclick="startUploadFlow()">上传图纸</button>
 
-  <!-- 用户中心 -->
-  <div class="user-menu-wrap" id="userMenuWrap">
-    <button class="btn ghost sm" id="btnLoginOpen" onclick="openAuthModal('login')">🔑 登录 / 注册</button>
-    <div class="user-badge" id="userBadge" onclick="toggleUserDropdown()" hidden>
-      <span class="user-avatar" id="userAvatar">A</span>
-      <div class="user-info">
-        <span class="user-name" id="userDisplayName">系统工程师</span>
-        <span class="user-tenant" id="userTenantName">电柜智核成套部</span>
-      </div>
-      <span class="user-arrow">▾</span>
+  <div class="flex items-center gap-space-md">
+    <!-- 图纸详情页快捷操作 -->
+    <div class="top-actions flex items-center gap-2" id="topActions" hidden>
+      <button class="px-3 py-1.5 rounded bg-surface-container-low hover:bg-surface-container text-on-surface font-body-sm text-body-sm flex items-center gap-1.5 border border-outline-variant transition-colors" id="btnChat" title="就这张图纸的识别结果提问" type="button">
+        <span class="material-symbols-outlined text-[16px] text-primary">smart_toy</span>
+        <span>AI 助手</span>
+      </button>
+      <a class="px-3 py-1.5 rounded bg-primary text-on-primary hover:bg-primary-container font-body-sm text-body-sm flex items-center gap-1.5 shadow-sm transition-colors text-white" id="btnExport" download>
+        <span class="material-symbols-outlined text-[16px]">download</span>
+        <span>导出 Excel</span>
+      </a>
     </div>
-    <div class="user-dropdown" id="userDropdown" hidden>
-      <div class="ud-header">
-        <b id="udName">系统工程师</b>
-        <span class="mut" id="udUsername">admin</span>
+
+    <!-- 用户下拉菜单 -->
+    <div class="relative" id="user-menu-container">
+      <button class="flex items-center gap-space-sm px-space-sm py-space-xs rounded bg-surface-container-low hover:bg-surface-container hover:text-on-surface text-on-surface transition-colors cursor-pointer" type="button" id="user-menu-btn">
+        <div class="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+        </div>
+        <span class="font-body-md text-body-md text-on-surface" id="userNameLabel">系统工程师</span>
+        <span class="material-symbols-outlined text-on-surface-variant text-[18px] transition-transform duration-200" id="user-menu-arrow">arrow_drop_down</span>
+      </button>
+      <div class="absolute right-0 top-full pt-space-xs hidden z-50" id="user-menu-dropdown">
+        <div class="w-48 bg-surface-container-lowest rounded-lg shadow-[0_4px_16px_rgba(15,23,42,0.12)] border border-surface-container py-space-xs">
+          <button class="w-full flex items-center gap-space-sm px-space-md py-space-sm font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors text-left" id="btnOpenSettings" type="button">
+            <span class="material-symbols-outlined text-[18px]">settings</span>
+            <span>系统设置</span>
+          </button>
+          <button class="w-full flex items-center gap-space-sm px-space-md py-space-sm font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors text-left" id="btnOpenAiCosts" type="button">
+            <span class="material-symbols-outlined text-[18px]">analytics</span>
+            <span>AI 消耗与费用</span>
+          </button>
+          <div class="h-[1px] bg-surface-container my-space-xs"></div>
+          <button class="w-full flex items-center gap-space-sm px-space-md py-space-sm font-body-md text-body-md text-error hover:bg-error-container hover:text-on-error-container transition-colors text-left" id="btnLogout" type="button">
+            <span class="material-symbols-outlined text-[18px]">logout</span>
+            <span>退出登录</span>
+          </button>
+        </div>
       </div>
-      <div class="ud-item"><span class="ud-icon">🏢</span>企业：<span id="udTenant">电柜智核成套电气工程部</span></div>
-      <div class="ud-item" onclick="openAiLogs();closeUserDropdown()"><span class="ud-icon">📊</span>AI 费用与 Token 账单</div>
-      <div class="ud-divider"></div>
-      <div class="ud-item warn" onclick="doCleanTestData()"><span class="ud-icon">🗑️</span>清空系统测试数据</div>
-      <div class="ud-item danger" onclick="doLogout()"><span class="ud-icon">🚪</span>退出当前账号</div>
     </div>
   </div>
 </header>
 
-<!-- ===== 工作台 ===== -->
-<main class="page" id="page-workbench" hidden>
-<div class="workspace">
-  <section class="viewer">
-    <div class="vbar">
-      <div class="crumb" id="crumb"><span class="mut2">未打开图纸</span></div>
-      <div class="vtools">
-        <button id="sheetCatalogBtn" onclick="toggleSheetCatalog()" title="查看多图切块目录与重命名">📑 切图目录 (<span id="sheetCount">1</span>)</button>
-        <span class="vsep"></span>
-        <button id="cropbtn" onclick="toggleCropMode()" title="开启/关闭框选解析">⛶ 框选识图</button>
-        <span class="vsep"></span>
-        <button id="linkbtn" class="on" onclick="toggleLink()" title="点表格行在图纸上定位">联动</button>
-        <span class="vsep"></span>
-        <button onclick="zoom(-1)" title="缩小">−</button>
-        <span class="pct" id="zpct">适应</span>
-        <button onclick="zoom(1)" title="放大">＋</button>
-        <button onclick="fitView()">适应窗口</button>
-        <span class="vsep"></span>
-        <button id="prevpage" onclick="setPage(S.page-1)" title="上一页">‹</button>
-        <span class="pct" id="ppct">1/1</span>
-        <button id="nextpage" onclick="setPage(S.page+1)" title="下一页">›</button>
-        <span class="vsep" id="cadsep" hidden></span>
-        <div class="vmode-group" id="vmodeGroup" hidden>
-          <button id="btnViewRaster" class="vmode-btn active" onclick="setViewMode('raster')" title="高清施工图纸模式">📷 蓝图视图</button>
-          <button id="btnViewVector" class="vmode-btn" onclick="setViewMode('vector')" title="纯矢量 CAD 交互画布模式">📐 纯矢量 CAD</button>
-        </div>
-        <button id="cadinfobtn" onclick="toggleCadInspector()" title="查看 CAD 原生矢量图层、空间边界与实体透视" hidden>📐 CAD 矢量透视</button>
-        <a id="caddownloadbtn" class="btn sm ghost" style="text-decoration:none;display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 8px;font-size:12px;" title="下载转换保留的完整 DXF 文件" hidden download>💾 下载 DXF</a>
-      </div>
-    </div>
-    <div class="canvas" id="canvas">
-      <!-- 方案 C: 纯矢量 CAD 交互画布与 HUD -->
-      <canvas id="vectorCanvas" class="vector-canvas" hidden></canvas>
-      <div class="vector-hud" id="vectorHud" hidden>
-        <div class="vh-item"><b>坐标:</b> <span id="vhCoords">X: 0 Y: 0</span></div>
-        <div class="vh-item"><b>缩放:</b> <span id="vhZoom">100%</span></div>
-        <div class="vh-item"><b>图元:</b> <span id="vhHoverEntity">无</span></div>
-      </div>
-      <!-- CAD 矢量实体透视浮动面板 -->
-      <div class="cad-inspector collapsed" id="cadInspector">
-        <div class="cad-inspector-header">
-          <div class="ci-title">
-            <span>📐</span>
-            <b>CAD 矢量实体透视</b>
-            <span class="ci-badge" id="ciEntityBadge">0 实体</span>
-          </div>
-          <button class="icon-btn" onclick="toggleCadInspector()" title="收起面板">✕</button>
-        </div>
-        <div class="cad-inspector-body">
-          <div class="ci-meta">
-            <div><b>空间边界:</b> <span id="ciExtents">-</span></div>
-            <div><b>实体统计:</b> <span id="ciCounts">-</span></div>
-          </div>
-          <div class="ci-subtitle"><b>全文搜索实体与 Handle</b></div>
-          <div class="ci-search-box">
-            <input type="text" id="ciSearchInput" placeholder="输入文字（如 锅炉/AL1/250A）..." onkeydown="if(event.key==='Enter')doCadSearch()">
-            <button class="btn sm primary" onclick="doCadSearch()">查找</button>
-          </div>
-          <div class="ci-results" id="ciResults"></div>
-          <!-- 方案 B: 图层清单与实时批量控制 -->
-          <div class="ci-layers-toolbar">
-            <div class="ci-subtitle" style="margin:0;"><b>图层清单 (<span id="ciLayerCount">0</span>)</b></div>
-            <div class="ci-btn-group">
-              <button class="ci-tool-btn" onclick="toggleAllLayers(true)" title="显示全部图层">👁️ 全显</button>
-              <button class="ci-tool-btn" onclick="toggleAllLayers(false)" title="隐藏全部图层">🕶️ 全隐</button>
+<!-- ① 落地页：上传区 + 组价任务高密度技术仪表盘 -->
+<main class="view flex-1 overflow-y-auto bg-surface pt-14" id="viewList">
+  <div class="w-full px-4 md:px-margin-desktop py-space-xl flex flex-col gap-space-xl max-w-[1600px] mx-auto">
+    <!-- Module A: 统一多源上传区 (双卡片结构) -->
+    <section class="w-full">
+      <div class="w-full bg-surface-container-lowest rounded-xl p-space-lg shadow-sm border border-surface-container">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-space-lg">
+          <!-- 卡片 1: 图纸识别 (CAD/PDF) -->
+          <div class="group relative rounded-xl border border-dashed border-outline-variant hover:border-primary bg-surface-container-low/40 hover:bg-surface-container-low transition-all duration-200 p-space-xl flex flex-col items-center text-center justify-between cursor-pointer overflow-hidden" id="drop-zone-blueprint">
+            <input accept=".dwg,.dxf,.pdf" class="hidden" id="blueprint-input" multiple type="file">
+            <div class="relative z-10 flex flex-col items-center gap-space-sm w-full">
+              <div class="flex items-center justify-between w-full mb-1">
+                <span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-semibold tracking-wider">识别 + 组价</span>
+                <span class="font-label-sm text-label-sm text-outline">DWG / DXF / PDF</span>
+              </div>
+              <div class="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center text-primary group-hover:scale-105 group-hover:bg-primary group-hover:text-on-primary transition-all duration-200 shadow-sm mt-1">
+                <span class="material-symbols-outlined text-[30px]">architecture</span>
+              </div>
+              <div class="flex flex-col items-center gap-1.5 mt-space-xs">
+                <h2 class="font-headline-md text-headline-md text-on-surface tracking-tight">上传图纸识别</h2>
+                <p class="font-body-sm text-body-sm text-on-surface-variant max-w-sm">支持 DWG / DXF / PDF，自动解析箱柜与元器件图纸，识别后进行智能组价</p>
+              </div>
+            </div>
+            <div class="relative z-10 flex flex-col items-center gap-space-xs mt-space-md w-full">
+              <button class="px-space-lg py-space-sm rounded bg-primary text-on-primary font-body-md text-body-md hover:bg-primary-container shadow-sm flex items-center gap-space-xs transition-colors" type="button" id="btnSelectBlueprint">
+                <span class="material-symbols-outlined text-[18px]">upload_file</span>
+                <span>选择图纸文件</span>
+              </button>
+              <span class="font-label-sm text-label-sm text-outline mt-1">或直接将图纸文件拖拽至此处</span>
             </div>
           </div>
-          <div class="ci-layers" id="ciLayers"></div>
-        </div>
-      </div>
-      <!-- 多图切块浮动目录滑块 -->
-      <div class="sheet-catalog collapsed" id="sheetCatalog">
-        <div class="sheet-catalog-header">
-          <div class="sc-title">
-            <span class="sc-icon">📑</span>
-            <b>切图图块目录</b>
-            <span class="sc-badge" id="scTotalBadge">共 1 块</span>
+
+          <!-- 卡片 2: 设备清单直接组价 (Excel/CSV) -->
+          <div class="group relative rounded-xl border border-dashed border-outline-variant hover:border-tertiary-container bg-surface-container-low/40 hover:bg-surface-container-low transition-all duration-200 p-space-xl flex flex-col items-center text-center justify-between cursor-pointer overflow-hidden" id="drop-zone-excel">
+            <input accept=".xlsx,.xls,.csv" class="hidden" id="excel-input" multiple type="file">
+            <div class="relative z-10 flex flex-col items-center gap-space-sm w-full">
+              <div class="flex items-center justify-between w-full mb-1">
+                <span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-tertiary text-on-tertiary font-semibold tracking-wider">直接组价</span>
+                <span class="font-label-sm text-label-sm text-outline">Excel / CSV</span>
+              </div>
+              <div class="w-14 h-14 rounded-xl bg-surface-container flex items-center justify-center text-tertiary-container group-hover:scale-105 group-hover:bg-tertiary-container group-hover:text-on-tertiary transition-all duration-200 shadow-sm mt-1">
+                <span class="material-symbols-outlined text-[30px]">table_chart</span>
+              </div>
+              <div class="flex flex-col items-center gap-1.5 mt-space-xs">
+                <h2 class="font-headline-md text-headline-md text-on-surface tracking-tight">上传清单组价</h2>
+                <p class="font-body-sm text-body-sm text-on-surface-variant max-w-sm">支持 Excel / CSV 设备清单，跳过图纸识别，直接拆解元器件并自动组价</p>
+              </div>
+            </div>
+            <div class="relative z-10 flex flex-col items-center gap-space-xs mt-space-md w-full">
+              <div class="flex items-center gap-space-md">
+                <button class="px-space-lg py-space-sm rounded bg-tertiary-container text-on-tertiary font-body-md text-body-md hover:bg-tertiary shadow-sm flex items-center gap-space-xs transition-colors" type="button" id="btnSelectExcel">
+                  <span class="material-symbols-outlined text-[18px]">post_add</span>
+                  <span>选择清单文件</span>
+                </button>
+                <a class="flex items-center gap-1 text-primary hover:text-primary-container font-body-sm text-body-sm transition-colors cursor-pointer" id="btnDownloadTemplate" href="/api/template/bom" download="标准配电箱设备清单模板.xlsx">
+                  <span class="material-symbols-outlined text-[16px]">download</span>
+                  <span>下载清单模板</span>
+                </a>
+              </div>
+              <span class="font-label-sm text-label-sm text-outline mt-1">或直接将清单文件拖拽至此处</span>
+            </div>
           </div>
-          <button class="icon-btn" onclick="toggleSheetCatalog()" title="收起目录">◀</button>
-        </div>
-        <div class="sheet-search-box">
-          <input type="text" id="sheetSearchInput" placeholder="搜索图块名或箱号..." oninput="filterSheetCatalog()">
-        </div>
-        <div class="sheet-catalog-list" id="sheetCatalogList">
-          <!-- 动态渲染图块卡片 -->
         </div>
       </div>
-      <button class="sheet-catalog-tab-btn" id="sheetCatalogTabBtn" onclick="toggleSheetCatalog()" title="展开切图目录">
-        📑 图块目录
+    </section>
+
+    <!-- Module B: 我的组价任务 Technical Dashboard Table -->
+    <section class="w-full flex flex-col gap-space-md">
+      <!-- 过滤工具条 -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md bg-surface-container-low px-space-lg py-space-md rounded-xl border border-surface-container">
+        <div class="flex items-center gap-space-md">
+          <div class="flex items-center gap-space-xs">
+            <h3 class="font-headline-md text-headline-md text-on-surface tracking-tight">我的组价任务</h3>
+            <span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-medium" id="total-drawings-count">共 0 项</span>
+          </div>
+          <div class="h-4 w-[1px] bg-outline-variant hidden sm:block"></div>
+          <div class="relative">
+            <button class="flex items-center gap-space-xs px-space-md py-1.5 rounded bg-surface-container-lowest text-on-surface hover:bg-surface-container text-body-md font-body-md shadow-sm transition-colors border border-surface-container" id="project-filter-btn" type="button">
+              <span class="text-outline text-label-md font-label-md">项目:</span>
+              <span class="font-body-md text-body-md" id="current-project-label">全部项目</span>
+              <span class="material-symbols-outlined text-outline text-[16px]">expand_more</span>
+            </button>
+            <div class="absolute left-0 top-full mt-1 w-48 bg-surface-container-lowest rounded-lg shadow-lg border border-surface-container py-1 hidden z-30 max-h-60 overflow-y-auto" id="project-filter-menu">
+              <!-- 动态填充项目选项 -->
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-space-sm">
+          <div class="relative w-full sm:w-72">
+            <span class="material-symbols-outlined absolute left-space-sm top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+            <input class="w-full h-8 pl-8 pr-space-md bg-surface-container-lowest rounded text-body-sm font-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-1 focus:ring-primary border border-surface-container shadow-sm" id="search-input" placeholder="搜索任务名称或项目..." type="text">
+          </div>
+        </div>
+      </div>
+
+      <!-- 高密度工程表格卡片 -->
+      <div class="w-full bg-surface-container-lowest rounded-xl shadow-sm border border-surface-container overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse min-w-[980px]">
+            <thead>
+              <tr class="bg-surface-container-low text-on-surface-variant font-label-md text-label-md h-9 border-b border-surface-container">
+                <th class="px-space-md font-medium w-16 text-center">来源</th>
+                <th class="px-space-md font-medium">名称</th>
+                <th class="px-space-md font-medium">项目</th>
+                <th class="px-space-md font-medium text-right">箱柜</th>
+                <th class="px-space-md font-medium text-right">元器件</th>
+                <th class="px-space-md font-medium text-center">待核对</th>
+                <th class="px-space-md font-medium text-right">报价合计</th>
+                <th class="px-space-md font-medium text-center">状态</th>
+                <th class="px-space-md font-medium text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody class="font-body-sm text-body-sm text-on-surface divide-y divide-surface-container" id="drawings-tbody">
+              <!-- 动态填充表格行 -->
+            </tbody>
+          </table>
+          <div class="py-12 px-4 text-center text-outline font-body-md" id="jobEmpty" hidden>
+            暂无组价任务，请在上方上传图纸或设备清单开始识别与组价。
+          </div>
+        </div>
+        <!-- 卡片底部说明与计数 -->
+        <div class="px-space-lg py-2.5 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between text-on-surface-variant font-label-sm text-label-sm gap-2 border-t border-surface-container">
+          <div class="flex items-center gap-space-md text-on-surface-variant font-body-sm text-body-sm">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-primary"></span>
+              <span>支持图纸与 Excel 清单多源并行处理</span>
+            </span>
+          </div>
+          <div class="text-outline font-label-sm text-label-sm" id="table-count-summary">共 0 项</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ② 扒图工作台：CAD/PDF 蓝图精准核对与电气拆量 -->
+<main class="view flex-1 min-h-0 flex flex-col h-screen w-screen overflow-hidden text-xs antialiased font-sans bg-[#f8fafc] text-slate-800 select-none" id="viewExtract" hidden>
+  <!-- 1. 顶栏 HEADER (精确 56px 高度) -->
+  <header class="h-[56px] bg-[#0f172a] text-slate-200 px-4 flex items-center justify-between border-b border-slate-800 shrink-0 z-40 select-none">
+    <!-- 左侧：返回我的任务 / 当前图纸文件 -->
+    <div class="flex items-center gap-2.5">
+      <a class="flex items-center gap-1.5 text-slate-300 hover:text-white transition-colors text-xs font-medium" href="#/" title="返回任务列表">
+        <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+        <span>我的任务</span>
+      </a>
+      <span class="text-slate-600">/</span>
+      <div class="flex items-center gap-1.5 font-medium text-white">
+        <span class="material-symbols-outlined text-[18px] text-sky-400">description</span>
+        <span class="font-mono text-[13px] font-semibold text-slate-100 truncate max-w-[320px]" id="extFilename">图纸载入中...</span>
+        <span class="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]" id="extBadge">DWG</span>
+      </div>
+    </div>
+    <!-- 中间：步骤条 ● 拆量 ─── ○ 组价 (文字和连接线清晰优雅) -->
+    <div class="flex items-center gap-3 px-4 py-1.5 bg-slate-900/90 rounded border border-slate-800 text-xs">
+      <div class="flex items-center gap-1.5 text-white font-medium cursor-default">
+        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_8px_#3b82f6]"></span>
+        <span class="font-semibold text-blue-100">拆量</span>
+      </div>
+      <div class="w-12 h-[1px] bg-slate-600"></div>
+      <button class="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors cursor-pointer" id="extGoPricingBtn" type="button" title="点击直接进入组价阶段">
+        <span class="w-2 h-2 rounded-full border border-slate-500"></span>
+        <span>组价</span>
       </button>
-      <div class="placeholder canvas-empty-brand" id="canvasEmpty">
-        <img src="assets/brand/02_品牌Logo/17_App图标主体.png" alt="电柜智核" class="canvas-empty-logo">
-        <div class="canvas-empty-title">电柜智核 · 配电箱智能工作台</div>
-        <div class="canvas-empty-sub">
-          工业级电气图纸多模态解析引擎 · 支持 PDF / AutoCAD DWG / DXF<br>
-          先在「项目」里建项目或进入已有项目，再上传图纸开始核对与算量
-        </div>
-        <div class="canvas-empty-actions">
-          <button class="btn primary sm" onclick="startUploadFlow()">＋ 上传新图纸</button>
-          <button class="btn ghost sm" onclick="navGo('projects')">📂 浏览项目工程</button>
+    </div>
+    <!-- 右侧：AI 助手、导出清单、[一键组价 →]、用户头像 -->
+    <div class="flex items-center gap-2.5">
+      <button class="h-8 px-3 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-1.5 border border-slate-700 text-xs transition-colors cursor-pointer" id="extAiToggleBtn" type="button">
+        <span class="material-symbols-outlined text-[16px] text-emerald-400">smart_toy</span>
+        <span>AI 助手</span>
+      </button>
+      <button class="h-8 px-3 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-1.5 border border-slate-700 text-xs transition-colors cursor-pointer" id="extExportBomBtn" title="导出 Excel 工程量设备明细清单" type="button">
+        <span class="material-symbols-outlined text-[16px] text-emerald-400">table_view</span>
+        <span>导出清单</span>
+      </button>
+      <button class="h-8 px-3.5 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium flex items-center gap-1 shadow-sm transition-all active:scale-95 text-xs cursor-pointer" id="extMainPriceBtn" type="button">
+        <span>一键组价</span>
+        <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+      </button>
+      <div class="h-5 w-[1px] bg-slate-700 mx-1"></div>
+      <div class="flex items-center gap-2 pl-0.5" title="电气造价工程师">
+        <div class="w-7 h-7 rounded-full bg-blue-700 text-white flex items-center justify-center font-mono text-xs font-semibold ring-1 ring-slate-600">
+          Z
         </div>
       </div>
-      <div class="stage" id="stage" hidden>
-        <div id="zones"></div>
-        <div id="hlbox"></div>
-        <!-- 方案 A: CAD 矢量定位浮标层 -->
-        <div id="cadOverlay" class="cad-overlay"></div>
-        <div id="cropmarquee" class="cropbox" hidden><span class="crop-tag" id="croptag">选区</span></div>
-        <img id="dwg" alt="配电系统图" onerror="onDrawingError()">
+    </div>
+  </header>
+
+  <!-- 2. 次顶栏/指标状态带 (严格 40px 高度) -->
+  <section class="h-[40px] bg-white border-b border-slate-200 px-4 flex items-center justify-between text-xs text-slate-700 shrink-0 select-none whitespace-nowrap overflow-hidden">
+    <!-- 左侧指标胶囊 -->
+    <div class="flex items-center gap-3">
+      <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-bold text-[11px]">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>识别度 99.2%</span>
+      </div>
+      <span class="text-slate-300">|</span>
+      <div class="flex items-center gap-1 font-mono">
+        <span class="font-bold text-slate-900" id="extStatBoxes">0</span>
+        <span class="text-slate-700">台箱柜</span>
+        <span class="text-slate-500 text-[11px]" id="extStatBoxesUnit">(0台落地)</span>
+      </div>
+      <span class="text-slate-300">|</span>
+      <div class="flex items-center gap-1 font-mono">
+        <span class="font-bold text-slate-900" id="extStatComps">0</span>
+        <span class="text-slate-700">项元器件</span>
+        <span class="text-slate-400 font-normal ml-0.5">(<span id="extStatCompQty">0</span>件)</span>
+      </div>
+      <span class="text-slate-300">|</span>
+      <div class="flex items-center gap-1 font-mono">
+        <span class="font-bold text-slate-900" id="extStatCircuits">0</span>
+        <span class="text-slate-700">条回路</span>
+      </div>
+      <span class="text-slate-300">|</span>
+      <!-- 已核对进度 -->
+      <div class="flex items-center gap-1.5 cursor-pointer hover:text-blue-700" id="extFilterVerifiedTopBtn" title="查看已核对箱柜">
+        <span class="text-slate-500">已核:</span>
+        <div class="w-14 h-2 bg-slate-200 rounded-sm overflow-hidden border border-slate-300 inline-flex">
+          <div class="bg-emerald-500 h-full transition-all duration-300" id="extVerifiedBar" style="width: 0%;"></div>
+        </div>
+        <span class="font-mono font-bold text-emerald-700" id="extVerifiedText">0/0</span>
+      </div>
+      <span class="text-slate-300">|</span>
+      <!-- 待核对存疑 -->
+      <button class="inline-flex items-center gap-1 px-2 py-0.5 rounded hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer" id="extFilterPendingTopBtn" type="button">
+        <span>待核</span>
+        <span class="font-mono font-bold text-amber-600" id="extPendingCount">0</span>
+        <span>项</span>
+      </button>
+      <span class="text-slate-300">|</span>
+      <!-- 已修改记录 -->
+      <button class="inline-flex items-center gap-1 px-2 py-0.5 rounded hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer" id="extOpenChangeLogTopBtn" type="button">
+        <span>已改</span>
+        <span class="font-mono font-bold text-blue-600" id="extChangesCount">0</span>
+        <span>处</span>
+      </button>
+    </div>
+    <!-- 右侧（对账提示）：醒目橙黄色调 -->
+    <div class="flex items-center gap-1.5 text-amber-800 bg-amber-50 border border-amber-300 px-2.5 py-1 rounded text-xs font-medium" id="extTopAlert">
+      <span class="material-symbols-outlined text-[15px] text-amber-600">warning</span>
+      <span id="extTopAlertText">图纸目录对账就绪 · 选中元器件可反向寻迹图纸高亮</span>
+    </div>
+  </section>
+
+  <!-- 3. 三栏横向主体区域 (min-w 自适应 + 4px 分割拖动条) -->
+  <div class="flex-1 w-full flex overflow-hidden select-none bg-slate-100" style="height: calc(100vh - 124px);">
+    <!-- ==================== 3.1 图纸栏：弹性自适应（min-w-[480px] 原生矢量 CAD / 位图） ==================== -->
+    <section class="flex-1 min-w-[480px] flex flex-col bg-slate-900 border-r border-slate-300 relative transition-all duration-150" id="extCadPanel">
+      <!-- 工具条（单行，严格 34px） -->
+      <div class="h-[34px] bg-slate-900 text-slate-200 px-3 flex items-center justify-between border-b border-slate-800 text-xs shrink-0 select-none">
+        <!-- 目录下拉、翻页与模式切换 -->
+        <div class="flex items-center gap-2">
+          <div class="flex items-center bg-slate-800 border border-slate-700 rounded px-2 py-0.5 shadow-2xs">
+            <span class="material-symbols-outlined text-[14px] text-sky-400 mr-1">map</span>
+            <select class="bg-transparent text-slate-200 font-mono text-[11px] outline-none cursor-pointer pr-1" id="extCadSheetSelect">
+              <option value="1">1/1 系统电气原理图</option>
+            </select>
+          </div>
+          <!-- 翻页 -->
+          <div class="flex items-center bg-slate-800 border border-slate-700 rounded shadow-2xs">
+            <button class="px-1.5 py-0.5 hover:bg-slate-700 text-slate-300 font-mono cursor-pointer" id="extPgPrev" title="上一张图纸" type="button">‹</button>
+            <span class="text-slate-600">|</span>
+            <button class="px-1.5 py-0.5 hover:bg-slate-700 text-slate-300 font-mono cursor-pointer" id="extPgNext" title="下一张图纸" type="button">›</button>
+          </div>
+          <!-- CAD 模式切换：原生矢量 CAD vs 高清位图 -->
+          <div class="flex items-center bg-slate-800 border border-slate-700 rounded p-0.5 text-[11px] font-mono ml-1">
+            <button class="px-2 py-0.5 rounded bg-blue-600 text-white font-bold cursor-pointer transition-colors" id="extBtnViewVector" title="查看真实 DWG 原生矢量图纸（无极缩放、毫米坐标与图层）" type="button">
+              📐 矢量 CAD
+            </button>
+            <button class="px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer transition-colors" id="extBtnViewRaster" title="切换为位图快照视图" type="button">
+              🖼 高清图
+            </button>
+          </div>
+        </div>
+
+        <!-- 缩放与视图控制 -->
+        <div class="flex items-center gap-1.5 font-mono text-[11px]">
+          <div class="flex items-center bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 shadow-2xs">
+            <button class="px-1 hover:text-sky-300 font-bold cursor-pointer" id="extZoomOutBtn" type="button">−</button>
+            <span class="px-2 text-sky-400 font-semibold" id="extZoomLevelText">100%</span>
+            <button class="px-1 hover:text-sky-300 font-bold cursor-pointer" id="extZoomInBtn" type="button">+</button>
+          </div>
+          <button class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white shadow-2xs cursor-pointer" id="extFitWindowBtn" type="button">适应</button>
+          <button class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 hover:text-white shadow-2xs cursor-pointer" id="extHdRenderBtn" type="button">1:1</button>
+          <button class="flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-white shadow-2xs cursor-pointer" id="extCollapseCadBtn" title="收起图纸以释放表格空间" type="button">
+            <span class="material-symbols-outlined text-[13px]" id="extCollapseCadIcon">first_page</span>
+            <span class="text-[11px]" id="extCollapseCadText">收起</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 画布：纯正原生 DWG 矢量 Canvas + 标框渲染 -->
+      <div class="flex-1 bg-[#141518] overflow-hidden relative cursor-grab active:cursor-grabbing flex items-center justify-center select-none touch-none" id="extCadCanvasContainer">
+        <!-- 原生矢量 Canvas (DWG 几何实体原生绘制) -->
+        <canvas id="extVectorCanvas" class="w-full h-full block absolute inset-0"></canvas>
+
+        <!-- 位图渲染层 (备用模式) -->
+        <div class="w-full h-full relative hidden items-center justify-center origin-center" id="extBlueprintCanvas">
+          <img id="extPageImg" alt="图纸" draggable="false" class="hidden max-w-none shadow-2xl pointer-events-none select-none">
+          <svg id="extSchematicSvg" class="w-full h-full max-w-[840px] max-h-[620px] text-sky-400/90 pointer-events-none select-none" fill="none" stroke="currentColor" viewBox="0 0 900 650">
+            <rect fill="none" height="610" stroke="#1e293b" stroke-width="1.5" width="860" x="20" y="20"></rect>
+            <rect fill="none" height="600" stroke="#334155" stroke-width="0.8" width="850" x="25" y="25"></rect>
+            <g stroke="#38bdf8" stroke-width="0.7" transform="translate(610, 520)">
+              <rect fill="#0f172a" fill-opacity="0.9" height="105" width="265" x="0" y="0"></rect>
+              <line x1="0" x2="265" y1="35" y2="35"></line>
+              <line x1="0" x2="265" y1="70" y2="70"></line>
+              <line x1="90" x2="90" y1="0" y2="105"></line>
+              <text fill="#64748b" font-family="Geist" font-size="10" x="8" y="23">工程项目</text>
+              <text fill="#f8fafc" font-family="Geist" font-size="11" x="98" y="23" id="extSvgProj">配电技改工程</text>
+              <text fill="#64748b" font-family="Geist" font-size="10" x="8" y="58">图纸名称</text>
+              <text fill="#f8fafc" font-family="Geist" font-size="11" x="98" y="58" id="extSvgDrawing">系统电气原理图</text>
+              <text fill="#64748b" font-family="Geist" font-size="10" x="8" y="93">图号/版本</text>
+              <text fill="#38bdf8" font-family="JetBrains Mono" font-size="11" x="98" y="93">E-01-A / REV.1</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- 动态聚焦高亮虚线框 -->
+        <div class="absolute pointer-events-none rounded border-2 border-dashed border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all duration-300" id="extCadFocusBox" style="left: 26%; top: 21%; width: 30%; height: 60%;">
+          <div class="absolute -top-5 left-0 bg-[#2563eb] text-white font-mono text-[10px] font-bold px-2 py-0.5 rounded-t flex items-center gap-1 shadow-xs whitespace-nowrap">
+            <span class="material-symbols-outlined text-[12px]">crop_free</span>
+            <span id="extCadFocusLabel">[02AP02 配电箱]</span>
+          </div>
+          <span class="absolute -top-1 -left-1 w-2 h-2 border-t-2 border-l-2 border-blue-400"></span>
+          <span class="absolute -top-1 -right-1 w-2 h-2 border-t-2 border-r-2 border-blue-400"></span>
+          <span class="absolute -bottom-1 -left-1 w-2 h-2 border-b-2 border-l-2 border-blue-400"></span>
+          <span class="absolute -bottom-1 -right-1 w-2 h-2 border-b-2 border-r-2 border-blue-400"></span>
+        </div>
+
+        <!-- 悬浮 CAD 空间真实毫米坐标 HUD 状态条 -->
+        <div class="absolute bottom-2 left-2 bg-slate-950/90 border border-slate-700 rounded px-2.5 py-1 text-[11px] font-mono text-sky-400 flex items-center gap-2 pointer-events-none shadow-md" id="extVectorHud">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-slate-300 font-sans">📐 原生矢量 CAD · 毫米坐标:</span>
+          <span class="font-bold text-white tracking-wider" id="extCadHudCoords">X: 0 Y: 0</span>
+          <span class="text-slate-500">|</span>
+          <span class="text-slate-400 font-sans">图层: <strong class="text-sky-300 font-mono" id="extCadHudLayers">0</strong> 层</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 分割拖动条 1：4px 抓手，hover变蓝 -->
+    <div class="resizer-divider w-1 bg-slate-300 shrink-0 hover:bg-blue-500 transition-colors z-20 cursor-col-resize" id="extResizer1" title="左右拖动调整图纸栏宽度"></div>
+
+    <!-- ==================== 3.2 箱柜栏：宽度 300px ==================== -->
+    <aside class="w-[300px] flex flex-col bg-white border-r border-slate-200 shrink-0" id="extCabinetPanel">
+      <!-- 顶部：搜索框“搜索柜号 / 名称” -->
+      <div class="p-2 border-b border-slate-200 bg-slate-50 flex flex-col gap-1.5 shrink-0">
+        <div class="relative">
+          <span class="material-symbols-outlined text-[15px] text-slate-400 absolute left-2 top-1.5">search</span>
+          <input class="w-full bg-white rounded border border-slate-300 pl-7 pr-2 py-1 text-xs outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600" id="extCabinetSearch" placeholder="搜索柜号 / 名称" type="text">
+        </div>
+        <!-- 筛选分段按钮：全部 (N) │ 未核 (N) │ 存疑 (N) -->
+        <div class="grid grid-cols-3 gap-0.5 bg-slate-200 p-0.5 rounded text-[11px] font-mono text-center">
+          <button class="ext-filter-btn py-1 rounded bg-white text-blue-700 font-bold shadow-2xs cursor-pointer" data-filter="all" id="extFilterAllBtn" type="button">全部 (0)</button>
+          <button class="ext-filter-btn py-1 rounded text-slate-600 hover:text-slate-900 cursor-pointer" data-filter="unverified" id="extFilterUnverifiedBtn" type="button">未核 (0)</button>
+          <button class="ext-filter-btn py-1 rounded text-amber-700 hover:bg-amber-100 font-medium cursor-pointer" data-filter="doubt" id="extFilterDoubtBtn" type="button">存疑 (0)</button>
+        </div>
+      </div>
+
+      <!-- 箱柜纯正 Excel 紧凑网格列表 (标准网格边框) -->
+      <div class="flex-1 overflow-y-auto excel-scroll bg-white">
+        <table class="w-full border-collapse text-left border-b border-slate-200">
+          <thead class="sticky top-0 bg-[#f1f3f5] text-slate-700 font-mono text-[11px] font-semibold border-b border-slate-300 z-10 select-none">
+            <tr class="divide-x divide-slate-300 h-7">
+              <th class="px-1 text-center w-8">序号</th>
+              <th class="px-1.5 text-center w-10">柜号</th>
+              <th class="px-2">箱柜名称 / 柜型·安装</th>
+              <th class="px-1 text-center w-9">台数</th>
+              <th class="px-1.5 text-center w-10">状态</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200 text-slate-800 font-sans text-xs" id="extCabinetTbody">
+            <!-- 动态填充箱柜行 -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 底部添加箱柜 -->
+      <div class="p-2 border-t border-slate-200 bg-slate-50 shrink-0">
+        <button class="w-full py-1.5 rounded bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-medium text-xs flex items-center justify-center gap-1 shadow-2xs transition-colors cursor-pointer" id="extAddCabinetBtn" type="button">
+          <span class="material-symbols-outlined text-[15px] text-blue-600">add</span>
+          <span>添加箱柜</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- 分割拖动条 2：4px 抓手，hover变蓝 -->
+    <div class="resizer-divider w-1 bg-slate-300 shrink-0 hover:bg-blue-500 transition-colors z-20 cursor-col-resize" id="extResizer2" title="左右拖动调整清单栏宽度"></div>
+
+    <!-- ==================== 3.3 详情栏：弹性自适应（min-w-[640px]） ==================== -->
+    <section class="flex-1 min-w-[640px] flex flex-col bg-white overflow-hidden" id="extDetailPanel">
+      <!-- 1. 箱柜头部（两行，不用“标签:输入框”） -->
+      <div class="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-col gap-1 shrink-0 select-none">
+        <!-- 第一行：序号   箱号   名称     [定位图纸]   [✓ 标记已核对] -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-mono font-bold text-xs border border-blue-200 shrink-0" id="extCurBoxCodeBadge">02AP02</span>
+            <h2 class="text-sm font-bold text-slate-900 truncate" id="extCurBoxNameTitle">配电总箱 02AP02</h2>
+            <span class="text-[11px] text-slate-500 font-normal hidden sm:inline" id="extCurBoxSummarySub">（共 1 台 · 17 项元器件）</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="h-7 px-2.5 rounded bg-white hover:bg-slate-100 border border-slate-300 text-blue-700 font-medium flex items-center gap-1 transition-colors shadow-2xs cursor-pointer" id="extLocateInCadBtn" title="在图纸中重新对焦高亮" type="button">
+              <span class="material-symbols-outlined text-[15px]">location_searching</span>
+              <span>定位图纸</span>
+            </button>
+            <button class="h-7 px-3 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium flex items-center gap-1 transition-colors shadow-2xs cursor-pointer" id="extMarkVerifiedBtn" type="button">
+              <span class="material-symbols-outlined text-[15px]">check</span>
+              <span id="extMarkVerifiedText">标记已核对</span>
+            </button>
+          </div>
+        </div>
+        <!-- 第二行（灰色字）：分类 配电柜 · 柜型 动力箱 · 安装 挂墙明装 · 尺寸 800×1200×250 · 位置 配电间 · 台数 1 台 -->
+        <div class="flex items-center gap-2 text-slate-500 text-[11px] overflow-x-auto whitespace-nowrap">
+          <span>柜型 <strong class="text-slate-800 font-mono font-medium" id="extCurBoxTypePill">动力配电箱</strong></span>
+          <span class="text-slate-300">·</span>
+          <span>安装 <strong class="text-slate-800 font-medium" id="extCurBoxInstallPill">挂墙明装</strong></span>
+          <span class="text-slate-300">·</span>
+          <span>尺寸 <strong class="text-slate-800 font-mono font-medium" id="extCurBoxSizePill">800×1200×250</strong></span>
+          <span class="text-slate-300">·</span>
+          <span>位置 <strong class="text-slate-800 font-medium" id="extCurBoxLocationPill">配电间</strong></span>
+          <span class="text-slate-300">·</span>
+          <span>台数 <strong class="text-blue-700 font-mono font-bold" id="extCurBoxQtyPill">1 台</strong></span>
+          <span class="text-slate-300">·</span>
+          <span>防护 <strong class="text-slate-800 font-mono font-medium" id="extCurBoxIpPill">IP30</strong></span>
+          <!-- 隐藏 input 保持表单兼容 -->
+          <input type="hidden" id="extCurBoxCode">
+          <input type="hidden" id="extCurBoxName">
+          <input type="hidden" id="extCurBoxType">
+          <input type="hidden" id="extCurBoxSize">
+          <input type="hidden" id="extCurBoxInstall">
+          <input type="hidden" id="extCurBoxLocation">
+          <input type="hidden" id="extCurBoxQty">
+        </div>
+      </div>
+
+      <!-- 2. 元器件表（完全按 Excel 电子表格两行表头落地，整齐无缝网格） -->
+      <div class="flex-1 overflow-auto excel-scroll bg-white" id="extGridContainer">
+        <table class="w-full border-collapse text-left border border-slate-300 text-[12px] min-w-[850px]">
+          <!-- 表头第一行：灰底列字母标尺 ( | A | B | C | D | E | F | G | H | ) -->
+          <thead class="sticky top-0 z-20 select-none font-mono text-[11px]">
+            <tr class="bg-[#e9ecef] text-slate-500 border-b border-slate-300 divide-x divide-slate-300 h-6">
+              <th class="w-8 text-center bg-slate-200 text-slate-400"></th>
+              <th class="w-10 text-center">A</th>
+              <th class="w-[140px] text-center">B</th>
+              <th class="min-w-[240px] text-center">C</th>
+              <th class="w-16 text-center">D</th>
+              <th class="w-14 text-center">E</th>
+              <th class="w-14 text-center">F</th>
+              <th class="w-16 text-center">G</th>
+              <th class="w-20 text-center">H</th>
+            </tr>
+            <!-- 表头第二行：中文列名（不折行） -->
+            <tr class="bg-[#f1f3f5] text-slate-700 font-sans text-xs border-b border-slate-300 divide-x divide-slate-300 h-8">
+              <th class="w-8 text-center bg-slate-200/80 text-slate-400 font-mono">#</th>
+              <th class="w-10 px-1 text-center font-semibold">序号</th>
+              <th class="w-[140px] px-2.5 font-semibold">元件名称</th>
+              <th class="min-w-[240px] px-2.5 font-semibold">设计型号规格</th>
+              <th class="w-16 px-2 text-right font-semibold">数量</th>
+              <th class="w-14 px-1 text-center font-semibold">单位</th>
+              <th class="w-14 px-1 text-center font-semibold">计价</th>
+              <th class="w-16 px-1 text-center font-semibold">依据</th>
+              <th class="w-20 px-2 text-center font-semibold">状态</th>
+            </tr>
+          </thead>
+          <!-- 表体行：行高统一 32px，1px 网格线，整齐无缝 -->
+          <tbody class="divide-y divide-slate-300 font-sans text-slate-900" id="extComponentsTbody">
+            <!-- 动态填充元器件行 -->
+          </tbody>
+          <!-- 合计行：合计 | | 17 项 | | | 39 | | |（彻底删除假公式字符，工整数值统计） -->
+          <tfoot class="bg-[#f8fafc] border-t-2 border-slate-300 font-sans text-xs text-slate-700 font-semibold select-none sticky bottom-0 z-10">
+            <tr class="divide-x divide-slate-300 h-[32px]">
+              <td class="text-center font-mono text-[11px] bg-slate-200/80 text-slate-500 select-none">∑</td>
+              <td class="px-1 text-center font-semibold text-slate-800">合计</td>
+              <td class="px-2.5 text-slate-800" colspan="2">
+                <div class="flex items-center justify-between">
+                  <span id="extFooterCountText">共 0 种元器件明细</span>
+                  <button class="px-2 py-0.5 bg-white hover:bg-slate-100 border border-slate-300 rounded text-blue-700 font-medium font-sans flex items-center gap-1 shadow-2xs cursor-pointer text-xs" id="extAddComponentBtn" type="button">
+                    <span class="material-symbols-outlined text-[14px]">add</span>
+                    <span>＋ 添加元器件</span>
+                  </button>
+                </div>
+              </td>
+              <td class="px-2 text-right font-mono font-bold text-blue-700 text-[13px] tabular-nums" id="extFooterSumQty">0 件</td>
+              <td class="px-1 text-center text-slate-500">只</td>
+              <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>
+              <td class="px-2 text-slate-500 text-[10px]" colspan="2">
+                工程量纯量 · 无单价金额
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- 3. 底部页签（单行，在表格下方） -->
+      <div class="h-[30px] bg-[#f1f3f5] border-t border-slate-300 px-3 flex items-center justify-between shrink-0 select-none">
+        <div class="flex items-center gap-1 font-sans text-xs">
+          <!-- Tab 1: 元器件 -->
+          <button class="ext-sheet-tab active h-[28px] px-3.5 bg-white border-t-2 border-t-blue-600 border-x border-slate-300 font-bold text-blue-900 flex items-center gap-1.5 shadow-2xs cursor-pointer" data-target="components" id="extTabComponents" type="button">
+            <span>元器件</span>
+            <span class="font-mono text-[10px] bg-blue-100 text-blue-800 px-1.5 rounded-full font-bold" id="extTabBadgeComps">0</span>
+          </button>
+          <!-- Tab 2: 回路 -->
+          <button class="ext-sheet-tab h-[28px] px-3 hover:bg-slate-200 text-slate-600 flex items-center gap-1.5 transition-colors cursor-pointer" data-target="circuits" id="extTabCircuits" type="button">
+            <span>回路</span>
+            <span class="font-mono text-[10px] text-slate-500" id="extTabBadgeCircuits">0</span>
+          </button>
+          <!-- Tab 3: 待核对 -->
+          <button class="ext-sheet-tab h-[28px] px-3 hover:bg-amber-100/70 text-amber-800 flex items-center gap-1.5 transition-colors cursor-pointer" data-target="pending" id="extTabPending" type="button">
+            <span>待核对</span>
+            <span class="font-mono text-[10px] bg-amber-100 text-amber-900 px-1.5 rounded-full font-bold" id="extTabBadgePending">⚠ 0</span>
+          </button>
+          <!-- Tab 4: 修改记录 -->
+          <button class="ext-sheet-tab h-[28px] px-3 hover:bg-slate-200 text-slate-600 flex items-center gap-1.5 transition-colors cursor-pointer" data-target="changes" id="extTabChanges" type="button">
+            <span>修改记录</span>
+            <span class="font-mono text-[10px] text-blue-600 font-bold" id="extTabBadgeChanges">0</span>
+          </button>
+        </div>
+        <div class="text-slate-400 text-[11px] font-mono">
+          <span>Excel View · 双击单元格可快速校准</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 4. 底部标准 EXCEL 灰底状态栏 (28px) -->
+  <footer class="h-[28px] bg-[#e2e8f0] border-t border-slate-300 px-4 flex items-center justify-between text-xs font-mono text-slate-700 shrink-0 select-none">
+    <!-- 左侧状态 -->
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+        <span class="font-sans font-medium text-slate-800">就绪</span>
+      </div>
+      <span class="text-slate-400">|</span>
+      <div>
+        <span>选中:</span>
+        <span class="font-bold text-blue-800 font-sans ml-1" id="extFooterSelection">无选中项</span>
+      </div>
+    </div>
+    <!-- 右侧统计与快捷键 -->
+    <div class="flex items-center gap-3 text-slate-600 text-[11px]">
+      <div><span>视图比例:</span> <strong class="text-slate-900 ml-0.5" id="extFooterZoomRatio">100%</strong></div>
+      <span class="text-slate-400">|</span>
+      <div class="flex items-center gap-2 font-sans text-slate-500">
+        <span>单击选行</span>
+        <span>·</span>
+        <span>双击校准</span>
+        <span>·</span>
+        <span>滚轮缩放图纸</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- 5. 一键组价确认弹窗 -->
+  <div class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 hidden" id="pricingModal">
+    <div class="w-[420px] bg-white rounded-lg border border-slate-300 shadow-2xl p-5 flex flex-col gap-4">
+      <div class="flex items-center gap-2 text-slate-900 font-bold text-base">
+        <span class="material-symbols-outlined text-[22px] text-blue-600">price_check</span>
+        <span>准备进入【组价套定额】阶段</span>
+      </div>
+      <div class="p-3.5 bg-slate-50 border border-slate-200 rounded text-xs space-y-2 text-slate-700">
+        <div class="flex justify-between items-center text-sm">
+          <span class="text-slate-600">当前拆量清单:</span>
+          <span class="font-mono font-bold text-slate-900" id="pricingModalSummary">0 个箱柜 / 0 项元器件</span>
+        </div>
+        <div class="text-amber-800 bg-amber-50 border border-amber-200 p-2 rounded font-medium flex items-center gap-1.5 text-xs" id="pricingModalWarning">
+          <span class="material-symbols-outlined text-[16px] text-amber-600 shrink-0">warning</span>
+          <span id="pricingModalWarningText">建议完成存疑项核对后再执行自动组价</span>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2.5 pt-1 text-xs">
+        <button class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 font-medium transition-colors cursor-pointer" id="closePricingModalBtn" type="button">
+          返回继续核对
+        </button>
+        <button class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded font-medium shadow-sm transition-colors cursor-pointer" id="confirmPricingBtn" type="button">
+          进入组价核算 →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. AI 助手滑出抽屉 -->
+  <aside class="fixed top-[56px] right-0 bottom-[28px] w-80 bg-white border-l border-slate-300 shadow-xl z-50 transform translate-x-full transition-transform duration-200 flex flex-col" id="extAiDrawer">
+    <div class="h-10 px-3.5 bg-slate-900 text-white flex items-center justify-between text-xs font-semibold">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-[18px] text-emerald-400">smart_toy</span>
+        <span>电气拆量 AI 助手</span>
+      </div>
+      <button class="text-slate-400 hover:text-white cursor-pointer" id="extAiCloseBtn" type="button">
+        <span class="material-symbols-outlined text-[18px]">close</span>
+      </button>
+    </div>
+    <div class="flex-1 overflow-y-auto excel-scroll p-3.5 space-y-3 text-xs bg-slate-50" id="extAiMsgs">
+      <div class="p-3 rounded bg-white border border-slate-200 shadow-2xs">
+        <div class="flex items-center gap-1 text-blue-700 font-bold mb-1.5">
+          <span class="material-symbols-outlined text-[15px]">auto_awesome</span>
+          <span>图纸拆量智能对齐诊断</span>
+        </div>
+        <p class="text-slate-600 leading-relaxed text-[11px]" id="extAiDiagText">
+          已成功提取箱柜与元器件工程量。支持在此就回路配电、选型疑问或定额归类向 AI 提问。
+        </p>
+      </div>
+    </div>
+    <form class="p-2.5 bg-white border-t border-slate-200 flex items-center gap-1.5" id="extAiForm">
+      <div class="relative flex-1">
+        <input class="w-full bg-slate-100 rounded border border-slate-300 pl-2.5 pr-8 py-1.5 text-xs outline-none focus:bg-white focus:border-blue-600" id="extAiInput" placeholder="向 AI 咨询图纸回路或元器件疑问..." type="text">
+        <button class="absolute right-2 top-1.5 text-blue-600 hover:text-blue-800 cursor-pointer" type="submit">
+          <span class="material-symbols-outlined text-[16px]">send</span>
+        </button>
+      </div>
+    </form>
+  </aside>
+</main>
+
+<!-- ③ 组价工作台：价格套定额与智能核算 -->
+<main class="view flex-1 min-h-0 flex flex-col h-screen w-screen overflow-hidden text-[13px] antialiased font-sans bg-slate-100 text-slate-800 select-none" id="viewPricing" hidden>
+  <!-- 1. 顶栏 (56px) -->
+  <header class="h-14 bg-slate-900 text-slate-200 px-4 flex items-center justify-between shrink-0 border-b border-slate-950 z-30">
+    <!-- 左：返回 & 图纸名称 -->
+    <div class="flex items-center gap-3">
+      <button class="flex items-center gap-1 text-slate-300 hover:text-white transition-colors text-xs font-medium cursor-pointer" id="pricingGoBackBtn" type="button" title="返回任务列表">
+        <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+        <span>我的任务</span>
+      </button>
+      <span class="text-slate-600 text-xs">/</span>
+      <div class="flex items-center gap-1.5 text-xs text-white font-medium">
+        <span class="px-1.5 py-0.5 rounded bg-blue-600/30 text-blue-400 font-mono text-[11px] font-bold border border-blue-500/30" id="pricingFileExtTag">DWG</span>
+        <span class="truncate max-w-xs" id="pricingFilename">文件载入中...</span>
+      </div>
+    </div>
+    <!-- 中：步骤条（拆量 ── 组价） -->
+    <div class="flex items-center gap-3 text-xs">
+      <button class="flex items-center gap-1.5 text-slate-400 hover:text-emerald-400 transition-colors font-medium cursor-pointer" id="pricingGoExtractBtn" type="button" title="点击返回拆量工作台">
+        <span class="flex items-center justify-center w-4 h-4 rounded-full bg-emerald-600/20 text-emerald-400 text-[11px]">
+          <span class="material-symbols-outlined text-[13px]">check</span>
+        </span>
+        <span>拆量</span>
+      </button>
+      <div class="w-12 h-px bg-slate-700"></div>
+      <div class="flex items-center gap-1.5 text-white font-semibold">
+        <span class="w-2 h-2 rounded-full bg-blue-400 ring-4 ring-blue-500/20"></span>
+        <span>组价</span>
+      </div>
+    </div>
+    <!-- 右：版本下拉、AI助手、导出Excel、用户头像 -->
+    <div class="flex items-center gap-2.5">
+      <!-- 报价版本下拉 -->
+      <div class="relative flex items-center bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1.5 rounded border border-slate-700 text-xs cursor-pointer transition-colors" id="pricingVersionBtn" title="当前报价方案版本">
+        <span id="pricingVersionLabel">v1 智能平替</span>
+        <span class="material-symbols-outlined text-[16px] text-slate-400 ml-1.5">arrow_drop_down</span>
+      </div>
+      <!-- AI助手按钮 -->
+      <button class="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded border border-slate-700 text-xs transition-colors cursor-pointer" id="pricingAiAssistBtn" type="button">
+        <span class="material-symbols-outlined text-[16px] text-slate-400">psychology</span>
+        <span>AI 助手</span>
+      </button>
+      <!-- 主按钮：导出报价 Excel -->
+      <button class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-semibold shadow-sm transition-colors cursor-pointer" id="pricingExportBtn" type="button">
+        <span class="material-symbols-outlined text-[16px]">file_download</span>
+        <span>导出报价 Excel</span>
+      </button>
+      <div class="h-4 w-px bg-slate-800 mx-1"></div>
+      <div class="flex items-center gap-1 text-slate-400 cursor-pointer hover:text-slate-200" title="当前操作员">
+        <span class="material-symbols-outlined text-[20px]">account_circle</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. 拆量清单更新提示（口径区上方横幅） -->
+  <div class="bg-blue-50 border-b border-blue-200 px-4 py-1.5 flex items-center justify-between text-xs text-blue-900 shrink-0" id="pricingSyncBanner">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-[16px] text-blue-600">info</span>
+      <span id="pricingSyncText">拆量清单已就绪：<strong>数据源同步完成</strong>、<strong>可进行平替及核价</strong></span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="px-2.5 py-0.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium text-[11px] shadow-2xs transition-colors cursor-pointer" id="pricingSyncBtn" type="button">同步到报价</button>
+    </div>
+  </div>
+
+  <!-- 3. 口径区（两行可读文字，约 64px） -->
+  <section class="bg-white border-b border-slate-200 px-4 py-2 shrink-0 flex flex-col justify-center space-y-1 text-xs text-slate-700">
+    <!-- 第一行（口径） -->
+    <div class="flex items-center gap-1 flex-wrap">
+      <span class="text-slate-500">本报价按</span>
+      <div class="inline-flex items-center relative">
+        <select class="font-semibold text-blue-700 bg-transparent border-0 border-b border-blue-300 hover:border-blue-600 p-0 pr-4 text-xs cursor-pointer outline-none focus:ring-0" id="pricingBrandSel">
+          <option value="schneider" selected>施耐德电气</option>
+          <option value="chint">正泰电气</option>
+          <option value="delixi">德力西电气</option>
+          <option value="abb">ABB工业级</option>
+          <option value="original">按图原选型</option>
+        </select>
+      </div>
+      <span class="text-slate-500">报价，价格取</span>
+      <div class="inline-flex items-center relative">
+        <select class="font-semibold text-blue-700 bg-transparent border-0 border-b border-blue-300 hover:border-blue-600 p-0 pr-4 text-xs cursor-pointer outline-none focus:ring-0" id="pricingPriceTypeSel">
+          <option value="market" selected>市场价</option>
+          <option value="info">信息价</option>
+          <option value="local">本地价</option>
+          <option value="ai">AI建议价</option>
+        </select>
+      </div>
+      <span class="text-slate-500">，辅料</span>
+      <button class="font-semibold text-blue-700 hover:underline decoration-blue-500 decoration-1 underline-offset-2 cursor-pointer" id="pricingAuxBtn" type="button" title="点击调整辅料费率">[<span id="pricingAuxRateText">5%</span>]</button>
+      <span class="text-slate-500">，成套制作费</span>
+      <button class="font-semibold text-blue-700 hover:underline decoration-blue-500 decoration-1 underline-offset-2 cursor-pointer" id="pricingLaborBtn" type="button" title="点击调整成套制作费率">[<span id="pricingLaborRateText">9%</span>]</button>
+      <span class="text-slate-500">，税费</span>
+      <button class="font-semibold text-blue-700 hover:underline decoration-blue-500 decoration-1 underline-offset-2 cursor-pointer" id="pricingTaxBtn" type="button" title="点击调整税费率">[<span id="pricingTaxRateText">6%</span>]</button>
+      <span class="text-slate-500">。</span>
+      <button class="ml-2 inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-[11px] font-medium transition-colors cursor-pointer" id="pricingRecalcBtn" type="button" title="重新核算 (快捷键 F9)">
+        <span class="material-symbols-outlined text-[13px]">refresh</span>
+        <span>重算</span>
+      </button>
+    </div>
+    <!-- 第二行（结果） -->
+    <div class="flex items-center justify-between flex-wrap gap-2 pt-0.5">
+      <div class="flex items-center gap-2">
+        <span class="text-slate-800 font-medium" id="pricingBoxesSummaryText">共 0 个箱柜（0 台）</span>
+        <span class="text-slate-300">|</span>
+        <span>合计 <strong class="font-mono-nums font-semibold text-slate-900" id="pricingCostTotalText">¥0.00</strong></span>
+        <span class="text-slate-300">|</span>
+        <span class="text-slate-800 font-semibold">报价总计 <strong class="text-blue-700 font-mono-nums text-[14px]" id="pricingQuoteTotalText">¥0.00</strong> <span class="text-slate-500 text-[11px] font-normal" id="pricingChineseCurrencyText">（零元整）</span></span>
+      </div>
+      <!-- 状态过滤标签（可点击高亮） -->
+      <div class="flex items-center gap-1.5">
+        <button class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-300 text-[11px] font-medium transition-colors cursor-pointer" id="pricingFilterMissingBtn" type="button">
+          <span class="material-symbols-outlined text-[13px] text-rose-600">warning</span>
+          <span id="pricingMissingCountLabel">缺价 0 项</span>
+        </button>
+        <button class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-[11px] font-medium transition-colors cursor-pointer" id="pricingFilterManualBtn" type="button">
+          <span class="material-symbols-outlined text-[13px] text-blue-600">edit</span>
+          <span id="pricingManualCountLabel">手填 0 项</span>
+        </button>
+        <button class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300 text-[11px] font-medium transition-colors cursor-pointer" id="pricingFilterUnpricedBtn" type="button">
+          <span class="material-symbols-outlined text-[13px] text-slate-500">remove_circle_outline</span>
+          <span id="pricingUnpricedCountLabel">不计价 0 项</span>
+        </button>
       </div>
     </div>
   </section>
 
-  <div class="splitter" id="splitter" title="拖动调整图纸区与工作区的宽度（双击恢复默认）"></div>
-
-  <aside class="aiwork">
-    <div class="aistatus">
-      <span class="dot" id="aistatedot"></span><span id="aistatetext">未连接</span>
-      <span class="mut" id="aistatemeta"></span>
-      <span class="sp"></span>
-      <span class="pill info" id="aiusagepill" style="cursor:pointer;font-family:monospace;font-size:11px;font-weight:600;padding:2px 8px;border-radius:12px;margin-left:auto" onclick="openJobAiUsage()" title="点击查看本图 AI 识别 Token 消耗与计费流水" hidden>📊 0 Tok · ￥0.00</span>
-    </div>
-    <div class="atabs">
-      <button class="active" data-t="list" onclick="atab('list')">清单</button>
-      <button data-t="review" onclick="atab('review')">核对<span class="bdg" id="rvbdg" hidden>0</span></button>
-      <button data-t="crop" id="croptab" onclick="atab('crop')">框选解析<span class="bdg" id="cropbdg" hidden>0</span></button>
-      <button data-t="chat" onclick="atab('chat')">对话</button>
-      <div class="sp"></div>
-      <button class="linklike" id="chgcount" onclick="openLog()" title="查看修改记录">修改 0</button>
-    </div>
-
-    <div class="apane" id="pane-list">
-      <div class="boxstrip" id="boxstrip" hidden></div>
-      <div class="subtabs" id="seg"></div>
-      <div class="twrap"><table class="grid"><thead id="th"></thead><tbody id="tb"></tbody></table></div>
-      <div class="boxstrip" id="extraswrap" hidden>
-        <div class="bs-h"><span>非回路设备（模型容易漏，可人工补录）</span>
-          <button class="linklike" onclick="addExtra()">＋ 补充设备</button></div>
-        <table class="grid"><thead><tr><th>#</th><th>名称</th><th>规格</th><th>数量</th><th>用于</th><th></th></tr></thead>
-          <tbody id="extrasbody"></tbody></table>
-      </div>
-      <div class="panefoot" id="listfoot">双击带虚线的单元格即可修改 · 修改先留在本地，点「保存」写入服务端</div>
-    </div>
-
-    <div class="apane" id="pane-review" hidden>
-      <div class="rvscroll" id="rvlist"></div>
-      <div class="panefoot">逐项确认后方可导出</div>
-    </div>
-
-    <div class="apane" id="pane-crop" hidden>
-      <div class="crop-header">
-        <div class="crop-title"><b>⛶ 区域实时解析</b><span class="crop-meta" id="crop-meta">在图纸上拖拽框选</span></div>
-        <button class="btn ghost sm" onclick="clearCrop()">清除选区</button>
-      </div>
-      <div class="crop-body">
-        <div class="crop-empty" id="crop-empty">
-          <div style="font-size:26px;margin-bottom:8px">⛶</div>
-          <div style="font-weight:600;margin-bottom:4px">在图纸上框选任意区域</div>
-          <div class="mut2" style="font-size:11.5px;max-width:280px;margin:0 auto">点击左上方「框选识图」按钮开启模式，按住鼠标左键在图纸上拉框，支持精准提取元器件、回路、设计说明及箱体参数。</div>
-        </div>
-        <div class="crop-loading" id="crop-loading" hidden>
-          <div class="spinner"></div>
-          <div style="margin-top:10px;font-size:12px;color:var(--mut)">正在高清裁切并解析框选区域…</div>
-        </div>
-        <div class="crop-result" id="crop-result" hidden>
-          <div class="crop-preview-box">
-            <img id="crop-img" src="" alt="选区预览" title="点击放大查看">
-            <div class="crop-summary" id="crop-summary"></div>
-          </div>
-
-          <!-- 配电箱参数/说明卡片 -->
-          <div id="crop-boxinfo-card" class="crop-card" hidden>
-            <div class="crop-sec-title">📦 配电箱/配电柜说明与参数</div>
-            <div id="crop-boxinfo-content" class="crop-info-box"></div>
-            <div style="margin-top:8px;display:flex;gap:6px">
-              <button class="btn ghost sm" id="crop-apply-box-btn" onclick="applyCropBoxInfo()">✓ 同步至箱体说明</button>
-            </div>
-          </div>
-
-          <!-- 设计说明与技术要求卡片 -->
-          <div id="crop-req-card" class="crop-card" hidden>
-            <div class="crop-sec-title">📋 识别到技术要求与设计说明 (<span id="crop-req-count">0</span> 项)</div>
-            <div class="twrap" style="max-height:180px;overflow:auto">
-              <table class="grid sm">
-                <thead><tr><th>项目/类别</th><th>要求与说明内容</th></tr></thead>
-                <tbody id="crop-req-rows"></tbody>
-              </table>
-            </div>
-            <div style="margin-top:8px;display:flex;gap:6px">
-              <button class="btn primary sm" id="crop-add-req-btn" onclick="applyCropRequirements()">＋ 补入技术要求</button>
-            </div>
-          </div>
-
-          <!-- 元器件及回路卡片 -->
-          <div id="crop-comp-card" class="crop-card" hidden>
-            <div class="crop-sec-title">⚡ 识别到元器件及回路 (<span id="crop-comp-count">0</span> 项)</div>
-            <div class="twrap" style="max-height:180px;overflow:auto">
-              <table class="grid sm">
-                <thead><tr><th>名称</th><th>规格型号</th><th>数量</th><th>单位</th><th>备注</th></tr></thead>
-                <tbody id="crop-comp-rows"></tbody>
-              </table>
-            </div>
-            <div style="margin-top:8px;display:flex;gap:6px">
-              <button class="btn primary sm" id="crop-add-btn" onclick="applyCropComponents()">＋ 补入器件清单</button>
-            </div>
-          </div>
-
-          <!-- 未检出任何内容时的提示 -->
-          <div id="crop-none-hint" class="mut" style="text-align:center;padding:16px 0;font-size:12px" hidden>
-            该区域未检出明确的元器件型号、回路或技术说明
-          </div>
-
-          <!-- 底部快捷动作 -->
-          <div class="crop-actions" style="margin-top:12px;display:flex;gap:8px">
-            <button class="btn primary sm" id="crop-add-all-btn" style="flex:1" onclick="applyCropAll()" hidden>＋ 全部补入 (器件+说明+要求)</button>
-            <button class="btn ghost sm" style="flex:1" onclick="sendCropToChat()">转入对话深入分析</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="apane" id="pane-chat" hidden>
-      <div class="msgs" id="msgs"></div>
-      <details class="manual" id="vmanual">
-        <summary>可用的语音 / 文字指令<span class="mut2">展开</span></summary>
-        <div id="vmanual-body"></div>
-      </details>
-    </div>
-
-    <div class="afoot">
-      <div class="vresult" id="vresult"><span class="qq" id="vtext"></span><span class="an" id="vintent"></span><div class="oo" id="vout"></div></div>
-      <div class="inputrow">
-        <button class="micbtn" id="vmic" onclick="toggleListen()" title="语音输入">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg>
+  <!-- 4. 工具行 (36px) + fx 栏 (32px) -->
+  <div class="shrink-0 bg-slate-100 border-b border-slate-300">
+    <!-- 工具行 (36px) -->
+    <div class="h-9 px-3 flex items-center justify-between border-b border-slate-200 bg-slate-50">
+      <div class="flex items-center gap-1">
+        <button class="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-slate-700 text-xs font-medium shadow-2xs cursor-pointer transition-colors" id="pricingExpandAllBtn" type="button">全部展开</button>
+        <button class="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-slate-700 text-xs font-medium shadow-2xs cursor-pointer transition-colors" id="pricingCollapseAllBtn" type="button">全部收起</button>
+        <div class="h-3.5 w-px bg-slate-300 mx-1"></div>
+        <button class="px-2 py-1 bg-white hover:bg-rose-50 border border-slate-300 hover:border-rose-300 rounded text-rose-700 text-xs font-medium shadow-2xs flex items-center gap-1 cursor-pointer transition-colors" id="pricingOnlyMissingBtn" type="button">
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-600"></span>
+          <span>只看缺价</span>
         </button>
-        <input id="cin" placeholder="问点什么，或按麦克风说话…" onkeydown="if(event.key==='Enter')sendQ()">
-        <button class="btn ghost sm" id="savebtn" onclick="saveNow()" disabled>保存 0</button>
-        <button class="btn primary sm" onclick="sendQ()">发送</button>
+        <button class="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded text-slate-600 text-xs font-medium shadow-2xs cursor-pointer transition-colors" id="pricingOnlyUnpricedBtn" type="button">只看不计价</button>
       </div>
-      <div class="vstat" id="vstatus"></div>
-      <div class="row2" style="display:flex;align-items:center;gap:8px;margin-top:9px">
-        <button class="btn success block" style="width:100%" onclick="openExport()">导出 Excel 清单</button>
+      <div class="relative flex items-center">
+        <span class="material-symbols-outlined absolute left-2 text-slate-400 text-[15px]">search</span>
+        <input class="w-48 bg-white border border-slate-300 pl-7 pr-2 py-1 rounded text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-blue-600 shadow-2xs" id="pricingSearchInput" placeholder="搜索柜号 / 型号" type="text">
       </div>
-      <div class="ver" id="verline"></div>
     </div>
-  </aside>
-</div>
-</main>
-
-<!-- ===== 项目 ===== -->
-<main class="page" id="page-projects" hidden>
-  <div class="pg-head"><h2>项目</h2><div class="sp"></div>
-    <button class="btn ghost sm" onclick="openBatchProjectModal()" style="margin-right:8px" title="批量勾选图纸并集中归入指定项目">📦 批量归入项目</button>
-    <button class="btn primary sm" onclick="newProject()">新建项目</button>
-  </div>
-  <div class="pg-wrap"><div class="card"><table class="ptable">
-    <thead><tr><th>项目名称</th><th>建设单位</th><th>图纸</th><th>箱体</th><th>回路</th><th>AI 识别费用</th><th>待核对</th><th>状态</th><th>更新时间</th><th></th></tr></thead>
-    <tbody id="projrows"></tbody>
-  </table></div>
-  <div class="empty" id="projempty" hidden>还没有项目<br>点右上角「新建项目」建一个项目，或在「上传图纸」时自动从图纸图签建项目</div>
-  </div>
-</main>
-
-<!-- ===== 项目工作区（进入某个项目后的一切操作都在这里） ===== -->
-<main class="page" id="page-project" hidden>
-  <div class="pg-head">
-    <button class="btn ghost sm" onclick="navGo('projects')" title="返回项目列表">← 项目列表</button>
-    <h2 id="pj-name">项目</h2>
-    <span id="pj-namesrc"></span>
-    <div class="sp"></div>
-    <button class="btn ghost sm" onclick="renameCurrentProject()" title="项目名不对可以直接改，图纸与账单会一起跟着改">✎ 重命名</button>
-    <button class="btn ghost sm" onclick="openBatchProjectModal()" title="把别的图纸归入本项目">📦 归入图纸</button>
-    <button class="btn primary sm" onclick="uploadToCurrentProject()">＋ 上传图纸到此项目</button>
-  </div>
-  <div class="pg-wrap">
-
-    <div class="card">
-      <div class="ch">项目信息
-        <span class="mut" id="pj-infosrc" style="font-weight:400;font-size:11.5px"></span>
-      </div>
-      <div id="pj-info" style="padding:12px 16px 16px"></div>
-    </div>
-
-    <div class="card"><div id="pj-stats" style="padding:14px 18px"></div></div>
-
-    <div class="card">
-      <div class="ch">
-        图纸清单<span class="mut" id="pj-dwgcount" style="font-weight:400;font-size:11.5px"></span>
-        <span class="sp" style="flex:1"></span>
-        <span style="font-weight:400;font-size:12px">
-          <button class="linklike" onclick="pjBom()">全项目总BOM</button>
-          <span style="color:var(--line2);margin:0 5px">|</span>
-          <button class="linklike" onclick="pjTopology()">供电拓扑</button>
-          <span style="color:var(--line2);margin:0 5px">|</span>
-          <a class="linklike" id="pj-export" href="#" download>导出采购四联表</a>
-        </span>
-      </div>
-      <table class="ptable">
-        <thead><tr><th>图纸</th><th>页数</th><th>箱体</th><th>回路</th><th>元器件</th><th>待核对</th><th>状态</th><th>提取时间</th><th></th></tr></thead>
-        <tbody id="pj-dwgrows"></tbody>
-      </table>
-      <div class="empty" id="pj-dwgempty" hidden>这个项目还没有图纸<br>点右上角「上传图纸到此项目」开始</div>
+    <!-- fx 栏 (32px) -->
+    <div class="h-8 px-3 flex items-center gap-2 text-xs bg-slate-100">
+      <span class="w-10 text-center font-mono font-semibold bg-white border border-slate-300 rounded px-1.5 py-0.5 text-blue-700 text-[11px] shadow-2xs" id="pricingCellCoordinate">H1</span>
+      <div class="h-3.5 w-px bg-slate-300"></div>
+      <span class="font-mono text-slate-400 text-xs font-semibold">fx</span>
+      <span class="text-slate-700 text-xs flex items-center gap-1.5 truncate" id="pricingFormulaContext">
+        <span class="font-semibold text-slate-900" id="pricingFormulaBox">请选择元器件</span>
+        <span class="text-slate-400">·</span>
+        <span class="text-slate-800" id="pricingFormulaName">—</span>
+        <span class="text-slate-400">·</span>
+        <span class="text-slate-600">单价</span>
+        <span class="text-slate-400">·</span>
+        <span class="text-slate-600 font-medium" id="pricingFormulaSource">点击表格单元格核对价格</span>
+      </span>
+      <span class="ml-auto text-[11px] text-slate-500 font-mono-nums shrink-0" id="pricingGridRowSummary">共 0 箱 / 0 行</span>
     </div>
   </div>
-</main>
 
-<!-- ===== 上传（项目内动作：先选/建项目，再传图纸） ===== -->
-<main class="page" id="page-upload" hidden>
-  <div class="pg-head">
-    <button class="btn ghost sm" id="up-back" onclick="backFromUpload()">← 返回项目</button>
-    <h2>上传图纸</h2><div class="sp"></div>
-    <label style="font-size:12.5px;color:var(--mut)">归入项目
-      <select id="uploadProject" onchange="renderUploadTarget()" style="border:1px solid var(--line2);padding:5px 8px;font:inherit;font-size:12.5px;background:#fff">
-        <option value="">自动识别（按图签工程名称建项目）</option>
-      </select>
-    </label>
-  </div>
-  <div class="pg-wrap">
-    <div id="up-target" class="card" style="padding:11px 16px;font-size:12.5px"></div>
-    <div class="brand-hero" style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);border:1px solid #334155;color:#f8fafc;padding:16px 22px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-radius:4px">
-      <div class="brand-hero-content" style="display:flex;align-items:center;gap:14px">
-        <img src="assets/brand/02_品牌Logo/17_App图标主体.png" alt="电柜智核Logo" class="brand-hero-logo" width="46" height="46" style="width:46px;height:46px;object-fit:contain;border-radius:6px;background:rgba(255,255,255,0.08);padding:3px;border:1px solid rgba(255,255,255,0.15);flex-shrink:0">
-        <div>
-          <div class="brand-hero-title" style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px">
-            电柜智核
-            <span class="brand-hero-tag" style="font-size:11px;background:rgba(46,92,230,0.3);color:#93c5fd;border:1px solid rgba(147,197,253,0.3);padding:1px 7px;border-radius:2px;font-weight:500">配电箱智能工作台</span>
-          </div>
-          <div class="brand-hero-desc" style="font-size:12px;color:#94a3b8;margin-top:3px">AI 识图提取 · 规则合规自检 · 铜排辅料测算 · 全项目采购平替</div>
+  <!-- 5. 报价大表 + 6. 价格面板 (360px) 主内容区 -->
+  <main class="flex-1 flex overflow-hidden bg-slate-200">
+    <!-- 左侧：标准桌面 Excel 网格 -->
+    <div class="flex-1 flex flex-col min-w-0 bg-white overflow-hidden">
+      <div class="flex-1 overflow-auto bg-white excel-scroll" id="pricingTableContainer">
+        <table class="w-full border-collapse border-spacing-0 border-l border-t border-slate-300 text-left whitespace-nowrap" id="pricingExcelTable">
+          <!-- 表头：两行 -->
+          <thead class="sticky top-0 z-20 shadow-xs">
+            <!-- 第一行：列字母 A 到 L -->
+            <tr class="h-5 bg-slate-100 text-[10px] text-slate-500 font-mono text-center select-none">
+              <th class="w-10 border-r border-b border-slate-300 bg-slate-200 font-normal">A</th>
+              <th class="w-14 border-r border-b border-slate-300 bg-slate-200 font-normal">B</th>
+              <th class="w-36 border-r border-b border-slate-300 bg-slate-200 font-normal">C</th>
+              <th class="w-48 border-r border-b border-slate-300 bg-slate-200 font-normal">D</th>
+              <th class="w-48 border-r border-b border-slate-300 bg-slate-200 font-normal">E</th>
+              <th class="w-12 border-r border-b border-slate-300 bg-slate-200 font-normal">F</th>
+              <th class="w-14 border-r border-b border-slate-300 bg-slate-200 font-normal">G</th>
+              <th class="w-24 border-r border-b border-slate-300 bg-slate-200 font-normal">H</th>
+              <th class="w-24 border-r border-b border-slate-300 bg-slate-200 font-normal">I</th>
+              <th class="w-28 border-r border-b border-slate-300 bg-slate-200 font-normal">J</th>
+              <th class="w-20 border-r border-b border-slate-300 bg-slate-200 font-normal">K</th>
+              <th class="w-32 border-r border-b border-slate-300 bg-slate-200 font-normal">L</th>
+            </tr>
+            <!-- 第二行：业务列名 -->
+            <tr class="h-8 bg-slate-100 text-slate-700 font-semibold text-xs select-none">
+              <th class="w-10 excel-th text-center">序号</th>
+              <th class="w-14 excel-th text-left px-2">柜号</th>
+              <th class="w-36 excel-th text-left px-2">名称</th>
+              <th class="w-48 excel-th text-left px-2">柜型 / 设计规格</th>
+              <th class="w-48 excel-th text-left px-2 text-blue-900">报价型号规格</th>
+              <th class="w-12 excel-th text-center px-1">单位</th>
+              <th class="w-14 excel-th text-right px-2">数量</th>
+              <th class="w-24 excel-th text-right px-2 text-blue-900">单价（元）</th>
+              <th class="w-24 excel-th text-right px-2">总价（元）</th>
+              <th class="w-28 excel-th text-left px-2">生产厂家</th>
+              <th class="w-20 excel-th text-center px-1">价格来源</th>
+              <th class="w-32 excel-th text-left px-2">备注</th>
+            </tr>
+          </thead>
+          <tbody class="divide-none text-slate-800 text-xs" id="pricingExcelTbody">
+            <!-- 动态渲染分类行、箱柜行、明细行、构成行、单台合计、底部冻结行 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 6. 价格面板 (360px，右侧滑出) -->
+    <aside class="w-[360px] bg-white border-l border-slate-300 flex flex-col shrink-0 z-10 shadow-sm" id="pricingRightSidebar">
+      <!-- 标题与状态标签 -->
+      <div class="p-3 bg-slate-50 border-b border-slate-300">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[11px] text-slate-500 font-mono-nums truncate max-w-[220px]" id="pricingSidebarMeta">请选择箱柜器件</span>
+          <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.2 rounded" id="pricingSidebarBadge">
+            <span class="material-symbols-outlined text-[13px]" id="pricingSidebarBadgeIcon">verified</span>
+            <span id="pricingSidebarBadgeText">焦点元器件</span>
+          </span>
         </div>
+        <div class="font-bold text-slate-900 text-sm truncate" id="pricingSidebarTitle">未选中器件</div>
+        <div class="text-[11px] text-slate-500 mt-0.5 truncate" id="pricingSidebarSub">在左侧表格中点击任意行核验或更换价格</div>
       </div>
-      <div style="font-size:11.5px;color:#94a3b8;text-align:right">
-        工业级系统图解析引擎<br>
-        <span style="color:#60a5fa">支持 PDF · DWG · DXF</span>
-      </div>
-    </div>
-
-    <!-- 四大核心流水线能力卡片 -->
-    <div class="brand-pipeline-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px">
-      <div class="brand-pipeline-card" style="background:#fff;border:1px solid var(--line2);padding:14px 16px;display:flex;flex-direction:column;gap:6px;border-radius:4px">
-        <div class="brand-pipeline-header" style="display:flex;align-items:center;gap:8px">
-          <span class="brand-pipeline-step" style="font-size:10px;font-weight:700;color:var(--acc-d);background:var(--acc-t);padding:1px 6px;border:1px solid #C9D8F8;border-radius:2px">01</span>
-          <img src="assets/brand/03_功能模块/06_功能模块_核图识别.png" alt="核图识别" class="brand-pipeline-img" style="height:26px;width:auto;max-width:110px;object-fit:contain">
-        </div>
-        <div class="brand-pipeline-name" style="font-size:13.5px;font-weight:650;color:var(--txt)">核图识别</div>
-        <div class="brand-pipeline-detail" style="font-size:12px;color:var(--mut);line-height:1.45">CAD矢量图层与多模态视觉双核提取，多图块与文字表格高精度解析。</div>
-      </div>
-      <div class="brand-pipeline-card" style="background:#fff;border:1px solid var(--line2);padding:14px 16px;display:flex;flex-direction:column;gap:6px;border-radius:4px">
-        <div class="brand-pipeline-header" style="display:flex;align-items:center;gap:8px">
-          <span class="brand-pipeline-step" style="font-size:10px;font-weight:700;color:var(--acc-d);background:var(--acc-t);padding:1px 6px;border:1px solid #C9D8F8;border-radius:2px">02</span>
-          <img src="assets/brand/03_功能模块/07_功能模块_核对校验.png" alt="规则校验" class="brand-pipeline-img" style="height:26px;width:auto;max-width:110px;object-fit:contain">
-        </div>
-        <div class="brand-pipeline-name" style="font-size:13.5px;font-weight:650;color:var(--txt)">核对校验</div>
-        <div class="brand-pipeline-detail" style="font-size:12px;color:var(--mut);line-height:1.45">母线载流、级联规格自检与电气规范预警，联动图纸毫秒级核对。</div>
-      </div>
-      <div class="brand-pipeline-card" style="background:#fff;border:1px solid var(--line2);padding:14px 16px;display:flex;flex-direction:column;gap:6px;border-radius:4px">
-        <div class="brand-pipeline-header" style="display:flex;align-items:center;gap:8px">
-          <span class="brand-pipeline-step" style="font-size:10px;font-weight:700;color:var(--acc-d);background:var(--acc-t);padding:1px 6px;border:1px solid #C9D8F8;border-radius:2px">03</span>
-          <img src="assets/brand/03_功能模块/08_功能模块_智能报价.png" alt="智能报价" class="brand-pipeline-img" style="height:26px;width:auto;max-width:110px;object-fit:contain">
-        </div>
-        <div class="brand-pipeline-name" style="font-size:13.5px;font-weight:650;color:var(--txt)">智能报价</div>
-        <div class="brand-pipeline-detail" style="font-size:12px;color:var(--mut);line-height:1.45">元器件清单、母线铜排辅料算量与标准工业四联表一键导出。</div>
-      </div>
-      <div class="brand-pipeline-card" style="background:#fff;border:1px solid var(--line2);padding:14px 16px;display:flex;flex-direction:column;gap:6px;border-radius:4px">
-        <div class="brand-pipeline-header" style="display:flex;align-items:center;gap:8px">
-          <span class="brand-pipeline-step" style="font-size:10px;font-weight:700;color:var(--acc-d);background:var(--acc-t);padding:1px 6px;border:1px solid #C9D8F8;border-radius:2px">04</span>
-          <img src="assets/brand/03_功能模块/09_功能模块_选型采购.png" alt="选型采购" class="brand-pipeline-img" style="height:26px;width:auto;max-width:110px;object-fit:contain">
-        </div>
-        <div class="brand-pipeline-name" style="font-size:13.5px;font-weight:650;color:var(--txt)">选型采购</div>
-        <div class="brand-pipeline-detail" style="font-size:12px;color:var(--mut);line-height:1.45">正泰/德力西/良信等品牌国产化平替降本测算与项目级跨箱体 BOM。</div>
-      </div>
-    </div>
-
-    <div class="card"><div class="dropzone slim" id="dropzone">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2E5CE6" stroke-width="1.4"><path d="M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#E9EFFD"/><path d="M14 2v4h4"/></svg>
-      <div class="dz-t">点击选择 PDF / DWG / DXF，或把文件拖到这里</div>
-      <div class="dz-s">支持 PDF、AutoCAD DWG、DXF · 建议单张系统图一个文件 · 自动归入对应工程项目</div>
-      <input type="file" id="fileinput" accept=".pdf,.dwg,.dxf,application/pdf" multiple hidden>
-    </div></div>
-    <div class="card">
-      <div class="ch">
-        <span>待提取队列</span>
-        <span style="display:flex;gap:8px;align-items:center">
-          <button class="btn ghost sm" id="up-goto-project" onclick="backFromUpload()" hidden>进入项目查看结果 →</button>
-          <button class="btn primary sm" onclick="startExtract()">开始提取</button>
-        </span>
-      </div>
-      <table class="ptable"><thead><tr><th>文件名</th><th>大小</th><th>状态</th><th></th></tr></thead>
-        <tbody id="upqueue"><tr><td colspan="4" class="mut2" style="text-align:center;padding:22px">队列为空</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-</main>
-
-<!-- ===== 历史记录 ===== -->
-<main class="page" id="page-history" hidden>
-  <div class="pg-head"><h2>历史记录</h2><div class="sp"></div><span class="mut" id="histcount" style="font-size:12px"></span></div>
-  <div class="pg-wrap"><div class="card"><table class="ptable">
-    <thead><tr><th>导出时间</th><th>项目</th><th>图纸</th><th>回路</th><th>存疑</th><th>人工修改</th><th></th></tr></thead>
-    <tbody id="histrows"></tbody>
-  </table></div>
-  <div class="empty" id="histempty" hidden>还没有导出记录<br>核对完成后导出一次 Excel 清单，这里会留下记录</div>
-  </div>
-</main>
-
-<!-- ===== 设置 ===== -->
-<main class="page" id="page-settings" hidden>
-  <div class="pg-head"><h2>设置</h2></div>
-  <div class="pg-wrap">
-    <div class="card"><div class="ch"><span>视觉模型（识图提取）</span></div>
-      <div class="formrow"><label>模型</label><input id="set-model" placeholder="如 qwen-vl-max / deepseek-flash"></div>
-      <div class="formrow"><label>Base URL</label><input id="set-baseurl" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1"></div>
-      <div class="formrow"><label>API Key</label><input id="set-apikey" type="password" placeholder="留空表示沿用 .env，不覆盖">
-        <span class="mut2" id="set-keyhint" style="font-size:11px"></span></div>
-      <div class="formrow"><label>温度 temperature</label><input id="set-temp" type="number" step="0.1" min="0" max="2" style="max-width:120px">
-        <span class="mut" style="font-size:11px">识图建议 0，保证同一图纸多次输出一致</span></div>
-      <div class="formrow"><label>随机种子 seed</label><input id="set-seed" type="number" style="max-width:120px">
-        <span class="mut" style="font-size:11px">DeepSeek 接口不支持 seed，该项只对支持它的兼容接口生效</span></div>
-      <div class="formrow"><label>助手模型</label><input id="set-assistant" placeholder="留空则复用上面的视觉模型"></div>
-    </div>
-    <div class="card"><div class="ch"><span>提示词与契约</span></div>
-      <div class="formrow"><label>提取提示词</label><span class="mono" id="set-prompt">extract.txt</span></div>
-      <div class="formrow"><label>输出契约</label><span class="mono" id="set-contract">OUTPUT_CONTRACT</span></div>
-    </div>
-    <div class="card"><div class="ch"><span>导出</span></div>
-      <div class="formrow"><label>Excel 模板</label><input id="set-template" placeholder="留空使用内置版式；也可填模板 .xlsx 的绝对路径">
-        <span class="mut" style="font-size:11px">模板中存在同名工作表时，沿用其标题与样式，只覆盖第 4 行起的数据</span></div>
-      <div class="formrow"><label>大图自动分块</label><input type="checkbox" id="set-tiling">
-        <span class="mut" style="font-size:11px">长边超过 500mm（A2/A1）的图纸切成带重叠的块逐块识别。
-          整张大图会被模型服务端缩到固定尺寸，小字就是在那一步丢的；分块等于把小字放大几倍。<br>
-          A4 等小图不受影响，不会多花调用。</span></div>
-      <div class="formrow"><label>附带变更记录</label><input type="checkbox" id="set-changes">
-        <span class="mut" style="font-size:11px">人工/语音/AI 修改随清单导出为「变更记录」sheet</span></div>
-    </div>
-    <div class="card">
-      <div class="ch"><span>关于「电柜智核 · 配电箱智能工作台」</span></div>
-      <div style="padding:16px 20px;display:flex;align-items:center;gap:16px">
-        <img src="assets/brand/02_品牌Logo/17_App图标主体.png" alt="电柜智核" style="width:54px;height:54px;object-fit:contain;border-radius:6px;box-shadow:0 2px 6px rgba(0,0,0,0.1)">
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:700;color:var(--txt)">电柜智核 · 配电箱智能工作台 <span class="pill info" style="font-size:11px;margin-left:6px">v2.2 专业版</span></div>
-          <div class="mut" style="font-size:12px;margin-top:4px;line-height:1.5">
-            工业级成套配电电气系统图多模态解析平台。融合 CAD 矢量几何与多模态大模型视觉双核引擎，支持多图块切分、电气回路/元器件提取、母线载流校验、全项目集中采购 BOM 与国产化一键平替。
-          </div>
-          <div class="mut2" style="font-size:11px;margin-top:6px">
-            设计规范参考：GB/T 14048 · GB 50054 · IEC 61439 · 配电开关设备和控制设备标准
+      <!-- 6大价格来源卡片区 -->
+      <div class="flex-1 overflow-y-auto excel-scroll p-3 space-y-3 text-xs" id="pricingCandidatesContainer">
+        <!-- 1. 信息价 -->
+        <div class="border border-slate-300 rounded p-2.5 bg-white hover:border-blue-400 transition-colors" id="pricingCardInfo">
+          <div class="flex items-start justify-between">
+            <div class="min-w-0 pr-1">
+              <div class="text-[11px] font-semibold text-blue-700 mb-0.5">信息价</div>
+              <div class="font-medium text-slate-900 text-xs truncate" id="pricingCardInfoModel">施耐德电气 标准指导价</div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="font-mono-nums font-bold text-slate-900 text-xs" id="pricingCardInfoPrice">¥ 298.00</div>
+              <button class="mt-1 px-2.5 py-0.5 bg-blue-700 hover:bg-blue-800 text-white rounded text-[11px] font-medium transition-colors cursor-pointer" id="pricingAdoptInfoBtn" type="button">采用</button>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="ch"><span>数据维护与测试清理</span></div>
-      <div style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-weight:600;font-size:13.5px;color:var(--txt)">彻底清空所有测试数据</div>
-          <div class="mut" style="font-size:12px;margin-top:2px">清空所有图纸任务、项目、AI 消费日志及临时工作文件，还原至初始纯净状态。</div>
+        <!-- 2. 市场价 -->
+        <div class="border border-slate-300 rounded p-2.5 bg-white hover:border-blue-400 transition-colors" id="pricingCardMarket">
+          <div class="flex items-start justify-between">
+            <div class="min-w-0 pr-1">
+              <div class="text-[11px] font-semibold text-slate-700 mb-0.5">市场价</div>
+              <div class="font-medium text-slate-900 text-xs truncate" id="pricingCardMarketModel">德力西 / 正泰 市场行情</div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="font-mono-nums font-medium text-slate-900 text-xs" id="pricingCardMarketPrice">¥ 276.00</div>
+              <button class="mt-1 px-2.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] transition-colors cursor-pointer" id="pricingAdoptMarketBtn" type="button">采用</button>
+            </div>
+          </div>
         </div>
-        <button class="btn ghost sm" style="color:var(--bad);border-color:#F5C6C6" onclick="doCleanTestData()">🗑️ 一键清空所有数据</button>
+        <!-- 3. 本地价 -->
+        <div class="border border-slate-200 rounded p-2 bg-slate-50/50 flex items-center justify-between text-slate-500" id="pricingCardLocal">
+          <div class="flex items-center gap-1 min-w-0 pr-1">
+            <span class="text-[11px] font-medium">本地价</span>
+            <span class="text-[11px] text-slate-400 truncate max-w-[140px]" id="pricingCardLocalModel">（标准本地库）</span>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-xs font-mono-nums font-medium" id="pricingCardLocalPrice">—</span>
+            <button class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] transition-colors cursor-pointer hidden" id="pricingAdoptLocalBtn" type="button">采用</button>
+          </div>
+        </div>
+        <!-- 4. AI 建议价 -->
+        <div class="border border-blue-200 rounded p-2.5 bg-blue-50/40 hover:border-blue-400 transition-colors" id="pricingCardAi">
+          <div class="flex items-start justify-between">
+            <div class="min-w-0 pr-1">
+              <div class="text-[11px] font-semibold text-blue-800 mb-0.5 flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px] text-blue-600">psychology</span>
+                <span>AI 建议价</span>
+              </div>
+              <div class="text-[11px] text-slate-500 truncate" id="pricingCardAiDesc">参考：同规格近 30 天成交</div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="font-mono-nums font-bold text-blue-900 text-xs" id="pricingCardAiPrice">¥ 290.00</div>
+              <button class="mt-1 px-2.5 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-medium transition-colors shadow-2xs cursor-pointer" id="pricingAdoptAiBtn" type="button">采用</button>
+            </div>
+          </div>
+        </div>
+        <!-- 5. 历史价 -->
+        <div class="border border-slate-300 rounded p-2.5 bg-white hover:border-blue-400 transition-colors" id="pricingCardHistory">
+          <div class="flex items-start justify-between">
+            <div class="min-w-0 pr-1">
+              <div class="text-[11px] font-semibold text-slate-700 mb-0.5">历史价</div>
+              <div class="text-xs text-slate-800 font-medium truncate" id="pricingCardHistoryProj">鼎鑫大厦消防泵房</div>
+              <div class="text-[11px] text-slate-500 font-mono-nums" id="pricingCardHistoryDate">2026-09</div>
+            </div>
+            <div class="text-right shrink-0">
+              <div class="font-mono-nums font-medium text-slate-900 text-xs" id="pricingCardHistoryPrice">¥ 310.00</div>
+              <button class="mt-1 px-2.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] transition-colors cursor-pointer" id="pricingAdoptHistoryBtn" type="button">采用</button>
+            </div>
+          </div>
+        </div>
+        <!-- 6. 手填录入 -->
+        <div class="bg-slate-50 border border-slate-300 rounded p-2.5 space-y-2">
+          <div class="text-[11px] font-semibold text-slate-700 border-b border-slate-200 pb-1">手填</div>
+          <div>
+            <label class="text-[11px] text-slate-600 block mb-0.5">单价 (元):</label>
+            <div class="relative">
+              <span class="absolute left-2 top-1 text-slate-400 font-mono">¥</span>
+              <input class="w-full bg-white border border-slate-300 pl-5 pr-2 py-1 rounded font-mono-nums font-bold text-slate-900 text-xs outline-none focus:border-blue-600" id="pricingCustomPriceInput" placeholder="请输入单价" type="number" step="0.01">
+            </div>
+          </div>
+          <div>
+            <label class="text-[11px] text-slate-600 block mb-0.5">来源说明:</label>
+            <input class="w-full bg-white border border-slate-300 px-2 py-1 rounded text-slate-800 text-xs outline-none focus:border-blue-600" id="pricingCustomNoteInput" placeholder="输入来源说明" type="text" value="询价：华东正泰 王工">
+          </div>
+          <button class="w-full py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1 mt-1 shadow-2xs cursor-pointer" id="pricingConfirmCustomBtn" type="button">
+            <span class="material-symbols-outlined text-[14px]">check</span>
+            <span>确认采用</span>
+          </button>
+        </div>
       </div>
+    </aside>
+  </main>
+
+  <!-- 7. 底部状态栏 (28px) -->
+  <footer class="h-7 bg-slate-200 border-t border-slate-300 px-4 flex items-center justify-between text-[11px] text-slate-600 font-mono-nums shrink-0 select-none">
+    <!-- 左侧状态与选中说明 -->
+    <div class="flex items-center gap-3">
+      <span class="flex items-center gap-1 text-slate-800 font-medium">
+        <span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+        <span>就绪</span>
+      </span>
+      <span class="text-slate-400">│</span>
+      <span>选中 <strong class="text-slate-800 font-semibold" id="pricingFooterSel">未选择</strong></span>
+      <span class="text-slate-400">│</span>
+      <span>基准：<strong class="text-slate-700" id="pricingFooterBaseline">拆量清单 v1（已同步）</strong></span>
     </div>
-    <div style="padding:2px 0 20px;display:flex;gap:10px;align-items:center">
-      <button class="btn primary" onclick="saveSettings()">保存设置</button>
-      <span class="mut2" id="set-status" style="font-size:11.5px"></span>
+    <!-- 右侧汇总统计与保存状态 -->
+    <div class="flex items-center gap-3">
+      <span>共 <strong class="text-slate-800" id="pricingFooterCount">0 箱 / 0 行</strong></span>
+      <span class="text-slate-400">│</span>
+      <span>求和 <strong class="text-blue-800 font-semibold" id="pricingFooterSum">¥0.00</strong></span>
+      <span class="text-slate-400">│</span>
+      <span class="text-slate-500" id="pricingFooterSavedTime">已保存</span>
     </div>
-  </div>
+  </footer>
 </main>
 
-<footer class="statusbar">
-  <span id="sb-left">未打开图纸</span>
-  <span id="sb-mid"></span>
-  <span class="kdb">
-    <span><kbd>双击</kbd>编辑</span><span><kbd>↑↓</kbd>切换回路</span><span><kbd>空格+拖拽</kbd>平移</span><span><kbd>⌘Z</kbd>撤销</span><span><kbd>E</kbd>导出</span><span><kbd>⌘S</kbd>保存</span>
-  </span>
-</footer>
-
-<!-- 修改记录 -->
-<div class="logdrawer" id="logdrawer">
-  <header>修改记录<button onclick="closeLog()">✕</button></header>
-  <div class="loglist" id="loglist"></div>
-</div>
-
-<!-- 核对弹窗 -->
-<div class="overlay" id="rvoverlay">
-  <button class="rv-exit" onclick="closeReview()">退出核对</button>
-  <div class="rv-view" id="rv-view">
-    <div class="stage" id="rvstage"><div id="rvhl"></div><img id="rvdwg" alt="图纸"></div>
-  </div>
-  <div class="rv-card">
-    <div class="prog"><span id="rvprog-t">存疑 0 / 0</span><span id="rvpageno" class="mut2"></span><div class="bar"><i id="rvbar" style="width:0%"></i></div></div>
-    <h3 id="rvtitle"></h3>
-    <div class="desc" id="rvdesc"></div>
-    <div class="sug" id="rvsugwrap"><b>处理建议</b><span id="rvsug"></span></div>
-    <div class="rv-actions" style="display:flex;gap:6px;flex-wrap:wrap">
-      <button class="btn ghost" onclick="resolveIssue(true)">确认无误</button>
-      <button class="btn primary" onclick="resolveIssue(false)">改了清单</button>
-      <button class="btn sm" onclick="triggerAiReview()" style="background:#4f46e5;color:#fff;border:none">🤖 让AI帮我想想(深度复核)</button>
-      <button class="btn sm" onclick="resolveAllIssues()" style="background:#16a34a;color:#fff;border:none">✅ 一键全部通过</button>
+<!-- ③ 弹窗：系统设置 -->
+<div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" id="modalSettings" hidden>
+  <div class="bg-surface-container-lowest rounded-xl shadow-2xl border border-surface-container w-full max-w-lg overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
+    <div class="px-space-lg py-space-md border-b border-surface-container flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[20px]">settings</span>
+        <h3 class="font-headline-md text-headline-md text-on-surface">系统设置</h3>
+      </div>
+      <button class="text-outline hover:text-on-surface p-1 rounded hover:bg-surface-container transition-colors" id="btnCloseSettings" type="button">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
     </div>
-    <div class="rv-note">支持语音：“确认无误” / “下一项”</div>
-  </div>
-</div>
-
-<!-- 导出弹窗 -->
-<div class="modal" id="expmodal">
-  <div class="mbox">
-    <h3>导出 Excel 报价清单</h3>
-    <div class="sub" id="expsub"></div>
-    <div id="expchecks"></div>
-    <div class="ver" id="expver"></div>
-    <div class="mactions"></div>
-    <div class="ver" id="expfallback" style="margin-top:8px;line-height:1.6"></div>
-  </div>
-</div>
-
-<!-- 全项目采购总清单弹窗 -->
-<div class="modal" id="projBomModal">
-  <div class="mbox wide">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:10px;">
+    <div class="p-space-lg flex flex-col gap-4 font-body-md max-h-[75vh] overflow-y-auto">
       <div>
-        <h3 id="projBomTitle" style="margin:0">全项目采购总清单 (BOM)</h3>
-        <div class="sub" id="projBomSub" style="margin:4px 0 0 0">跨箱体汇总采购统计</div>
+        <label class="block text-label-md font-label-md text-outline mb-1">识图大模型 (Vision Model)</label>
+        <input class="w-full h-9 px-3 bg-surface-container-low rounded border border-surface-container text-body-sm text-on-surface focus:outline-none focus:border-primary font-mono" id="settingVisionModel" type="text" placeholder="qwen-vl-max">
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <span style="font-size:12px;color:var(--mut);">清单模式：</span>
-        <select id="projBomModeSelect" class="sm" onchange="switchProjBomMode(this.value)" style="padding:4px 8px;font-size:12px;border:1px solid var(--line);border-radius:4px;background:var(--bg)">
-          <option value="raw">原设计采购清单</option>
-          <!-- 平替品牌选项由 /api/settings 的 target_brands 动态填充 -->
+      <div>
+        <label class="block text-label-md font-label-md text-outline mb-1">API Base URL</label>
+        <input class="w-full h-9 px-3 bg-surface-container-low rounded border border-surface-container text-body-sm text-on-surface focus:outline-none focus:border-primary font-mono" id="settingVisionBaseUrl" type="text" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1">
+      </div>
+      <div>
+        <label class="block text-label-md font-label-md text-outline mb-1">API Key</label>
+        <input class="w-full h-9 px-3 bg-surface-container-low rounded border border-surface-container text-body-sm text-on-surface focus:outline-none focus:border-primary font-mono" id="settingVisionApiKey" type="password" placeholder="sk-...">
+      </div>
+      <div>
+        <label class="block text-label-md font-label-md text-outline mb-1">默认目标平替品牌</label>
+        <select class="w-full h-9 px-3 bg-surface-container-low rounded border border-surface-container text-body-sm text-on-surface focus:outline-none focus:border-primary" id="settingTargetBrand">
+          <!-- 动态加载品牌 -->
         </select>
-        <a id="projBomExportBtn" class="btn primary sm" href="#" download>导出采购四联表 (Excel)</a>
-        <button class="btn ghost sm" onclick="closeProjBom()">✕ 关闭</button>
+      </div>
+      <div class="flex items-center gap-2 pt-1">
+        <input type="checkbox" id="settingTileLargePages" class="rounded border-outline-variant text-primary focus:ring-primary w-4 h-4 cursor-pointer">
+        <label for="settingTileLargePages" class="text-body-sm text-on-surface cursor-pointer select-none">
+          超大图纸自动切片分块识别（提高密集回路识别精度）
+        </label>
       </div>
     </div>
-    <div id="projBomStats" style="display:flex;gap:16px;margin-bottom:14px;background:var(--inset);padding:10px 14px;font-size:12px;border:1px solid var(--line);flex-wrap:wrap"></div>
-    <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--line);">
-      <table class="grid sm" style="width:100%;margin:0">
-        <thead id="projBomHead">
-          <tr>
-            <th style="width:40px">#</th>
-            <th>元器件名称</th>
-            <th>规格型号</th>
-            <th style="width:60px">单位</th>
-            <th style="width:80px">采购总量</th>
-            <th>各配电箱分布明细</th>
-          </tr>
-        </thead>
-        <tbody id="projBomTable"></tbody>
-      </table>
+    <div class="px-space-lg py-space-sm bg-surface-container-low border-t border-surface-container flex items-center justify-end gap-2">
+      <button class="px-4 py-1.5 rounded border border-outline-variant hover:bg-surface-container text-body-sm text-on-surface transition-colors" id="btnCancelSettings" type="button">取消</button>
+      <button class="px-4 py-1.5 rounded bg-primary text-on-primary hover:bg-primary-container text-body-sm font-medium shadow-sm transition-colors" id="btnSaveSettings" type="button">保存配置</button>
     </div>
   </div>
 </div>
 
-<!-- 全项目供电系统拓扑弹窗 -->
-<div class="modal" id="projTopologyModal">
-  <div class="mbox wide" style="width:960px;max-width:96vw">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:10px;">
-      <div>
-        <h3 id="projTopologyTitle" style="margin:0">全项目配电系统层级拓扑树</h3>
-        <div class="sub" id="projTopologySub" style="margin:4px 0 0 0">总配电柜 → 二级配电分箱 → 一次出线支路 / 二次控制原理图供电关系</div>
+<!-- ④ 弹窗：AI 消耗与费用 -->
+<div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" id="modalAiCosts" hidden>
+  <div class="bg-surface-container-lowest rounded-xl shadow-2xl border border-surface-container w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-150">
+    <div class="px-space-lg py-space-md border-b border-surface-container flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[20px]">analytics</span>
+        <h3 class="font-headline-md text-headline-md text-on-surface">AI 识别消耗与费用账本</h3>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input id="projTopologyFilter" type="text" placeholder="快速过滤箱体编号/名称..." oninput="filterTopologyTree(this.value)" style="padding:4px 8px;font-size:12px;border:1px solid var(--line);border-radius:4px;width:190px">
-        <button class="btn ghost sm" onclick="closeProjTopology()">✕ 关闭</button>
-      </div>
+      <button class="text-outline hover:text-on-surface p-1 rounded hover:bg-surface-container transition-colors" id="btnCloseAiCosts" type="button">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
     </div>
-    <div id="projTopologyStats" style="display:flex;gap:16px;margin-bottom:14px;background:var(--inset);padding:10px 14px;font-size:12px;border:1px solid var(--line);flex-wrap:wrap"></div>
-    <div id="projTopologyContainer" style="max-height:60vh;overflow-y:auto;border:1px solid var(--line);padding:14px;background:#fcfcfd"></div>
-  </div>
-</div>
+    <div class="p-space-lg flex flex-col gap-space-lg overflow-y-auto">
+      <!-- 汇总卡片 -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="p-3.5 bg-surface-container-low rounded-lg border border-surface-container flex flex-col gap-1">
+          <span class="text-label-sm font-label-sm text-outline">累计消耗费用</span>
+          <span class="font-headline-lg text-headline-lg font-semibold text-primary" id="aiTotalCost">¥0.00</span>
+        </div>
+        <div class="p-3.5 bg-surface-container-low rounded-lg border border-surface-container flex flex-col gap-1">
+          <span class="text-label-sm font-label-sm text-outline">累计 Token 数</span>
+          <span class="font-headline-lg text-headline-lg font-semibold text-on-surface" id="aiTotalTokens">0</span>
+        </div>
+        <div class="p-3.5 bg-surface-container-low rounded-lg border border-surface-container flex flex-col gap-1">
+          <span class="text-label-sm font-label-sm text-outline">识别调用次数</span>
+          <span class="font-headline-lg text-headline-lg font-semibold text-tertiary-container" id="aiTotalCalls">0 次</span>
+        </div>
+      </div>
 
-<!-- 批量图纸归入项目弹窗 -->
-<div class="modal" id="batchProjectModal">
-  <div class="mbox wide" style="width:780px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:10px;">
-      <div>
-        <h3 style="margin:0">批量归入 / 移动项目</h3>
-        <div class="sub" style="margin:4px 0 0 0">勾选图纸，一键移动至目标工程集中进行项目级 BOM 与拓扑分析</div>
+      <!-- 流水表格 -->
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center justify-between">
+          <span class="text-label-md font-label-md text-on-surface font-medium">调用流水明细 (最近 500 笔)</span>
+          <span class="text-label-sm font-label-sm text-outline" id="aiLogsCount">0 笔</span>
+        </div>
+        <div class="border border-surface-container rounded-lg overflow-hidden max-h-72 overflow-y-auto">
+          <table class="w-full text-left border-collapse text-body-sm">
+            <thead>
+              <tr class="bg-surface-container-low text-outline font-label-sm text-label-sm h-8 border-b border-surface-container sticky top-0">
+                <th class="px-3 py-1 font-medium">时间</th>
+                <th class="px-3 py-1 font-medium">图纸/文件</th>
+                <th class="px-3 py-1 font-medium">项目</th>
+                <th class="px-3 py-1 font-medium">模型</th>
+                <th class="px-3 py-1 font-medium text-right">Tokens</th>
+                <th class="px-3 py-1 font-medium text-right">费用</th>
+              </tr>
+            </thead>
+            <tbody id="aiLogsTbody" class="divide-y divide-surface-container font-mono text-label-sm">
+              <!-- 动态加载流水行 -->
+            </tbody>
+          </table>
+          <div class="p-6 text-center text-outline text-body-sm" id="aiLogsEmpty" hidden>暂无 AI 消耗流水记录</div>
+        </div>
       </div>
-      <button class="btn ghost sm" onclick="closeBatchProjectModal()">✕ 关闭</button>
     </div>
-    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;background:var(--inset);padding:10px 14px;border:1px solid var(--line)">
-      <span style="font-size:12.5px;font-weight:600">目标项目：</span>
-      <select id="batchTargetProject" style="padding:4px 8px;font-size:12.5px;border:1px solid var(--line);border-radius:4px;background:#fff;min-width:160px">
-        <option value="">-- 选择已有项目 --</option>
-      </select>
-      <span style="font-size:12px;color:var(--mut)">或输入新项目名：</span>
-      <input id="batchNewProject" type="text" placeholder="例如：动力车间强电工程" style="padding:4px 8px;font-size:12px;border:1px solid var(--line);border-radius:4px;width:180px">
-      <button class="btn primary sm" onclick="submitBatchProject()">确认归入</button>
-    </div>
-    <div style="max-height:50vh;overflow-y:auto;border:1px solid var(--line);">
-      <table class="grid sm" style="width:100%;margin:0">
-        <thead>
-          <tr>
-            <th style="width:36px;text-align:center"><input type="checkbox" id="batchSelectAll" onchange="toggleSelectAllBatch(this.checked)"></th>
-            <th>图纸文件</th>
-            <th style="width:110px">当前归属</th>
-            <th style="width:60px;text-align:right">箱体</th>
-            <th style="width:60px;text-align:right">回路</th>
-            <th style="width:70px;text-align:center">状态</th>
-          </tr>
-        </thead>
-        <tbody id="batchProjectTable"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-<!-- AI 费用明细账单弹窗 -->
-<div class="modal" id="modalAiLog" hidden onclick="if(event.target===this)closeAiLogs()">
-  <div class="modal-card" style="max-width:880px;width:92%">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-      <div>
-        <h3 id="aiLogProjTitle" style="margin:0">项目 AI 识别费用与 Token 账单</h3>
-        <div class="sub" id="aiLogProjSub" style="margin:4px 0 0 0">记录每次识图模型、输入/输出 Token 与实际计费明细</div>
-      </div>
-      <button class="btn ghost sm" onclick="closeAiLogs()">✕ 关闭</button>
-    </div>
-    <div id="aiLogSummaryCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;">
-      <!-- 动态统计卡片 -->
-    </div>
-    <div style="max-height:55vh;overflow-y:auto;border:1px solid var(--line);">
-      <table class="grid sm" style="width:100%;margin:0">
-        <thead>
-          <tr>
-            <th style="width:130px">调用时间</th>
-            <th>图纸文件 / 来源</th>
-            <th style="width:110px">模型</th>
-            <th style="width:50px">切片</th>
-            <th style="width:90px">输入 Token</th>
-            <th style="width:90px">输出 Token</th>
-            <th style="width:80px">本次费用</th>
-          </tr>
-        </thead>
-        <tbody id="aiLogTableBody"></tbody>
-      </table>
+    <div class="px-space-lg py-space-sm bg-surface-container-low border-t border-surface-container flex items-center justify-end">
+      <button class="px-4 py-1.5 rounded bg-surface-container hover:bg-surface-container-high text-body-sm text-on-surface transition-colors" id="btnDoneAiCosts" type="button">关闭</button>
     </div>
   </div>
 </div>
 
-<!-- 账号登录与注册弹窗 -->
-<div class="modal" id="authModal" hidden onclick="if(event.target===this)closeAuthModal()">
-  <div class="mbox" style="width:440px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid var(--line);padding-bottom:12px">
-      <div class="auth-tabs" style="display:flex;gap:12px">
-        <button class="auth-tab-btn active" id="tabBtnLogin" onclick="switchAuthTab('login')">已有账号登录</button>
-        <button class="auth-tab-btn" id="tabBtnRegister" onclick="switchAuthTab('register')">新企业注册</button>
-      </div>
-      <button class="icon-btn" onclick="closeAuthModal()">✕</button>
-    </div>
-
-    <!-- 登录表单 -->
-    <form id="formLogin" onsubmit="handleLogin(event)">
-      <div class="formrow" style="padding:8px 0">
-        <label style="flex:0 0 70px">账号</label>
-        <input type="text" id="loginUsername" placeholder="用户名/工号" required style="width:100%" value="admin">
-      </div>
-      <div class="formrow" style="padding:8px 0">
-        <label style="flex:0 0 70px">密码</label>
-        <input type="password" id="loginPassword" placeholder="输入密码" required style="width:100%" value="admin123">
-      </div>
-      <div class="mut2" style="font-size:11.5px;margin:8px 0 14px">
-        💡 演示管理员账号：<b style="color:var(--txt)">admin</b> / 密码：<b style="color:var(--txt)">admin123</b>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
-        <button type="button" class="btn ghost sm" onclick="closeAuthModal()">取消</button>
-        <button type="submit" class="btn primary sm" id="btnLoginSubmit">立即登录</button>
-      </div>
-    </form>
-
-    <!-- 注册表单 -->
-    <form id="formRegister" onsubmit="handleRegister(event)" hidden>
-      <div class="formrow" style="padding:8px 0">
-        <label style="flex:0 0 85px">企业/工区</label>
-        <input type="text" id="regTenant" placeholder="如：华东智能配电成套一厂" required style="width:100%">
-      </div>
-      <div class="formrow" style="padding:8px 0">
-        <label style="flex:0 0 85px">登录账号</label>
-        <input type="text" id="regUsername" placeholder="英文字母或工号" required style="width:100%">
-      </div>
-      <div class="formrow" style="padding:8px 0">
-        <label style="flex:0 0 85px">姓名/昵称</label>
-        <input type="text" id="regDisplayName" placeholder="如：张工" required style="width:100%">
-      </div>
-      <div class="formrow" style="padding:8px 0">
-        <label style="flex:0 0 85px">设置密码</label>
-        <input type="password" id="regPassword" placeholder="至少 6 位字符" required minlength="6" style="width:100%">
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px">
-        <button type="button" class="btn ghost sm" onclick="closeAuthModal()">取消</button>
-        <button type="submit" class="btn primary sm" id="btnRegSubmit">创建企业并进入工作台</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- 启动屏 -->
-<div class="startscreen" id="startscreen" hidden>
-  <div class="startcard" style="max-width:520px">
-    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px">
-      <img src="assets/brand/02_品牌Logo/17_App图标主体.png" alt="电柜智核Logo" style="width:38px;height:38px;object-fit:contain;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.15)">
-      <div style="text-align:left">
-        <div style="font-size:16px;font-weight:700;color:var(--txt)">电柜智核</div>
-        <div style="font-size:11px;color:var(--acc-d);font-weight:600">配电箱智能工作台</div>
-      </div>
-    </div>
-    <div class="mut" style="font-size:12px;margin-bottom:16px;line-height:1.5">
-      上传配电箱/配电柜系统图，AI 视觉与 CAD 矢量双核提取元器件，自动生成标准报价与采购清单<br>
-      <span style="font-size:11.5px">上传后会先从图纸图签读取「工程名称」并自动建项目；也可以先进「项目」建好项目再往里面传图纸</span>
-    </div>
-    <div class="dropzone" id="startdrop">
-      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2E5CE6" stroke-width="1.4"><path d="M6 2h8l4 4v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#E9EFFD"/><path d="M14 2v4h4"/></svg>
-      <div class="dz-t">点击选择 PDF / DWG / DXF，或把文件拖到这里</div>
-      <div class="dz-s">支持 PDF、AutoCAD DWG、DXF · 建议单张系统图一个文件 · 自动归入对应工程项目</div>
-      <input type="file" id="startfile" accept=".pdf,.dwg,.dxf,application/pdf" multiple hidden>
-    </div>
-    <div class="startbtn">
-      <button class="btn ghost" onclick="hideStart();navGo('projects')">先看看已有项目</button>
-    </div>
-    <div class="mut2" style="font-size:11.5px;text-align:center;margin-top:14px" id="startcfg"></div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-<script src="app.js?v=20261002_07"></script>
+<div class="toast" id="toast" hidden></div>
+<script src="app.js?v=20261017_11"></script>
 </body>
 </html>

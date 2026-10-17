@@ -14,7 +14,6 @@ A4 用 200 DPI 出 2337px 已经够，A1 用同样 DPI 出 6600px 反而被缩�
 
 坐标一律用整页归一化值，块的偏移在 vision.py 里折算回去。
 """
-import os
 
 try:
     import pymupdf
@@ -153,9 +152,6 @@ def plan_tiles(pdf_path: str, page_index: int, long_edge: int = OVERVIEW_LONG_ED
         width_mm, height_mm = page_size_mm(page)
         long_mm = max(width_mm, height_mm)
         is_large = long_mm >= min_mm
-        # 幅面不到切块线时不切。A4 系统图从中间切开，回路号和断路器会落到两块里。
-        if not is_large:
-            return []
         is_dense = False
         try:
             drawings = page.get_drawings()
@@ -164,6 +160,10 @@ def plan_tiles(pdf_path: str, page_index: int, long_edge: int = OVERVIEW_LONG_ED
                 is_dense = True
         except Exception:
             pass
+        # 幅面小又不密集才不切。A1 系统图缩印到 A4 的 PDF 很常见：幅面只有 297mm，
+        # 字却小到整页概览里读不出来，必须按密集图切块放大（块间有重叠，回路不会被切断）。
+        if not is_large and not is_dense:
+            return []
 
         cols, rows = grid_for(width_mm, height_mm,
                               TILE_TARGET_LONG_MM_DENSE if is_dense else TILE_TARGET_LONG_MM)

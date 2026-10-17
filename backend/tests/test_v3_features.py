@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from app import app
 from extractor.schema import ExtractionResult, Box, Circuit, Component
-from extractor.excel import build_workbook, build_custom_table_workbook
+from extractor.excel import build_workbook
 import ezdxf
 
 

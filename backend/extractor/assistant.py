@@ -8,6 +8,7 @@ import json
 import os
 import urllib.error
 
+from .assemble import DEFAULT_ASSEMBLY_UNIT
 from .config import vision as _vision_config
 from .vision import post_chat
 
@@ -243,7 +244,7 @@ def validate_patch(patch, data: dict) -> tuple[list[dict], list[str]]:
                 accepted.append({"scope": "device", "action": "add", "target": name,
                                  "after": {"name": name,
                                            "spec": str(item.get("spec", "")).strip(),
-                                           "unit": str(item.get("unit", "")).strip() or "套",
+                                           "unit": str(item.get("unit", "")).strip() or DEFAULT_ASSEMBLY_UNIT,
                                            "quantity": quantity,
                                            "used_in": str(item.get("used_in", "")).strip(),
                                            "note": str(item.get("note", "")).strip()}})

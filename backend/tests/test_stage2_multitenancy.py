@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 """第二阶段深度验收单测：多租户运行底座、租户物理/逻辑隔离、任务落盘与中断自动恢复。"""
-import json
 import os
 import tempfile
 import unittest
-from unittest.mock import patch
 
 import test_support  # noqa: F401
 from fastapi.testclient import TestClient
@@ -231,6 +229,26 @@ class MultiTenancyIsolationTests(unittest.TestCase):
         self.assertEqual(len(logs_t2["ai_logs"]), 1)
         self.assertEqual(logs_t2["ai_logs"][0]["job_id"], "job_t2")
 
+
+    def test_local_expired_token_still_reaches_default_jobs(self):
+        """本机（非生产）带过期令牌访问自己默认租户的任务放行；生产环境与真实租户仍拦截。"""
+        job_id = "job_default_local_01"
+        app.jobs[job_id] = {"job_id": job_id, "tenant_id": "default", "user_id": "user_default",
+                            "status": "done", "project": "本机工程",
+                            "data": {"boxes": [], "circuits": [], "components": [], "requirements": []},
+                            "summary": {"title": "本机", "boxes": 0, "circuits": 0, "components": 0}}
+        app.save_job(job_id)
+        expired = {"Authorization": "Bearer tk_expired_local"}
+        os.environ.pop("ENV", None)
+        self.assertEqual(self.client.get(f"/api/jobs/{job_id}", headers=expired).status_code, 200)
+        # 未登录却冒用请求头 → guest，本机下 guest 与 default 互通
+        os.environ.pop("ALLOW_UNAUTH_TENANT_HEADER", None)
+        self.assertEqual(self.client.get(f"/api/jobs/{job_id}", headers={"X-Tenant-ID": "x"}).status_code, 200)
+        os.environ["ENV"] = "production"
+        try:
+            self.assertEqual(self.client.get(f"/api/jobs/{job_id}", headers=expired).status_code, 403)
+        finally:
+            os.environ.pop("ENV", None)
 
 if __name__ == "__main__":
     unittest.main()

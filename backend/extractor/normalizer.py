@@ -9,11 +9,11 @@
 from __future__ import annotations
 from math import isfinite
 import re
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from .catalog import BRAND_PATTERNS, identify_brand
+from .catalog import identify_brand
 
 
 class StructuredCable(BaseModel):
@@ -47,8 +47,6 @@ CABLE_FAMILY_PATTERNS = [re.compile(pattern, re.IGNORECASE)
                          for pattern in _CABLE_VOCAB["family_patterns"]]
 
 LAYING_METHOD_PATTERN = re.compile(_CABLE_VOCAB["laying_method_regex"], re.IGNORECASE)
-
-DEFAULT_LAYING = _CABLE_VOCAB["default_laying"]
 
 
 def parse_cable(raw: str) -> StructuredCable:

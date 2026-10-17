@@ -15,7 +15,6 @@ from extractor import config as appconfig
 from extractor.corroborate import build_native_corpus, corroborate, corroboration_issues
 from extractor.schema import (
     Box,
-    Circuit,
     Evidence,
     EvidenceType,
     ExtractionResult,

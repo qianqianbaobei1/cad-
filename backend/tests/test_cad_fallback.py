@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """acadrust 兜底解析通道及双通道转换流水线单元测试。"""
 
-import json
 import os
 import shutil
 import tempfile
@@ -10,13 +9,13 @@ from unittest.mock import patch
 
 import ezdxf
 
-from extractor.cad import dwg_to_dxf, resolve_dwg_dxf
+from extractor.cad import dwg_to_dxf
 from extractor.cad_fallback import (
     convert_acadrust,
     find_acadrust_tool,
     validate_document,
 )
-from extractor.cad_ledger import conversion_for, remember_conversion
+from extractor.cad_ledger import conversion_for
 
 
 class TestCadFallback(unittest.TestCase):

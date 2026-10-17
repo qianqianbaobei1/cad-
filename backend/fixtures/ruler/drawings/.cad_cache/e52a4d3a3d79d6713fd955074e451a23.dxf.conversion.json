@@ -1,0 +1,31 @@
+{
+  "tool": "dwg2dxf",
+  "exit_code": 0,
+  "output_nonempty": true,
+  "accepted": true,
+  "dxf_valid": true,
+  "warning_lines": 129,
+  "error_lines": 17,
+  "stderr_excerpt": "Warning: Unstable Class object 636 MATERIAL (0x481) 11/0\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream",
+  "log_missing": false,
+  "note": "退出码 0 且 DXF 结构校验通过。这不表示对象、依赖和单位已经读全",
+  "converter": "libredwg",
+  "attempts": [
+    {
+      "tool": "dwg2dxf",
+      "exit_code": 0,
+      "output_nonempty": true,
+      "accepted": true,
+      "dxf_valid": true,
+      "warning_lines": 129,
+      "error_lines": 17,
+      "stderr_excerpt": "Warning: Unstable Class object 636 MATERIAL (0x481) 11/0\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream\nWarning: Skip HATCH common handles due to short handle stream",
+      "log_missing": false,
+      "note": "退出码 0 且 DXF 结构校验通过。这不表示对象、依赖和单位已经读全",
+      "converter": "libredwg"
+    }
+  ],
+  "fallback_used": false,
+  "source_sha256": "e1a7174da9042191afb2504b277afdd9fb0edba9a147677b022f2728ca4f983c",
+  "output_sha256": "44e33b8ae8b2536c54759783568692530d5a48dc451274e73c32fea75735c1b8"
+}

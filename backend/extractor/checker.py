@@ -12,7 +12,7 @@ from collections import defaultdict
 from enum import Enum
 from math import isfinite
 import re
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -21,12 +21,11 @@ from .config import domain as _domain
 
 _CHECKS = _domain()["checks"]
 from .schema import (
+    Circuit,
     ExtractionResult,
-    EvidenceType,
     FIELD_EVIDENCE_POLICY,
     PHYSICAL_EVIDENCE_ORIGINS,
     ReviewStatus,
-    validate_field_evidence,
 )
 
 # 回路 breaker 字段能汇总出的元器件名称，必须与 assemble 保持一致

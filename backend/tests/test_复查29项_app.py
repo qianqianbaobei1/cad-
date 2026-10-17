@@ -19,7 +19,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 import app
-from app import app as fastapi_app, jobs, save_job, _load_from_xlsx, _validate_job_id
+from app import app as fastapi_app, jobs, _load_from_xlsx, _validate_job_id
 from extractor.schema import Uncertainty
 
 
@@ -77,7 +77,7 @@ class ExportGateTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
 
     def test_未确认存疑会写进Excel而不拦下载(self):
-        """产品口径：导出不被遮挡，但未确认项必须如实随文件交出，不能悄悄丢。"""
+        """产品口径：导出不被遮挡；待核对项不单独占页签，但必须在报价汇总里写明有几处没落定。"""
         import io
         import openpyxl
         tid = _mk_job([{"location": "2SAL2", "detail": "RCBO 数量截断未能确认", "resolved": False}],
@@ -87,8 +87,8 @@ class ExportGateTests(unittest.TestCase):
         wb = openpyxl.load_workbook(io.BytesIO(r.content))
         text = "\n".join(str(v) for ws in wb.worksheets for row in ws.iter_rows(values_only=True)
                          for v in row if v)
-        self.assertIn("RCBO 数量截断未能确认", text)
-        self.assertIn("2SAL2", text)
+        self.assertIn("待核对", text)
+        self.assertIn("1 处图面存疑未确认", text)
 
     def test_前端导出不得只依赖程序化blob下载(self):
         """回归：导出主路径必须是真实 <a href> 导航式下载。
@@ -98,19 +98,14 @@ class ExportGateTests(unittest.TestCase):
         兼容性最好；这里用静态断言锁住，别被改回去。
         """
         import pathlib as _p
-        js = (_p.Path(__file__).resolve().parent.parent.parent / "frontend" / "app.js").read_text(encoding="utf-8")
-        self.assertIn("function triggerDownload", js)
-        self.assertIn("function exportUrl", js)
-        # 导出面板的主按钮必须是 <a href> 而不是 button + onclick
-        self.assertIn('id="expok" href=', js)
-        # 主路径不得再自己造 blob：单据导出走真实链接，才能被浏览器下载管理器接管
-        do_export_body = js.split("async function doExport()", 1)[1].split("\n}", 1)[0]
-        self.assertNotIn("createObjectURL", do_export_body, "单据导出不应再用 blob 下载")
-        self.assertIn("exportUrl(", do_export_body)
-        self.assertIn("triggerDownload(", do_export_body)
-        # 必须保留手动兜底入口
-        self.assertIn("renderExportFallback", js)
-        self.assertIn("expfallback", js)
+        root = _p.Path(__file__).resolve().parent.parent.parent / "frontend"
+        js = (root / "app.js").read_text(encoding="utf-8")
+        html = (root / "index.html").read_text(encoding="utf-8")
+        # 导出按钮必须是 <a download>，由脚本填上真实的 /excel 地址
+        self.assertRegex(html, r'<a[^>]*id="btnExport"[^>]*download')
+        self.assertIn("$('btnExport').href = withToken(`/api/jobs/${id}/excel`)", js)
+        # 不得自己造 blob 下载
+        self.assertNotIn("createObjectURL", js, "导出不应再用 blob 下载")
 
     def test_job_id_非法字符_400(self):
         for bad in ["..", "a/b", "a b", "a$b", "", "x" * 65]:

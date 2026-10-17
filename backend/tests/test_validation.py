@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 import app
 from extractor.assemble import assemble
-from extractor.assistant import Assistant, validate_patch
+from extractor.assistant import Assistant
 from extractor.checker import check_result
 from extractor.schema import BBox, ExtractionResult, RawExtraction, Uncertainty
 from extractor.vision import VisionProvider
@@ -206,6 +206,20 @@ class PageAndTileTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             pdf = _make_pdf(os.path.join(d, "a4.pdf"), 297, 210)
             self.assertEqual(render_tiles(pdf, 0), [])
+
+    def test_dense_small_page_is_tiled(self):
+        # A1 系统图缩印成 A4：幅面小但图元密集，整页送模型会读不出小字
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "a4_dense.pdf")
+            doc = pymupdf.open()
+            page = doc.new_page(width=297 / 25.4 * 72, height=210 / 25.4 * 72)
+            for i in range(60):
+                page.draw_line((10 + i * 12, 20), (10 + i * 12, 400), color=(0, 0, 0), width=0.5)
+            doc.save(path)
+            doc.close()
+            tiles = render_tiles(path, 0)
+            self.assertGreater(len(tiles), 1)
+            self.assertTrue(tiles[0]["coverage"]["fully_covered"])
 
     def test_large_page_is_tiled_with_overlap(self):
         with tempfile.TemporaryDirectory() as d:
@@ -1065,8 +1079,8 @@ class DistributionTopologyAndExcelTests(unittest.TestCase):
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_topology_hierarchy_and_feeder_association(self):
-        from extractor.assemble import assemble, build_distribution_topology
-        from extractor.schema import Box, Circuit, RawExtraction
+        from extractor.assemble import assemble
+        from extractor.schema import RawExtraction
 
         raw = RawExtraction.model_validate({
             "boxes": [

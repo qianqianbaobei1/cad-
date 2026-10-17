@@ -101,8 +101,10 @@ def decode_cad_controls(text: str) -> str:
     }
     toggles = set("UOLKX")
     numbers = {
-        "133": "³",
+        "130": "Φ",
+        "131": "HRB335",
         "132": "²",
+        "133": "³",
         "179": "³",
         "176": "°",
         "177": "±",
@@ -177,7 +179,6 @@ def _libredwg_to_dxf(dwg_path: str, dxf_path: str) -> bool:
         MIN_DWG_BYTES,
         classify_stderr,
         conversion_accepted,
-        is_valid_dxf,
         remember_conversion,
     )
 
@@ -219,7 +220,8 @@ def _libredwg_to_dxf(dwg_path: str, dxf_path: str) -> bool:
             pass
 
     cmd = [tool, "-y", "-o", staging, dwg_path]
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace", check=False, timeout=180)
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, errors="replace", check=False,
+                         timeout=CONVERT_TIMEOUT_S)
     staging_exists = os.path.exists(staging)
     output_nonempty = staging_exists and os.path.getsize(staging) > 0
     from .cad_fallback import validate_document
@@ -363,8 +365,11 @@ def dwg_to_svg_fallback(dwg_path: str, svg_path: str) -> bool:
     if not tool:
         return False
     cmd = [tool, dwg_path]
-    with open(svg_path, "wb") as f_out:
-        res = subprocess.run(cmd, stdout=f_out, stderr=subprocess.PIPE, check=False)
+    try:
+        with open(svg_path, "wb") as f_out:
+            res = subprocess.run(cmd, stdout=f_out, stderr=subprocess.PIPE, check=False, timeout=CONVERT_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        return False
     return res.returncode == 0 and os.path.exists(svg_path) and os.path.getsize(svg_path) > 0
 
 
@@ -435,7 +440,6 @@ def detect_system_sheets(doc: Any) -> list[dict[str, Any]]:
             ins_layer = str(getattr(ins.dxf, "layer", ""))
             for attrib in getattr(ins, "attribs", []):
                 val = clean_mtext(getattr(attrib.dxf, "text", ""))
-                tag = str(getattr(attrib.dxf, "tag", "")).upper()
                 if is_system_title(val):
                     candidates.append({
                         "title": val,
@@ -694,7 +698,6 @@ FRAME_MIN_DIM = float(_CAD["frame_min_dim"])            # 闭合多段线外框�
 FRAME_MIN_SIDE = float(_CAD["frame_min_side"])          # 块参照图框的最小短边
 FRAME_MAX_ASPECT = float(_CAD["frame_max_aspect"])      # 超过此长宽比的是长条符号，不是图纸
 FRAME_DEDUP_TOL = float(_CAD["frame_dedup_tol"])        # 面积容差：落在大框内即视为嵌套子块
-FRAME_DUP_TOL = float(_CAD["frame_dup_tol"])
 UNIT_RECT_MIN_W, UNIT_RECT_MAX_W = float(_CAD["unit_rect_min_w"]), float(_CAD["unit_rect_max_w"])
 UNIT_RECT_MIN_H, UNIT_RECT_MAX_H = float(_CAD["unit_rect_min_h"]), float(_CAD["unit_rect_max_h"])
 UNIT_RECT_DEDUP_TOL = float(_CAD["unit_rect_dedup_tol"])
@@ -760,7 +763,6 @@ CAPTION_ORPHAN_H = float(_CAD.get("caption_orphan_height") or 28000.0)
 BAD_LAYER_ALLOW_WITH_CODE = bool(_DOM.get("unit_caption_bad_layer_allow_with_code", True))
 INSIDE_CAPTION_BAND_RATIO = float(_DOM.get("unit_inside_caption_band_ratio") or 0.25)
 CROP_PAD_SIDE = float(_CAD["crop_pad_side"])
-CROP_PAD_TOP = float(_CAD["crop_pad_top"])
 CROP_PAD_BOTTOM = float(_CAD["crop_pad_bottom"])
 PAGE_LONG_MM_MIN, PAGE_LONG_MM_MAX = float(_CAD["page_long_mm_min"]), float(_CAD["page_long_mm_max"])
 # 配电箱单元块的页面长边固定到 A3 左右：下游按“长边 2400px”光栅化，
@@ -916,18 +918,39 @@ class GeometryIndex:
                         out.append(i)
         return out
 
-    def contains(self, rect, point) -> bool:
-        return rect[0] <= point[0] <= rect[2] and rect[1] <= point[1] <= rect[3]
-
 
 def detect_drawing_frames(doc: Any, index: GeometryIndex) -> list[dict[str, Any]]:
     """找出图纸上所有真实图框幅面。
 
-    优先用图框块参照（``横式A0`` / ``2021版A0图框`` 这类），它们的范围就是精确幅面，
-    不依赖任何尺寸猜测；嵌套在图框内的图签/会签栏小块按包含关系与高重叠比例剔掉。
-    若无图框块，退而使用大尺寸闭合（或几何首尾重合）多段线外框；
-    若仍无，则根据标题启发式推导的系统图幅面接入，确保统一走入 v2 切片与高清渲染引擎。
+    优先采用 sheets.detect_sheets 进行全局多图幅识别与幅面优选（针对动态图框多幅面嵌套进行
+    边际实体密度收敛，并结合图纸目录自动填补图号、图名与类型分类）。
+    若检测不到，回退到几何包围盒去重与大尺寸闭合多段线外框；
+    若仍无，则根据标题启发式推导的系统图幅面接入。
     """
+    try:
+        from .sheets import detect_sheets
+        from .native_takeoff import _Walker
+        walker = _Walker(doc)
+        texts = walker.layout_texts(doc.modelspace(), "模型空间")
+        if texts:
+            sheets_list = detect_sheets(doc, index, texts)
+            if sheets_list:
+                frames = []
+                for s in sheets_list:
+                    blk = s.source.split(":", 1)[1] if ":" in s.source else (s.name or s.number or "系统图")
+                    frames.append({
+                        "bbox": s.bbox,
+                        "block": blk,
+                        "number": s.number,
+                        "name": s.name,
+                        "kind": s.kind,
+                        "source": s.source,
+                    })
+                frames.sort(key=lambda f: (-round(f["bbox"][3], -4), f["bbox"][0]))
+                return frames
+    except Exception as exc:
+        print(f"[CAD] sheets.detect_sheets 异常，回退常规图框探测: {exc}")
+
     frames: list[dict[str, Any]] = []
     for e in doc.modelspace().query("INSERT"):
         b = _insert_bounds(doc, e, index.block_cache)
@@ -1424,10 +1447,6 @@ def _match_box_rect_with_kind(
     return None, None
 
 
-def _match_box_rect(rects, cap) -> tuple[float, float, float, float] | None:
-    """给箱名找箱框：框下 → 侧旁 → 框内底带。"""
-    rect, _kind = _match_box_rect_with_kind(rects, cap)
-    return rect
 
 
 def _column_pitch(rects) -> float:
@@ -1597,6 +1616,21 @@ def build_unit_blocks(doc: Any, index: GeometryIndex, frames: list[dict[str, Any
     """
     text_cache: dict = {}
     blocks: list[dict[str, Any]] = []
+    table_boxes: list[tuple[float, float, float, float]] = []
+    switchgear_boxes: list[tuple[float, float, float, float]] = []
+    try:
+        from .gtable import reconstruct_gtable_from_dxf, parse_switchgear_table
+        gtables = reconstruct_gtable_from_dxf(doc)
+        for tbl in gtables:
+            if tbl.num_rows >= 3 and tbl.num_cols >= 3:
+                table_boxes.append(tbl.bbox)
+                tb_boxes, _, _ = parse_switchgear_table(tbl)
+                if any(b.code.startswith("C") for b in tb_boxes):
+                    switchgear_boxes.append(tbl.bbox)
+    except Exception:
+        table_boxes = []
+        switchgear_boxes = []
+
     for frame in frames:
         fbox = frame["bbox"]
         texts = _frame_texts(index, fbox, text_cache)
@@ -1607,9 +1641,11 @@ def build_unit_blocks(doc: Any, index: GeometryIndex, frames: list[dict[str, Any
             continue
 
         rects = _unit_rects(index, fbox)
+        # 排除落在密集表格矩阵内部的文字（如出线回路负荷名称），防止误作为箱名微观切片腰斩柜体
         captions = [
             t for t in texts
             if _looks_like_box_caption(t["text"]) and _caption_layer_allowed(t["layer"], t["text"])
+            and not any(tb[0] <= t["x"] <= tb[2] and tb[1] <= t["y"] <= tb[3] for tb in table_boxes)
         ]
         scale = _guess_plot_scale(fbox[2] - fbox[0], fbox[3] - fbox[1])
         pitch_x = _column_pitch(rects)
@@ -1687,6 +1723,24 @@ def build_unit_blocks(doc: Any, index: GeometryIndex, frames: list[dict[str, Any
             matched_ids.add(id(cap))
             used_codes.add(code.upper())
 
+        # 若图框包含多列连续低压配电柜表格且未产生微观单元块，整框完整保留为图纸幅面 (Sheet)
+        has_switchgear = any(
+            max(fbox[0], tb[0]) < min(fbox[2], tb[2]) and max(fbox[1], tb[1]) < min(fbox[3], tb[3])
+            for tb in switchgear_boxes
+        )
+        if has_switchgear and made == 0:
+            sheet_title = "低压配电柜系统图 (C01~C08)" if ("低压" in frame["title"] or not frame["title"]) else frame["title"]
+            blocks.append({
+                "rect": fbox,
+                "label": sheet_title,
+                "frame": frame["title"],
+                "scale": scale,
+                "box_code": "",
+                "split_source": "sheet",
+                "split_reason": "switchgear_intact",
+            })
+            made += 1
+
         missed = [t["text"] for t in captions if id(t) not in matched_ids]
         frame["missed_captions"] = missed
         if made:
@@ -1712,7 +1766,26 @@ def build_unit_blocks(doc: Any, index: GeometryIndex, frames: list[dict[str, Any
             })
         else:
             frame["kind"] = "skip"
-    return blocks
+
+    # 对输出的幅面/单元块做高重叠率去重，防止相同图签的重叠大图框重复输出
+    unique_blocks: list[dict[str, Any]] = []
+    for b in blocks:
+        r = b["rect"]
+        is_dup = False
+        for ub in unique_blocks:
+            ur = ub["rect"]
+            ix = max(0.0, min(r[2], ur[2]) - max(r[0], ur[0]))
+            iy = max(0.0, min(r[3], ur[3]) - max(r[1], ur[1]))
+            area_r = (r[2] - r[0]) * (r[3] - r[1])
+            area_ur = (ur[2] - ur[0]) * (ur[3] - ur[1])
+            if area_r > 0 and area_ur > 0:
+                overlap = (ix * iy) / min(area_r, area_ur)
+                if overlap > 0.65:
+                    is_dup = True
+                    break
+        if not is_dup:
+            unique_blocks.append(b)
+    return unique_blocks
 
 
 def summarize_unit_split(frames: list[dict[str, Any]], blocks: list[dict[str, Any]]) -> dict[str, Any]:

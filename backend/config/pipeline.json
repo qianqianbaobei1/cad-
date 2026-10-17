@@ -39,7 +39,6 @@
     "frame_min_side": 15000.0,
     "frame_max_aspect": 2.8,
     "frame_dedup_tol": 0.02,
-    "frame_dup_tol": 10.0,
     "unit_rect_min_w": 3500.0,
     "unit_rect_max_w": 100000.0,
     "unit_rect_min_h": 3000.0,
@@ -52,7 +51,6 @@
     "box_above_max": 7000.0,
     "box_x_tolerance": 5000.0,
     "crop_pad_side": 500.0,
-    "crop_pad_top": 600.0,
     "crop_pad_bottom": 2600.0,
     "page_long_mm_min": 240.0,
     "page_long_mm_max": 1600.0,
@@ -185,5 +183,28 @@
     ],
     "model_origin": "model_vision",
     "allow_confirmed_without_physical": false
+  },
+  "takeoff": {
+    "_comment": "原生读图引擎（sheets.py / takeoff.py）。长度阈值一律以全图文字字高中位数为单位，不写死图纸单位。",
+    "sheets": {
+      "min_side_text_heights": 40,
+      "max_aspect": 4.5,
+      "edge_tol_text_heights": 0.5,
+      "border_merge_ratio": 0.03,
+      "crossing_allowance_ratio": 0.002,
+      "title_block_x_ratio": 0.55,
+      "title_block_y_ratio": 0.35,
+      "note_title_markers": [
+        "说明",
+        "目录",
+        "材料表",
+        "图例",
+        "设备表"
+      ],
+      "unnumbered_overlap_drop": 0.1,
+      "variant_content_tolerance": 0.15,
+      "catalog_min_rows": 3,
+      "catalog_row_gap_text_heights": 5
+    }
   }
 }

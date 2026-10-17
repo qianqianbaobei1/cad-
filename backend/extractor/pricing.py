@@ -8,7 +8,7 @@ import os
 import re
 import sqlite3
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 # 报价口径全部来自 config/pricing.json（可用 EXTRACTOR_CONFIG_OVERRIDE_DIR 覆盖、可调铜价）。
 # 出厂默认值只是量级参考，正式报价前必须按当日行情与供应商实价核实。
@@ -24,8 +24,6 @@ PRICE_DB_PATH = str(_DB_CFG.get("path") or (Path(__file__).resolve().parent.pare
 
 COPPER_PRICE_PER_KG = float(_P_COPPER["price_per_kg"])
 COPPER_DENSITY = float(_P_COPPER["density_g_cm3"])
-COPPER_PRICE_SOURCE = str(_P_COPPER.get("price_source") or "")
-COPPER_PRICE_UPDATED = str(_P_COPPER.get("price_updated") or "")
 
 AUXILIARY_RATE = float(_P_RATES["auxiliary_rate"])
 LABOR_OUTGOING_RATE = float(_P_RATES["labor_outgoing"])
@@ -69,6 +67,12 @@ JOINT_VENTURE_BRANDS = tuple(_BRANDS.get("joint_venture") or ())
 COMPARISON_BRANDS = tuple(_BRANDS.get("comparison_brands") or ())
 BENCHMARK_BRAND = str(_BRANDS.get("benchmark_brand") or REFERENCE_BRAND)
 DOMESTIC_SUBSTITUTE = str(_BRANDS.get("domestic_substitute") or DEFAULT_BRAND)
+CANDIDATE_LOOKUP_BRANDS = tuple(_BRANDS.get("candidate_lookup") or ())
+INFO_PRICE_ORDER = tuple(_BRANDS.get("info_price_order") or ())
+MARKET_PRICE_ORDER = tuple(_BRANDS.get("market_price_order") or ())
+_REF_EST = _PRICING["reference_estimates"]
+REFERENCE_ESTIMATE_SOURCE = str(_REF_EST["source"])
+REFERENCE_ESTIMATE_BASIS = str(_REF_EST["basis"])
 UNKNOWN_MATERIAL_BASIS = str(_PRICING_GATES.get("unknown_material_basis") or "材料/板厚未收录（待人工询价）")
 STANDARD_CURRENTS = [float(c) for c in (_PRICING.get("standard_currents") or [])]
 
@@ -332,8 +336,6 @@ def lookup_price_library(
 
             return (s, -cand["price_tax"])
 
-            return (s, -cand["price_tax"])
-
         candidates.sort(key=score_candidate, reverse=True)
         best = candidates[0]
         best["match_status"] = "parameter-matched"
@@ -345,13 +347,15 @@ def lookup_price_library(
 def parse_component_features(raw_spec: str, category: str = "") -> dict:
     """从元器件规格字符串中提取特征向量 (极数、额定电流、分断能力、脱扣特性、脱扣器代号)"""
     text = (raw_spec or "").upper().replace(" ", "")
-    # 识别电流 (如 16A, C20, 100MA/80A, 125A/3P)
+    # 识别电流 (如 16A, C20, 100MA/80A, 125A/3P)。空格换成分隔符再匹配，
+    # 否则 “C16 2P” 会粘成 C162P 被读成 162A
+    spaced = re.sub(r"\s+", "/", (raw_spec or "").upper().strip())
     current_val = None
-    curr_m = re.search(r"(?:/|C|D|M|-)?(\d{1,4})A", text)
+    curr_m = re.search(CURRENT_PARSE_RE, spaced)
     if curr_m:
         current_val = int(curr_m.group(1))
     else:
-        num_m = re.search(r"[CD](\d{1,3})", text)
+        num_m = re.search(CURRENT_PARSE_FALLBACK_RE, spaced)
         if num_m:
             current_val = int(num_m.group(1))
 
@@ -729,21 +733,10 @@ def estimate_box_enclosure_price(box: dict, circuits_count: int) -> Tuple[float,
         if circuits_count >= tier.get("min_circuits", 0):
             tier_found = tier
             break
-    if tier_found:
-        base_price = float(tier_found["price"])
-        model_desc = tier_found["desc"].format(circuits_count=circuits_count)
-    elif is_floor or circuits_count > 24:
-        base_price = 1450.0  # 落地动力柜 / GGD / XL-21
-        model_desc = f"落地式配电柜外壳（估算:按{circuits_count}回路定额推导，GGD/XL-21参考800x1800x600 2.0mm，待核定）"
-    elif circuits_count > 12:
-        base_price = 580.0   # 中型明装配电箱
-        model_desc = f"挂墙式配电箱外壳（估算:按{circuits_count}回路定额推导，参考600x800x200 1.5mm，待核定）"
-    elif circuits_count > 6:
-        base_price = 360.0   # 小型明装照明箱
-        model_desc = f"明装照明配电箱外壳（估算:按{circuits_count}回路定额推导，参考400x500x180 1.2mm，待核定）"
-    else:
-        base_price = 220.0   # 微型控制箱
-        model_desc = f"小型端子/控制箱外壳（估算:按{circuits_count}回路定额推导，参考300x400x160 1.2mm，待核定）"
+    if not tier_found:
+        return 0.0, UNKNOWN_PRICE_BASIS
+    base_price = float(tier_found["price"])
+    model_desc = tier_found["desc"].format(circuits_count=circuits_count)
 
     for ip_prefix, prem in IP_PREMIUMS.items():
         if ip_prefix in ip:
@@ -1051,4 +1044,148 @@ def compare_brands_quotation(
         "benchmark_brand": BENCHMARK_BRAND,
         "domestic_substitute": DOMESTIC_SUBSTITUTE,
         "total_saving_ratio_pct": saving_ratio,
+    }
+
+
+def _tier(tiers: list, value: float) -> dict:
+    """按 max 升序取第一个容得下 value 的档位；max 为 null 的是最后一档。"""
+    for t in tiers:
+        if t.get("max") is None or value <= float(t["max"]):
+            return t
+    return tiers[-1]
+
+
+def estimate_reference_price(comp_name: str, raw_spec: str, category: str = "") -> dict:
+    """价格库没收录时给报价员看的经验定额参考价（config/pricing.json 的 reference_estimates）。
+
+    数字是内置经验值，不联网、不是供应商报价；source 如实写“定额估算”，前端需人工确认后才采用。
+    """
+    c_name = (comp_name or "").strip()
+    spec = (raw_spec or "").strip()
+    full_str = f"{c_name} {spec}".upper()
+
+    def out(model: str, price: float, brand: str) -> dict:
+        return {"model": model, "price": round(float(price), 2), "brand": brand,
+                "source": REFERENCE_ESTIMATE_SOURCE, "reference": REFERENCE_ESTIMATE_BASIS}
+
+    def current(default: int) -> int:
+        m = re.search(r"(\d+)\s*A", spec, re.IGNORECASE)
+        return int(m.group(1)) if m else default
+
+    # 1. 配电箱体 / 柜体：按尺寸与安装形式
+    if any(k in c_name for k in ("箱体", "配电箱", "配电柜", "动力箱", "基业箱")):
+        cfg = _REF_EST["enclosure"]
+        dims = parse_box_dimensions(spec)
+        if not dims:
+            return out(cfg["no_dims"]["model"].format(spec=spec or "定制规格"), cfg["no_dims"]["price"], cfg["brand"])
+        w, h, d = (int(x) for x in dims)
+        if h >= cfg["floor_min_height_mm"] or "柜" in c_name or any(k in full_str for k in cfg["floor_keywords"]):
+            row = cfg["floor"]
+        elif h >= cfg["power_min_height_mm"]:
+            row = cfg["power"]
+        else:
+            row = cfg["small"]
+        return out(row["model"].format(w=w, h=h, d=d), row["price"], cfg["brand"])
+
+    # 2. 电流互感器 (CT)：按变比一次电流分档
+    if "互感器" in c_name or "CT" in full_str or re.search(r"\b\d+/5\b", spec):
+        cfg = _REF_EST["ct"]
+        m = re.search(r"(\d+)/5", spec)
+        curr = int(m.group(1)) if m else int(cfg["default_ratio"])
+        return out(cfg["model"].format(curr=curr), _tier(cfg["tiers"], curr)["price"], cfg["brand"])
+
+    # 3. 浪涌保护器 / 防雷器 (SPD)
+    if "浪涌" in c_name or "防雷" in c_name or "SPD" in full_str:
+        cfg = _REF_EST["spd"]
+        row = cfg["t1"] if any(k in full_str for k in cfg["t1_keywords"]) else cfg["t2"]
+        return out(row["model"], row["price"], row["brand"])
+
+    # 4. 多功能电表 / 电度表
+    if "电表" in c_name or "仪表" in c_name or "WH" in full_str or "多功能" in c_name:
+        cfg = _REF_EST["meter"]
+        return out(cfg["model"], cfg["price"], cfg["brand"])
+
+    # 5. 交流接触器
+    if "接触器" in c_name:
+        cfg = _REF_EST["contactor"]
+        curr = current(int(cfg["default_current"]))
+        t = _tier(cfg["tiers"], curr)
+        return out(cfg["model"].format(series=t["series"], curr=curr), t["price"], cfg["brand"])
+
+    # 6. 热继电器：按整定范围上限分档
+    if "热继电器" in c_name or "热过载" in c_name or "~" in spec:
+        cfg = _REF_EST["thermal_relay"]
+        m = re.search(r"[\d.]+\s*~\s*([\d.]+)", spec)
+        top = float(m.group(1)) if m else float(cfg["default_current"])
+        t = _tier(cfg["tiers"], top)
+        return out(cfg["model"].format(series=t["series"], spec=spec), t["price"], cfg["brand"])
+
+    # 7. 隔离开关 / 刀熔开关
+    if "隔离开关" in c_name or "刀熔" in c_name or "HR6" in full_str:
+        cfg = _REF_EST["isolator"]
+        curr = current(int(cfg["default_current"]))
+        return out(cfg["model"].format(curr=curr), _tier(cfg["tiers"], curr)["price"], cfg["brand"])
+
+    # 8. 漏电断路器 (RCBO)
+    if "漏电" in c_name or "RCBO" in full_str or "30MA" in full_str:
+        cfg = _REF_EST["rcbo"]
+        feats = parse_component_features(spec, category)
+        curr = feats.get("current_a") or cfg["default_current"]
+        poles = feats.get("poles") or cfg["default_poles"]
+        row = cfg["multi_pole"] if ("3P" in poles or "4P" in poles) else cfg["single_pole"]
+        return out(row["model"].format(curr=curr), row["price"], cfg["brand"])
+
+    # 9. 微型断路器 (MCB)
+    if "微断" in c_name or "微型断路器" in c_name or "MCB" in full_str:
+        cfg = _REF_EST["mcb"]
+        feats = parse_component_features(spec, category)
+        curr = feats.get("current_a") or cfg["default_current"]
+        poles = feats.get("poles") or cfg["default_poles"]
+        price = cfg["pole_prices"].get(poles, cfg["other_price"])
+        return out(cfg["model"].format(poles=poles, curr=curr), price, cfg["brand"])
+
+    # 10. 塑壳断路器 (MCCB)
+    if "塑壳" in c_name or "MCCB" in full_str:
+        cfg = _REF_EST["mccb"]
+        feats = parse_component_features(spec, category)
+        curr = feats.get("current_a") or cfg["default_current"]
+        poles = feats.get("poles") or cfg["default_poles"]
+        model = cfg["model"].format(frame=max(curr, cfg["min_frame"]), poles=poles, curr=curr)
+        return out(model, _tier(cfg["tiers"], curr)["price"], cfg["brand"])
+
+    # 兜底：按额定电流线性估
+    cfg = _REF_EST["fallback"]
+    curr = parse_component_features(spec, category).get("current_a")
+    price = cfg["price_no_current"] if not curr else min(max(float(curr) * cfg["per_amp"], cfg["min"]), cfg["max"])
+    return out(f"{c_name} {spec}".strip(), price, cfg["brand"])
+
+
+def get_component_price_candidates(raw_spec: str, category: str = "", comp_name: str = "") -> dict:
+    """查询元器件在各个品牌的候选匹配型号与采购单价，含价库命中与定额估算参考价（ai_suggested 键沿用前端字段名）"""
+    feats = parse_component_features(raw_spec, category)
+    cat = feats.get("category") or ""
+    poles = feats.get("poles") or ""
+    curr = feats.get("current_a")
+    results = {}
+    for brand in CANDIDATE_LOOKUP_BRANDS:
+        match = lookup_price_library(cat, brand, poles, curr, raw_spec)
+        if match:
+            results[brand] = match
+
+    def first(order: tuple, source: str) -> Optional[dict]:
+        brand = next((b for b in order if b in results), None)
+        if brand is None:
+            return None
+        m = results[brand]
+        return {"brand": brand, "model": m["model"], "price": m["price_tax"], "source": source}
+
+    info_cand = first(INFO_PRICE_ORDER, "信息价")
+    market_cand = first(MARKET_PRICE_ORDER, "市场价")
+    ai_sugg = estimate_reference_price(comp_name, raw_spec, category)
+
+    return {
+        "library": results,
+        "info": info_cand,
+        "market": market_cand,
+        "ai_suggested": ai_sugg,
     }

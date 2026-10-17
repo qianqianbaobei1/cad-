@@ -3,7 +3,7 @@
 from __future__ import annotations
 import re
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .config import pipeline
@@ -83,9 +83,6 @@ class GroundedField(BaseModel):
     def evidence_ids(self) -> List[str]:
         """向后兼容历史 evidence_ids 访问"""
         return self.value_evidence_ids + self.relation_evidence_ids
-
-
-GroundedClaim = GroundedField  # V3.5 规范别名兼容
 
 
 # 字段级证据政策表（Field-Level Evidence Policy）：严格定义字段允许的证据类型

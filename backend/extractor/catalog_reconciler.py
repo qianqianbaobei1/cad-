@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 import re
-from typing import Any, Iterable, List, Optional, Set
+from typing import Any, Iterable, Optional
 
 from .schema import (
     Box,
@@ -22,8 +22,6 @@ from .schema import (
 from .cad_extractor import extract_panel_code, iter_panel_codes
 from .config import domain as _domain
 
-_CATALOG = _domain()["catalog"]
-PANEL_PREFIX_PATTERN = _CATALOG["panel_prefix_pattern"]
 _CAD_DOMAIN = _domain()["cad"]
 
 

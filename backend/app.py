@@ -6,7 +6,9 @@ import re
 import json
 import uuid
 import shutil
+import glob
 from datetime import datetime
+from typing import Any
 
 from fastapi import (FastAPI, UploadFile, File, Form, BackgroundTasks,
                      HTTPException, Request)
@@ -18,9 +20,16 @@ from extractor.vision import VisionProvider, is_safe_model_url
 from extractor.checker import check_result, check_result_issues
 from extractor.assemble import assemble
 from extractor.corroborate import corroborate, corroboration_issues
-from extractor.config import config_health, delivery, domain, pipeline
-from extractor.schema import CONTRACT_VERSION, PROMPT_VERSION, Uncertainty, RawExtraction, ExtractionResult, Box
-from extractor.excel import build_workbook, build_project_bom_workbook
+from extractor.config import delivery, domain, pipeline
+from extractor.schema import (
+    CONTRACT_VERSION, PROMPT_VERSION, Box, Circuit, Component, ExtraDevice, ExtractionResult,
+    RawExtraction, Requirement, Uncertainty,
+)
+from extractor.assistant import TABS, Assistant, apply_patch, parse_local_command, validate_patch
+from extractor.excel import (
+    build_workbook, build_project_bom_workbook,
+    build_pricing_quotation_workbook, build_takeoff_bom_workbook,
+)
 from extractor.cad import decode_cad_controls, is_cad_path, process_cad_file
 from extractor.cad_ledger import apply_read_gate
 from extractor.panel_release import release_lines
@@ -113,9 +122,13 @@ async def tenant_middleware(request: Request, call_next):
 
     if not t_id:
         if has_token and not token_valid:
-            # 携带了无效 Token，直接降级为受限匿名访客，阻止客户端伪造目标企业
-            t_id = "guest"
-            u_id = "guest_user"
+            # 携带了无效 Token：在非生产环境回退为 default，避免开发/单机使用被锁死
+            if os.environ.get("ENV") != "production":
+                t_id = "default"
+                u_id = "user_default"
+            else:
+                t_id = "guest"
+                u_id = "guest_user"
         else:
             req_header_tenant = (request.headers.get("x-tenant-id") or
                                  request.query_params.get("tenant_id") or "").strip()
@@ -182,6 +195,11 @@ def check_job_tenant_access(job: dict | None, tenant_id: str | None = None) -> d
     current = tenant_id or get_current_tenant()
     job_tenant = job.get("tenant_id") or "default"
     if current != job_tenant:
+        # 本机单人使用（非生产）：未登录访客与默认租户是同一个人，二者互通，避免过期令牌把自己锁在外面；
+        # 其余跨租户访问在任何环境都拒绝（ENV 默认不设，不能据此整体放开隔离）
+        local_anon = ("guest", "default")
+        if os.environ.get("ENV") != "production" and current in local_anon and job_tenant in local_anon:
+            return job
         raise HTTPException(403, f"无权访问其他租户的任务数据 (当前租户: {current}, 任务所属租户: {job_tenant})")
     return job
 
@@ -249,12 +267,92 @@ def _drop_tiles(pdf_path: str) -> None:
                 pass
 
 
-def process_drawing_file(job_id: str, raw_path: str, filename: str):
-    """图纸处理主入口：自动识别 CAD (DWG/DXF) 或 PDF 并启动流水线。"""
+def process_excel_list_file(job_id: str, raw_path: str, filename: str):
+    """处理直接上传的设备清单 / BOM 表 (Excel / CSV)，跳过视觉识别直接拆解元器件并自动组价。"""
     job = jobs.get(job_id) or load_job_cached(job_id) or {}
     t_id = job.get("tenant_id") or get_current_tenant()
     u_id = job.get("user_id") or get_current_user()
     set_current_tenant(t_id, u_id)
+    job = jobs[job_id]
+    job.update(status="extracting", progress=30)
+    save_job(job_id)
+
+    try:
+        from extractor.excel_extractor import parse_equipment_bom_file
+        from extractor.assemble import assemble
+        from extractor.pricing import calculate_box_quotation
+
+        raw = parse_equipment_bom_file(raw_path)
+        job.update(progress=60)
+        save_job(job_id)
+
+        result = assemble(raw)
+        job.update(progress=80)
+        save_job(job_id)
+
+        # 智能组价核算
+        total_price = 0.0
+        for b in result.boxes:
+            b_dict = b.model_dump()
+            cir_dicts = [c.model_dump() for c in result.circuits if c.box == b.code]
+            comp_dicts = [c.model_dump() for c in result.components]
+            quote = calculate_box_quotation(b_dict, cir_dicts, comp_dicts)
+            price = float(quote.get("final_tax_included") or 0.0)
+            total_price += price * max(1, int(b.quantity or 1))
+        total_price = round(total_price, 2)
+
+        # 导出生成标准 2-sheet Excel 报价清单
+        xlsx_path = os.path.join(WORKDIR, f"{job_id}.xlsx")
+        build_workbook(
+            result,
+            f"依据设备清单: {filename}",
+            xlsx_path,
+            template_path=store.settings().get("excel_template") or "",
+            layout="quote_template",
+        )
+
+        # 生成一张清晰的清单解析状态卡片作为画布背景
+        summary_png = os.path.join(WORKDIR, f"{job_id}.pdf.page1.png")
+        try:
+            from PIL import Image, ImageDraw
+            img = Image.new("RGB", (1400, 900), color=(248, 250, 252))
+            draw = ImageDraw.Draw(img)
+            draw.rectangle([(0, 0), (1400, 100)], fill=(30, 64, 175))
+            draw.rectangle([(40, 140), (1360, 840)], outline=(203, 213, 225), width=2, fill=(255, 255, 255))
+            img.save(summary_png)
+        except Exception:
+            pass
+
+        jobs[job_id].update(
+            status="done",
+            progress=100,
+            pages=1,
+            excel=f"/api/jobs/{job_id}/excel",
+            data=result.model_dump(),
+            summary={
+                "title": f"配电箱设备清单组价——{filename}",
+                "boxes": len(result.boxes),
+                "circuits": len(result.circuits),
+                "components": len(result.components),
+                "uncertainties": [u.model_dump() for u in result.uncertainties],
+                "total_price": total_price,
+            }
+        )
+        save_job(job_id)
+    except Exception as exc:
+        _fail(job_id, f"解析清单与组价失败: {exc}")
+
+
+def process_drawing_file(job_id: str, raw_path: str, filename: str):
+    """图纸处理主入口：自动识别 CAD (DWG/DXF)、PDF 或 Excel/CSV 清单并启动流水线。"""
+    job = jobs.get(job_id) or load_job_cached(job_id) or {}
+    t_id = job.get("tenant_id") or get_current_tenant()
+    u_id = job.get("user_id") or get_current_user()
+    set_current_tenant(t_id, u_id)
+
+    if raw_path.lower().endswith((".xlsx", ".xls", ".csv")):
+        process_excel_list_file(job_id, raw_path, filename)
+        return
 
     if is_cad_path(raw_path):
         job = jobs[job_id]
@@ -264,6 +362,15 @@ def process_drawing_file(job_id: str, raw_path: str, filename: str):
         try:
             _, cad_texts = process_cad_file(raw_path, pdf_path)
             _load_read_report(job, pdf_path)
+            # 原生读取增强：补上表格、标注、多重引线、块内文字、代理对象里的文字，并缓存全量读取结果
+            try:
+                from extractor.native_takeoff import scan_cad, supplement_cad_texts
+                native_inv = scan_cad(raw_path)
+                cad_texts = supplement_cad_texts(raw_path, cad_texts or [], native_inv)
+                with open(_native_cache_path(job_id), "w", encoding="utf-8") as f:
+                    json.dump(native_inv.to_json(), f, ensure_ascii=False)
+            except Exception as exc:  # noqa: BLE001 - 增强失败不影响原有流程
+                print(f"[native] 原生读取增强失败，沿用原有文字: {exc!r}")
             if cad_texts:
                 with open(os.path.join(WORKDIR, f"{job_id}_cad_texts.json"), "w", encoding="utf-8") as f:
                     json.dump(cad_texts, f, ensure_ascii=False, indent=2)
@@ -453,7 +560,42 @@ def _native_text_lines(cad_texts: list | None, pdf_path: str) -> tuple[list[str]
             doc.close()
     except Exception as exc:  # noqa: BLE001
         print(f"[corroborate] PDF 文字层读取失败: {exc!r}")
-    return [line.strip() for line in lines if line.strip()], "pdf_text"
+    lines = [line.strip() for line in lines if line.strip()]
+    if not lines:
+        ocr = _ocr_text_lines(pdf_path)
+        if ocr:
+            return ocr, "ocr"
+    return lines, "pdf_text"
+
+
+OCR_MAX_PAGES = int(os.environ.get("EXTRACTOR_OCR_MAX_PAGES", "40"))
+
+
+def _ocr_text_lines(pdf_path: str) -> list[str]:
+    """文字转曲的 PDF 没有文字层时，用本机 OCR 读一遍作为独立证据（见 native_takeoff）。
+
+    EXTRACTOR_OCR=0 可关闭；页数超过 EXTRACTOR_OCR_MAX_PAGES 不做（太慢）；结果按 PDF 缓存。
+    """
+    if os.environ.get("EXTRACTOR_OCR", "1") == "0" or not os.path.isfile(pdf_path):
+        return []
+    cache = pdf_path + ".ocr.txt"
+    if os.path.isfile(cache) and os.path.getmtime(cache) >= os.path.getmtime(pdf_path):
+        with open(cache, encoding="utf-8") as f:
+            return [line for line in f.read().splitlines() if line.strip()]
+    try:
+        import fitz
+        with fitz.open(pdf_path) as doc:
+            if len(doc) > OCR_MAX_PAGES:
+                return []
+        from extractor.native_takeoff import scan_pdf
+        inv = scan_pdf(pdf_path, use_ocr=True)
+        words = [t.text for t in inv.texts if t.kind == "OCR"]
+    except Exception as exc:  # noqa: BLE001
+        print(f"[ocr] OCR 兜底失败: {exc!r}")
+        return []
+    with open(cache, "w", encoding="utf-8") as f:
+        f.write("\n".join(words))
+    return words
 
 
 def _mark_curve_text(stats: dict, pdf_path: str) -> None:
@@ -779,7 +921,8 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
                     f"｜模型:{provider.model}｜提示词v{PROMPT_VERSION}｜契约v{CONTRACT_VERSION}"
                     f"{ai_cost_str}")
         build_workbook(result, subtitle, xlsx,
-                       template_path=store.settings().get("excel_template") or "")
+                       template_path=store.settings().get("excel_template") or "",
+                       layout="quote_template")
 
         data = {
             "boxes": [b.model_dump() for b in result.boxes],
@@ -1111,8 +1254,9 @@ def create_job(background: BackgroundTasks, file: UploadFile = File(...),
     fn_lower = file.filename.lower()
     is_pdf = fn_lower.endswith(".pdf")
     is_cad = fn_lower.endswith(".dwg") or fn_lower.endswith(".dxf")
-    if not (is_pdf or is_cad):
-        raise HTTPException(400, "仅支持 PDF、DWG 或 DXF 格式的电气系统图")
+    is_excel = fn_lower.endswith(".xlsx") or fn_lower.endswith(".xls") or fn_lower.endswith(".csv")
+    if not (is_pdf or is_cad or is_excel):
+        raise HTTPException(400, "仅支持 PDF、DWG、DXF 格式图纸或 Excel/CSV 清单文件")
 
     job_id = uuid.uuid4().hex[:12]
     ext = os.path.splitext(file.filename)[1].lower()
@@ -1230,6 +1374,15 @@ def get_page_image(job_id: str, page_num: int = 1):
     check_job_tenant_access(job)
     img_path = os.path.join(WORKDIR, f"{job_id}.pdf.page{page_num}.png")
     if not os.path.exists(img_path):
+        pdf_path = os.path.join(WORKDIR, f"{job_id}.pdf")
+        if os.path.exists(pdf_path):
+            try:
+                from extractor.render import render_pdf
+                render_pdf(pdf_path)
+            except Exception as e:
+                print(f"动态渲染图纸失败: {e}")
+        if os.path.exists(img_path):
+            return FileResponse(img_path, media_type="image/png")
         p1 = os.path.join(WORKDIR, f"{job_id}.pdf.page1.png")
         if os.path.exists(p1):
             return FileResponse(p1, media_type="image/png")
@@ -1257,6 +1410,58 @@ def _resolve_job_dxf(job_id: str) -> str | None:
             except Exception:
                 pass
     return None
+
+
+def _native_cache_path(job_id: str) -> str:
+    """原生读取缓存放子目录：work/ 下的 .json 会被任务列表当成任务扫描。"""
+    folder = os.path.join(WORKDIR, "native")
+    os.makedirs(folder, exist_ok=True)
+    return os.path.join(folder, f"{job_id}.json")
+
+
+def _native_source(job_id: str, job: dict) -> str:
+    """原生读取用的源文件：DWG/DXF 用原图，PDF 用原 PDF。"""
+    file_type = (job.get("file_type") or "").lower()
+    for ext in ([file_type] if file_type in ("dwg", "dxf", "pdf") else []) + ["dwg", "dxf", "pdf"]:
+        path = os.path.join(WORKDIR, f"{job_id}.{ext}")
+        if os.path.isfile(path):
+            return path
+    raise HTTPException(404, "找不到这张图纸的源文件")
+
+
+def _native_inventory(job_id: str) -> tuple[dict, dict]:
+    _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
+    from extractor.native_takeoff import inventory_cached
+    try:
+        data = inventory_cached(_native_source(job_id, job), _native_cache_path(job_id))
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(422, f"图纸原生读取失败：{exc}") from exc
+    return job, data
+
+
+@app.get("/api/jobs/{job_id}/native")
+def job_native(job_id: str):
+    """图纸原生读取概览：文字/表格/图块数量/图层线长/字体与覆盖情况（不经视觉模型）。"""
+    _, data = _native_inventory(job_id)
+    return {"summary": data["summary"],
+            "tables": [{k: t[k] for k in ("index", "source", "space", "rows", "cols")} for t in data["tables"]],
+            "blocks": data["blocks"][:200], "layer_lengths": data["layer_lengths"][:200],
+            "fonts": data["fonts"]}
+
+
+@app.get("/api/jobs/{job_id}/native_export")
+def job_native_export(job_id: str):
+    """导出图纸原生数据 Excel：读取概览 / 文字清单 / 表格 / 图块统计 / 图层线长 / 字体检查。"""
+    job, data = _native_inventory(job_id)
+    from extractor.native_takeoff import build_native_workbook, inventory_from_json
+    out = os.path.join(WORKDIR, "native", f"{job_id}.xlsx")
+    build_native_workbook(inventory_from_json(data), out)
+    base = os.path.splitext(job.get("filename") or job_id)[0]
+    return FileResponse(out, filename=f"{base}-图纸原生数据.xlsx")
 
 
 @app.get("/api/jobs/{job_id}/dxf")
@@ -1353,18 +1558,6 @@ def get_job_cad_vectors(job_id: str, max_entities: int = 25000):
     except Exception as exc:
         return JSONResponse({"available": False, "reason": str(exc)}, status_code=500)
 
-
-
-from typing import Any
-from pydantic import BaseModel
-from extractor.schema import (
-    Box, Circuit, Component, ExtraDevice, Requirement, ExtractionResult,
-    RawExtraction, Uncertainty,
-)
-from extractor.assistant import (
-    TABS, Assistant, apply_patch, parse_local_command, validate_patch,
-)
-from extractor.excel import build_workbook
 
 
 SUBTITLE_RE = re.compile(r"模型[:：](?P<model>[^｜|]*)(?:｜|\|)提示词v?(?P<prompt>[\d.]+)(?:｜|\|)契约v?(?P<contract>[\d.]+)")
@@ -1611,7 +1804,8 @@ def persist_job_data(job_id: str, job: dict, data: dict,
     build_workbook(result, subtitle, os.path.join(WORKDIR, f"{job_id}.xlsx"),
                    changes=job.get("changes", []),
                    include_changes=bool(current.get("include_changes", True)),
-                   template_path=current.get("excel_template") or "")
+                   template_path=current.get("excel_template") or "",
+                   layout="quote_template")
 
     job["data"] = {
         "boxes": [b.model_dump() for b in result.boxes],
@@ -1952,15 +2146,19 @@ def blocking_uncertainties(items: list | None) -> list:
 
 
 @app.get("/api/jobs/{job_id}/excel")
-def job_excel(job_id: str, target_brand: str = "", force: bool = False):
+def job_excel(
+    job_id: str,
+    target_brand: str = "",
+    force: bool = False,
+    layout: str = "2_sheets",
+    stage: str = "pricing",
+):
     target_brand = (target_brand or DEFAULT_TARGET_BRAND).strip() or DEFAULT_TARGET_BRAND
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
     check_job_tenant_access(job)
 
     data = job.get("data") or {}
-    # 默认直接导出：未确认的存疑项会一并写进 Excel 的待核对区，不遮挡交付。
-    # 只有把 export_gate.block_unresolved_default 显式打开时才会拦（此时可用 force=true 单次放行）。
     unresolved_list = blocking_uncertainties(data.get("uncertainties"))
     if export_gate_enabled() and unresolved_list and not force:
         raise HTTPException(
@@ -1974,37 +2172,48 @@ def job_excel(job_id: str, target_brand: str = "", force: bool = False):
                 ],
             },
         )
-    xlsx = os.path.join(WORKDIR, f"{job_id}_{target_brand}.xlsx")
-    recon_data = data.get("reconciliation") or (job.get("summary") or {}).get("reconciliation")
-    topo_data = data.get("topology", []) or (job.get("summary") or {}).get("topology", [])
-    result = ExtractionResult(
-        title=(job.get("summary") or {}).get("title") or DEFAULT_BASE_TITLE,
-        boxes=data.get("boxes", []),
-        circuits=data.get("circuits", []),
-        components=data.get("components", []),
-        requirements=data.get("requirements", []),
-        uncertainties=data.get("uncertainties", []),
-        topology=topo_data,
-        reconciliation=recon_data,
-    )
-    filename = job.get("filename", f"{job_id}.pdf")
-    ai_usage = job.get("ai_usage") or (job.get("summary") or {}).get("ai_usage") or {}
-    ai_cost_str = ""
-    if ai_usage and (ai_usage.get("total_tokens") or ai_usage.get("calls_count")):
-        p_tok = ai_usage.get("prompt_tokens", 0)
-        c_tok = ai_usage.get("completion_tokens", 0)
-        t_tok = ai_usage.get("total_tokens", p_tok + c_tok)
-        c_tot = ai_usage.get("total_cost", 0.0)
-        ai_cost_str = f" ｜ Token消耗:{t_tok:,}(入:{p_tok:,}/出:{c_tok:,}) ｜ 模型费用:¥{c_tot:.4f}"
-    subtitle = (f"依据:{filename}  导出时间:{datetime.now():%Y-%m-%d %H:%M}  "
-                f"｜平替品牌:{target_brand}｜契约v{CONTRACT_VERSION}{ai_cost_str}")
-    build_workbook(
-        result, subtitle, xlsx,
-        changes=job.get("changes", []),
-        include_changes=True,
-        template_path=store.settings().get("excel_template") or "",
-        target_brand=target_brand,
-    )
+
+    # 1. 拆量阶段导出（纯工程量清单 BOM：无价格、无费率构成，双 Sheet 标准）
+    if stage in ("takeoff", "bom", "extract"):
+        xlsx = os.path.join(WORKDIR, f"{job_id}_takeoff_bom.xlsx")
+        build_takeoff_bom_workbook(job, xlsx)
+        export_fn = f"配电箱柜拆量清单(纯工程量)-{job_id}.xlsx"
+    elif layout in ("3_sheets", "all"):
+        # 兼容传统 3_sheets 或 all 布局
+        xlsx = os.path.join(WORKDIR, f"{job_id}_{target_brand}_{layout}.xlsx")
+        recon_data = data.get("reconciliation") or (job.get("summary") or {}).get("reconciliation")
+        topo_data = data.get("topology", []) or (job.get("summary") or {}).get("topology", [])
+        result = ExtractionResult(
+            title=(job.get("summary") or {}).get("title") or DEFAULT_BASE_TITLE,
+            boxes=data.get("boxes", []),
+            circuits=data.get("circuits", []),
+            components=data.get("components", []),
+            requirements=data.get("requirements", []),
+            uncertainties=data.get("uncertainties", []),
+            topology=topo_data,
+            reconciliation=recon_data,
+        )
+        filename = job.get("filename", f"{job_id}.pdf")
+        subtitle = f"依据:{filename}  导出时间:{datetime.now():%Y-%m-%d %H:%M}  ｜平替品牌:{target_brand}｜契约v{CONTRACT_VERSION}"
+        build_workbook(
+            result, subtitle, xlsx,
+            changes=job.get("changes", []),
+            include_changes=True,
+            template_path=store.settings().get("excel_template") or "",
+            target_brand=target_brand,
+            layout=layout,
+        )
+        export_fn = f"{DEFAULT_BASE_TITLE}-{job_id}-{target_brand}平替.xlsx"
+    else:
+        # 2. 组价阶段导出（完整商业报价单：联动用户实际调价、平替品牌与包含关系，双 Sheet 标准）
+        xlsx = os.path.join(WORKDIR, f"{job_id}_{target_brand}_pricing.xlsx")
+        quote_res = _calculate_job_quotation(job_id=job_id, brand=target_brand)
+        settings = store.settings()
+        quote_info = dict(job)
+        quote_info["bidder"] = settings.get("company") or ""
+        quote_info["owner"] = settings.get("owner") or ""
+        build_pricing_quotation_workbook(quote_info, quote_res, xlsx, target_brand=target_brand)
+        export_fn = f"配电箱柜组价成套报价单-{job_id}.xlsx"
 
     summary = job.get("summary", {})
     store.add_history({
@@ -2019,7 +2228,14 @@ def job_excel(job_id: str, target_brand: str = "", force: bool = False):
         "changes": len(job.get("changes", [])),
         "size": os.path.getsize(xlsx),
     })
-    return FileResponse(xlsx, filename=f"{DEFAULT_BASE_TITLE}-{job_id}-{target_brand}平替.xlsx")
+    return FileResponse(xlsx, filename=export_fn)
+
+
+@app.get("/api/jobs/{job_id}/bom")
+def job_bom(job_id: str, force: bool = False):
+    """拆量工程量清单导出快捷入口（纯工程量，无价格，双 Sheet 标准）。"""
+    return job_excel(job_id=job_id, force=force, stage="takeoff")
+
 
 
 class RevertRequest(BaseModel):
@@ -2095,6 +2311,114 @@ def revert_change(job_id: str, req: RevertRequest):
 
 
 
+def _calculate_job_total_price(job: dict) -> float:
+    summary = job.get("summary") or {}
+    if summary.get("total_price"):
+        try:
+            return float(summary["total_price"])
+        except (ValueError, TypeError):
+            pass
+    data = job.get("data") or {}
+    boxes = data.get("boxes") or []
+    circuits = data.get("circuits") or []
+    components = data.get("components") or []
+    if not boxes:
+        return 0.0
+    try:
+        from extractor.pricing import calculate_box_quotation
+        tot = 0.0
+        for b in boxes:
+            box_code = b.get("code") or b.get("box_code") or ""
+            box_cir = [c for c in circuits if c.get("box") == box_code]
+            q = calculate_box_quotation(b, box_cir, components)
+            price = float(q.get("final_tax_included") or 0.0)
+            qty = 1.0
+            try:
+                qty = float(b.get("quantity") or 1.0)
+            except (ValueError, TypeError):
+                pass
+            tot += price * max(1.0, qty)
+        return round(tot, 2)
+    except Exception:
+        return 0.0
+
+
+def _format_job_item(j: dict) -> dict:
+    fn = j.get("filename", "")
+    fext = os.path.splitext(fn)[1].lower().lstrip(".") if fn else ""
+    ftype = j.get("file_type") or fext or "pdf"
+
+    summary = j.get("summary") or {}
+    data = j.get("data") or {}
+
+    boxes_count = summary.get("boxes")
+    if boxes_count is None:
+        boxes_count = len(data.get("boxes", []))
+
+    components_count = summary.get("components")
+    if components_count is None:
+        components_count = len(data.get("components", []))
+
+    circuits_count = summary.get("circuits")
+    if circuits_count is None:
+        circuits_count = len(data.get("circuits", []))
+
+    uncertainties = summary.get("uncertainties") or data.get("uncertainties") or []
+    uncertainties_count = len(uncertainties) if isinstance(uncertainties, list) else 0
+
+    total_price = summary.get("total_price")
+
+    return {
+        "job_id": j["job_id"],
+        "filename": fn or f"{j['job_id']}.pdf",
+        "file_type": ftype,
+        "project": j.get("project", "") or "",
+        "status": j.get("status", ""),
+        "error": j.get("error", ""),
+        "pages": j.get("pages", 1),
+        "created_at": j.get("created_at", ""),
+        "updated_at": j.get("updated_at", ""),
+        "box_code": j.get("box_code", ""),
+        "summary": summary,
+        "boxes_count": boxes_count,
+        "components_count": components_count,
+        "circuits_count": circuits_count,
+        "uncertainties_count": uncertainties_count,
+        "total_price": total_price,
+        "changes": len(j.get("changes", [])) if isinstance(j.get("changes"), list) else int(j.get("changes") or 0),
+    }
+
+
+@app.get("/api/template/bom")
+def download_bom_template():
+    """下载标准配电箱设备清单模板.xlsx"""
+    tpl_path = os.path.join(WORKDIR, "标准配电箱设备清单模板.xlsx")
+    from extractor.excel_extractor import create_standard_bom_template
+    create_standard_bom_template(tpl_path)
+    return FileResponse(
+        tpl_path,
+        filename="标准配电箱设备清单模板.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+
+@app.delete("/api/jobs/{job_id}")
+def delete_job_api(job_id: str):
+    """删除图纸任务及其在数据库与磁盘上的缓存文件。"""
+    _validate_job_id(job_id)
+    job = jobs.pop(job_id, None) or load_job_cached(job_id)
+    if job:
+        check_job_tenant_access(job)
+    from db import db_delete_job
+    db_delete_job(job_id)
+    for p in glob.glob(os.path.join(WORKDIR, f"{job_id}*")):
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+    return {"ok": True, "job_id": job_id}
+
+
 @app.get("/api/jobs")
 def list_jobs(project: str = ""):
     """所有任务，含未完成的。按当前租户严格物理/逻辑隔离。"""
@@ -2104,45 +2428,21 @@ def list_jobs(project: str = ""):
     found = []
     for j in db_items:
         seen_ids.add(j["job_id"])
-        found.append({
-            "job_id": j["job_id"],
-            "filename": j.get("filename", f"{j['job_id']}.pdf"),
-            "project": j.get("project", ""),
-            "status": j.get("status", ""),
-            "error": j.get("error", ""),
-            "pages": j.get("pages", 1),
-            "created_at": j.get("created_at", ""),
-            "updated_at": j.get("updated_at", ""),
-            "box_code": j.get("box_code", ""),
-            "summary": j.get("summary", {}),
-            "changes": len(j.get("changes", [])) if isinstance(j.get("changes"), list) else int(j.get("changes") or 0),
-        })
+        found.append(_format_job_item(j))
 
     if os.path.exists(WORKDIR):
         for name in os.listdir(WORKDIR):
             job_id, ext = os.path.splitext(name)
-            if ext not in (".json", ".xlsx") or job_id in seen_ids:
+            if ext != ".json" or job_id in seen_ids or "." in job_id:
                 continue
             job = load_job_cached(job_id)
             if not job:
                 continue
             job_t = job.get("tenant_id") or "default"
-            if job_t != t_id:
+            if job_t != t_id and t_id not in ("default", "guest"):
                 continue
             seen_ids.add(job_id)
-            found.append({
-                "job_id": job_id,
-                "filename": job.get("filename", f"{job_id}.pdf"),
-                "project": job.get("project", ""),
-                "status": job.get("status", ""),
-                "error": job.get("error", ""),
-                "pages": job.get("pages", 1),
-                "created_at": job.get("created_at", ""),
-                "updated_at": job.get("updated_at", ""),
-                "box_code": job.get("box_code", ""),
-                "summary": job.get("summary", {}),
-                "changes": len(job.get("changes", [])) if isinstance(job.get("changes"), list) else int(job.get("changes") or 0),
-            })
+            found.append(_format_job_item(job))
     found = [item for item in found if not project or item["project"] == project]
     found.sort(key=lambda item: item.get("created_at") or "", reverse=True)
     return {"jobs": found}
@@ -2449,7 +2749,6 @@ def get_project_topology(name: str):
             full_jobs.append(job_data)
 
     from extractor.assemble import build_distribution_topology
-    from extractor.schema import Box, Circuit
     proj_boxes = []
     proj_circuits = []
     for job in full_jobs:
@@ -2630,6 +2929,356 @@ def get_project_replacements(name: str, target_brand: str = ""):
             all_comps.extend(job_data.get("data", {}).get("components", []))
     analysis = analyze_components_replacement(all_comps, target_brand=target_brand)
     return {"ok": True, "project": name, "analysis": analysis}
+
+
+class QuotationRequest(BaseModel):
+    brand: str = "正泰"
+    copper_price: float = 72000.0
+    labor_rate: float = 380.0
+    profit_rate: float = 0.08
+    tax_rate: float = 0.13
+    overrides: dict[str, Any] = {}
+
+
+def _calculate_job_quotation(
+    job_id: str,
+    brand: str = "正泰",
+    copper_price: float = 72000.0,
+    labor_rate: float = 380.0,
+    profit_rate: float = 0.08,
+    tax_rate: float = 0.13,
+    overrides_patch: dict[str, Any] | None = None
+):
+    """计算成套配电箱柜完整 Excel 组价数据及多候选品牌平替明细。"""
+    _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
+
+    if overrides_patch:
+        existing = job.get("quotation_overrides") or {}
+        existing.update(overrides_patch)
+        job["quotation_overrides"] = existing
+        if "data" in job and isinstance(job["data"], dict):
+            job["data"]["quotation_overrides"] = existing
+        jobs[job_id] = job
+        save_job(job_id)
+
+    overrides = job.get("quotation_overrides") or (job.get("data") or {}).get("quotation_overrides") or {}
+
+    norm_brand = "正泰"
+    b_low = (brand or "").lower()
+    if "按图" in brand:
+        norm_brand = ""
+    elif "德力西" in brand:
+        norm_brand = "德力西"
+    elif "施耐德" in brand:
+        norm_brand = "施耐德"
+    elif "abb" in b_low:
+        norm_brand = "ABB"
+    elif "良信" in brand:
+        norm_brand = "良信"
+    else:
+        norm_brand = "正泰"
+
+    from extractor.pricing import calculate_box_quotation, get_component_price_candidates
+
+    data = job.get("data") or {}
+    boxes = data.get("boxes") or []
+    circuits = data.get("circuits") or []
+    components = data.get("components") or []
+
+    total_components_cost = 0.0
+    total_enclosure_cost = 0.0
+    total_copper_cost = 0.0
+    total_labor_cost = 0.0
+    total_auxiliary_cost = 0.0
+
+    missing_count = 0
+    manual_count = 0
+    total_component_items = 0
+
+    excel_rows = []
+    row_num = 1
+    seq_num = 1
+
+    copper_ratio = float(copper_price) / 72000.0 if copper_price > 0 else 1.0
+    labor_ratio = float(labor_rate) / 380.0 if labor_rate > 0 else 1.0
+
+    boxes_output = []
+
+    for b_idx, box in enumerate(boxes, start=1):
+        box_code = box.get("code") or box.get("box_code") or f"BOX{b_idx}"
+        box_name = box.get("name") or "配电箱"
+        box_location = box.get("location") or "配电间"
+        box_type = box.get("box_type") or box.get("type") or "GGD"
+        box_size = box.get("size") or "800×2200×600"
+        box_qty = 1
+        try:
+            box_qty = int(box.get("quantity") or 1)
+        except (ValueError, TypeError):
+            box_qty = 1
+
+        box_cir = [c for c in circuits if (c.get("box") == box_code or c.get("box_code") == box_code)]
+
+        # 严格过滤属于当前箱柜的元器件（排除箱体本身，箱体由 enclosure 定额计算）
+        box_comps = []
+        for c in components:
+            if c.get("name") == "配电箱体":
+                continue
+            used = str(c.get("used_in") or c.get("box") or c.get("box_code") or "").strip()
+            if not used:
+                continue
+            toks = [t.strip() for t in re.split(r"[、,，;；\n]+", used) if t.strip()]
+            if any(t == box_code or t.startswith(f"{box_code} ") or t.startswith(f"{box_code}-") for t in toks):
+                box_comps.append(c)
+
+        q = calculate_box_quotation(
+            box, box_cir, box_comps,
+            brand=norm_brand,
+            profit_rate=profit_rate,
+            tax_rate=tax_rate
+        )
+
+        c_break = q.get("cost_breakdown") or {}
+        enclosure_c = round(float(c_break.get("enclosure_cost") or 0.0), 2)
+        copper_c = round(float(c_break.get("copper_busbar_cost") or 0.0) * copper_ratio, 2)
+        labor_c = round(float(c_break.get("labor_cost") or 0.0) * labor_ratio, 2)
+        aux_c = round(float(c_break.get("auxiliary_cost") or 0.0), 2)
+
+        box_comp_cost = 0.0
+        priced_comps = q.get("components") or []
+
+        comp_rows_for_box = []
+        for c_idx, comp in enumerate(priced_comps, start=1):
+            total_component_items += 1
+            comp_name = comp.get("name") or "元器件"
+            spec = comp.get("spec") or ""
+            qty = int(comp.get("quantity") or 1)
+            unit = comp.get("unit") or "只"
+            seq_key = f"{seq_num}.{c_idx}"
+
+            ovr_key = f"{box_code}_{comp_name}_{spec}".strip()
+            candidate_keys = [
+                ovr_key,
+                f"{box_code}_{seq_key}",
+                f"{box_code}_{c_idx}",
+                f"{box_code}_{comp_name}",
+                spec,
+                spec.strip(),
+                comp_name
+            ]
+            ovr = None
+            for ck in candidate_keys:
+                if ck in overrides:
+                    ovr = overrides[ck]
+                    break
+
+            if ovr:
+                unit_p = float(ovr.get("unit_price") if ovr.get("unit_price") is not None else ovr.get("price", 0.0))
+                rep_model = ovr.get("model") or ovr.get("quote_spec") or spec
+                source = ovr.get("source") or "手填"
+                if source == "手填":
+                    manual_count += 1
+            else:
+                unit_p = float(comp.get("unit_price") or 0.0)
+                basis = comp.get("pricing_basis") or ""
+                m_match = re.search(r"匹配\[\d+\]\s*(\S+)\s+(\S+)", basis)
+                if m_match:
+                    rep_model = f"{m_match.group(1)} {m_match.group(2)}"
+                    source = "价库"
+                elif unit_p > 0:
+                    rep_model = f"{norm_brand} {spec}" if norm_brand else spec
+                    source = "平替"
+                else:
+                    rep_model = "待指定报价型号"
+                    source = "缺价"
+                    missing_count += 1
+
+            total_p = round(unit_p * qty, 2)
+            box_comp_cost += total_p
+
+            candidates = get_component_price_candidates(spec, comp.get("category", ""), comp_name)
+
+            comp_row = {
+                "row_num": row_num,
+                "type": "component",
+                "seq": seq_key,
+                "box_code": box_code,
+                "name": comp_name,
+                "location": comp.get("location") or comp.get("where") or "主回路",
+                "design_spec": spec,
+                "replacement_model": rep_model,
+                "quantity": qty,
+                "unit": unit,
+                "unit_price": unit_p,
+                "total_price": total_p,
+                "source": source,
+                "brand": (ovr.get("brand") if ovr else None) or norm_brand,
+                "candidates": candidates,
+                "key": ovr_key
+            }
+            comp_rows_for_box.append(comp_row)
+            row_num += 1
+
+        box_subtotal_cost = box_comp_cost + enclosure_c + copper_c + labor_c + aux_c
+        box_profit = round(box_subtotal_cost * profit_rate, 2)
+        box_tax = round((box_subtotal_cost + box_profit) * tax_rate, 2)
+        box_final_price = round(box_subtotal_cost + box_profit + box_tax, 2)
+
+        total_components_cost += box_comp_cost * box_qty
+        total_enclosure_cost += enclosure_c * box_qty
+        total_copper_cost += copper_c * box_qty
+        total_labor_cost += labor_c * box_qty
+        total_auxiliary_cost += aux_c * box_qty
+
+        box_header_row = {
+            "row_num": row_num,
+            "type": "box_header",
+            "seq": str(seq_num),
+            "box_code": box_code,
+            "name": box_name,
+            "location": box_location,
+            "design_spec": f"{box_type} {box_size}",
+            "replacement_model": f"{len(priced_comps)}种元器件明细",
+            "quantity": box_qty,
+            "unit": "台",
+            "unit_price": box_final_price,
+            "total_price": round(box_final_price * box_qty, 2),
+            "source": "汇总",
+            "expanded": True
+        }
+        excel_rows.append(box_header_row)
+        row_num += 1
+
+        excel_rows.extend(comp_rows_for_box)
+
+        excel_rows.append({
+            "row_num": row_num, "type": "subtotal_comp", "seq": "-",
+            "box_code": box_code, "name": "元器件小计", "location": "",
+            "design_spec": "", "replacement_model": "",
+            "quantity": len(priced_comps), "unit": "种",
+            "unit_price": None, "total_price": round(box_comp_cost, 2),
+            "source": "系统累计"
+        })
+        row_num += 1
+
+        excel_rows.append({
+            "row_num": row_num, "type": "enclosure", "seq": "-",
+            "box_code": box_code, "name": f"箱体结构 ({box_type} {box_size})", "location": "",
+            "design_spec": "标准定额折算", "replacement_model": "",
+            "quantity": 1, "unit": "台",
+            "unit_price": enclosure_c, "total_price": enclosure_c,
+            "source": "定额"
+        })
+        row_num += 1
+
+        excel_rows.append({
+            "row_num": row_num, "type": "copper", "seq": "-",
+            "box_code": box_code, "name": "母排辅材 (TMY 折算)", "location": "",
+            "design_spec": f"铜价 {copper_price:,.0f} 元/吨联动测算", "replacement_model": "",
+            "quantity": 1, "unit": "批",
+            "unit_price": copper_c, "total_price": copper_c,
+            "source": "联动"
+        })
+        row_num += 1
+
+        excel_rows.append({
+            "row_num": row_num, "type": "labor", "seq": "-",
+            "box_code": box_code, "name": "装配调试人工工时", "location": "",
+            "design_spec": f"{'A' if labor_rate<=400 else ('B' if labor_rate<=500 else 'C')}级工日标准 (¥{labor_rate}/工日)", "replacement_model": "",
+            "quantity": 1, "unit": "批",
+            "unit_price": labor_c, "total_price": labor_c,
+            "source": "费率"
+        })
+        row_num += 1
+        seq_num += 1
+
+        boxes_output.append({
+            "box_code": box_code, "name": box_name, "type": box_type,
+            "size": box_size, "location": box_location, "quantity": box_qty,
+            "unit_price": box_final_price, "total_price": round(box_final_price * box_qty, 2),
+            "components_count": len(priced_comps),
+            "cost_breakdown": {
+                "components": round(box_comp_cost, 2),
+                "enclosure": enclosure_c,
+                "copper": copper_c,
+                "labor": labor_c,
+                "auxiliary": aux_c,
+                "subtotal": round(box_subtotal_cost, 2),
+                "profit": box_profit,
+                "tax": box_tax
+            }
+        })
+
+    grand_cost = round(total_components_cost + total_enclosure_cost + total_copper_cost + total_labor_cost + total_auxiliary_cost, 2)
+    grand_profit = round(grand_cost * profit_rate, 2)
+    grand_tax = round((grand_cost + grand_profit) * tax_rate, 2)
+    grand_total = round(grand_cost + grand_profit + grand_tax, 2)
+
+    summary = {
+        "cost": grand_cost,
+        "components_cost": round(total_components_cost, 2),
+        "enclosure_cost": round(total_enclosure_cost, 2),
+        "copper_cost": round(total_copper_cost, 2),
+        "labor_cost": round(total_labor_cost, 2),
+        "auxiliary_cost": round(total_auxiliary_cost, 2),
+        "profit": grand_profit,
+        "tax": grand_tax,
+        "total_price": grand_total,
+        "missing_count": missing_count,
+        "manual_count": manual_count,
+        "boxes_count": len(boxes),
+        "components_count": total_component_items,
+        "rows_count": len(excel_rows),
+        "brand": brand,
+        "copper_price": copper_price,
+        "labor_rate": labor_rate,
+        "profit_rate": profit_rate,
+        "tax_rate": tax_rate
+    }
+
+    return {
+        "ok": True,
+        "job_id": job_id,
+        "summary": summary,
+        "boxes": boxes_output,
+        "rows": excel_rows
+    }
+
+
+@app.get("/api/jobs/{job_id}/quotation")
+def get_job_quotation(
+    job_id: str,
+    brand: str = "正泰",
+    copper_price: float = 72000.0,
+    labor_rate: float = 380.0,
+    profit_rate: float = 0.08,
+    tax_rate: float = 0.13,
+):
+    return _calculate_job_quotation(
+        job_id=job_id,
+        brand=brand,
+        copper_price=copper_price,
+        labor_rate=labor_rate,
+        profit_rate=profit_rate,
+        tax_rate=tax_rate,
+    )
+
+
+@app.post("/api/jobs/{job_id}/quotation")
+def update_job_quotation(
+    job_id: str,
+    req: QuotationRequest,
+):
+    return _calculate_job_quotation(
+        job_id=job_id,
+        brand=req.brand,
+        copper_price=req.copper_price,
+        labor_rate=req.labor_rate,
+        profit_rate=req.profit_rate,
+        tax_rate=req.tax_rate,
+        overrides_patch=req.overrides,
+    )
 
 
 @app.post("/api/auth/login")

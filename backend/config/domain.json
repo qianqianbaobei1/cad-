@@ -485,7 +485,6 @@
       "(?:WDZ[A-Z]*|ZR[A-Z]*|NH[A-Z]*|FS)?-?(?:RYJS|RVVP|RVSP|KVVP|KVV|DJYVP)(?=[-_\\s\\d*(×x]|$)"
     ],
     "laying_method_regex": "(?:-|/|\\s|^)((?:SC|PC|KBG|JDG|CT|MR|PR|CP|RC|PVC)\\d{0,3}(?:[/-](?:CC|WC|FC|WS|CE|ACC|SR|MR|CT|WE))*)\\b",
-    "default_laying": "未标注",
     "inline_markers": [
       "BV",
       "BVR",

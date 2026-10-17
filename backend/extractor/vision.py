@@ -2,7 +2,6 @@ import base64
 import concurrent.futures
 from datetime import datetime, time as datetime_time
 from functools import lru_cache
-import http.client
 import json
 import os
 import re
@@ -496,7 +495,7 @@ class VisionProvider:
                             else _float_env("VISION_TEMPERATURE", default_temp))
         self.seed = cfg.get("seed") or os.environ.get("VISION_SEED") or _GENERATION.get("seed")
         self.detail = str(_GENERATION.get("detail") or "high")
-        self.max_tokens = int(_GENERATION.get("max_tokens") or 8192)
+        self.max_tokens = int(_GENERATION.get("max_tokens") or 16384)
         self.last_call_logs = []
         self.last_usage_summary = {}
         self.api_call_attempts = 0
@@ -566,8 +565,6 @@ class VisionProvider:
             total_c = sum(l.get("completion_tokens", 0) for l in self.last_call_logs)
             total_r = sum(l.get("reasoning_tokens", 0) for l in self.last_call_logs)
             total_t = sum(l.get("total_tokens", 0) for l in self.last_call_logs)
-            total_in = round(sum(l.get("cost_in", 0.0) for l in self.last_call_logs), 5)
-            total_out = round(sum(l.get("cost_out", 0.0) for l in self.last_call_logs), 5)
             known_logs = [l for l in self.last_call_logs if l.get("pricing_available")]
             total_all = round(sum(l.get("total_cost", 0.0) for l in known_logs), 8)
             total_cost_in_known = round(sum(l.get("cost_in", 0.0) for l in known_logs), 8)

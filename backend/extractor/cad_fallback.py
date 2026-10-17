@@ -11,6 +11,9 @@ import tempfile
 import ezdxf
 
 from .cad_ledger import classify_stderr, is_valid_dxf
+from .config import pipeline as _pipeline
+
+CONVERT_TIMEOUT_S = int(_pipeline()["cad"]["convert_timeout_s"])
 
 
 def find_acadrust_tool() -> str | None:
@@ -49,7 +52,7 @@ def convert_acadrust(source: str, target: str) -> dict:
         report = os.path.join(work, "read.json")
         try:
             proc = subprocess.run([tool, source, output, report], capture_output=True,
-                                  text=True, errors="replace", timeout=180, check=False)
+                                  text=True, errors="replace", timeout=CONVERT_TIMEOUT_S, check=False)
             warnings, errors, excerpt = classify_stderr(proc.stderr)
             stats = {}
             if os.path.isfile(report):

@@ -228,9 +228,9 @@ def _template_sheet(wb, name: str):
     return ws
 
 
-def _fill_box_cards_detail_sheet(ws, title: str, subtitle: str, boxes: list[Any], circuits: list[Any], components: list[Any], target_brand: str = "") -> dict[str, int]:
+def _fill_box_cards_detail_sheet(ws, title: str, subtitle: str, boxes: list[Any], circuits: list[Any], components: list[Any], target_brand: str = "", sheet_title: str = "") -> dict[str, int]:
     """生成按箱体垂直流水卡片展开的分项明细表，返回每个箱体卡片起始行号以供汇总表做超链接跳转。"""
-    ws.title = _SHEETS["box_cards"]
+    ws.title = sheet_title or _SHEETS["box_cards"]
     card_anchors: dict[str, int] = {}
 
     # 全局总标题
@@ -366,12 +366,12 @@ def _fill_box_cards_detail_sheet(ws, title: str, subtitle: str, boxes: list[Any]
     return card_anchors
 
 
-def _fill_quotation_summary_sheet(ws, project_title: str, boxes: list[Any], circuits: list[Any], components: list[Any], card_anchors: dict[str, int], detail_sheet_title: str = _SHEETS["box_cards"], target_brand: str = ""):
+def _fill_quotation_summary_sheet(ws, project_title: str, boxes: list[Any], circuits: list[Any], components: list[Any], card_anchors: dict[str, int], detail_sheet_title: str = _SHEETS["box_cards"], target_brand: str = "", sheet_title: str = ""):
     """高标准复刻成套设备报价(汇总)报表：
     表头包含项目单位、项目名称、联系人/电话、金额单位，配电箱绿色分类条，
     序号支持 Excel 原生超链接跳转直达箱体分项流水卡片，数量、单价、总价公式与底部自动求和。
     """
-    ws.title = "成套设备报价(汇总)"
+    ws.title = sheet_title or "成套设备报价(汇总)"
 
     headers = ["序号", "柜号", "箱柜名称", "箱柜型号", "单位", "数量", "单价", "总价", "备注"]
     col_widths = _COLUMNS["cover_legacy"]
@@ -439,7 +439,6 @@ def _fill_quotation_summary_sheet(ws, project_title: str, boxes: list[Any], circ
         name = getattr(b, "name", "") if hasattr(b, "name") else str(b.get("name", "配电箱"))
         size = getattr(b, "size", "") if hasattr(b, "size") else str(b.get("size", ""))
         loc = getattr(b, "location", "") if hasattr(b, "location") else str(b.get("location", ""))
-        install = getattr(b, "install", "") if hasattr(b, "install") else str(b.get("install", ""))
         qty = getattr(b, "quantity", 1) if hasattr(b, "quantity") else (b.get("quantity", 1) or 1)
         qty_num = int(qty) if float(qty) == int(qty) else qty
 
@@ -566,598 +565,207 @@ def _clean_proj_title(raw_title: str) -> str:
     return cleaned
 
 
-def _fill_three_sheets(wb, result: ExtractionResult, subtitle: str,
-                       bidder: str = "", owner: str = "", target_brand: str = ""):
-    """1:1 对标行业出图标准的极简 3-Sheet 报表：
-    Sheet 1: 封面 —— 项目概况、编制单位、编制说明及规范依据；
-    Sheet 2: 屏柜汇总表 —— 截图同款成套设备报价(汇总)，含超链接直达、单价总价与末尾自动求和；
-    Sheet 3: 屏柜分项表 —— 截图同款成套设备报价(明细)，逐箱展开淡蓝箱头、逐项元器件清单与费用小计。
-
-    bidder/owner 为投标单位与业主单位，调用方传入；缺省留空，不硬编码具体公司。
-    """
-    boxes = result.boxes or []
-    circuits = result.circuits or []
-    components = result.components or []
-    proj_name = _clean_proj_title(result.title)
-
-    # 将回路与器件按箱体归类
-    circuits_by_box: dict[str, list[Any]] = {}
-    for c in circuits:
-        b_code = getattr(c, "box", "") if hasattr(c, "box") else str(c.get("box", ""))
-        circuits_by_box.setdefault(b_code, []).append(c)
-
-    comps_by_box = _build_comps_by_box(components)
-
-    # ==========================================
-    # Sheet 1: 封面
-    # ==========================================
-    ws_cover = wb.active
-    ws_cover.title = _SHEETS["cover"]
-
-    col_widths_cover = _COLUMNS["cover"]
-    for j, w in enumerate(col_widths_cover, start=1):
-        ws_cover.column_dimensions[get_column_letter(j)].width = w
-
-    ws_cover.merge_cells("A2:I2")
-    c_comp = ws_cover.cell(row=2, column=1, value=bidder)
-    c_comp.font = Font(name=_FONT_FAMILY, size=14, bold=True, color=_PALETTE["cover_company_text"])
-    c_comp.alignment = CENTER
-    ws_cover.row_dimensions[2].height = 24
-
-    ws_cover.merge_cells("A4:I4")
-    c_title = ws_cover.cell(row=4, column=1, value="成套电气设备工程报价书")
-    c_title.font = Font(name=_FONT_FAMILY, size=22, bold=True, color=_PALETTE["dark_bold_text"])
-    c_title.alignment = CENTER
-    ws_cover.row_dimensions[4].height = 42
-
-    ws_cover.merge_cells("A5:I5")
-    c_en = ws_cover.cell(row=5, column=1, value="COMPLETE LOW-VOLTAGE ELECTRICAL EQUIPMENT QUOTATION")
-    c_en.font = Font(name=_FONT_LATIN, size=10, bold=True, color=_PALETTE["cover_en_text"])
-    c_en.alignment = CENTER
-    ws_cover.row_dimensions[5].height = 20
-
-    from datetime import datetime
-    meta_rows = [
-        ("工程项目名称", proj_name),
-        ("投标报价单位", bidder),
-        ("业主建设单位", owner),
-        ("箱柜设备规模", f"全项目配电箱/动力柜共计 {len(boxes)} 台"),
-        ("报价编制日期", f"{datetime.now():%Y年%m月%d日}"),
-        ("计价格式货币", "人民币元 (RMB ¥)"),
-    ]
-    for idx, (label, val) in enumerate(meta_rows, start=8):
-        ws_cover.merge_cells(start_row=idx, start_column=2, end_row=idx, end_column=3)
-        ws_cover.merge_cells(start_row=idx, start_column=4, end_row=idx, end_column=8)
-        c_lbl = ws_cover.cell(row=idx, column=2, value=label)
-        c_lbl.font = Font(name=_FONT_FAMILY, size=10.5, bold=True, color=_PALETTE["dark_bold_text"])
-        c_lbl.alignment = Alignment(horizontal="right", vertical="center")
-        c_lbl.fill = PatternFill("solid", fgColor=_PALETTE["label_fill"])
-
-        c_val = ws_cover.cell(row=idx, column=4, value=val)
-        c_val.font = Font(name=_FONT_FAMILY, size=10.5, bold=False, color=_PALETTE["meta_text"])
-        c_val.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-        c_val.fill = PatternFill("solid", fgColor=_PALETTE["value_fill"])
-
-        for col in range(2, 9):
-            ws_cover.cell(row=idx, column=col).border = DARK_BORDER
-        ws_cover.row_dimensions[idx].height = 26
-
-    ws_cover.merge_cells("B16:H16")
-    c_note_hdr = ws_cover.cell(row=16, column=2, value="【成套技术与编制原则说明】")
-    c_note_hdr.font = Font(name=_FONT_FAMILY, size=11, bold=True, color=_PALETTE["dark_bold_text"])
-    c_note_hdr.alignment = Alignment(horizontal="left", vertical="center")
-    ws_cover.row_dimensions[16].height = 26
-
-    cover_notes = [
-        "1. 编制依据：本报价书依据项目配电系统设计图纸、施工说明及 GB/T 7251 系列低压成套开关设备标准编制；",
-        "2. 范围涵盖：配电箱柜壳体、进线隔离开关、分支微断/漏电断路器、电涌保护器、母线铜排、二次控制辅料及组装试验税费；",
-        "3. 元器件配置：断路器与保护元件满足图纸设计分断能力及脱扣曲线要求，选用工业级高可靠性产品；",
-        "4. 快速查阅：点击【屏柜汇总表】中的序号超链接，可直接跳转直达【屏柜分项表】对应箱柜的逐项器件明细卡片。",
-    ]
-    for n_idx, text in enumerate(cover_notes, start=17):
-        ws_cover.merge_cells(start_row=n_idx, start_column=2, end_row=n_idx, end_column=8)
-        c_n = ws_cover.cell(row=n_idx, column=2, value=text)
-        c_n.font = Font(name=_FONT_FAMILY, size=9.5, color=_PALETTE["border_dark"])
-        c_n.alignment = Alignment(horizontal="left", vertical="center")
-        ws_cover.row_dimensions[n_idx].height = 22
-
-    # ==========================================
-    # Sheet 3: 屏柜分项表（先渲染，以获取各箱柜卡片的行号与单台合计单元格）
-    # ==========================================
-    ws_detail = wb.create_sheet(_SHEETS["detail"])
-
-    widths_detail = [8, 22, 32, 8, 10, 14, 16, 16, 20]
-    for j, w in enumerate(widths_detail, start=1):
-        ws_detail.column_dimensions[get_column_letter(j)].width = w
-
-    # 顶部标题 Row 1-5
-    ws_detail.merge_cells("A1:I1")
-    t1 = ws_detail.cell(row=1, column=1, value=bidder)
-    t1.font = SUMMARY_TITLE_FONT
-    t1.alignment = CENTER
-    ws_detail.row_dimensions[1].height = 36
-
-    ws_detail.merge_cells("A2:I2")
-    t2 = ws_detail.cell(row=2, column=1, value="成套设备报价(明细)")
-    t2.font = Font(name=_FONT_FAMILY, size=14, bold=True)
-    t2.alignment = CENTER
-    ws_detail.row_dimensions[2].height = 28
-
-    ws_detail.cell(row=3, column=1, value="项目单位：").font = META_FONT
-    ws_detail.row_dimensions[3].height = 20
-
-    ws_detail.cell(row=4, column=1, value=f"项目名称：{proj_name}").font = META_FONT
-    ws_detail.row_dimensions[4].height = 20
-
-    ws_detail.cell(row=5, column=1, value="联系人：                          联系电话：").font = META_FONT
-    u_cell = ws_detail.cell(row=5, column=9, value="金额单位：人民币元")
-    u_cell.font = META_FONT
-    u_cell.alignment = RIGHT
-    ws_detail.row_dimensions[5].height = 20
-
-    # Row 6: 浅绿分类条
-    ws_detail.merge_cells("A6:I6")
-    cat_d = ws_detail.cell(row=6, column=1, value="配电箱")
-    cat_d.font = CATEGORY_FONT
-    cat_d.fill = CATEGORY_FILL
-    cat_d.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-    for col in range(1, 10):
-        ws_detail.cell(row=6, column=col).border = DARK_BORDER
-    ws_detail.row_dimensions[6].height = 24
-
-    card_anchors: dict[str, int] = {}
-    box_unit_cells: dict[str, str] = {}
-
-    curr_d = 7
-    headers_card = ["序号", "元件名称", "型号规格", "单位", "数量", "单价", "总价", "生产厂家", "备注"]
-
+def _result_box_items(box, b_circuits: list[Any], b_comps: list[Any], target_brand: str) -> tuple[list[dict], float]:
+    """图纸结果 → 报价明细行。缺型号时如实写“待确认”、单价计 0，不编造型号与价格。"""
     from .pricing import calculate_component_unit_price, estimate_box_enclosure_price
     from .catalog import identify_brand
 
-    for b_idx, b in enumerate(boxes, start=1):
-        code = getattr(b, "code", "") if hasattr(b, "code") else str(b.get("code", "未命名"))
-        name = getattr(b, "name", "") if hasattr(b, "name") else str(b.get("name", "配电箱"))
-        size = getattr(b, "size", "") if hasattr(b, "size") else str(b.get("size", ""))
-        loc = getattr(b, "location", "") if hasattr(b, "location") else str(b.get("location", ""))
-        qty = getattr(b, "quantity", 1) if hasattr(b, "quantity") else (b.get("quantity", 1) or 1)
-        qty_num = int(qty) if float(qty) == int(qty) else qty
+    code = _val(box, "code", "未命名")
+    size = _val(box, "size", "")
+    items: list[dict] = []
+
+    def device_name(spec: str) -> str:
+        up = spec.upper()
+        if any(k in up for k in ["LE", "VM", "RCBO", "ELE", "30MA", "漏电"]):
+            return "微型漏电断路器"
+        if any(k in up for k in ["MCCB", "NM", "NSX", "160A", "250A"]):
+            return "塑壳断路器"
+        return "微型断路器"
+
+    def add(name: str, spec: str, unit: str = "只", qty: int = 1, note: str = "") -> None:
+        if not spec or spec == "-":
+            items.append({"name": f"{name}（待确认）", "spec": "待确认", "unit": unit,
+                          "qty": qty, "unit_price": 0.0, "brand": "待确认",
+                          "note": "待补充规格型号"})
+            return
+        spec_brand = identify_brand(spec)
+        use_brand = spec_brand if spec_brand != GENERIC_BRAND else (target_brand or DEFAULT_TARGET_BRAND)
+        unit_price, source, basis = calculate_component_unit_price(spec, brand=use_brand)
+        items.append({"name": name, "spec": spec, "unit": unit, "qty": qty,
+                      "unit_price": round(unit_price, 2), "brand": use_brand,
+                      "note": basis if source != "EXACT" else note})
+
+    # 进线主控器件
+    incomer = None
+    for c in b_circuits:
+        c_no, c_load = _val(c, "circuit_no", ""), _val(c, "load_name", "")
+        if "进线" in c_no or "进线" in c_load:
+            incomer = c
+            break
+    incomer_spec = _val(incomer, "breaker", "") if incomer else ""
+    incomer_name = "微型隔离开关" if "SW" in incomer_spec or "隔离" in incomer_spec else device_name(incomer_spec or " ")
+    add(incomer_name, incomer_spec)
+
+    # 出线分支断路器
+    for cir in b_circuits:
+        c_no, c_load = _val(cir, "circuit_no", ""), _val(cir, "load_name", "")
+        if "进线" in c_no or "进线" in c_load:
+            continue
+        spec = _val(cir, "breaker", "")
+        add(device_name(spec or " "), spec)
+
+    # 电涌保护器：只写图纸真实检出的那一项，检不到就不加行（不系统性地补项）
+    for cp in b_comps:
+        spec = _val(cp, "spec", "")
+        if any(k in spec.upper() or k in spec for k in ["SPD", "浪涌", "防雷", "避雷"]):
+            add("电涌保护器", spec)
+            break
+
+    # 壳体（钣金喷塑箱体）
+    b_dict = box.model_dump() if hasattr(box, "model_dump") else (box if isinstance(box, dict) else vars(box))
+    enclosure_price, enc_basis = estimate_box_enclosure_price(b_dict, len(b_circuits))
+    items.append({"name": "壳体", "spec": size if size and size != "-" else "标准配电箱外壳",
+                  "unit": "台", "qty": 1, "unit_price": round(enclosure_price, 2),
+                  "brand": "成套定制", "note": enc_basis or ""})
+
+    subtotal = round(sum(float(i["unit_price"]) * int(i["qty"]) for i in items), 2)
+    return items, subtotal
+
+
+def _quote_cost_split(subtotal: float, circuit_count: int) -> dict:
+    """小计 → 辅料 / 成套制作费 / 税费（费率来自 config/delivery.json 的 quote_template）。"""
+    qt = _DELIVERY.get("quote_template") or {}
+    aux = round(subtotal * float(qt.get("auxiliary_rate", 0.05)), 2)
+    labor = round(_ESTIMATION["labor_incoming_fixed"]
+                  + max(0, circuit_count - 1) * _ESTIMATION["labor_per_extra_circuit"], 2)
+    tax_total = round((subtotal + aux + labor) * float(qt.get("tax_rate", 0.06)), 2)
+    return {"subtotal": subtotal, "auxiliary": aux, "labor": labor, "tax_total": tax_total,
+            "unit_price": round(subtotal + aux + labor + tax_total, 2)}
+
+
+def _quote_model_base(project: str, owner: str = "") -> dict:
+    """组价模型基座：只有项目与金额口径，没有报价单位/日期/联系人（AI 组价不是供应商报价）。"""
+    qt = _DELIVERY.get("quote_template") or {}
+    return {
+        "project": _clean_proj_title(project),
+        "owner": owner,
+        "currency": "人民币元",
+        "category": _SHEETS.get("category", "配电箱"),
+        "footer_note": qt.get("footer_note", ""),
+        "quote_by": "",
+        "review_by": "",
+        "boxes": [],
+        "unresolved_count": 0,
+    }
+
+
+def quote_model_from_result(result: ExtractionResult, target_brand: str = "",
+                            owner: str = "") -> dict:
+    """图纸提取结果 → 报价模型（自动出单用；费率走配置，不写死在代码里）。"""
+    circuits_by_box: dict[str, list[Any]] = {}
+    for c in result.circuits or []:
+        circuits_by_box.setdefault(_val(c, "box", ""), []).append(c)
+    comps_by_box = _build_comps_by_box(result.components or [])
+
+    model = _quote_model_base(result.title, owner)
+    model["unresolved_count"] = len([u for u in (result.uncertainties or [])
+                                     if not getattr(u, "resolved", False)])
+    for b in result.boxes or []:
+        code = _val(b, "code", "未命名")
         b_circuits = circuits_by_box.get(code, [])
-        b_comps = comps_by_box.get(code, [])
+        items, subtotal = _result_box_items(b, b_circuits, comps_by_box.get(code, []), target_brand)
+        cost = _quote_cost_split(subtotal, len(b_circuits))
+        qty = _val(b, "quantity", 1) or 1
+        model["boxes"].append({
+            "code": code,
+            "name": _val(b, "name", "配电箱"),
+            "model": (_val(b, "size", "") or "").strip() if _val(b, "size", "") not in ("-", None) else "",
+            "location": _val(b, "location", "") or "待确认",
+            "unit": "台",
+            "quantity": qty,
+            "items": items,
+            "total_price": round(cost["unit_price"] * float(qty), 2),
+            **cost,
+        })
+    _finalize_model(model)
+    return model
 
-        # 记录箱体卡片锚点行
-        card_anchors[code] = curr_d
 
-        # 1. 箱头水蓝横条（淡青色 #D9EDF7）
-        ws_detail.merge_cells(start_row=curr_d, start_column=1, end_row=curr_d, end_column=3)
-        c_code_banner = ws_detail.cell(row=curr_d, column=1, value=f"1-{b_idx}  柜号: {code}")
-        c_code_banner.font = BOX_HEADER_FONT
-        c_code_banner.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+def quote_model_from_quote_res(quote_res: dict, job_info: dict, target_brand: str = "") -> dict:
+    """组价工作台的核算结果 → 报价模型（含用户手改价、平替品牌与费率联动）。"""
+    info = job_info or {}
+    project = info.get("project") or (info.get("summary") or {}).get("title") or ""
+    model = _quote_model_base(project)
 
-        c_size_banner = ws_detail.cell(row=curr_d, column=4, value=f"型号: {size if size and size != '-' else ''}")
-        c_size_banner.font = BOX_HEADER_FONT
-        c_size_banner.alignment = Alignment(horizontal="left", vertical="center")
+    rows = quote_res.get("rows") or []
+    boxes = {b.get("box_code"): b for b in quote_res.get("boxes") or []}
+    groups: list[dict] = []
+    current: dict | None = None
+    for row in rows:
+        if row.get("type") == "box_header":
+            current = {"header": row, "items": []}
+            groups.append(current)
+        elif row.get("type") == "component" and current is not None:
+            current["items"].append(row)
 
-        ws_detail.merge_cells(start_row=curr_d, start_column=5, end_row=curr_d, end_column=7)
-        c_name_banner = ws_detail.cell(row=curr_d, column=5, value=f"名称:  {name}")
-        c_name_banner.font = BOX_HEADER_FONT
-        c_name_banner.alignment = Alignment(horizontal="left", vertical="center")
+    for group in groups:
+        header = group["header"]
+        code = header.get("box_code") or ""
+        b_info = boxes.get(code) or {}
+        breakdown = b_info.get("cost_breakdown") or {}
+        has_shell_row = any(r.get("name") in ("壳体", "箱体结构") for r in group["items"])
+        components_cost = round(float(breakdown.get("components") or 0.0)
+                                + (0.0 if has_shell_row else float(breakdown.get("enclosure") or 0.0)), 2)
+        # 汇总表的四项费用与分项表逐行相加必须相等：母排并进辅料，利润并进税费
+        auxiliary = round(float(breakdown.get("copper") or 0.0) + float(breakdown.get("auxiliary") or 0.0), 2)
+        labor = round(float(breakdown.get("labor") or 0.0), 2)
+        tax_total = round(float(breakdown.get("profit") or 0.0) + float(breakdown.get("tax") or 0.0), 2)
+        items = [{
+            "name": row.get("name", ""),
+            "spec": row.get("replacement_model") or row.get("design_spec") or "",
+            "unit": row.get("unit") or "只",
+            "qty": int(row.get("quantity") or 1),
+            "unit_price": float(row.get("unit_price") or 0.0),
+            "brand": row.get("brand") or "",
+            "note": row.get("source") if row.get("source") not in (None, "平替") else "",
+        } for row in group["items"]]
 
-        ws_detail.merge_cells(start_row=curr_d, start_column=8, end_row=curr_d, end_column=9)
-        c_loc_banner = ws_detail.cell(row=curr_d, column=8, value=f"备注:{loc if loc and loc != '-' else '待确认'}")
-        c_loc_banner.font = BOX_HEADER_FONT
-        c_loc_banner.alignment = Alignment(horizontal="left", vertical="center")
+        # 壳体在组价里是单独一项成本，分项表里必须也是一行；
+        # 否则"小计"和逐行相加对不上，客户一算就露馅。
+        enclosure = round(float(breakdown.get("enclosure") or 0.0), 2)
+        if not any(i["name"] in ("壳体", "箱体结构") for i in items):
+            items.append({"name": "壳体", "spec": b_info.get("size") or "标准配电箱外壳",
+                          "unit": "台", "qty": 1, "unit_price": enclosure,
+                          "brand": "成套定制", "note": "钣金定额"})
+        qty = header.get("quantity") or b_info.get("quantity") or 1
+        model["boxes"].append({
+            "code": code,
+            "name": header.get("name") or b_info.get("name") or "配电箱",
+            "model": b_info.get("size") or "",
+            "location": b_info.get("location") or header.get("location") or "",
+            "unit": "台",
+            "quantity": qty,
+            "items": items,
+            "subtotal": components_cost,
+            "auxiliary": auxiliary,
+            "labor": labor,
+            "tax_total": tax_total,
+            "unit_price": float(b_info.get("unit_price") or header.get("unit_price") or 0.0),
+            "total_price": float(b_info.get("total_price") or 0.0),
+        })
+    _finalize_model(model)
+    return model
 
-        for col in range(1, 10):
-            ws_detail.cell(row=curr_d, column=col).fill = BOX_HEADER_FILL
-            ws_detail.cell(row=curr_d, column=col).border = DARK_BORDER
-        ws_detail.row_dimensions[curr_d].height = 24
-        curr_d += 1
 
-        # 2. 表头行（浅灰色 #D9D9D9）
-        for j, h in enumerate(headers_card, start=1):
-            hc = ws_detail.cell(row=curr_d, column=j, value=h)
-            hc.font = SUMMARY_HDR_FONT
-            hc.fill = SUMMARY_HDR_FILL
-            hc.alignment = CENTER
-            hc.border = DARK_BORDER
-        ws_detail.row_dimensions[curr_d].height = 24
-        curr_d += 1
+def _finalize_model(model: dict) -> None:
+    model["total_qty"] = sum(int(b.get("quantity") or 1) for b in model["boxes"])
+    model["total_price"] = round(sum(float(b.get("total_price") or 0.0) for b in model["boxes"]), 2)
 
-        # 3. 组织该箱体的具体元器件清单
-        start_item_row = curr_d
-        item_seq = 1
-        box_items_subtotal = 0.0
 
-        # A. 进线主控器件（隔离开关或塑壳/微断）
-        incomer_circuit = None
-        for c in b_circuits:
-            c_no = getattr(c, "circuit_no", "") if hasattr(c, "circuit_no") else str(c.get("circuit_no", ""))
-            c_load = getattr(c, "load_name", "") if hasattr(c, "load_name") else str(c.get("load_name", ""))
-            if "进线" in c_no or "进线" in c_load:
-                incomer_circuit = c
-                break
+def _fill_quote_template(wb, model: dict):
+    from . import quote_template
+    return quote_template.fill(wb, model)
 
-        incomer_spec = ""
-        if incomer_circuit:
-            incomer_spec = getattr(incomer_circuit, "breaker", "") if hasattr(incomer_circuit, "breaker") else str(incomer_circuit.get("breaker", ""))
-        # 宁可标疑、不许编造：进线规格缺失时不再编造型号，标"待确认"、单价计0
-        if not incomer_spec or incomer_spec == "-":
-            vals_inc = [item_seq, "进线断路器（待确认）", "待确认", "只", 1, 0.0, 0.0, "待确认", "待补充规格型号"]
-        else:
-            incomer_name = "微型隔离开关" if "SW" in incomer_spec or "隔离" in incomer_spec else ("塑壳断路器" if any(k in incomer_spec for k in ["MCCB", "100A", "160A", "250A"]) else "微型断路器")
-            spec_brand = identify_brand(incomer_spec)
-            use_brand = spec_brand if spec_brand != GENERIC_BRAND else (target_brand or DEFAULT_TARGET_BRAND)
-            u_p, source, basis = calculate_component_unit_price(incomer_spec, brand=use_brand)
-            u_p = round(u_p, 2)
-            remark = basis if source != "EXACT" else ""
-            vals_inc = [item_seq, incomer_name, incomer_spec, "只", 1, u_p, u_p, use_brand, remark]
-        box_items_subtotal += float(vals_inc[6])
-        for j, v in enumerate(vals_inc, start=1):
-            cell = ws_detail.cell(row=curr_d, column=j, value=v)
-            cell.font = CELL_FONT
-            cell.border = DARK_BORDER
-            cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
-            if j in (6, 7):
-                cell.number_format = "#,##0.00"
-        ws_detail.row_dimensions[curr_d].height = 22
-        curr_d += 1
-        item_seq += 1
-
-        # B. 出线分支断路器
-        for cir in b_circuits:
-            c_no = getattr(cir, "circuit_no", "") if hasattr(cir, "circuit_no") else str(cir.get("circuit_no", ""))
-            c_load = getattr(cir, "load_name", "") if hasattr(cir, "load_name") else str(cir.get("load_name", ""))
-            if "进线" in c_no or "进线" in c_load:
-                continue
-
-            brk = getattr(cir, "breaker", "") if hasattr(cir, "breaker") else str(cir.get("breaker", ""))
-            # 宁可标疑、不许编造：断路器规格缺失时标"待确认"、单价计0，不走下限价
-            if not brk or brk == "-":
-                c_vals = [item_seq, "断路器（待确认）", "待确认", "只", 1, 0.0, 0.0, "待确认", "待补充规格型号"]
-            else:
-                if any(k in brk.upper() for k in ["LE", "VM", "RCBO", "ELE", "30MA", "漏电"]):
-                    dev_name = "微型漏电断路器"
-                elif any(k in brk.upper() for k in ["MCCB", "NM", "NSX", "160A", "250A"]):
-                    dev_name = "塑壳断路器"
-                else:
-                    dev_name = "微型断路器"
-
-                spec_brand = identify_brand(brk)
-                use_brand = spec_brand if spec_brand != GENERIC_BRAND else (target_brand or DEFAULT_TARGET_BRAND)
-                u_p, source, basis = calculate_component_unit_price(brk, brand=use_brand)
-                u_p = round(u_p, 2)
-                remark = basis if source != "EXACT" else ""
-                c_vals = [item_seq, dev_name, brk, "只", 1, u_p, u_p, use_brand, remark]
-            box_items_subtotal += float(c_vals[6])
-            for j, v in enumerate(c_vals, start=1):
-                cell = ws_detail.cell(row=curr_d, column=j, value=v)
-                cell.font = CELL_FONT
-                cell.border = DARK_BORDER
-                cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
-                if j in (6, 7):
-                    cell.number_format = "#,##0.00"
-            ws_detail.row_dimensions[curr_d].height = 22
-            curr_d += 1
-            item_seq += 1
-
-        # C. 箱内电涌保护器 SPD：仅真实检出时才写行，未检出整行不写（不编造、不系统性加项，禁止将 DZ47 误判为 SPD）
-        spd_comp = None
-        for cp in b_comps:
-            c_spec = getattr(cp, "spec", "") if hasattr(cp, "spec") else str(cp.get("spec", ""))
-            if "SPD" in c_spec.upper() or "浪涌" in c_spec or "防雷" in c_spec or "避雷" in c_spec:
-                spd_comp = cp
-                break
-        if spd_comp:
-            spd_spec = getattr(spd_comp, "spec", "") if hasattr(spd_comp, "spec") else str(spd_comp.get("spec", ""))
-            spec_brand = identify_brand(spd_spec)
-            use_brand = spec_brand if spec_brand != GENERIC_BRAND else (target_brand or DEFAULT_TARGET_BRAND)
-            spd_u_p, source, basis = calculate_component_unit_price(spd_spec, brand=use_brand)
-            spd_u_p = round(spd_u_p, 2)
-            remark = basis if source != "EXACT" else ""
-            vals_spd = [item_seq, "电涌保护器", spd_spec, "只", 1, spd_u_p, spd_u_p, use_brand, remark]
-            box_items_subtotal += float(vals_spd[6])
-            for j, v in enumerate(vals_spd, start=1):
-                cell = ws_detail.cell(row=curr_d, column=j, value=v)
-                cell.font = CELL_FONT
-                cell.border = DARK_BORDER
-                cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
-                if j in (6, 7):
-                    cell.number_format = "#,##0.00"
-            ws_detail.row_dimensions[curr_d].height = 22
-            curr_d += 1
-            item_seq += 1
-
-        # D. 壳体外壳
-        b_box_dict = b.model_dump() if hasattr(b, "model_dump") else (b if isinstance(b, dict) else vars(b))
-        enclosure_p, enc_basis = estimate_box_enclosure_price(b_box_dict, len(b_circuits))
-        enclosure_p = round(enclosure_p, 2)
-        vals_shell = [item_seq, "壳体", size if size and size != '-' else "标准配电箱外壳", "台", 1, enclosure_p, enclosure_p, "成套定制", enc_basis or ""]
-        box_items_subtotal += float(vals_shell[6])
-        for j, v in enumerate(vals_shell, start=1):
-            cell = ws_detail.cell(row=curr_d, column=j, value=v)
-            cell.font = CELL_FONT
-            cell.border = DARK_BORDER
-            cell.alignment = CENTER if j in (1, 4, 5) else (RIGHT if j in (6, 7) else LEFT)
-            if j in (6, 7):
-                cell.number_format = "#,##0.00"
-        ws_detail.row_dimensions[curr_d].height = 22
-        curr_d += 1
-        item_seq += 1
-
-        end_item_row = curr_d - 1
-
-        # 4. 箱体收尾结算行
-        # (1) 小计
-        r_sub = curr_d
-        ws_detail.cell(row=r_sub, column=1, value="")
-        ws_detail.cell(row=r_sub, column=2, value="小计").font = TOTAL_FONT
-        c_sub_val = ws_detail.cell(row=r_sub, column=7, value=f"=SUM(G{start_item_row}:G{end_item_row})")
-        c_sub_val.font = TOTAL_FONT
-        c_sub_val.alignment = RIGHT
-        c_sub_val.number_format = "#,##0.00"
-        for col in range(1, 10):
-            ws_detail.cell(row=r_sub, column=col).border = DARK_BORDER
-        ws_detail.row_dimensions[r_sub].height = 22
-        curr_d += 1
-
-        # (2) 辅料（服务端数值化输出，避免暴露底层加价模型）
-        r_aux = curr_d
-        ws_detail.cell(row=r_aux, column=1, value="")
-        ws_detail.cell(row=r_aux, column=2, value="辅料").font = CELL_FONT
-        aux_val = round(box_items_subtotal * 0.05, 2)
-        c_aux_val = ws_detail.cell(row=r_aux, column=7, value=aux_val)
-        c_aux_val.font = CELL_FONT
-        c_aux_val.alignment = RIGHT
-        c_aux_val.number_format = "#,##0.00"
-        for col in range(1, 10):
-            ws_detail.cell(row=r_aux, column=col).border = DARK_BORDER
-        ws_detail.row_dimensions[r_aux].height = 22
-        curr_d += 1
-
-        # (3) 成套制作费
-        r_labor = curr_d
-        labor_val = round(_ESTIMATION["labor_incoming_fixed"]
-                          + max(0, len(b_circuits) - 1) * _ESTIMATION["labor_per_extra_circuit"], 2)
-        ws_detail.cell(row=r_labor, column=1, value="")
-        ws_detail.cell(row=r_labor, column=2, value="成套制作费").font = CELL_FONT
-        c_labor_val = ws_detail.cell(row=r_labor, column=7, value=labor_val)
-        c_labor_val.font = CELL_FONT
-        c_labor_val.alignment = RIGHT
-        c_labor_val.number_format = "#,##0.00"
-        for col in range(1, 10):
-            ws_detail.cell(row=r_labor, column=col).border = DARK_BORDER
-        ws_detail.row_dimensions[r_labor].height = 22
-        curr_d += 1
-
-        # (4) 税费（服务端数值化输出，保护税率与利润机密）
-        r_tax = curr_d
-        ws_detail.cell(row=r_tax, column=1, value="")
-        ws_detail.cell(row=r_tax, column=2, value="税费").font = CELL_FONT
-        tax_val = round((box_items_subtotal + aux_val + labor_val) * 0.06, 2)
-        c_tax_val = ws_detail.cell(row=r_tax, column=7, value=tax_val)
-        c_tax_val.font = CELL_FONT
-        c_tax_val.alignment = RIGHT
-        c_tax_val.number_format = "#,##0.00"
-        for col in range(1, 10):
-            ws_detail.cell(row=r_tax, column=col).border = DARK_BORDER
-        ws_detail.row_dimensions[r_tax].height = 22
-        curr_d += 1
-
-        # (5) 单台合计（浅橙底色 #FCE4D6）
-        r_unit = curr_d
-        c_unit_seq = ws_detail.cell(row=r_unit, column=1, value=item_seq)
-        c_unit_seq.alignment = CENTER
-        c_unit_seq.font = ORANGE_FONT
-        c_unit_lbl = ws_detail.cell(row=r_unit, column=2, value="单台合计")
-        c_unit_lbl.font = ORANGE_FONT
-        c_unit_tot = ws_detail.cell(row=r_unit, column=7, value=f"=G{r_sub}+G{r_aux}+G{r_labor}+G{r_tax}")
-        c_unit_tot.font = ORANGE_FONT
-        c_unit_tot.alignment = RIGHT
-        c_unit_tot.number_format = "#,##0.00"
-
-        for col in range(1, 10):
-            ws_detail.cell(row=r_unit, column=col).fill = ORANGE_FILL
-            ws_detail.cell(row=r_unit, column=col).border = DARK_BORDER
-        ws_detail.row_dimensions[r_unit].height = 24
-        box_unit_cells[code] = f"G{r_unit}"
-        curr_d += 1
-
-        # (6) 总计（浅橙底色 #FCE4D6）
-        r_tot = curr_d
-        ws_detail.cell(row=r_tot, column=1, value="")
-        c_tot_lbl = ws_detail.cell(row=r_tot, column=2, value="总计")
-        c_tot_lbl.font = ORANGE_FONT
-        c_tot_u = ws_detail.cell(row=r_tot, column=4, value="台")
-        c_tot_u.font = ORANGE_FONT
-        c_tot_u.alignment = CENTER
-        c_tot_q = ws_detail.cell(row=r_tot, column=5, value=qty_num)
-        c_tot_q.font = ORANGE_FONT
-        c_tot_q.alignment = CENTER
-        c_tot_val = ws_detail.cell(row=r_tot, column=7, value=f"=E{r_tot}*G{r_unit}")
-        c_tot_val.font = ORANGE_FONT
-        c_tot_val.alignment = RIGHT
-        c_tot_val.number_format = "#,##0.00"
-
-        for col in range(1, 10):
-            ws_detail.cell(row=r_tot, column=col).fill = ORANGE_FILL
-            ws_detail.cell(row=r_tot, column=col).border = DARK_BORDER
-        ws_detail.row_dimensions[r_tot].height = 24
-        curr_d += 1
-
-        # 留 1 行空白隔离
-        curr_d += 1
-
-    # ==========================================
-    # Sheet 2: 屏柜汇总表
-    # ==========================================
-    ws_summary = wb.create_sheet(_SHEETS["summary"], index=1)
-
-    widths_sum = [10, 16, 26, 20, 8, 10, 16, 18, 24]
-    for j, w in enumerate(widths_sum, start=1):
-        ws_summary.column_dimensions[get_column_letter(j)].width = w
-
-    # 顶部标题 Row 1-5
-    ws_summary.merge_cells("A1:I1")
-    s1 = ws_summary.cell(row=1, column=1, value=bidder)
-    s1.font = SUMMARY_TITLE_FONT
-    s1.alignment = CENTER
-    ws_summary.row_dimensions[1].height = 36
-
-    ws_summary.merge_cells("A2:I2")
-    s2 = ws_summary.cell(row=2, column=1, value="成套设备报价(汇总)")
-    s2.font = Font(name=_FONT_FAMILY, size=14, bold=True)
-    s2.alignment = CENTER
-    ws_summary.row_dimensions[2].height = 28
-
-    ws_summary.cell(row=3, column=1, value="项目单位：").font = META_FONT
-    ws_summary.row_dimensions[3].height = 20
-
-    ws_summary.cell(row=4, column=1, value=f"项目名称：{proj_name}").font = META_FONT
-    ws_summary.row_dimensions[4].height = 20
-
-    ws_summary.cell(row=5, column=1, value="联系人：                          联系电话：").font = META_FONT
-    su_cell = ws_summary.cell(row=5, column=9, value="金额单位：人民币元")
-    su_cell.font = META_FONT
-    su_cell.alignment = RIGHT
-    ws_summary.row_dimensions[5].height = 20
-
-    # Row 6: 浅绿分类条
-    ws_summary.merge_cells("A6:I6")
-    cat_s = ws_summary.cell(row=6, column=1, value="配电箱")
-    cat_s.font = CATEGORY_FONT
-    cat_s.fill = CATEGORY_FILL
-    cat_s.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-    for col in range(1, 10):
-        ws_summary.cell(row=6, column=col).border = DARK_BORDER
-    ws_summary.row_dimensions[6].height = 24
-
-    # Row 7: 表头
-    headers_sum = ["序号", "柜号", "箱柜名称", "箱柜型号", "单位", "数量", "单价", "总价", "备注"]
-    for j, h in enumerate(headers_sum, start=1):
-        hc = ws_summary.cell(row=7, column=j, value=h)
-        hc.font = SUMMARY_HDR_FONT
-        hc.fill = SUMMARY_HDR_FILL
-        hc.alignment = CENTER
-        hc.border = DARK_BORDER
-    ws_summary.row_dimensions[7].height = 28
-
-    # 数据行
-    start_sum_r = 8
-    curr_sum_r = start_sum_r
-    seq_base = 46023  # 对标截图序号风格，支持连续编码
-
-    for i, b in enumerate(boxes, start=1):
-        code = getattr(b, "code", "") if hasattr(b, "code") else str(b.get("code", "未命名"))
-        name = getattr(b, "name", "") if hasattr(b, "name") else str(b.get("name", "配电箱"))
-        size = getattr(b, "size", "") if hasattr(b, "size") else str(b.get("size", ""))
-        loc = getattr(b, "location", "") if hasattr(b, "location") else str(b.get("location", ""))
-        install = getattr(b, "install", "") if hasattr(b, "install") else str(b.get("install", ""))
-        qty = getattr(b, "quantity", 1) if hasattr(b, "quantity") else (b.get("quantity", 1) or 1)
-        qty_num = int(qty) if float(qty) == int(qty) else qty
-
-        # 宁可留空、不许编造：图纸未标明柜型尺寸时严禁脑补为 GGD(落地)
-        box_model = str(size).strip() if size and str(size).strip() and str(size).strip() != "-" else ""
-
-        # 序号：带超链接直达分项表对应卡片
-        seq_val = seq_base + (i - 1)
-        c_seq = ws_summary.cell(row=curr_sum_r, column=1, value=seq_val)
-        c_seq.alignment = CENTER
-        c_seq.border = DARK_BORDER
-        target_row = card_anchors.get(code)
-        if target_row:
-            c_seq.hyperlink = f"#'屏柜分项表'!A{target_row}"
-            c_seq.font = LINK_FONT
-        else:
-            c_seq.font = CELL_FONT
-
-        # 柜号
-        c_code = ws_summary.cell(row=curr_sum_r, column=2, value=code)
-        c_code.font = CELL_FONT
-        c_code.alignment = LEFT
-        c_code.border = DARK_BORDER
-
-        # 箱柜名称
-        c_name = ws_summary.cell(row=curr_sum_r, column=3, value=name)
-        c_name.font = CELL_FONT
-        c_name.alignment = LEFT
-        c_name.border = DARK_BORDER
-
-        # 箱柜型号
-        c_model = ws_summary.cell(row=curr_sum_r, column=4, value=box_model)
-        c_model.font = CELL_FONT
-        c_model.alignment = LEFT
-        c_model.border = DARK_BORDER
-
-        # 单位
-        c_u = ws_summary.cell(row=curr_sum_r, column=5, value="台")
-        c_u.font = CELL_FONT
-        c_u.alignment = CENTER
-        c_u.border = DARK_BORDER
-
-        # 数量
-        c_q = ws_summary.cell(row=curr_sum_r, column=6, value=qty_num)
-        c_q.font = CELL_FONT
-        c_q.alignment = CENTER
-        c_q.border = DARK_BORDER
-
-        # 单价（公式引用分项表中的单台合计）
-        unit_cell_ref = box_unit_cells.get(code)
-        if unit_cell_ref:
-            c_p = ws_summary.cell(row=curr_sum_r, column=7, value=f"='屏柜分项表'!{unit_cell_ref}")
-        else:
-            c_p = ws_summary.cell(row=curr_sum_r, column=7, value=_ESTIMATION["summary_unit_price_fallback"])
-        c_p.font = CELL_FONT
-        c_p.alignment = RIGHT
-        c_p.number_format = "#,##0.00"
-        c_p.border = DARK_BORDER
-
-        # 总价
-        c_tot = ws_summary.cell(row=curr_sum_r, column=8, value=f"=F{curr_sum_r}*G{curr_sum_r}")
-        c_tot.font = CELL_FONT
-        c_tot.alignment = RIGHT
-        c_tot.number_format = "#,##0.00"
-        c_tot.border = DARK_BORDER
-
-        # 备注
-        c_rem = ws_summary.cell(row=curr_sum_r, column=9, value=loc if loc and loc != "-" else "待确认")
-        c_rem.font = CELL_FONT
-        c_rem.alignment = LEFT
-        c_rem.border = DARK_BORDER
-
-        ws_summary.row_dimensions[curr_sum_r].height = 24
-        curr_sum_r += 1
-
-    # 底部合计行
-    last_sum_r = curr_sum_r - 1
-    ws_summary.merge_cells(start_row=curr_sum_r, start_column=1, end_row=curr_sum_r, end_column=5)
-    t_sum_lbl = ws_summary.cell(row=curr_sum_r, column=1, value="合    计")
-    t_sum_lbl.font = TOTAL_FONT
-    t_sum_lbl.alignment = CENTER
-    t_sum_lbl.fill = TOTAL_FILL
-
-    for col in range(1, 6):
-        ws_summary.cell(row=curr_sum_r, column=col).border = DOUBLE_BOTTOM_BORDER
-        ws_summary.cell(row=curr_sum_r, column=col).fill = TOTAL_FILL
-
-    c_sum_qty = ws_summary.cell(row=curr_sum_r, column=6, value=f"=SUM(F{start_sum_r}:F{last_sum_r})")
-    c_sum_qty.font = TOTAL_FONT
-    c_sum_qty.alignment = CENTER
-    c_sum_qty.fill = TOTAL_FILL
-    c_sum_qty.border = DOUBLE_BOTTOM_BORDER
-
-    ws_summary.cell(row=curr_sum_r, column=7, value="").fill = TOTAL_FILL
-    ws_summary.cell(row=curr_sum_r, column=7).border = DOUBLE_BOTTOM_BORDER
-
-    c_sum_money = ws_summary.cell(row=curr_sum_r, column=8, value=f"=SUM(H{start_sum_r}:H{last_sum_r})")
-    c_sum_money.font = TOTAL_FONT
-    c_sum_money.alignment = RIGHT
-    c_sum_money.number_format = "#,##0.00"
-    c_sum_money.fill = TOTAL_FILL
-    c_sum_money.border = DOUBLE_BOTTOM_BORDER
-
-    ws_summary.cell(row=curr_sum_r, column=9, value="").fill = TOTAL_FILL
-    ws_summary.cell(row=curr_sum_r, column=9).border = DOUBLE_BOTTOM_BORDER
-    ws_summary.row_dimensions[curr_sum_r].height = 28
 
 
 def _fill_sheets(wb, result, subtitle, template: bool, target_brand: str = ""):
@@ -1211,36 +819,43 @@ def _fill_sheets(wb, result, subtitle, template: bool, target_brand: str = ""):
         target_brand=target_brand or DEFAULT_TARGET_BRAND
     )
 
-    # 2. Sheet 3: 箱体清单
-    ws_box = wb.create_sheet(_SHEETS["boxes"])
-    headers_box = ["序号", "设备编号", "设备名称", "防护等级", "安装方式", "安装位置", "参考尺寸", "数量(台)", "备注"]
-    r_box = _setup(ws_box, result.title, subtitle, headers_box, _COLUMNS["boxes"])
-    for i, b in enumerate(result.boxes, 1):
-        r_box = _row(ws_box, r_box, [i, b.code, b.name, b.ip_rating, b.install, b.location, b.size, b.quantity, b.note])
+    _fill_appendix_sheets(wb, result, subtitle)
 
-    # 3. Sheet 4: 元器件汇总
-    ws_comp = wb.create_sheet(_SHEETS["components"])
-    headers_comp = ["序号", "元器件名称", "规格型号", "单位", "数量", "用于箱体/回路", "备注"]
-    r_comp = _setup(ws_comp, result.title, subtitle, headers_comp, _COLUMNS["components"])
-    for i, c in enumerate(result.components, 1):
-        q = int(c.quantity) if float(c.quantity) == int(c.quantity) else c.quantity
-        r_comp = _row(ws_comp, r_comp, [i, c.name, c.spec, c.unit, q, c.used_in, c.note])
 
-    # 4. Sheet 5: 回路明细
-    ws_cir = wb.create_sheet(_SHEETS["circuits"])
-    headers_cir = ["序号", "箱体编号", "相序", "断路器", "接触器", "电流互感器", "热继电器",
-                   "设备容量(kW)", "回路编号", "导线型号及敷设", "计算电流(A)",
-                   "回路名称", "二次图编号", "启动方式", "备注"]
-    r_cir = _setup(ws_cir, result.title, subtitle, headers_cir, _COLUMNS["circuits"])
-    for i, c in enumerate(result.circuits, 1):
-        r_cir = _row(ws_cir, r_cir, [i, c.box, c.phase, c.breaker, c.contactor, c.ct, c.thermal,
-                                    c.power_kw, c.circuit_no, c.cable, c.current_a,
-                                    c.load_name, c.secondary_ref, c.start_method, c.note],
-                     height=44, center_cols=(1, 2, 3))
+def _fill_appendix_sheets(wb, result: ExtractionResult, subtitle: str) -> None:
+    """报价表之后的附录：箱体清单、元器件汇总、回路明细、技术要求。
 
-    # 5. Sheet 6: 技术要求与报价说明
-    ws_req = wb.create_sheet(_SHEETS["requirements"])
-    r_req = _setup(ws_req, result.title, subtitle, ["序号", "项目", "要求内容"], _COLUMNS["requirements"])
+    两张报价表是交给客户的，附录是留给自己核对的：版式不被附录打乱，信息也不丢。
+    没有内容的附录不建空表，避免客户打开时看到一堆空页。
+    """
+    if result.boxes:
+        ws_box = wb.create_sheet(_SHEETS["boxes"])
+        headers_box = ["序号", "设备编号", "设备名称", "防护等级", "安装方式", "安装位置", "参考尺寸", "数量(台)", "备注"]
+        r_box = _setup(ws_box, result.title, subtitle, headers_box, _COLUMNS["boxes"])
+        for i, b in enumerate(result.boxes, 1):
+            r_box = _row(ws_box, r_box, [i, b.code, b.name, b.ip_rating, b.install, b.location,
+                                         b.size, b.quantity, b.note])
+
+    if result.components:
+        ws_comp = wb.create_sheet(_SHEETS["components"])
+        headers_comp = ["序号", "元器件名称", "规格型号", "单位", "数量", "用于箱体/回路", "备注"]
+        r_comp = _setup(ws_comp, result.title, subtitle, headers_comp, _COLUMNS["components"])
+        for i, c in enumerate(result.components, 1):
+            q = int(c.quantity) if float(c.quantity) == int(c.quantity) else c.quantity
+            r_comp = _row(ws_comp, r_comp, [i, c.name, c.spec, c.unit, q, c.used_in, c.note])
+
+    if result.circuits:
+        ws_cir = wb.create_sheet(_SHEETS["circuits"])
+        headers_cir = ["序号", "箱体编号", "相序", "断路器", "接触器", "电流互感器", "热继电器",
+                       "设备容量(kW)", "回路编号", "导线型号及敷设", "计算电流(A)",
+                       "回路名称", "二次图编号", "启动方式", "备注"]
+        r_cir = _setup(ws_cir, result.title, subtitle, headers_cir, _COLUMNS["circuits"])
+        for i, c in enumerate(result.circuits, 1):
+            r_cir = _row(ws_cir, r_cir, [i, c.box, c.phase, c.breaker, c.contactor, c.ct, c.thermal,
+                                        c.power_kw, c.circuit_no, c.cable, c.current_a,
+                                        c.load_name, c.secondary_ref, c.start_method, c.note],
+                         height=44, center_cols=(1, 2, 3))
+
     reqs = list(result.requirements)
     observed = uncertainty_texts(result, "model") + [
         u.text for u in result.uncertainties if not u.source and u.text]
@@ -1249,10 +864,13 @@ def _fill_sheets(wb, result, subtitle, template: bool, target_brand: str = ""):
     warnings = uncertainty_texts(result, "program")
     if warnings:
         reqs.append({"item": "程序核对告警", "content": "；".join(warnings)})
-    for i, q in enumerate(reqs, 1):
-        item = q.item if hasattr(q, "item") else q["item"]
-        content = q.content if hasattr(q, "content") else q["content"]
-        r_req = _row(ws_req, r_req, [i, item, content], height=64, center_cols=(1,))
+    if reqs:
+        ws_req = wb.create_sheet(_SHEETS["requirements"])
+        r_req = _setup(ws_req, result.title, subtitle, ["序号", "项目", "要求内容"], _COLUMNS["requirements"])
+        for i, q in enumerate(reqs, 1):
+            item = q.item if hasattr(q, "item") else q["item"]
+            content = q.content if hasattr(q, "content") else q["content"]
+            r_req = _row(ws_req, r_req, [i, item, content], height=64, center_cols=(1,))
 
 
 def _fill_replacements(wb, components: list, target_brand: str = ""):
@@ -1434,10 +1052,46 @@ def _fill_reconciliation_sheet(wb, reconciliation, title: str, subtitle: str):
         )
 
 
+def _fill_dual_sheets(wb, result: ExtractionResult, subtitle: str, target_brand: str = ""):
+    """生成用户指定的极简双工作表标准报价表：
+    Sheet 1: 配电箱柜汇总表 —— 全项目所有箱体汇总台账与报价
+    Sheet 2: 箱柜及元器件明细 —— 每个箱体上方为箱体基本信息横幅，下方为回路与元器件明细清单，多箱体垂直流水排列
+    """
+    ws_summary = wb.active
+    ws_detail = wb.create_sheet("箱柜及元器件明细")
+
+    card_anchors = _fill_box_cards_detail_sheet(
+        ws_detail, result.title, subtitle,
+        result.boxes, result.circuits, result.components,
+        target_brand=target_brand or DEFAULT_TARGET_BRAND,
+        sheet_title="箱柜及元器件明细"
+    )
+
+    _fill_quotation_summary_sheet(
+        ws_summary, result.title,
+        result.boxes, result.circuits, result.components,
+        card_anchors, detail_sheet_title="箱柜及元器件明细",
+        target_brand=target_brand or DEFAULT_TARGET_BRAND,
+        sheet_title="配电箱柜汇总表"
+    )
+
+    # 导出不被存疑项拦住，就必须把它们如实随文件交出；没有存疑时保持两张表
+    if result.uncertainties:
+        ws_u = wb.create_sheet("待核对项")
+        r_u = _setup(ws_u, f"{result.title}——待核对项", subtitle,
+                     ["序号", "位置", "待核对问题", "级别", "状态"], [6, 22, 70, 10, 10])
+        items = sorted(result.uncertainties, key=lambda u: bool(u.resolved))
+        for i, u in enumerate(items, 1):
+            r_u = _row(ws_u, r_u, [i, u.location, u.detail, getattr(u, "severity", "") or "",
+                                   "已确认" if u.resolved else "未确认"],
+                       height=30, center_cols=(1, 4, 5))
+
+
 def build_workbook(result: ExtractionResult, subtitle: str, out_path: str,
                    changes=None, include_changes: bool = True,
                    template_path: str = "", target_brand: str = "",
-                   layout: str = "all", bidder: str = "", owner: str = "") -> str:
+                   layout: str = "all", bidder: str = "", owner: str = "",
+                   quote_res: dict | None = None) -> str:
     template = bool(template_path) and os.path.exists(template_path)
     if template:
         try:
@@ -1448,8 +1102,23 @@ def build_workbook(result: ExtractionResult, subtitle: str, out_path: str,
     else:
         wb = _blank_workbook()
 
-    if layout == "3_sheets" and not template:
-        _fill_three_sheets(wb, result, subtitle, bidder=bidder, owner=owner, target_brand=target_brand or DEFAULT_TARGET_BRAND)
+    if layout in ("2_sheets", "dual_sheets") and not template:
+        _fill_dual_sheets(wb, result, subtitle, target_brand=target_brand or DEFAULT_TARGET_BRAND)
+    elif layout in ("3_sheets", "quote_template") and not template:
+        if quote_res:
+            model = quote_model_from_quote_res(quote_res, {"project": result.title}, target_brand or DEFAULT_TARGET_BRAND)
+            model["project"] = _clean_proj_title(result.title) or model["project"]
+            model["owner"] = owner
+            model["unresolved_count"] = len([u for u in (result.uncertainties or [])
+                                             if not getattr(u, "resolved", False)])
+        else:
+            model = quote_model_from_result(result, target_brand or DEFAULT_TARGET_BRAND, owner=owner)
+        _fill_quote_template(wb, model)
+        _fill_appendix_sheets(wb, result, subtitle)
+        if getattr(result, "topology", None):
+            _fill_topology_sheet(wb, result.topology, f"{result.title}——配电拓扑架构树", subtitle)
+        if include_changes and changes:
+            _fill_changes(wb, changes)
         if getattr(result, "reconciliation", None) and result.reconciliation.has_catalog:
             _fill_reconciliation_sheet(wb, result.reconciliation, result.title, subtitle)
     else:
@@ -1784,3 +1453,430 @@ def build_custom_table_workbook(title: str, headers: list[str], rows: list[list[
 
     return wb
 
+
+def build_pricing_quotation_workbook(
+    job_info: dict,
+    quote_res: dict,
+    out_path: str,
+    target_brand: str = ""
+) -> str:
+    """组价阶段导出：屏柜汇总表 + 屏柜分项表（客户口径的两表模板）。
+
+    数据来自组价工作台的核算结果（含用户手改价、平替品牌、费率联动），
+    版面由 quote_template 渲染器统一负责，不再各写一套。
+    """
+    info = job_info or {}
+    model = quote_model_from_quote_res(quote_res, info, target_brand or DEFAULT_TARGET_BRAND)
+    model["project"] = model["project"] or _clean_proj_title(info.get("title") or "")
+    model["owner"] = info.get("owner") or ""
+    data = info.get("data") or {}
+    items = data.get("uncertainties") or (info.get("summary") or {}).get("uncertainties") or []
+    model["unresolved_count"] = len([u for u in items if isinstance(u, dict) and not u.get("resolved")])
+
+    wb = _blank_workbook()
+    _fill_quote_template(wb, model)
+    wb.save(out_path)
+    return out_path
+
+
+def build_takeoff_bom_workbook(
+    job_info: dict,
+    out_path: str
+) -> str:
+    """生成工程量拆量清单（双 Sheet 纯工程量标准，去除所有价格）：
+    Sheet 1: 配电箱柜清单汇总 —— 汇总每个箱体的型号、防护等级、安装方式、数量、回路数、安装位置等纯工程量信息，序号带超链接直达明细卡片；
+    Sheet 2: 箱柜及元器件明细 —— 保持与组价明细完全一致的包含关系，展开每个箱体及箱内回路/元器件明细，不含单价、合价与纯价格费率行。
+    """
+    from datetime import datetime
+
+    data = job_info.get("data") or {}
+    boxes = data.get("boxes") or []
+    circuits = data.get("circuits") or []
+    components = data.get("components") or []
+
+    project_title = job_info.get("project") or (job_info.get("summary") or {}).get("title") or "配电箱工程量拆量"
+    clean_proj_name = str(project_title).replace("——成套箱体分项卡片明细表", "").replace("图纸扒图_", "").strip()
+    filename = job_info.get("filename") or f"{job_info.get('job_id', 'export')}.dwg"
+
+    wb = openpyxl.Workbook()
+    ws_summary = wb.active
+    ws_summary.title = "配电箱柜清单汇总"
+    ws_detail = wb.create_sheet("箱柜及元器件明细")
+
+    # 将回路与元器件按箱体归类
+    circuits_by_box: dict[str, list] = {}
+    for c in circuits:
+        b_code = c.get("box") or c.get("box_code") or ""
+        circuits_by_box.setdefault(b_code, []).append(c)
+
+    comps_by_box: dict[str, list] = {}
+    for comp in components:
+        used = str(comp.get("used_in") or comp.get("box") or comp.get("box_code") or "").strip()
+        parts = [p.strip() for p in re.split(r"[、,，\s]+", used) if p.strip()]
+        if not parts and used:
+            parts = [used.strip()]
+        for p in parts:
+            comps_by_box.setdefault(p, []).append(comp)
+
+    # ==========================================================
+    # Sheet 2: 箱柜及元器件明细（纯工程量，去掉价格）
+    # ==========================================================
+    detail_widths = [8, 14, 24, 28, 8, 10, 16, 24, 28, 20]
+    for j, w in enumerate(detail_widths, start=1):
+        ws_detail.column_dimensions[get_column_letter(j)].width = w
+
+    ws_detail.merge_cells("A1:J1")
+    t1 = ws_detail.cell(row=1, column=1, value="配电箱柜及元器件拆量明细表 (纯工程量)")
+    t1.font = TITLE_FONT
+    t1.alignment = CENTER
+    ws_detail.row_dimensions[1].height = 32
+
+    sub_text = (f"工程项目：{clean_proj_name} ｜ 图纸依据：{filename} ｜ "
+                f"工程量属性：施工图提取未组价纯工程量 ｜ 导出时间：{datetime.now():%Y-%m-%d %H:%M}")
+    ws_detail.merge_cells("A2:J2")
+    t2 = ws_detail.cell(row=2, column=1, value=sub_text)
+    t2.font = SUB_FONT
+    t2.alignment = CENTER
+    ws_detail.row_dimensions[2].height = 20
+
+    card_anchors: dict[str, int] = {}
+    curr_d = 4
+    headers_detail = ["序号", "柜号", "元件名称", "图纸设计规格", "单位", "数量", "所属回路/部位", "负荷用途/负荷名称", "导线规格及敷设", "工程备注"]
+
+    total_items_count = 0
+
+    for b_idx, box in enumerate(boxes, start=1):
+        box_code = box.get("code") or box.get("box_code") or f"BOX{b_idx}"
+        box_name = box.get("name") or "配电箱"
+        box_size = box.get("size") or "-"
+        box_ip = box.get("ip_rating") or "IP30"
+        box_install = box.get("install") or "明装"
+        box_loc = box.get("location") or "待确认"
+        box_qty = int(box.get("quantity") or 1)
+
+        b_circuits = circuits_by_box.get(box_code, [])
+        b_comps = comps_by_box.get(box_code, [])
+
+        card_anchors[box_code] = curr_d
+
+        # 1. 箱柜主行 (水蓝横幅)
+        for col in range(1, 11):
+            cell = ws_detail.cell(row=curr_d, column=col)
+            cell.fill = BOX_HEADER_FILL
+            cell.border = DARK_BORDER
+
+        ws_detail.cell(row=curr_d, column=1, value=f"1-{b_idx}").font = BOX_HEADER_FONT
+        ws_detail.cell(row=curr_d, column=1).alignment = CENTER
+
+        ws_detail.cell(row=curr_d, column=2, value=box_code).font = BOX_HEADER_FONT
+        ws_detail.cell(row=curr_d, column=2).alignment = LEFT
+
+        ws_detail.cell(row=curr_d, column=3, value=f"{box_name} (共{len(b_circuits)}回路 / {len(b_comps)}项元器件)").font = BOX_HEADER_FONT
+        ws_detail.cell(row=curr_d, column=3).alignment = LEFT
+
+        ws_detail.cell(row=curr_d, column=4, value=box_size).font = BOX_HEADER_FONT
+        ws_detail.cell(row=curr_d, column=4).alignment = LEFT
+
+        ws_detail.cell(row=curr_d, column=5, value="台").font = BOX_HEADER_FONT
+        ws_detail.cell(row=curr_d, column=5).alignment = CENTER
+
+        ws_detail.cell(row=curr_d, column=6, value=box_qty).font = BOX_HEADER_FONT
+        ws_detail.cell(row=curr_d, column=6).alignment = CENTER
+
+        ws_detail.cell(row=curr_d, column=7, value=box_loc).font = BOX_HEADER_FONT
+        ws_detail.cell(row=curr_d, column=7).alignment = LEFT
+
+        ws_detail.cell(row=curr_d, column=8, value=f"{box_install} ｜ {box_ip}").font = BOX_HEADER_FONT
+        ws_detail.cell(row=curr_d, column=8).alignment = LEFT
+
+        ws_detail.cell(row=curr_d, column=9, value="-").font = BOX_HEADER_FONT
+        ws_detail.cell(row=curr_d, column=9).alignment = CENTER
+
+        ws_detail.cell(row=curr_d, column=10, value="箱体基本参数").font = BOX_HEADER_FONT
+        ws_detail.cell(row=curr_d, column=10).alignment = LEFT
+
+        ws_detail.row_dimensions[curr_d].height = 26
+        curr_d += 1
+
+        # 2. 表头行
+        for j, h in enumerate(headers_detail, start=1):
+            hc = ws_detail.cell(row=curr_d, column=j, value=h)
+            hc.font = SUMMARY_HDR_FONT
+            hc.fill = SUMMARY_HDR_FILL
+            hc.alignment = CENTER
+            hc.border = DARK_BORDER
+        ws_detail.row_dimensions[curr_d].height = 24
+        curr_d += 1
+
+        # 3. 组织该箱体的明细行：回路器件 + 独立器件
+        c_seq_idx = 1
+
+        # A. 回路列表（进线与分支断路器）
+        for cir in b_circuits:
+            c_no = cir.get("circuit_no") or ""
+            load = cir.get("load_name") or ""
+            brk = cir.get("breaker") or ""
+            cable = cir.get("cable") or ""
+            contactor = cir.get("contactor") or ""
+            power = cir.get("power_kw") or ""
+            phase = cir.get("phase") or ""
+            note = cir.get("note") or ""
+
+            is_inc = "进线" in c_no or "进线" in load
+            dev_name = "进线断路器" if is_inc else "分支断路器"
+            if contactor and contactor != "-":
+                dev_name += f" / 接触器({contactor})"
+
+            extra_info = f"相序:{phase} 容量:{power}kW" if (power or phase) else note
+
+            row_vals = [
+                f"{b_idx}.{c_seq_idx}",
+                box_code,
+                dev_name,
+                brk or "(规格未标注)",
+                "只",
+                1,
+                c_no or "回路",
+                load or "负荷出线",
+                cable or "-",
+                extra_info
+            ]
+            for j, val in enumerate(row_vals, start=1):
+                cell = ws_detail.cell(row=curr_d, column=j, value=sanitize_excel_value(val))
+                cell.font = CELL_FONT
+                cell.border = DARK_BORDER
+                cell.alignment = CENTER if j in (1, 5, 6) else LEFT
+            ws_detail.row_dimensions[curr_d].height = 22
+            curr_d += 1
+            c_seq_idx += 1
+            total_items_count += 1
+
+        # B. 附属/独立元器件（如 SPD、电表、互感器、接触器等）
+        for cp in b_comps:
+            cp_name = cp.get("name") or "元器件"
+            if cp_name == "配电箱体":
+                continue
+            cp_spec = cp.get("spec") or ""
+            cp_qty = int(cp.get("quantity") or 1)
+            cp_unit = cp.get("unit") or "只"
+            cp_note = cp.get("note") or ""
+
+            row_vals = [
+                f"{b_idx}.{c_seq_idx}",
+                box_code,
+                cp_name,
+                cp_spec or "-",
+                cp_unit,
+                cp_qty,
+                "箱内装置",
+                "保护与测量附件",
+                "-",
+                cp_note
+            ]
+            for j, val in enumerate(row_vals, start=1):
+                cell = ws_detail.cell(row=curr_d, column=j, value=sanitize_excel_value(val))
+                cell.font = CELL_FONT
+                cell.border = DARK_BORDER
+                cell.alignment = CENTER if j in (1, 5, 6) else LEFT
+            ws_detail.row_dimensions[curr_d].height = 22
+            curr_d += 1
+            c_seq_idx += 1
+            total_items_count += cp_qty
+
+        # 间隔两行空白
+        curr_d += 2
+
+    # 底部全项目工程量总计行
+    ws_detail.merge_cells(start_row=curr_d, start_column=1, end_row=curr_d, end_column=5)
+    t_takeoff_lbl = ws_detail.cell(row=curr_d, column=1, value="全项目工程量总计 (全部箱柜设备与元器件总件数)")
+    t_takeoff_lbl.font = TOTAL_FONT
+    t_takeoff_lbl.alignment = CENTER
+    t_takeoff_lbl.fill = TOTAL_FILL
+    for col in range(1, 6):
+        ws_detail.cell(row=curr_d, column=col).border = DOUBLE_BOTTOM_BORDER
+        ws_detail.cell(row=curr_d, column=col).fill = TOTAL_FILL
+    ws_detail.cell(row=curr_d, column=6, value=total_items_count).alignment = CENTER
+    ws_detail.cell(row=curr_d, column=6).font = TOTAL_FONT
+    ws_detail.cell(row=curr_d, column=6).fill = TOTAL_FILL
+    ws_detail.cell(row=curr_d, column=6).border = DOUBLE_BOTTOM_BORDER
+    for col in range(7, 11):
+        ws_detail.cell(row=curr_d, column=col).fill = TOTAL_FILL
+        ws_detail.cell(row=curr_d, column=col).border = DOUBLE_BOTTOM_BORDER
+    ws_detail.row_dimensions[curr_d].height = 28
+
+    # ==========================================================
+    # Sheet 1: 配电箱柜清单汇总（纯工程量）
+    # ==========================================================
+    sum_widths = [10, 16, 26, 20, 14, 14, 8, 10, 12, 22, 24]
+    for j, w in enumerate(sum_widths, start=1):
+        ws_summary.column_dimensions[get_column_letter(j)].width = w
+
+    ws_summary.merge_cells("A1:K1")
+    s_title = ws_summary.cell(row=1, column=1, value="配电箱柜清单汇总表 (工程量拆量)")
+    s_title.font = SUMMARY_TITLE_FONT
+    s_title.alignment = CENTER
+    ws_summary.row_dimensions[1].height = 36
+
+    ws_summary.row_dimensions[2].height = 10
+
+    ws_summary.cell(row=3, column=1, value="项目单位：").font = META_FONT
+    ws_summary.row_dimensions[3].height = 20
+
+    ws_summary.cell(row=4, column=1, value=f"项目名称：{clean_proj_name}").font = META_FONT
+    ws_summary.row_dimensions[4].height = 20
+
+    ws_summary.cell(row=5, column=1, value=f"图纸文件：{filename} ｜ 拆量核对完成 ｜ 纯工程量底稿").font = META_FONT
+    ws_summary.row_dimensions[5].height = 20
+
+    ws_summary.merge_cells("A6:K6")
+    cat_c = ws_summary.cell(row=6, column=1, value="配电箱")
+    cat_c.font = CATEGORY_FONT
+    cat_c.fill = CATEGORY_FILL
+    cat_c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    for col in range(1, 12):
+        ws_summary.cell(row=6, column=col).border = DARK_BORDER
+    ws_summary.row_dimensions[6].height = 24
+
+    headers_summary = ["序号", "柜号", "箱柜名称", "型号规格", "防护等级", "安装方式", "单位", "数量", "回路总数", "安装位置/使用部位", "工程备注"]
+    for j, h in enumerate(headers_summary, start=1):
+        hc = ws_summary.cell(row=7, column=j, value=h)
+        hc.font = SUMMARY_HDR_FONT
+        hc.fill = SUMMARY_HDR_FILL
+        hc.alignment = CENTER
+        hc.border = DARK_BORDER
+    ws_summary.row_dimensions[7].height = 28
+
+    start_s_r = 8
+    curr_s_r = start_s_r
+
+    for i, b in enumerate(boxes, start=1):
+        box_code = b.get("code") or b.get("box_code") or f"BOX{i}"
+        box_name = b.get("name") or "配电箱"
+        box_size = b.get("size") or "-"
+        box_ip = b.get("ip_rating") or "IP30"
+        box_install = b.get("install") or "明装"
+        box_qty = int(b.get("quantity") or 1)
+        b_circuits = circuits_by_box.get(box_code, [])
+        box_loc = b.get("location") or "待确认"
+        box_note = b.get("note") or ""
+
+        c_seq = ws_summary.cell(row=curr_s_r, column=1, value=i)
+        c_seq.alignment = CENTER
+        c_seq.border = DARK_BORDER
+        target_r = card_anchors.get(box_code)
+        if target_r:
+            c_seq.hyperlink = f"#'箱柜及元器件明细'!A{target_r}"
+            c_seq.font = LINK_FONT
+        else:
+            c_seq.font = CELL_FONT
+
+        c_code = ws_summary.cell(row=curr_s_r, column=2, value=box_code)
+        c_code.font = CELL_FONT
+        c_code.alignment = LEFT
+        c_code.border = DARK_BORDER
+
+        c_name = ws_summary.cell(row=curr_s_r, column=3, value=box_name)
+        c_name.font = CELL_FONT
+        c_name.alignment = LEFT
+        c_name.border = DARK_BORDER
+
+        c_size = ws_summary.cell(row=curr_s_r, column=4, value=box_size)
+        c_size.font = CELL_FONT
+        c_size.alignment = LEFT
+        c_size.border = DARK_BORDER
+
+        c_ip = ws_summary.cell(row=curr_s_r, column=5, value=box_ip)
+        c_ip.font = CELL_FONT
+        c_ip.alignment = CENTER
+        c_ip.border = DARK_BORDER
+
+        c_ins = ws_summary.cell(row=curr_s_r, column=6, value=box_install)
+        c_ins.font = CELL_FONT
+        c_ins.alignment = CENTER
+        c_ins.border = DARK_BORDER
+
+        c_u = ws_summary.cell(row=curr_s_r, column=7, value="台")
+        c_u.font = CELL_FONT
+        c_u.alignment = CENTER
+        c_u.border = DARK_BORDER
+
+        c_q = ws_summary.cell(row=curr_s_r, column=8, value=box_qty)
+        c_q.font = CELL_FONT
+        c_q.alignment = CENTER
+        c_q.border = DARK_BORDER
+
+        c_cir = ws_summary.cell(row=curr_s_r, column=9, value=len(b_circuits))
+        c_cir.font = CELL_FONT
+        c_cir.alignment = CENTER
+        c_cir.border = DARK_BORDER
+
+        c_loc = ws_summary.cell(row=curr_s_r, column=10, value=box_loc)
+        c_loc.font = CELL_FONT
+        c_loc.alignment = LEFT
+        c_loc.border = DARK_BORDER
+
+        c_rem = ws_summary.cell(row=curr_s_r, column=11, value=box_note)
+        c_rem.font = CELL_FONT
+        c_rem.alignment = LEFT
+        c_rem.border = DARK_BORDER
+
+        ws_summary.row_dimensions[curr_s_r].height = 24
+        curr_s_r += 1
+
+    last_s_r = curr_s_r - 1
+    ws_summary.merge_cells(start_row=curr_s_r, start_column=1, end_row=curr_s_r, end_column=7)
+    t_lbl = ws_summary.cell(row=curr_s_r, column=1, value="合    计")
+    t_lbl.font = TOTAL_FONT
+    t_lbl.alignment = CENTER
+    t_lbl.fill = TOTAL_FILL
+    for col in range(1, 8):
+        ws_summary.cell(row=curr_s_r, column=col).border = DOUBLE_BOTTOM_BORDER
+        ws_summary.cell(row=curr_s_r, column=col).fill = TOTAL_FILL
+
+    c_sqty = ws_summary.cell(row=curr_s_r, column=8, value=f"=SUM(H{start_s_r}:H{last_s_r})")
+    c_sqty.font = TOTAL_FONT
+    c_sqty.alignment = CENTER
+    c_sqty.fill = TOTAL_FILL
+    c_sqty.border = DOUBLE_BOTTOM_BORDER
+
+    c_scir = ws_summary.cell(row=curr_s_r, column=9, value=f"=SUM(I{start_s_r}:I{last_s_r})")
+    c_scir.font = TOTAL_FONT
+    c_scir.alignment = CENTER
+    c_scir.fill = TOTAL_FILL
+    c_scir.border = DOUBLE_BOTTOM_BORDER
+
+    for col in (10, 11):
+        ws_summary.cell(row=curr_s_r, column=col).fill = TOTAL_FILL
+        ws_summary.cell(row=curr_s_r, column=col).border = DOUBLE_BOTTOM_BORDER
+    ws_summary.row_dimensions[curr_s_r].height = 28
+
+    # 未确认存疑如实随文件交出，防止关键设计存疑漏项
+    raw_u = (job_info.get("data") or {}).get("uncertainties") or (job_info.get("summary") or {}).get("uncertainties") or []
+    if raw_u:
+        ws_u = wb.create_sheet("待核对项")
+        sub_u = f"工程项目：{clean_proj_name} ｜ 未确认的图纸存疑与设计缺失项（随文件如实交付，报价前应逐条核对）"
+        r_u = _setup(ws_u, f"{clean_proj_name}——待核对项", sub_u,
+                     ["序号", "位置", "待核对问题", "级别", "状态"], [6, 22, 70, 10, 10])
+
+        def _is_res(item):
+            if isinstance(item, dict):
+                return bool(item.get("resolved"))
+            return bool(getattr(item, "resolved", False))
+
+        sorted_u = sorted(raw_u, key=_is_res)
+        for idx, u in enumerate(sorted_u, 1):
+            if isinstance(u, dict):
+                loc = u.get("location") or ""
+                det = u.get("detail") or u.get("text") or ""
+                sev = (u.get("severity") or "WARNING").upper()
+                res = bool(u.get("resolved"))
+            else:
+                loc = getattr(u, "location", "") or ""
+                det = getattr(u, "detail", "") or getattr(u, "text", "") or ""
+                sev = (getattr(u, "severity", "WARNING") or "WARNING").upper()
+                res = bool(getattr(u, "resolved", False))
+            r_u = _row(ws_u, r_u, [idx, loc, det, sev, "已确认" if res else "未确认"],
+                       height=30, center_cols=(1, 4, 5))
+
+    wb.save(out_path)
+    return out_path
