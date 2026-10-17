@@ -124,6 +124,13 @@ tailwind.config={
 .excel-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
 .excel-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
 .excel-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+/* 未登录时锁住整个工作台，只留登录/注册 */
+body.auth-locked #globalHeader,
+body.auth-locked main.view,
+body.auth-locked #extAiDrawer { display: none !important; }
+#authScreen { display: none; }
+body.auth-locked #authScreen { display: block; }
+
 .font-mono-nums { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
 .excel-cell { border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
 .excel-th { border-right: 1px solid #cbd5e1; border-bottom: 1px solid #94a3b8; }
@@ -150,7 +157,107 @@ tailwind.config={
 }
 </style>
 </head>
-<body class="bg-surface font-body-md text-on-surface h-screen overflow-hidden flex flex-col">
+<body class="bg-surface font-body-md text-on-surface h-screen overflow-hidden flex flex-col auth-locked">
+
+<!-- ⓪ 登录 / 注册：未登录不允许进入工作台 -->
+<div id="authScreen" class="fixed inset-0 z-[200] bg-surface overflow-y-auto">
+  <div class="min-h-full grid md:grid-cols-[minmax(0,1fr)_minmax(420px,540px)]">
+
+    <!-- 品牌侧 -->
+    <section class="hidden md:flex flex-col justify-between bg-primary text-on-primary p-space-xl md:p-14 relative overflow-hidden">
+      <div class="relative z-10 flex items-center gap-space-md">
+        <div class="w-10 h-10 rounded bg-on-primary/15 flex items-center justify-center">
+          <span class="material-symbols-outlined text-on-primary text-[24px]">developer_board</span>
+        </div>
+        <span class="font-headline-md text-headline-md tracking-tight">电柜智核</span>
+      </div>
+
+      <div class="relative z-10 max-w-[440px] flex flex-col gap-space-lg">
+        <h2 class="font-headline-lg text-[32px] leading-tight">图纸扒量 · 组价 · 交付<br>一条链路做完</h2>
+        <p class="font-body-md text-on-primary/80 leading-relaxed">
+          上传 DWG / PDF 或利驰扒量清单，系统按矢量拓扑提取箱体、回路与元器件，生成可核对的组价明细。
+        </p>
+        <ul class="flex flex-col gap-space-md font-body-md text-on-primary/90">
+          <li class="flex items-start gap-space-sm"><span class="material-symbols-outlined text-[20px]">check_circle</span><span>矢量坐标提取，不改字、不猜规格</span></li>
+          <li class="flex items-start gap-space-sm"><span class="material-symbols-outlined text-[20px]">check_circle</span><span>图面存疑逐条标出，宁标疑不编造</span></li>
+          <li class="flex items-start gap-space-sm"><span class="material-symbols-outlined text-[20px]">check_circle</span><span>企业数据隔离，登录后只见自己项目</span></li>
+        </ul>
+      </div>
+
+      <div class="relative z-10 font-body-sm text-on-primary/60">© 电柜智核 · 成套电气智能工作台</div>
+      <div class="absolute -right-24 -bottom-24 w-[420px] h-[420px] rounded-full bg-on-primary/5"></div>
+      <div class="absolute -right-10 -top-16 w-[240px] h-[240px] rounded-full bg-on-primary/5"></div>
+    </section>
+
+    <!-- 表单侧 -->
+    <section class="flex items-center justify-center p-space-lg md:p-10 bg-surface-container-lowest">
+      <div class="w-full max-w-[420px]">
+        <div class="md:hidden flex items-center gap-space-sm mb-space-lg">
+          <div class="w-9 h-9 rounded bg-primary flex items-center justify-center">
+            <span class="material-symbols-outlined text-on-primary text-[20px]">developer_board</span>
+          </div>
+          <span class="font-headline-sm text-headline-sm text-on-surface">电柜智核</span>
+        </div>
+
+        <h1 class="font-headline-lg text-headline-lg text-on-surface mb-space-xs" id="authTitle">登录工作台</h1>
+        <p class="font-body-md text-body-md text-on-surface-variant mb-space-lg" id="authSubtitle">使用企业账号登录后进入项目与图纸。</p>
+
+        <div class="flex items-center gap-space-lg border-b border-outline-variant mb-space-lg">
+          <button type="button" class="auth-tab py-2 -mb-[1px] border-b-2 border-primary text-primary font-body-md" data-mode="login" id="authTabLogin">登录</button>
+          <button type="button" class="auth-tab py-2 -mb-[1px] border-b-2 border-transparent text-on-surface-variant font-body-md" data-mode="register" id="authTabRegister">注册</button>
+        </div>
+
+        <!-- 登录 -->
+        <form class="flex flex-col gap-space-md" id="loginForm" novalidate>
+          <label class="flex flex-col gap-space-xs">
+            <span class="font-body-sm text-body-sm text-on-surface-variant">账号</span>
+            <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-lowest text-on-surface focus:outline-none focus:border-primary" id="loginUsername" type="text" autocomplete="username" placeholder="请输入账号">
+          </label>
+          <label class="flex flex-col gap-space-xs">
+            <span class="font-body-sm text-body-sm text-on-surface-variant">密码</span>
+            <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-lowest text-on-surface focus:outline-none focus:border-primary" id="loginPassword" type="password" autocomplete="current-password" placeholder="请输入密码">
+          </label>
+          <p class="hidden text-body-sm text-error bg-error-container/60 border border-error/20 rounded px-3 py-2" id="loginError"></p>
+          <button class="w-full h-11 rounded bg-primary text-on-primary font-body-md hover:bg-primary-container transition-colors disabled:opacity-60" id="loginSubmit" type="submit">登录</button>
+          <p class="font-body-sm text-body-sm text-on-surface-variant text-center">
+            还没有账号？<button class="text-primary underline underline-offset-2" id="goRegister" type="button">立即注册</button>
+          </p>
+        </form>
+
+        <!-- 注册 -->
+        <form class="flex flex-col gap-space-md" id="registerForm" hidden novalidate>
+          <label class="flex flex-col gap-space-xs">
+            <span class="font-body-sm text-body-sm text-on-surface-variant">企业 / 工区名称</span>
+            <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-lowest text-on-surface focus:outline-none focus:border-primary" id="regTenant" type="text" placeholder="如：某某电气成套有限公司">
+          </label>
+          <label class="flex flex-col gap-space-xs">
+            <span class="font-body-sm text-body-sm text-on-surface-variant">姓名</span>
+            <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-lowest text-on-surface focus:outline-none focus:border-primary" id="regDisplayName" type="text" placeholder="如：张工">
+          </label>
+          <label class="flex flex-col gap-space-xs">
+            <span class="font-body-sm text-body-sm text-on-surface-variant">账号</span>
+            <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-lowest text-on-surface focus:outline-none focus:border-primary" id="regUsername" type="text" autocomplete="username" placeholder="登录账号，注册后不可重复">
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+            <label class="flex flex-col gap-space-xs">
+              <span class="font-body-sm text-body-sm text-on-surface-variant">密码</span>
+              <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-lowest text-on-surface focus:outline-none focus:border-primary" id="regPassword" type="password" autocomplete="new-password" placeholder="至少 6 位">
+            </label>
+            <label class="flex flex-col gap-space-xs">
+              <span class="font-body-sm text-body-sm text-on-surface-variant">确认密码</span>
+              <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-lowest text-on-surface focus:outline-none focus:border-primary" id="regPassword2" type="password" autocomplete="new-password" placeholder="再输入一次">
+            </label>
+          </div>
+          <p class="hidden text-body-sm text-error bg-error-container/60 border border-error/20 rounded px-3 py-2" id="registerError"></p>
+          <button class="w-full h-11 rounded bg-primary text-on-primary font-body-md hover:bg-primary-container transition-colors disabled:opacity-60" id="registerSubmit" type="submit">注册并进入</button>
+          <p class="font-body-sm text-body-sm text-on-surface-variant text-center">
+            已有账号？<button class="text-primary underline underline-offset-2" id="goLogin" type="button">返回登录</button>
+          </p>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
 
 <!-- 统一设计规范顶部导航栏 -->
 <header id="globalHeader" class="fixed top-0 left-0 right-0 z-40 h-14 bg-surface/90 backdrop-blur-xl border-b border-surface-container shadow-[0_1px_8px_rgba(0,0,0,0.04)] px-4 md:px-margin-desktop flex items-center justify-between">

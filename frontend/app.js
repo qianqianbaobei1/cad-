@@ -30,8 +30,10 @@ async function api(path, opts = {}) {
   const res = await fetch(path, { ...opts, headers });
   if (!res.ok) {
     if (res.status === 401 || (res.status === 403 && TOKEN)) {
+      const wasLoggedIn = !!TOKEN;
       TOKEN = '';
       try { localStorage.removeItem('dgzh_auth_token'); } catch (_) {}
+      if (wasLoggedIn && !path.startsWith('/api/auth/')) Auth.onUnauthorized();
     }
     let msg = `请求失败 (${res.status})`;
     try {
@@ -46,6 +48,161 @@ async function api(path, opts = {}) {
 
 // <img>、下载链接带不了请求头，令牌走查询参数（后端中间件支持）
 const withToken = (url) => (TOKEN ? `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(TOKEN)}` : url);
+
+/* ---------------- 登录 / 注册 ---------------- */
+
+const Auth = {
+  user: null,
+
+  init() {
+    document.querySelectorAll('.auth-tab').forEach((btn) => {
+      btn.addEventListener('click', () => this.setMode(btn.dataset.mode));
+    });
+    $('goRegister')?.addEventListener('click', () => this.setMode('register'));
+    $('goLogin')?.addEventListener('click', () => this.setMode('login'));
+    $('loginForm')?.addEventListener('submit', (e) => this.login(e));
+    $('registerForm')?.addEventListener('submit', (e) => this.register(e));
+  },
+
+  setMode(mode) {
+    const login = mode !== 'register';
+    if ($('loginForm')) $('loginForm').hidden = !login;
+    if ($('registerForm')) $('registerForm').hidden = login;
+    if ($('authTitle')) $('authTitle').textContent = login ? '登录工作台' : '注册企业账号';
+    if ($('authSubtitle')) $('authSubtitle').textContent = login
+      ? '使用企业账号登录后进入项目与图纸。'
+      : '注册后会创建独立企业空间，你的图纸与项目只有本企业账号可见。';
+    const on = ['border-primary', 'text-primary'];
+    const off = ['border-transparent', 'text-on-surface-variant'];
+    document.querySelectorAll('.auth-tab').forEach((btn) => {
+      const active = (btn.dataset.mode === 'register') !== login;
+      on.forEach((c) => btn.classList.toggle(c, active));
+      off.forEach((c) => btn.classList.toggle(c, !active));
+    });
+    this.setError('loginError', '');
+    this.setError('registerError', '');
+  },
+
+  setError(id, msg) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = msg || '';
+    el.hidden = !msg;
+  },
+
+  busy(btn, on, label) {
+    if (!btn) return;
+    btn.disabled = on;
+    btn.textContent = label;
+  },
+
+  applyUser(user) {
+    this.user = user;
+    if ($('userNameLabel')) $('userNameLabel').textContent = user.display_name || user.username || '系统工程师';
+  },
+
+  async restore() {
+    if (!TOKEN) return false;
+    try {
+      const me = await api('/api/auth/me');
+      if (!me.authenticated || !me.user || me.user.role === 'guest') return false;
+      this.applyUser(me.user);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  },
+
+  show(mode = 'login', message = '') {
+    this.user = null;
+    document.body.classList.add('auth-locked');
+    this.setMode(mode);
+    if (message) this.setError(mode === 'register' ? 'registerError' : 'loginError', message);
+    setTimeout(() => (mode === 'register' ? $('regTenant') : $('loginUsername'))?.focus(), 60);
+  },
+
+  hide() {
+    document.body.classList.remove('auth-locked');
+  },
+
+  onUnauthorized() {
+    if (document.body.classList.contains('auth-locked')) return;
+    this.show('login', '登录状态已失效，请重新登录');
+  },
+
+  finish(res) {
+    TOKEN = res.token || '';
+    try { localStorage.setItem('dgzh_auth_token', TOKEN); } catch (_) { /* 无痕模式 */ }
+    this.applyUser(res.user || {});
+    this.hide();
+    if ($('loginPassword')) $('loginPassword').value = '';
+    if ($('regPassword')) $('regPassword').value = '';
+    if ($('regPassword2')) $('regPassword2').value = '';
+    toast(`欢迎，${res.user?.display_name || res.user?.username || '用户'}（${res.user?.tenant_name || ''}）`);
+    route();
+  },
+
+  async login(e) {
+    e.preventDefault();
+    const username = ($('loginUsername').value || '').trim();
+    const password = $('loginPassword').value || '';
+    this.setError('loginError', '');
+    if (!username || !password) return this.setError('loginError', '请输入账号和密码');
+    this.busy($('loginSubmit'), true, '登录中…');
+    try {
+      const res = await api('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      this.finish(res);
+    } catch (err) {
+      this.setError('loginError', err.message || '登录失败');
+    } finally {
+      this.busy($('loginSubmit'), false, '登录');
+    }
+  },
+
+  async register(e) {
+    e.preventDefault();
+    const tenantName = ($('regTenant').value || '').trim();
+    const displayName = ($('regDisplayName').value || '').trim();
+    const username = ($('regUsername').value || '').trim();
+    const password = $('regPassword').value || '';
+    const password2 = $('regPassword2').value || '';
+    this.setError('registerError', '');
+
+    if (!tenantName) return this.setError('registerError', '请填写企业 / 工区名称');
+    if (!username) return this.setError('registerError', '请填写登录账号');
+    if (password.length < 6) return this.setError('registerError', '密码至少 6 位');
+    if (password !== password2) return this.setError('registerError', '两次输入的密码不一致');
+
+    this.busy($('registerSubmit'), true, '注册中…');
+    try {
+      const res = await api('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, display_name: displayName, tenant_name: tenantName }),
+      });
+      this.finish(res);
+    } catch (err) {
+      this.setError('registerError', err.message || '注册失败');
+    } finally {
+      this.busy($('registerSubmit'), false, '注册并进入');
+    }
+  },
+
+  async signOut(notify = false) {
+    try { await api('/api/auth/logout', { method: 'POST' }); } catch (_) { /* 令牌可能已失效 */ }
+    TOKEN = '';
+    this.user = null;
+    try { localStorage.removeItem('dgzh_auth_token'); } catch (_) { /* 无痕模式 */ }
+    $('user-menu-dropdown')?.classList.add('hidden');
+    if (notify) toast('已退出登录');
+    this.show('login');
+    if (location.hash) location.hash = '';
+  },
+};
 
 let toastTimer = 0;
 function toast(msg, ms = 2600) {
@@ -76,6 +233,7 @@ function statusPill(job) {
 /* ---------------- 路由 ---------------- */
 
 function route() {
+  if (!Auth.user) { Auth.show('login'); return; }
   const mPricing = location.hash.match(/^#\/job\/([0-9a-f]{6,32})\/pricing/i);
   if (mPricing) {
     PricingWorkbench.open(mPricing[1]);
@@ -511,15 +669,7 @@ document.addEventListener('click', (e) => {
     $('user-menu-arrow').classList.remove('rotate-180');
   }
 });
-$('btnLogout').addEventListener('click', async () => {
-  try { await api('/api/auth/logout', { method: 'POST' }); } catch (_) {}
-  TOKEN = '';
-  try { localStorage.removeItem('dgzh_auth_token'); } catch (_) {}
-  $('userNameLabel').textContent = '系统工程师';
-  $('user-menu-dropdown').classList.add('hidden');
-  toast('已退出登录');
-  loadJobs();
-});
+$('btnLogout').addEventListener('click', () => Auth.signOut(true));
 
 // 系统设置弹窗交互
 $('btnOpenSettings').addEventListener('click', async () => {
@@ -3014,19 +3164,9 @@ function openJob(id) {
 
 (async () => {
   if (typeof applyLayout === 'function') applyLayout();
-  if (TOKEN) {
-    try {
-      const me = await api('/api/auth/me');
-      if (!me.authenticated) {
-        TOKEN = '';
-        try { localStorage.removeItem('dgzh_auth_token'); } catch (_) {}
-      } else if (me.user && $('userNameLabel')) {
-        $('userNameLabel').textContent = me.user.display_name || me.user.username || '系统工程师';
-      }
-    } catch (_) {
-      TOKEN = '';
-      try { localStorage.removeItem('dgzh_auth_token'); } catch (_) {}
-    }
-  }
+  Auth.init();
+  const ok = await Auth.restore();
+  if (!ok) { Auth.show('login'); return; }
+  Auth.hide();
   route();
 })();

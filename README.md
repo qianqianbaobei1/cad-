@@ -7,6 +7,8 @@ sdk: gradio
 sdk_version: 6.30.0
 app_file: app.py
 pinned: false
+license: mit
+short_description: CAD图纸智能扒图、多图幅识别与配电箱柜成套组价工作台
 ---
 
 # 电柜智核 · 配电箱智能工作台 (CabinetCore AI)
@@ -237,3 +239,4 @@ cd backend && ../.venv/bin/python -c "from extractor.config import config_health
 
 - 每次提取按页调用视觉模型，AI 问答每次一条调用，均按所选模型计费；建议先用一张图试跑。
 - API Key 只保存在服务端 `.env` 或 `backend/data/settings.json`，不经过前端。
+
