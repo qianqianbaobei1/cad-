@@ -103,12 +103,18 @@ const Auth = {
 
   async restore() {
     if (!TOKEN) return false;
+    const drop = () => {
+      // 令牌无效就彻底清掉，否则每次刷新都带着一个死 token 反复试
+      TOKEN = '';
+      try { localStorage.removeItem('dgzh_auth_token'); } catch (_) { /* 无痕模式 */ }
+    };
     try {
       const me = await api('/api/auth/me');
-      if (!me.authenticated || !me.user || me.user.role === 'guest') return false;
+      if (!me.authenticated || !me.user || me.user.role === 'guest') { drop(); return false; }
       this.applyUser(me.user);
       return true;
     } catch (_) {
+      drop();
       return false;
     }
   },
@@ -3165,8 +3171,9 @@ function openJob(id) {
 (async () => {
   if (typeof applyLayout === 'function') applyLayout();
   Auth.init();
+  const hadToken = !!TOKEN;
   const ok = await Auth.restore();
-  if (!ok) { Auth.show('login'); return; }
+  if (!ok) { Auth.show('login', hadToken ? '登录状态已失效，请重新登录' : ''); return; }
   Auth.hide();
   route();
 })();
