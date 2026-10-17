@@ -3,8 +3,9 @@ title: CabinetCore AI 配电箱智能工作台
 emoji: 📐
 colorFrom: blue
 colorTo: indigo
-sdk: docker
-app_port: 7860
+sdk: gradio
+sdk_version: 6.30.0
+app_file: app.py
 pinned: false
 ---
 

@@ -34,9 +34,12 @@ backend/data/*.csv
 *.dwg
 *.dxf
 *.log
+deliveries
 deliveries/
+配电箱项目/
 integrations/acadrust/target/
 integrations/cadcraft/source/
 integrations/cadcraft/bin/
 frontend/vendor/cadcraft/
 *.vectors.json
+
