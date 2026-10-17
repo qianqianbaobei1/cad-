@@ -21,8 +21,23 @@ const fmtTime = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '')
 /* ---------------- 接口 ---------------- */
 
 // 旧版页面的登录令牌：有效就沿用，保证已登录用户仍能看到自己企业下的图纸
+const TOKEN_KEY = 'dgzh_auth_token';
 let TOKEN = '';
-try { TOKEN = localStorage.getItem('dgzh_auth_token') || ''; } catch (_) { /* 无痕模式 */ }
+const readToken = () => {
+  try { return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ''; } catch (_) { return ''; }
+};
+const writeToken = (value, remember) => {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    if (!value) return;
+    (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, value);
+  } catch (_) { /* 无痕模式：只在内存里留着 */ }
+};
+const clearToken = () => {
+  try { localStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(TOKEN_KEY); } catch (_) { /* 无痕模式 */ }
+};
+TOKEN = readToken();
 
 async function api(path, opts = {}) {
   const headers = { ...(opts.headers || {}) };
@@ -32,7 +47,7 @@ async function api(path, opts = {}) {
     if (res.status === 401 || (res.status === 403 && TOKEN)) {
       const wasLoggedIn = !!TOKEN;
       TOKEN = '';
-      try { localStorage.removeItem('dgzh_auth_token'); } catch (_) {}
+      clearToken();
       if (wasLoggedIn && !path.startsWith('/api/auth/')) Auth.onUnauthorized();
     }
     let msg = `请求失败 (${res.status})`;
@@ -49,6 +64,16 @@ async function api(path, opts = {}) {
 // <img>、下载链接带不了请求头，令牌走查询参数（后端中间件支持）
 const withToken = (url) => (TOKEN ? `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(TOKEN)}` : url);
 
+/* 密码可见性切换（只切 input type，不动取值） */
+function togglePassword(inputId, btn) {
+  const input = $(inputId);
+  if (!input) return;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  const icon = btn.querySelector('.material-symbols-outlined');
+  if (icon) icon.textContent = show ? 'visibility_off' : 'visibility';
+}
+
 /* ---------------- 登录 / 注册 ---------------- */
 
 const Auth = {
@@ -61,6 +86,9 @@ const Auth = {
     $('goRegister')?.addEventListener('click', () => this.setMode('register'));
     $('goLogin')?.addEventListener('click', () => this.setMode('login'));
     $('loginForm')?.addEventListener('submit', (e) => this.login(e));
+    document.querySelectorAll('[data-eye]').forEach((btn) => {
+      btn.addEventListener('click', () => togglePassword(btn.dataset.eye, btn));
+    });
     $('registerForm')?.addEventListener('submit', (e) => this.register(e));
   },
 
@@ -68,16 +96,21 @@ const Auth = {
     const login = mode !== 'register';
     if ($('loginForm')) $('loginForm').hidden = !login;
     if ($('registerForm')) $('registerForm').hidden = login;
-    if ($('authTitle')) $('authTitle').textContent = login ? '登录工作台' : '注册企业账号';
+    if ($('authTitle')) $('authTitle').textContent = login ? '欢迎登录' : '注册企业账号';
     if ($('authSubtitle')) $('authSubtitle').textContent = login
-      ? '使用企业账号登录后进入项目与图纸。'
-      : '注册后会创建独立企业空间，你的图纸与项目只有本企业账号可见。';
-    const on = ['border-primary', 'text-primary'];
-    const off = ['border-transparent', 'text-on-surface-variant'];
+      ? '快速进入智能识图与组价工作台'
+      : '注册后即创建独立企业空间，图纸只见于本企业';
+    if ($('authSpeech')) $('authSpeech').textContent = login
+      ? '欢迎登录！图纸解析引擎已就绪'
+      : '注册后会为你单独开一套数据空间';
+    // 滑动指示器
+    const ind = $('authTabIndicator');
+    if (ind) ind.style.left = login ? '4px' : 'calc(50% + 0px)';
     document.querySelectorAll('.auth-tab').forEach((btn) => {
       const active = (btn.dataset.mode === 'register') !== login;
-      on.forEach((c) => btn.classList.toggle(c, active));
-      off.forEach((c) => btn.classList.toggle(c, !active));
+      btn.classList.toggle('text-primary', active);
+      btn.classList.toggle('text-on-surface-variant', !active);
+      btn.classList.toggle('hover:text-on-surface', !active);
     });
     this.setError('loginError', '');
     this.setError('registerError', '');
@@ -99,6 +132,9 @@ const Auth = {
   applyUser(user) {
     this.user = user;
     if ($('userNameLabel')) $('userNameLabel').textContent = user.display_name || user.username || '系统工程师';
+    // 账号管理只给管理员看；普通成员连入口都不显示（后端同样会 403）
+    const accountsBtn = $('btnOpenAccounts');
+    if (accountsBtn) accountsBtn.hidden = user.role !== 'admin';
   },
 
   async restore() {
@@ -106,7 +142,7 @@ const Auth = {
     const drop = () => {
       // 令牌无效就彻底清掉，否则每次刷新都带着一个死 token 反复试
       TOKEN = '';
-      try { localStorage.removeItem('dgzh_auth_token'); } catch (_) { /* 无痕模式 */ }
+      clearToken();
     };
     try {
       const me = await api('/api/auth/me');
@@ -138,7 +174,8 @@ const Auth = {
 
   finish(res) {
     TOKEN = res.token || '';
-    try { localStorage.setItem('dgzh_auth_token', TOKEN); } catch (_) { /* 无痕模式 */ }
+    const remember = $('loginRemember') ? $('loginRemember').checked : true;
+    writeToken(TOKEN, remember);
     this.applyUser(res.user || {});
     this.hide();
     if ($('loginPassword')) $('loginPassword').value = '';
@@ -176,6 +213,7 @@ const Auth = {
     const username = ($('regUsername').value || '').trim();
     const password = $('regPassword').value || '';
     const password2 = $('regPassword2').value || '';
+    const contact = ($('regContact').value || '').trim();
     this.setError('registerError', '');
 
     if (!tenantName) return this.setError('registerError', '请填写企业 / 工区名称');
@@ -188,7 +226,7 @@ const Auth = {
       const res = await api('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, display_name: displayName, tenant_name: tenantName }),
+        body: JSON.stringify({ username, password, display_name: displayName, tenant_name: tenantName, contact }),
       });
       this.finish(res);
     } catch (err) {
@@ -202,7 +240,7 @@ const Auth = {
     try { await api('/api/auth/logout', { method: 'POST' }); } catch (_) { /* 令牌可能已失效 */ }
     TOKEN = '';
     this.user = null;
-    try { localStorage.removeItem('dgzh_auth_token'); } catch (_) { /* 无痕模式 */ }
+    clearToken();
     $('user-menu-dropdown')?.classList.add('hidden');
     if (notify) toast('已退出登录');
     this.show('login');
@@ -676,6 +714,50 @@ document.addEventListener('click', (e) => {
   }
 });
 $('btnLogout').addEventListener('click', () => Auth.signOut(true));
+
+/* ---------------- 账号与注册（管理员） ---------------- */
+
+async function loadAccounts() {
+  const body = $('accountsBody');
+  const empty = $('accountsEmpty');
+  const meta = $('accountsMeta');
+  if (!body) return;
+  body.innerHTML = '<tr><td class="py-6 text-outline" colspan="8">读取中…</td></tr>';
+  try {
+    const res = await api('/api/admin/accounts');
+    const list = res.accounts || [];
+    if (meta) meta.textContent = list.length ? `共 ${list.length} 个账号 / ${(res.tenants || []).length} 家企业` : '';
+    if (empty) empty.hidden = list.length > 0;
+    body.innerHTML = list.map((a) => `
+      <tr class="border-b border-surface-container/70">
+        <td class="py-2 pr-3">${esc(a.tenant_name)}</td>
+        <td class="py-2 pr-3">${esc(a.display_name)}</td>
+        <td class="py-2 pr-3 font-mono">${esc(a.username)}</td>
+        <td class="py-2 pr-3">${a.contact ? esc(a.contact) : '<span class="text-outline">—</span>'}</td>
+        <td class="py-2 pr-3">${a.role === 'admin' ? '管理员' : esc(a.role)}</td>
+        <td class="py-2 pr-3 text-outline">${esc(fmtTime(a.created_at))}</td>
+        <td class="py-2 pr-3 text-outline">${a.last_login_at ? esc(fmtTime(a.last_login_at)) : '<span class="text-outline">从未登录</span>'}</td>
+        <td class="py-2 text-right font-mono-nums">${a.jobs_count} / ${a.projects_count}</td>
+      </tr>`).join('');
+  } catch (err) {
+    body.innerHTML = `<tr><td class="py-6 text-error" colspan="8">${esc(err.message)}</td></tr>`;
+    if (meta) meta.textContent = '';
+  }
+}
+
+function openAccounts() {
+  $('user-menu-dropdown')?.classList.add('hidden');
+  $('modalAccounts').hidden = false;
+  loadAccounts();
+}
+$('btnOpenAccounts')?.addEventListener('click', openAccounts);
+['btnCloseAccounts', 'btnCloseAccounts2'].forEach((id) => {
+  $(id)?.addEventListener('click', () => { $('modalAccounts').hidden = true; });
+});
+$('btnRefreshAccounts')?.addEventListener('click', loadAccounts);
+$('modalAccounts')?.addEventListener('click', (e) => {
+  if (e.target === $('modalAccounts')) $('modalAccounts').hidden = true;
+});
 
 // 系统设置弹窗交互
 $('btnOpenSettings').addEventListener('click', async () => {

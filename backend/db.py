@@ -149,6 +149,8 @@ def _init_tables(conn: sqlite3.Connection) -> None:
             ("password_hash", "TEXT DEFAULT ''"),
             ("display_name", "TEXT DEFAULT ''"),
             ("token", "TEXT DEFAULT ''"),
+            ("contact", "TEXT DEFAULT ''"),
+            ("last_login_at", "TEXT DEFAULT ''"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE users ADD COLUMN {col} {col_def};")
@@ -805,12 +807,15 @@ def db_authenticate_user(username: str, password: str) -> dict | None:
         return None
     
     new_token = f"tk_{secrets.token_hex(24)}"
+    login_at = _now()
     with conn:
         if needs_rehash:
             upgraded_hash = _hash_password(password)
-            conn.execute("UPDATE users SET token = ?, password_hash = ? WHERE id = ?", (new_token, upgraded_hash, row["id"]))
+            conn.execute("UPDATE users SET token = ?, password_hash = ?, last_login_at = ? WHERE id = ?",
+                         (new_token, upgraded_hash, login_at, row["id"]))
         else:
-            conn.execute("UPDATE users SET token = ? WHERE id = ?", (new_token, row["id"]))
+            conn.execute("UPDATE users SET token = ?, last_login_at = ? WHERE id = ?",
+                         (new_token, login_at, row["id"]))
     
     return {
         "id": row["id"],
@@ -824,7 +829,8 @@ def db_authenticate_user(username: str, password: str) -> dict | None:
 
 
 def db_register_user(username: str, password: str, display_name: str = "",
-                     tenant_name: str = "", role: str = "admin") -> dict:
+                     tenant_name: str = "", role: str = "admin",
+                     contact: str = "") -> dict:
     """注册新用户与对应企业/工区租户。"""
     username = (username or "").strip()
     password = (password or "").strip()
@@ -845,6 +851,7 @@ def db_register_user(username: str, password: str, display_name: str = "",
     pwd_hash = _hash_password(password)
     token = f"tk_{secrets.token_hex(24)}"
     d_name = (display_name or username).strip()
+    contact = (contact or "").strip()
 
     with conn:
         conn.execute("""
@@ -853,9 +860,9 @@ def db_register_user(username: str, password: str, display_name: str = "",
         """, (t_id, t_name, now_str))
         
         conn.execute("""
-        INSERT INTO users (id, tenant_id, username, password_hash, display_name, role, token, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-        """, (u_id, t_id, username, pwd_hash, d_name, role, token, now_str))
+        INSERT INTO users (id, tenant_id, username, password_hash, display_name, role, token, created_at, contact, last_login_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """, (u_id, t_id, username, pwd_hash, d_name, role, token, now_str, contact, now_str))
         
     return {
         "id": u_id,
@@ -864,8 +871,41 @@ def db_register_user(username: str, password: str, display_name: str = "",
         "role": role,
         "tenant_id": t_id,
         "tenant_name": t_name,
+        "contact": contact,
+        "created_at": now_str,
         "token": token,
     }
+
+
+def db_list_registrations() -> list[dict]:
+    """按企业列出已注册账号：谁注册的、哪家企业、联系方式、注册/最近登录、名下任务数。
+
+    管理端要能看清"谁在用"，所以这里连企业状态与用量一起给出，不做任何过滤。
+    """
+    conn = _get_conn()
+    rows = conn.execute("""
+    SELECT u.id, u.username, u.display_name, u.role, u.created_at, u.contact, u.last_login_at,
+           t.id AS tenant_id, t.name AS tenant_name, t.status AS tenant_status, t.created_at AS tenant_created_at,
+           (SELECT COUNT(*) FROM jobs j WHERE j.tenant_id = t.id) AS jobs_count,
+           (SELECT COUNT(*) FROM projects p WHERE p.tenant_id = t.id) AS projects_count
+    FROM users u
+    JOIN tenants t ON u.tenant_id = t.id
+    ORDER BY u.created_at DESC, u.username;
+    """).fetchall()
+    return [{
+        "user_id": r["id"],
+        "username": r["username"],
+        "display_name": r["display_name"] or r["username"],
+        "role": r["role"],
+        "contact": r["contact"] or "",
+        "created_at": r["created_at"],
+        "last_login_at": r["last_login_at"] or "",
+        "tenant_id": r["tenant_id"],
+        "tenant_name": r["tenant_name"],
+        "tenant_status": r["tenant_status"],
+        "jobs_count": r["jobs_count"],
+        "projects_count": r["projects_count"],
+    } for r in rows]
 
 
 def db_get_user_by_token(token: str) -> dict | None:
