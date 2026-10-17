@@ -14,6 +14,14 @@ class FrontendAuthGateTest(unittest.TestCase):
         self.html = (ROOT / "index.html").read_text(encoding="utf-8")
         self.js = (ROOT / "app.js").read_text(encoding="utf-8")
 
+    def test_登录页沿用设计规范(self):
+        """登录页必须是设计规范那套：工程底纹、双栏卡片、滑动切换、密码可见切换。"""
+        for el in ('id="authTabIndicator"', 'id="auth-dots"', 'id="auth-grid"',
+                   'data-eye="loginPassword"', 'id="loginRemember"', 'id="authSpeech"'):
+            self.assertIn(el, self.html)
+        self.assertIn(".auth-scan-line", self.html)
+        self.assertIn('grid-cols-1 lg:grid-cols-12', self.html)
+
     def test_首屏默认锁定且登录注册都在(self):
         self.assertIn('class="bg-surface font-body-md text-on-surface h-screen overflow-hidden flex flex-col auth-locked"', self.html)
         for el in ('id="authScreen"', 'id="loginForm"', 'id="registerForm"',
@@ -30,7 +38,8 @@ class FrontendAuthGateTest(unittest.TestCase):
 
     def test_令牌失效自动退回登录(self):
         self.assertIn("Auth.onUnauthorized()", self.js)
-        self.assertIn("localStorage.removeItem('dgzh_auth_token')", self.js)
+        self.assertIn("const clearToken = () =>", self.js)
+        self.assertIn("localStorage.removeItem(TOKEN_KEY)", self.js)
         self.assertIn("登录状态已失效，请重新登录", self.js)
 
     def test_退出登录走统一出口(self):

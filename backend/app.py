@@ -39,6 +39,7 @@ from extractor.catalog_reconciler import DrawingCatalogReconciler, CatalogItem
 from db import (
     db_save_job, db_get_job, db_list_jobs, db_recover_interrupted_jobs,
     set_current_tenant, get_current_tenant, get_current_user,
+    db_list_registrations,
     db_authenticate_user, db_register_user, db_get_user_by_token, db_logout_user,
     db_clean_all_test_data, db_get_job_tenant_by_id
 )
@@ -91,6 +92,7 @@ class RegisterRequest(BaseModel):
     password: str
     display_name: str = ""
     tenant_name: str = ""
+    contact: str = ""
 
 
 @app.middleware("http")
@@ -3298,7 +3300,8 @@ def auth_register(req: RegisterRequest):
             username=req.username,
             password=req.password,
             display_name=req.display_name,
-            tenant_name=req.tenant_name
+            tenant_name=req.tenant_name,
+            contact=req.contact,
         )
         return {"ok": True, "token": user["token"], "user": user}
     except ValueError as e:
@@ -3332,6 +3335,41 @@ def auth_me(request: Request):
             "tenant_id": get_current_tenant(),
             "tenant_name": "电柜智核公共工作台"
         }
+    }
+
+
+@app.get("/api/admin/accounts")
+def admin_accounts(request: Request):
+    """管理端：查看谁注册了、属于哪家企业、联系方式与最近登录。
+
+    注册信息本来就落在 tenants / users 两张表里，这里只是把它读出来给管理员看。
+    仅 admin 角色可读；非管理员一律 403，避免普通用户看到别家企业。
+    """
+    if getattr(request.state, "invalid_token", False):
+        raise HTTPException(401, "无效或过期的登录凭证")
+    user = getattr(request.state, "user", None)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(403, "权限不足：仅系统管理员可查看注册账号")
+
+    accounts = db_list_registrations()
+    # 平台管理员（默认租户的管理员）看全部注册企业；其它企业的管理员只看自己家的人，
+    # 否则谁都能自己注册一个号，然后读到别家企业的账号。
+    if user.get("tenant_id") != "default":
+        accounts = [a for a in accounts if a["tenant_id"] == user.get("tenant_id")]
+    tenants = {}
+    for a in accounts:
+        tenants.setdefault(a["tenant_id"], {
+            "tenant_id": a["tenant_id"],
+            "tenant_name": a["tenant_name"],
+            "status": a["tenant_status"],
+            "jobs_count": a["jobs_count"],
+            "projects_count": a["projects_count"],
+        })
+    return {
+        "ok": True,
+        "accounts": accounts,
+        "total": len(accounts),
+        "tenants": list(tenants.values()),
     }
 
 
