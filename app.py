@@ -2,6 +2,27 @@
 """Hugging Face Spaces 入口文件 (Gradio + FastAPI 混合托管)."""
 import os
 import sys
+import subprocess
+
+print("=== HF SPACES DIAGNOSTICS START ===", flush=True)
+try:
+    print("--- PS AUX ---", flush=True)
+    print(subprocess.check_output(["ps", "aux"]).decode(errors="ignore"), flush=True)
+except Exception as e:
+    print(f"ps error: {e}", flush=True)
+
+try:
+    print("--- NETSTAT / SS / LSOF ---", flush=True)
+    out = subprocess.check_output("netstat -tuln 2>/dev/null || ss -tuln 2>/dev/null || lsof -i :7860 2>/dev/null", shell=True).decode(errors="ignore")
+    print(out, flush=True)
+except Exception as e:
+    print(f"netstat error: {e}", flush=True)
+
+print("--- ENV ---", flush=True)
+for k, v in os.environ.items():
+    if any(x in k.lower() for x in ["port", "host", "gradio", "space", "app"]):
+        print(f"{k}={v}", flush=True)
+print("=== HF SPACES DIAGNOSTICS END ===", flush=True)
 
 # 将 backend 目录加入 Python 模块搜索路径
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
