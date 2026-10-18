@@ -70,6 +70,10 @@ def parse_component_spec(name: str, spec: str) -> dict[str, Any]:
         category = "漏电保护断路器 (RCBO)"
     elif re.search(r"浪涌|避雷|SPD|防雷", combined, re.IGNORECASE):
         category = "电涌保护器 (SPD)"
+    elif re.search(r"隔离开关|负荷隔离开关|负荷开关|刀开关|隔离器|GL-|HGL|NH40", combined, re.IGNORECASE):
+        category = "隔离开关 (ISOLATOR)"
+    elif re.search(r"互感器|电流互感器|CT|\b\d+/5A?\b", combined, re.IGNORECASE):
+        category = "电流互感器 (CT)"
     elif re.search(r"接触器|KM|CJX2|LC1", combined, re.IGNORECASE):
         category = "交流接触器 (KM)"
     elif re.search(r"双电源|ATSE|ATS|互投|双电源转换", combined, re.IGNORECASE):

@@ -48,6 +48,76 @@ BUSBAR_SPECS = [tuple(row) for row in _PRICING["busbar_specs"]]
 COPPER_STANDARD_SPECS = [tuple(row) for row in _PRICING["copper_standard_specs"]]
 TYPE_A = dict(_PRICING["enclosure_type_a"])
 CAT_SYNONYMS = {k: list(v) for k, v in _PRICING["category_synonyms"].items()}
+if "GL" not in CAT_SYNONYMS and "ISOLATOR" in CAT_SYNONYMS:
+    CAT_SYNONYMS["GL"] = CAT_SYNONYMS["ISOLATOR"]
+
+
+def _cand_current_range(model_text: str) -> Tuple[Optional[int], Optional[int]]:
+    """从候选型号中提取额定电流或范围 (low_a, high_a)。"""
+    text = (model_text or "").upper()
+    m_range = re.search(r"(\d{1,4})\s*[-~至]\s*(\d{1,4})\s*A", text)
+    if m_range:
+        return int(m_range.group(1)), int(m_range.group(2))
+    m_ct = re.search(r"(?:^|[^\d])(\d{1,4})\s*/\s*[15]A?\b", text)
+    if m_ct:
+        v = int(m_ct.group(1))
+        return v, v
+    m_a = re.search(r"(?:\b|[CD/_-])([1-9]\d{0,3})\s*A\b", text)
+    if m_a:
+        v = int(m_a.group(1))
+        return v, v
+    m_tm = re.search(r"\bTM[A-Z]*([1-9]\d{0,3})(?:[-/DA\s]|\b)", text)
+    if m_tm:
+        v = int(m_tm.group(1))
+        return v, v
+    m_cd = re.search(r"(?:^|[\s/_-])[CD]([1-9]\d{0,2})(?:A|\b)", text)
+    if m_cd:
+        v = int(m_cd.group(1))
+        return v, v
+    return None, None
+
+
+def _cand_frame(model_text: str) -> Optional[int]:
+    """从候选型号中提取壳架等级电流 (frame_a)。"""
+    text = (model_text or "").upper()
+    m_abb = re.search(r"\b(?:XT[1-4][A-Z]*|A[1-3][A-Z]*)-?(\d{2,4})\b", text)
+    if m_abb:
+        try:
+            return int(m_abb.group(1))
+        except Exception:
+            pass
+    m = re.search(r"(?:NXMH|CDM\w*?|NM\d*|NSX|CVS|EZD|GL|NXB|C65|EZ7|DPN|RMM\d*|NH40|HD\d*|HH\d*|HR\d*)[-_]?(\d{2,4})", text)
+    if m:
+        try:
+            return int(m.group(1))
+        except Exception:
+            pass
+    return None
+
+
+def _cand_poles(model_text: str) -> Optional[str]:
+    """从候选型号中提取极数 (1P, 2P, 3P, 4P, 1P+N, 3P+N)。"""
+    text = (model_text or "").upper()
+    m_pn = re.search(r"\b([1-3])P\+N\b", text)
+    if m_pn:
+        return f"{m_pn.group(1)}P+N"
+    m_p = re.search(r"\b([1-4])P(?:[1-4]D)?\b", text)
+    if m_p:
+        return f"{m_p.group(1)}P"
+    m_rel = re.search(r"/([1-4])\d{3,4}\b", text)
+    if m_rel:
+        return f"{m_rel.group(1)}P"
+    for p_num, p_word in [("1", "1极"), ("1", "单极"), ("2", "2极"), ("2", "二极"),
+                          ("3", "3极"), ("3", "三极"), ("4", "4极"), ("4", "四极")]:
+        if p_word in text:
+            return f"{p_num}P"
+    return None
+
+
+def _cand_is_residential(model_text: str, cat_text: str) -> bool:
+    """判定是否为住宅/建筑专供限定用途物料。"""
+    comb = (str(model_text or "") + " " + str(cat_text or "")).upper()
+    return any(k in comb for k in ("住宅专供", "建筑专供", "专供"))
 
 # 兜底估算公式与开关：默认关闭。按公式推出来的金额不是供应商报价，不得写进报价单。
 _PRICING_GATES = _PRICING.get("gates") or {}
@@ -148,6 +218,65 @@ def get_price_library_stats() -> dict:
         conn.close()
 
 
+def _parse_candidate_features(model: str, category: str = "") -> dict:
+    """提取价格库候选型号的电气参数（极数、壳架电流、额定电流/电流范围、是否专供）"""
+    txt = (model or "").upper()
+    cat = (category or "").upper()
+
+    # 1. 极数
+    poles = None
+    m_p = re.search(r"\b([1-4]P(?:\+N|[1-4]D)?)\b", txt)
+    if m_p:
+        poles = m_p.group(1)
+    elif re.search(r"\b([1-4])极\b", txt):
+        poles = f"{re.search(r'\b([1-4])极\b', txt).group(1)}P"
+    elif re.search(r"/(3\d{3}|4\d{3})\b", txt):
+        poles = f"{re.search(r'/(3\d{3}|4\d{3})\b', txt).group(1)[0]}P"
+    elif re.search(r"/([1-4])(?:[A-Z]|\b)", txt):
+        poles = f"{re.search(r'/([1-4])(?:[A-Z]|\b)', txt).group(1)}P"
+
+    # 2. 壳架电流 frame
+    frame = None
+    m_fr = re.search(r"(?:MCCB|GL|HGL|NH40|NM[A-Z0-9]*|NXM[A-Z0-9]*|CVS|NSX|CDM[A-Z0-9]*|RMM[A-Z0-9]*|NDM[A-Z0-9]*|3VA[A-Z0-9]*|XT[1-4]?[A-Z]?|HD[A-Z0-9]*|HH[A-Z0-9]*|HR[A-Z0-9]*)-?(\d{2,4})", txt)
+    if m_fr:
+        frame = int(m_fr.group(1))
+
+    # 3. 额定电流或电流范围
+    c_min = None
+    c_max = None
+    m_rng = re.search(r"\b(\d+)\s*[-~至到]\s*(\d+)\s*A\b", txt)
+    if m_rng:
+        c_min, c_max = int(m_rng.group(1)), int(m_rng.group(2))
+    else:
+        m_ct = re.search(r"(?:^|[^\d])(\d+)/[15]A?\b", txt)
+        if m_ct:
+            c_min = c_max = int(m_ct.group(1))
+        else:
+            m_a = re.search(r"(?:^|[\s/_\-CD])([1-9]\d{0,3})\s*A(?=[^A-Za-z0-9]|$)", txt)
+            if m_a:
+                c_min = c_max = int(m_a.group(1))
+            else:
+                m_tm = re.search(r"\bTM[A-Z]*([1-9]\d{0,3})(?:[-/DA\s]|$)", txt)
+                if m_tm:
+                    c_min = c_max = int(m_tm.group(1))
+                else:
+                    m_cd = re.search(r"(?:^|[\s/_-])[CD]([1-9]\d{0,2})(?:A|\b)", txt)
+                    if m_cd:
+                        c_min = c_max = int(m_cd.group(1))
+                    elif frame is not None and "隔离开关" in cat:
+                        c_min = c_max = frame
+
+    is_special = any(k in txt or k in cat for k in ("住宅专供", "建筑专供", "专供", "家装"))
+
+    return {
+        "poles": poles,
+        "frame": frame,
+        "curr_min": c_min,
+        "curr_max": c_max,
+        "is_special": is_special,
+    }
+
+
 def lookup_price_library(
     cat_code: str,
     brand: str,
@@ -156,7 +285,8 @@ def lookup_price_library(
     raw_spec: str = "",
     curve: str = "C",
     breaking_ka: int = 6,
-    rel_code: str = ""
+    rel_code: str = "",
+    frame_a: Optional[int] = None,
 ) -> Optional[dict]:
     """在 5.1 万条价格库中精确/特征匹配元器件，返回含税采购价与详情"""
     conn = get_db_connection()
@@ -183,8 +313,8 @@ def lookup_price_library(
                     "discount": float(r[6] or 0), "match_status": "exact",
                 }
 
-        # 2. 类别 + 极数 + 额定电流特征匹配
-        if curr_a is None or curr_a <= 0:
+        # 2. 类别与参数特征匹配门禁
+        if cat_code != "SPD" and (curr_a is None or curr_a <= 0):
             return None
 
         synonyms = CAT_SYNONYMS.get(cat_code, [cat_code])
@@ -198,48 +328,66 @@ def lookup_price_library(
                 rel_code = m_rel.group(1)
 
         pole_digits = poles[0] if poles and poles[0].isdigit() else ""
-        curr_patterns = [
-            f"%{curr_a}A%",
-            f"%C{curr_a}%",
-            f"%D{curr_a}%",
-            f"%/{curr_a}%",
-            f"%{curr_a}/%",
-        ]
-        # 塑壳断路器 (MCCB) 支持标准壳架档位检索 (如 100A 查 125 壳架, 160A 查 250 壳架)
-        if cat_code == "MCCB":
-            if curr_a in (80, 100):
-                curr_patterns.append("%125%")
-            elif curr_a in (160, 200):
-                curr_patterns.append("%250%")
-            elif curr_a in (315, 350):
-                curr_patterns.append("%400%")
+        if cat_code == "CT":
+            poles = ""
+            pole_digits = ""
+            pole_patterns = ["%"]
+        else:
+            pole_patterns = [f"%{poles}%"] if poles else ["%"]
+            if pole_digits:
+                pole_patterns.extend([f"%{pole_digits}极%", f"%{pole_digits}P%"])
+                if cat_code in ("ISOLATOR", "MCCB", "ATS"):
+                    pole_patterns.append(f"%/{pole_digits}%")
+            if cat_code == "RCBO" and "1P+N" in poles:
+                pole_patterns.extend(["%1P+N%", "%1P%", "%2P%", "%2极%"])
+            pole_patterns = list(dict.fromkeys(pole_patterns))
+
+        curr_patterns = []
+        if cat_code == "SPD":
+            curr_patterns = ["%"]
+        elif cat_code == "CT" and curr_a:
+            curr_patterns = [f"%{curr_a}/5%"]
+        elif curr_a:
+            curr_patterns = [
+                f"%{curr_a}A%",
+                f"%C{curr_a}%",
+                f"%D{curr_a}%",
+                f"%/{curr_a}%",
+                f"%{curr_a}/%",
+                f"% {curr_a}%",
+                f"%{curr_a}-%",
+                f"%{curr_a}~%",
+            ]
+            if frame_a:
+                curr_patterns.append(f"%{frame_a}%")
+        elif frame_a:
+            curr_patterns = [f"%{frame_a}%"]
+        else:
+            curr_patterns = ["%"]
 
         query = f"""
             SELECT code, brand, category, model, price_tax, list_price, discount, remark
             FROM price_library
             WHERE brand_norm=?
               AND ({cat_clause})
-              AND category NOT LIKE '零部件%' AND category NOT LIKE '%附件%'
+              AND category NOT LIKE '零部件%' AND (category LIKE '%漏电%' OR category NOT LIKE '%附件%')
               AND price_tax > 0
         """
 
-        pole_patterns = [f"%{poles}%"] if poles else ["%"]
-        if pole_digits:
-            pole_patterns.extend([f"%{pole_digits}极%", f"%{pole_digits}P%"])
-        pole_patterns = list(dict.fromkeys(pole_patterns))
-
         candidates = []
+        seen_codes = set()
         for cp in curr_patterns:
             for pp in pole_patterns:
                 params = [b_norm] + cat_params + [pp, cp]
-                sub_q = query + " AND model_norm LIKE ? AND model_norm LIKE ? LIMIT 20"
+                sub_q = query + " AND model_norm LIKE ? AND model_norm LIKE ? LIMIT 40"
                 c.execute(sub_q, params)
                 for row in c.fetchall():
-                    if row[0] not in [x["code"] for x in candidates]:
+                    if row[0] not in seen_codes:
+                        seen_codes.add(row[0])
                         candidates.append({
                             "code": row[0], "brand": row[1], "category": row[2], "model": row[3],
                             "price_tax": float(row[4]), "list_price": float(row[5] or 0),
-                            "discount": float(row[6] or 0),
+                            "discount": float(row[6] or 0), "remark": row[7] or "",
                         })
 
         # 若带 P 条件候选不足，对于带数字极数的 MCCB / ATS (如 /3300, /4SZ) 扩展匹配
@@ -247,174 +395,250 @@ def lookup_price_library(
             for cp in curr_patterns:
                 p_like = f"%/{pole_digits}%"
                 params = [b_norm] + cat_params + [p_like, cp]
-                sub_q = query + " AND model_norm LIKE ? AND model_norm LIKE ? LIMIT 20"
+                sub_q = query + " AND model_norm LIKE ? AND model_norm LIKE ? LIMIT 40"
                 c.execute(sub_q, params)
                 for row in c.fetchall():
-                    if row[0] not in [x["code"] for x in candidates]:
+                    if row[0] not in seen_codes:
+                        seen_codes.add(row[0])
                         candidates.append({
                             "code": row[0], "brand": row[1], "category": row[2], "model": row[3],
                             "price_tax": float(row[4]), "list_price": float(row[5] or 0),
-                            "discount": float(row[6] or 0),
+                            "discount": float(row[6] or 0), "remark": row[7] or "",
                         })
 
         if not candidates:
             return None
 
-        # 0. 电气性能硬门禁：分断能力 (Breaking Capacity) 绝对安全准入校验
-        # 若图纸/工程需求明确指定高分断能力 (如 >=10kA)，库内低于该安全指标的候选必须硬性剔除，严禁降配冒充
-        if breaking_ka > 6:
-            def _get_cand_ka(cand_item: dict) -> int:
-                txt = (cand_item["model"] + " " + cand_item["category"] + " " + cand_item.get("remark", "")).upper()
+        # 硬约束门禁校验 (Hard Constraints Filtering)
+        valid_candidates = []
+        for cand in candidates:
+            cf = _parse_candidate_features(cand["model"], cand["category"])
+
+            # 1. 品类一致：category 必须在 allowed_cats 内
+            if not any(s in cand["category"] for s in synonyms):
+                continue
+
+            # 2. 极数一致：若图纸给出极数且候选可解析极数，必须完全一致
+            if poles and cf["poles"] and cf["poles"] != poles:
+                if cat_code == "RCBO" and {poles, cf["poles"]} == {"1P+N", "2P"}:
+                    pass
+                else:
+                    continue
+
+            # 3. 额定电流落在候选范围内
+            if curr_a is not None and cat_code != "SPD":
+                if cat_code == "ISOLATOR":
+                    cand_cap = cf["curr_max"] or cf["frame"]
+                    if cand_cap is not None and cand_cap < curr_a:
+                        continue
+                elif cat_code == "CT":
+                    if cf["curr_min"] is not None and cf["curr_min"] != curr_a:
+                        continue
+                else:
+                    if cf["curr_min"] is not None and cf["curr_max"] is not None:
+                        if not (cf["curr_min"] <= curr_a <= cf["curr_max"]):
+                            continue
+                    else:
+                        continue
+
+            # 4. 壳架电流 >= 设计值 (有标注时)
+            if frame_a is not None and cf["frame"] is not None:
+                if cf["frame"] < frame_a:
+                    continue
+
+            # 5. 分断能力硬门禁
+            if breaking_ka > 6:
+                txt = (cand["model"] + " " + cand["category"] + " " + cand.get("remark", "")).upper()
                 m_ka = re.search(r"(\d{1,3})\s*KA\b", txt)
                 if m_ka:
-                    return int(m_ka.group(1))
-                if re.search(r"(?:-|\b)[A-Z0-9]*H\b", txt) or "高分断" in txt:
-                    return 10
-                return 6
+                    cand_ka = int(m_ka.group(1))
+                elif cat_code == "MCCB":
+                    cand_ka = 50 if ("高分断" in txt or re.search(r"(?:-|\b)[A-Z0-9]*H\b", txt)) else 35
+                elif cat_code == "MCB":
+                    cand_ka = 10 if ("高分断" in txt or re.search(r"(?:-|\b)[A-Z0-9]*H\b", txt)) else 6
+                else:
+                    cand_ka = 6
+                if cand_ka < breaking_ka:
+                    continue
 
-            safe_candidates = [c for c in candidates if _get_cand_ka(c) >= breaking_ka]
-            if not safe_candidates:
-                # 价格库无满足短路分断能力的安全物料，宁可返回 None 标疑，绝不推荐低分断物料造成灭弧隐患
-                return None
-            candidates = safe_candidates
+            valid_candidates.append((cand, cf))
 
-        # 智能工程候选打分函数
-        is_electronic_req = any(k in (raw_spec or "").upper() for k in ("电子", "MIC", "ETC", "ELECTRONIC"))
-        def score_candidate(cand: dict) -> Tuple[float, float]:
+        if not valid_candidates:
+            return None
+
+        # 6. “住宅专供”限定用途约束：标准工程集采优先于住宅专供
+        non_special = [item for item in valid_candidates if not item[1]["is_special"]]
+        has_only_special = False
+        if non_special:
+            filtered = non_special
+        else:
+            # 无其他候选，且标有专供
+            filtered = valid_candidates
+            has_only_special = True
+
+        # 满足约束后排序：壳架最接近、同系列、来源可靠优先
+        def score_candidate(item: Tuple[dict, dict]) -> Tuple[float, float]:
+            cand, cf = item
             model_text = cand["model"].upper()
-            cat_text = cand["category"]
             s = 0.0
 
-            # 1. 复式脱扣器代号完全匹配 (如 3300)
+            if not cf["is_special"]:
+                s += 50.0
+
+            # 壳架最接近
+            if frame_a:
+                if cf["frame"]:
+                    s -= abs(cf["frame"] - frame_a) * 0.5
+                    if cf["frame"] == frame_a:
+                        s += 30.0
+                else:
+                    s -= 20.0
+
+            # 隔离开关优先标准负荷隔离开关（如 NH40）
+            if cat_code == "ISOLATOR" and "NH40" in model_text:
+                s += 25.0
+
+            # 额定电流精确吻合
+            if curr_a and cf["curr_min"] == curr_a and cf["curr_max"] == curr_a:
+                s += 25.0
+
+            # 脱扣器代号匹配 (如 3300)
             if rel_code and rel_code in model_text:
-                s += float(MATCH_SCORING.get("rel_code_exact", 20.0))
+                s += 20.0
 
-            # 2. 额定电流匹配打分
-            cand_curr = None
-            cm = re.search(CURRENT_PARSE_RE, model_text)
-            if cm:
-                cand_curr = int(cm.group(1))
-            else:
-                cm2 = re.search(CURRENT_PARSE_FALLBACK_RE, model_text)
-                if cm2:
-                    cand_curr = int(cm2.group(1))
-
-            near = float(MATCH_SCORING.get("current_near_within", 25.0))
-            far = float(MATCH_SCORING.get("current_far_over", 150.0))
-            if cand_curr is not None:
-                if cand_curr == curr_a:
-                    s += float(MATCH_SCORING.get("current_exact", 25.0))
-                elif abs(cand_curr - curr_a) <= near:
-                    s += float(MATCH_SCORING.get("current_near", 15.0))
-                elif abs(cand_curr - curr_a) > far:
-                    s += float(MATCH_SCORING.get("current_far_penalty", -80.0))
-
-            # 3. 分断能力匹配
-            if (breaking_ka >= float(MATCH_SCORING.get("breaking_ka_high_threshold", 35))
-                    and ("H" in model_text or "35KA" in model_text)):
-                s += float(MATCH_SCORING.get("breaking_ka_high", 10.0))
-            elif (breaking_ka >= float(MATCH_SCORING.get("breaking_ka_std_threshold", 10))
-                    and ("10KA" in model_text or "H" in model_text)):
-                s += float(MATCH_SCORING.get("breaking_ka_std", 6.0))
-
-            # 4. 动力多相出线回路 (3P/4P) 优先配置标准 10kA
-            if poles in ("3P", "4P") and cat_code == "MCB" and ("10KA" in model_text or "H" in model_text):
-                s += float(MATCH_SCORING.get("multi_pole_10ka", 8.0))
-
-            # 5. 脱扣曲线
+            # 脱扣曲线
             if curve in model_text:
-                s += float(MATCH_SCORING.get("curve_match", 5.0))
-
-            # 6. 未要求电子脱扣器时，避免匹配高价电子式控制器
-            cand_is_electronic = any(k in model_text or k in cat_text for k in ("电子", "ETC", "MIC"))
-            if not is_electronic_req and cand_is_electronic:
-                s += float(MATCH_SCORING.get("electronic_penalty", -15.0))
-
-            # 7. 标准工程集采款优先于降标住宅专供
-            if "专供" not in model_text and "专供" not in cat_text:
-                s += float(MATCH_SCORING.get("standard_preferred", 5.0))
+                s += 5.0
 
             return (s, -cand["price_tax"])
 
-        candidates.sort(key=score_candidate, reverse=True)
-        best = candidates[0]
+        filtered.sort(key=score_candidate, reverse=True)
+        best_cand, best_cf = filtered[0]
+        best = dict(best_cand)
         best["match_status"] = "parameter-matched"
+        best["only_special"] = has_only_special
         return best
     finally:
         conn.close()
 
 
 def parse_component_features(raw_spec: str, category: str = "") -> dict:
-    """从元器件规格字符串中提取特征向量 (极数、额定电流、分断能力、脱扣特性、脱扣器代号)"""
+    """从元器件规格字符串中提取特征向量 (品类、极数、额定电流、壳架电流、分断能力、脱扣特性、脱扣器代号)"""
     text = (raw_spec or "").upper().replace(" ", "")
-    # 识别电流 (如 16A, C20, 100MA/80A, 125A/3P)。空格换成分隔符再匹配，
-    # 否则 “C16 2P” 会粘成 C162P 被读成 162A
-    spaced = re.sub(r"\s+", "/", (raw_spec or "").upper().strip())
-    current_val = None
-    curr_m = re.search(CURRENT_PARSE_RE, spaced)
-    if curr_m:
-        current_val = int(curr_m.group(1))
-    else:
-        num_m = re.search(CURRENT_PARSE_FALLBACK_RE, spaced)
-        if num_m:
-            current_val = int(num_m.group(1))
-
-    features = {
-        "raw": raw_spec,
-        "category": category.upper() if category else "OTHER",
-        "poles": "1P",
-        "current_a": current_val,
-        "breaking_ka": 6,
-        "curve": "C",
-        "has_leakage": False,
-        "rel_code": "",
-    }
+    raw_upper = (raw_spec or "").upper().strip()
+    spaced = re.sub(r"\s+", "/", raw_upper)
 
     # 1. 自动判定大类
-    if "ATS" in text or "双电源" in text:
-        features["category"] = "ATS"
-    elif "RCBO" in text or "LE" in text or "VM" in text or "漏电" in text:
-        features["category"] = "RCBO"
-        features["has_leakage"] = True
-    elif "MCCB" in text or "NM" in text or "NSX" in text or "塑壳" in text:
-        features["category"] = "MCCB"
-    elif "MCB" in text or "NXB" in text or "IC65" in text or "微断" in text or re.search(r"^[CD]\d+", text) or re.search(r"/[CD]\d+", text):
-        features["category"] = "MCB"
-    elif "SPD" in text or "浪涌" in text or "避雷" in text:
-        features["category"] = "SPD"
-    elif "KM" in text or "接触器" in text:
-        features["category"] = "KM"
-    elif "CT" in text or "互感器" in text or "/5" in text:
-        features["category"] = "CT"
+    cat_upper = (category or "").upper()
+    cat_code = "OTHER"
+    has_leakage = False
+
+    if any(k in text or k in cat_upper for k in ("SPD", "浪涌", "电涌", "避雷", "防雷")):
+        cat_code = "SPD"
+    elif any(k in text or k in cat_upper for k in ("CT", "互感器")) or re.search(r"(?:^|[^\d])\d+/5A?\b", raw_upper):
+        cat_code = "CT"
+    elif any(k in text or k in cat_upper for k in ("GL-", "HGL", "NH40", "隔离开关", "负荷隔离开关", "负荷开关", "刀开关", "隔离器")):
+        cat_code = "ISOLATOR"
+    elif any(k in text or k in cat_upper for k in ("ATS", "双电源", "ATSE", "自动转换开关", "双源开关")):
+        cat_code = "ATS"
+    elif any(k in text or k in cat_upper for k in ("RCBO", "LE", "VM", "漏电", "残余电流", "VIGI")):
+        cat_code = "RCBO"
+        has_leakage = True
+    elif any(k in text or k in cat_upper for k in ("MCCB", "NM", "NSX", "CVS", "塑壳", "CDM", "3VA", "XT")):
+        cat_code = "MCCB"
+    elif any(k in text or k in cat_upper for k in ("MCB", "NXB", "IC65", "DZ47", "微断", "微型断路器", "小型断路器")) or re.search(r"^[CD]\d+", text) or re.search(r"/[CD]\d+", text):
+        cat_code = "MCB"
+    elif any(k in text or k in cat_upper for k in ("KM", "接触器", "CJX2", "LC1")):
+        cat_code = "KM"
+    elif category:
+        cat_code = category.upper()
 
     # 2. 识别极数
-    poles_m = re.search(r"(\d)P", text)
+    poles = "" if cat_code == "CT" else "1P"
+    poles_m = re.search(r"\b([1-4])P(?:\+N|[1-4]D)?\b", raw_upper)
     if poles_m:
-        features["poles"] = f"{poles_m.group(1)}P"
-    elif features["category"] in ("MCCB", "KM"):
-        features["poles"] = "3P"
-    elif features["category"] in ("ATS", "SPD"):
-        features["poles"] = "4P"
+        poles = f"{poles_m.group(1)}P"
+    elif re.search(r"\b([1-4])极\b", raw_upper):
+        poles = f"{re.search(r'\b([1-4])极\b', raw_upper).group(1)}P"
+    elif re.search(r"/(3\d{3}|4\d{3})\b", raw_upper):
+        poles = f"{re.search(r'/(3\d{3}|4\d{3})\b', raw_upper).group(1)[0]}P"
+    elif cat_code in ("MCCB", "ISOLATOR", "KM"):
+        poles = "3P"
+    elif cat_code in ("ATS", "SPD"):
+        poles = "4P"
+    elif cat_code == "RCBO":
+        poles = "2P"
+    elif cat_code == "CT":
+        poles = ""
 
-    # 3. 识别塑壳脱扣器代号 (如 /3300, /3200, /4300)
-    rm = re.search(r"/(3300|3200|4300|4200)", text)
+    # 3. 识别壳架电流 frame_a (Inm) 与 额定电流 current_a (In)
+    frame_val = None
+    current_val = None
+
+    # 双数字模式：如 MCCB-160MA/50A/3P, GL-250/200A/3P, NM1-125S/3300 100A
+    m_dual = re.search(r"(?:MCCB|GL|HGL|NH40|NM[A-Z0-9]*|NXM[A-Z0-9]*|CVS|NSX|CDM[A-Z0-9]*|RMM[A-Z0-9]*|NDM[A-Z0-9]*|HD[A-Z0-9]*|HH[A-Z0-9]*|HR[A-Z0-9]*)-?(\d{2,4})[A-Z]*/(?:[A-Z0-9]*/)?(\d{1,4})A", raw_upper)
+    if m_dual:
+        f_cand, c_cand = int(m_dual.group(1)), int(m_dual.group(2))
+        if f_cand >= c_cand:
+            frame_val, current_val = f_cand, c_cand
+
+    if frame_val is None:
+        m_fr = re.search(r"(?:MCCB|GL|HGL|NH40|NM[A-Z0-9]*|NXM[A-Z0-9]*|CVS|NSX|CDM[A-Z0-9]*|RMM[A-Z0-9]*|NDM[A-Z0-9]*|3VA[A-Z0-9]*|XT|HD[A-Z0-9]*|HH[A-Z0-9]*|HR[A-Z0-9]*)-?(\d{2,4})", raw_upper)
+        if m_fr:
+            frame_val = int(m_fr.group(1))
+
+    if current_val is None:
+        if cat_code == "CT":
+            m_ct = re.search(r"(?:^|[^\d])(\d+)/5A?\b", raw_upper)
+            if m_ct:
+                current_val = int(m_ct.group(1))
+        elif cat_code == "SPD":
+            current_val = None
+        else:
+            curr_m = re.search(r"(?:^|[/CD\s\-])([1-9]\d{0,3})\s*A\b", spaced)
+            if curr_m:
+                current_val = int(curr_m.group(1))
+            else:
+                num_m = re.search(CURRENT_PARSE_FALLBACK_RE, spaced)
+                if num_m:
+                    current_val = int(num_m.group(1))
+                elif frame_val is not None and cat_code == "ISOLATOR":
+                    current_val = frame_val
+
+    # 4. 识别塑壳脱扣器代号 (如 /3300, /3200, /4300, TM)
+    rel_code = ""
+    rm = re.search(r"/(3300|3200|4300|4200|3320|4320)", raw_upper)
     if rm:
-        features["rel_code"] = rm.group(1)
+        rel_code = rm.group(1)
+    elif "TM" in raw_upper and cat_code == "MCCB":
+        rel_code = "3300" if poles == "3P" else ("4300" if poles == "4P" else "")
 
-    # 4. 识别分断能力 (如 6kA, 10kA, 35kA, 50kA)
-    ka_m = re.search(r"(\d{1,3})KA", text)
+    # 5. 识别分断能力 (如 6kA, 10kA, 35kA, 50kA)
+    breaking_ka = 6
+    ka_m = re.search(r"(\d{1,3})\s*KA", raw_upper)
     if ka_m:
-        features["breaking_ka"] = int(ka_m.group(1))
-    elif features["category"] == "MCCB":
-        features["breaking_ka"] = 35
-    elif features["category"] == "MCB":
-        features["breaking_ka"] = 6
+        breaking_ka = int(ka_m.group(1))
+    elif cat_code == "MCCB":
+        breaking_ka = 35
+    elif cat_code == "MCB":
+        breaking_ka = 6
 
-    # 5. 脱扣曲线
-    if "D" in text and ("D16" in text or "D20" in text or "D32" in text or "D型" in text):
-        features["curve"] = "D"
+    # 6. 脱扣曲线
+    curve = "C"
+    if "D" in text and ("D16" in text or "D20" in text or "D32" in text or "D型" in text or "动力" in text):
+        curve = "D"
 
-    return features
+    return {
+        "raw": raw_spec,
+        "category": cat_code,
+        "poles": poles,
+        "current_a": current_val,
+        "frame_a": frame_val,
+        "breaking_ka": breaking_ka,
+        "curve": curve,
+        "has_leakage": has_leakage,
+        "rel_code": rel_code,
+    }
 
 
 def calculate_component_unit_price(
@@ -434,9 +658,10 @@ def calculate_component_unit_price(
     cat = feats["category"]
     poles = feats["poles"]
     curr = feats["current_a"]
+    frame_a = feats.get("frame_a")
 
-    # 规格未标注额定电流时，如实标疑，严禁凭空编造
-    if curr is None:
+    # 规格未标注额定电流时，如实标疑，严禁凭空编造（SPD 等无额定工作电流品类除外）
+    if curr is None and cat != "SPD":
         return 0.0, 0.0, "规格电流缺失（待核）"
 
     # 一级尝试：查询本地导入的价格记录；来源和有效期需在报价时另行核验。
@@ -448,7 +673,8 @@ def calculate_component_unit_price(
         raw_spec=raw_spec,
         curve=feats.get("curve", "C"),
         breaking_ka=feats.get("breaking_ka", 6),
-        rel_code=feats.get("rel_code", "")
+        rel_code=feats.get("rel_code", ""),
+        frame_a=frame_a,
     )
     if matched_lib:
         cost_p = round(matched_lib["price_tax"], 2)
@@ -456,10 +682,13 @@ def calculate_component_unit_price(
         code = matched_lib["code"]
         b_name = matched_lib["brand"]
         m_name = matched_lib["model"]
-        basis = f"价格库匹配[{code}] {b_name} {m_name} 含税￥{cost_p:.2f} (面价￥{list_p:.2f})"
+        sp_note = " (注：仅有住宅专供候选，工业柜需人工确认)" if matched_lib.get("only_special") else ""
+        basis = f"价格库匹配[{code}] {b_name} {m_name} 含税￥{cost_p:.2f} (面价￥{list_p:.2f}){sp_note}"
         return cost_p, list_p, basis
 
     # 二级回退：标准面价知识库（CATALOG_PRICE_BASE）。命中就是命中，未命中不再编造金额。
+    if curr is None:
+        return 0.0, 0.0, UNKNOWN_PRICE_BASIS
     standard_currs = STANDARD_CURRENTS or [10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 400, 630]
     matched_curr = min(standard_currs, key=lambda x: abs(x - curr))
 
@@ -1165,10 +1394,21 @@ def get_component_price_candidates(raw_spec: str, category: str = "", comp_name:
     feats = parse_component_features(raw_spec, category)
     cat = feats.get("category") or ""
     poles = feats.get("poles") or ""
+    frame = feats.get("frame_a")
     curr = feats.get("current_a")
     results = {}
     for brand in CANDIDATE_LOOKUP_BRANDS:
-        match = lookup_price_library(cat, brand, poles, curr, raw_spec)
+        match = lookup_price_library(
+            cat,
+            brand,
+            poles=poles,
+            curr_a=curr,
+            raw_spec=raw_spec,
+            curve=feats.get("curve", "C"),
+            breaking_ka=feats.get("breaking_ka", 6),
+            rel_code=feats.get("rel_code", ""),
+            frame_a=frame,
+        )
         if match:
             results[brand] = match
 

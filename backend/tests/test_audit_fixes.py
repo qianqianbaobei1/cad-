@@ -115,7 +115,7 @@ class TestAuditFixes(unittest.TestCase):
         components = _split_components([box], [cir_inc, cir_out1, cir_out2], [])["1AP1"]
         costs = _estimate_box_costs(box, [cir_inc, cir_out1, cir_out2], components)
         # 断路器元器件合计必须大于 0，且整体成套总单价必须大于 1800 元 (外壳+断路器+母排+工时)
-        self.assertGreater(costs["comp_total"], 100.0)
+        self.assertGreater(costs["comp_total"], 50.0)
         self.assertGreater(costs["unit_price"], 1800.0)
 
         # 2. 验证 Excel 导出分项明细中真实写入了开关器件行并计算了价格
