@@ -934,6 +934,8 @@ def extract_takeoff(dxf_or_doc: Any) -> RawExtraction:
     boxes += [b for b in tb if b.code in fresh]
     circuits += [c for c in tc if c.box in fresh]
     devices += [d for d in td if (d.used_in or "").split(" ")[0] in fresh]
+    if not boxes:
+        warnings.append("图面上没有找到成列的开关回路与箱柜名称，未读出配电箱系统图；请确认上传的是配电箱系统图")
     return RawExtraction(
         boxes=boxes, circuits=circuits, extra_devices=devices, requirements=[], evidence_store=ev.store,
         uncertainties=[Uncertainty(text=w, location="原生读图", detail=w, source="program") for w in warnings],

@@ -695,7 +695,7 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
     def test_cad_extractor_flexible_coordinates_and_empty_guard(self):
         """验证 CAD 提取移除 150000<=y<=300000 限制，任意坐标均可提取，且空图能生成明确存疑项。"""
         import ezdxf
-        from extractor.cad_extractor import extract_cad_table_data
+        from extractor.takeoff import extract_takeoff
 
         # 1. 在 y = 500 (远小于 150000) 处放置配电箱和回路
         doc = ezdxf.new("R2010")
@@ -706,7 +706,7 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
         msp.add_text("BV-3x2.5", dxfattribs={"insert": (300, 400), "height": 100})
         msp.add_text("照明回路", dxfattribs={"insert": (400, 400), "height": 100})
 
-        raw = extract_cad_table_data(doc)
+        raw = extract_takeoff(doc)
         self.assertEqual(len(raw.boxes), 1)
         self.assertEqual(raw.boxes[0].code, "01AP1")
         self.assertEqual(len(raw.circuits), 1)
@@ -717,10 +717,10 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
         msp_empty = doc_empty.modelspace()
         msp_empty.add_text("无意义的说明文字", dxfattribs={"insert": (0, 0), "height": 100})
 
-        raw_empty = extract_cad_table_data(doc_empty)
+        raw_empty = extract_takeoff(doc_empty)
         self.assertEqual(len(raw_empty.boxes), 0)
         uncertainty_texts = [u.text for u in raw_empty.uncertainties]
-        self.assertTrue(any("未检索到有效配电箱系统图标头" in t for t in uncertainty_texts))
+        self.assertTrue(any("未读出配电箱系统图" in t for t in uncertainty_texts))
 
 
     def test_range_annotation_not_pretend_cut(self):

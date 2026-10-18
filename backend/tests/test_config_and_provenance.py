@@ -110,13 +110,26 @@ class ConfigDrivenBehaviourTests(unittest.TestCase):
         self.assertTrue(appconfig.delivery()["brand"]["default_target"])
         self.assertIn("detail", appconfig.delivery()["sheets"])
 
-    def test_cad_extractor_does_not_invent_incoming_phase(self):
-        """进线相序不得凭空填；出厂配置默认为空，必须留空而不是写死三相五线制。"""
-        from extractor import cad_extractor
-        self.assertEqual(cad_extractor._CAD_CONFIG.get("incoming_phase_default"), "")
-        import inspect
-        source = inspect.getsource(cad_extractor.extract_cad_table_data)
-        self.assertNotIn('phase="L1/L2/L3/N/PE"', source)
+    def test_takeoff_does_not_invent_incoming_phase(self):
+        """进线相序不得凭空填：图上进线旁没写相序就留空，也不借出线回路的相序。"""
+        import ezdxf
+        from extractor.takeoff import extract_takeoff
+        doc = ezdxf.new("R2010")
+        msp = doc.modelspace()
+        msp.add_text("01AP1 动力配电箱", dxfattribs={"insert": (0, 1000), "height": 35})
+        msp.add_text("由1#变电所引来", dxfattribs={"insert": (0, 950), "height": 25})
+        msp.add_text("NM1-125S/3300 100A", dxfattribs={"insert": (500, 950), "height": 25})
+        for i in range(4):
+            y = 900 - 40 * i
+            msp.add_text(f"WL{i + 1}", dxfattribs={"insert": (50, y), "height": 20})
+            msp.add_text("L1", dxfattribs={"insert": (150, y), "height": 20})
+            msp.add_text("C16A/1P", dxfattribs={"insert": (350, y), "height": 20})
+            msp.add_text("照明", dxfattribs={"insert": (950, y), "height": 20})
+        raw = extract_takeoff(doc)
+        incoming = [c for c in raw.circuits if c.circuit_no == "进线"]
+        self.assertEqual(len(incoming), 1)
+        self.assertEqual(incoming[0].phase, "")
+        self.assertEqual([c.phase for c in raw.circuits if c.circuit_no != "进线"], ["L1"] * 4)
 
 
 class EvidenceProvenanceTests(unittest.TestCase):

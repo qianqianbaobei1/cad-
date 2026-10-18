@@ -120,37 +120,32 @@ class TestV3Features(unittest.TestCase):
             if os.path.exists(temp_path):
                 os.remove(temp_path)
 
-    def test_cad_slice_with_spatial_grid(self):
-        """测试 CAD 空间网格切片与电气实体白名单剪枝机制。"""
-        from extractor.cad import slice_and_render_cad_sheets
+    def test_cad_sheet_render_keeps_whole_frame(self):
+        """整张图幅渲染：图框内的文字全部按页返回，样条等难渲染实体不拖垮整页。"""
+        from extractor.cad import GeometryIndex, render_cad_sheets
 
         doc = ezdxf.new("R2000")
         msp = doc.modelspace()
-
-        # 插入测试图框和回路
         msp.add_text("消防01ATBF01配电箱系统图", dxfattribs={"insert": (10000, 10000), "height": 300})
         msp.add_text("1WL1", dxfattribs={"insert": (12000, 11000), "height": 50})
         msp.add_line((10000, 10000), (20000, 10000))
         msp.add_line((10000, 10000), (10000, 18000))
-
-        # 插入应被白名单快速跳过的耗时 SPLINE / HATCH 实体
         msp.add_spline([(0, 0), (100, 200), (300, 400), (500, 100)])
+        # 图框外的文字不进这一页
+        msp.add_text("图框外说明", dxfattribs={"insert": (90000, 90000), "height": 300})
 
-        sheets = [{
-            "title": "消防01ATBF01配电箱系统图",
-            "x": 10000.0,
-            "y": 10000.0,
-            "bbox": (8000.0, 8000.0, 25000.0, 20000.0)
-        }]
-
+        frames = [{"bbox": (8000.0, 8000.0, 25000.0, 20000.0), "number": "E-01", "name": "配电箱系统图"}]
         with tempfile.TemporaryDirectory() as tmpdir:
-            out_pdf = os.path.join(tmpdir, "test_cad_slice.pdf")
-            texts = slice_and_render_cad_sheets(doc, sheets, out_pdf)
+            out_pdf = os.path.join(tmpdir, "test_cad_sheet.pdf")
+            texts, meta = render_cad_sheets(doc, frames, out_pdf, GeometryIndex(doc))
             self.assertTrue(os.path.exists(out_pdf))
-            self.assertGreaterEqual(len(texts), 2)
             extracted_strs = [t["text"] for t in texts]
             self.assertTrue(any("系统图" in s for s in extracted_strs))
             self.assertTrue(any("1WL1" in s for s in extracted_strs))
+            self.assertFalse(any("图框外说明" in s for s in extracted_strs))
+            self.assertEqual(meta[0]["page"], 1)
+            self.assertEqual(meta[0]["rect"], [8000.0, 8000.0, 25000.0, 20000.0])
+            self.assertEqual(meta[0]["label"], "E-01 配电箱系统图")
 
     def test_resolve_all_and_ai_review_endpoints(self):
         """测试一键全部核对通过接口与 AI 深度全盘复核接口。"""

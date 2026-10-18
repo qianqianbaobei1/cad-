@@ -13,8 +13,7 @@
     "MAX_TEXT_ENTITIES_LIMIT": "cad.max_text_entities_limit",
     "CAD_BREAKER_FILL_RATE_MIN": "gates.cad_breaker_fill_rate_min",
     "CAD_MIN_BREAKERS_ABSOLUTE": "gates.cad_min_breakers_absolute",
-    "TILE_TARGET_LONG_MM_DENSE": "render.tile_target_long_mm_dense",
-    "CAD_INCOMING_PHASE_DEFAULT": "cad.incoming_phase_default"
+    "TILE_TARGET_LONG_MM_DENSE": "render.tile_target_long_mm_dense"
   },
   "render": {
     "overview_long_edge": 2400,
