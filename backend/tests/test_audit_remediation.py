@@ -393,7 +393,7 @@ class TestAuditRemediation(unittest.TestCase):
     def test_cad_table_extraction_new_unseen_drawing_generalization(self):
         """14. 合成 CAD 场景：验证本用例给定的回路标识、开关与电缆可被提取；不代表新图纸准确率或完整率。"""
         import ezdxf
-        from extractor.cad_extractor import extract_cad_table_data
+        from extractor.takeoff import extract_takeoff
 
         doc = ezdxf.new("R2010")
         msp = doc.modelspace()
@@ -423,7 +423,7 @@ class TestAuditRemediation(unittest.TestCase):
             msp.add_text(cable, dxfattribs={"insert": (650.0, y), "height": 20.0})
             msp.add_text(load, dxfattribs={"insert": (950.0, y), "height": 20.0})
 
-        raw = extract_cad_table_data(doc)
+        raw = extract_takeoff(doc)
         self.assertEqual(len(raw.boxes), 1)
         self.assertEqual(raw.boxes[0].code, "01AP1")
 

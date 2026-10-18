@@ -8,6 +8,7 @@ import tempfile
 
 _suite_state = tempfile.TemporaryDirectory(prefix="drawing-extractor-tests-")
 os.environ["EXTRACTOR_DATA_DIR"] = _suite_state.name
+os.environ.setdefault("ADMIN_INITIAL_PASSWORD", "admin123")   # 仅测试库使用；生产不设默认密码
 
 import store  # noqa: E402
 

@@ -182,6 +182,7 @@ const Auth = {
     if ($('regPassword')) $('regPassword').value = '';
     if ($('regPassword2')) $('regPassword2').value = '';
     toast(`欢迎，${res.user?.display_name || res.user?.username || '用户'}（${res.user?.tenant_name || ''}）`);
+    loadModelSettingsSummary();
     route();
   },
 
@@ -602,6 +603,12 @@ async function uploadFiles(files, kind = 'blueprint') {
   const good = list.filter((f) => checker.test(f.name));
   if (!good.length) return;
 
+  if (kind === 'blueprint' && currentSettings && !currentSettings.vision_configured) {
+    toast('⚠️ 视觉模型 API Key 未配置，请先在右上角「配置识图模型与密钥」中保存密钥', 4500);
+    openSettingsModal();
+    return;
+  }
+
   List.uploading.push(...good.map((f) => f.name));
   renderJobs();
 
@@ -759,47 +766,401 @@ $('modalAccounts')?.addEventListener('click', (e) => {
   if (e.target === $('modalAccounts')) $('modalAccounts').hidden = true;
 });
 
-// 系统设置弹窗交互
-$('btnOpenSettings').addEventListener('click', async () => {
-  $('user-menu-dropdown').classList.add('hidden');
+// ==================== AI 视觉模型与端点设置 (BYOK 多服务商支持) ====================
+
+const PROVIDER_PRESETS = {
+  qwen: {
+    name: "通义千问 (Qwen)",
+    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    models: [
+      { id: "qwen-vl-max", name: "qwen-vl-max (推荐 · 高精度CAD器件解析)", isVision: true },
+      { id: "qwen-vl-plus", name: "qwen-vl-plus (快速 · 经济型蓝图识别)", isVision: true },
+      { id: "qwen3-vl-plus", name: "qwen3-vl-plus (新一代超清多模态)", isVision: true },
+      { id: "qwen-turbo", name: "qwen-turbo (⚠️ 纯文本模型 - 无法识图)", isVision: false }
+    ]
+  },
+  glm: {
+    name: "智谱清言 (GLM)",
+    baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+    models: [
+      { id: "glm-4.6v", name: "glm-4.6v (推荐 · 多模态图纸增强版)", isVision: true },
+      { id: "glm-4v-plus", name: "glm-4v-plus (高分辨率视觉推理)", isVision: true },
+      { id: "glm-4-air", name: "glm-4-air (⚠️ 纯文本模型 - 无法识图)", isVision: false }
+    ]
+  },
+  gemini: {
+    name: "Google Gemini",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    models: [
+      { id: "gemini-3.8-flash", name: "gemini-3.8-flash (超前多模态旗舰)", isVision: true },
+      { id: "gemini-2.5-flash", name: "gemini-2.5-flash (推荐 · 原生视觉与超低延迟)", isVision: true },
+      { id: "gemini-1.5-pro", name: "gemini-1.5-pro (超长上下文 · 百万Token图纸)", isVision: true },
+      { id: "gemini-1.5-flash", name: "gemini-1.5-flash (轻量级图纸识别)", isVision: true }
+    ]
+  },
+  openai: {
+    name: "OpenAI",
+    baseUrl: "https://api.openai.com/v1",
+    models: [
+      { id: "gpt-4o", name: "gpt-4o (推荐 · 全能旗舰多模态视觉)", isVision: true },
+      { id: "gpt-4o-mini", name: "gpt-4o-mini (快速视觉与低成本拆量)", isVision: true },
+      { id: "gpt-5.6-luna", name: "gpt-5.6-luna (超前推理旗舰)", isVision: true },
+      { id: "gpt-3.5-turbo", name: "gpt-3.5-turbo (🚫 纯文本 - 严禁选择)", isVision: false }
+    ]
+  },
+  deepseek: {
+    name: "DeepSeek (深度求索)",
+    baseUrl: "https://api.deepseek.com/v1",
+    models: [
+      { id: "deepseek-flash", name: "deepseek-flash (多模态推理版)", isVision: true },
+      { id: "deepseek-vl2", name: "deepseek-vl2 (社区多模态兼容实验版)", isVision: true },
+      { id: "deepseek-chat", name: "deepseek-chat (🚫 纯文本V3模型 - 不支持图纸)", isVision: false },
+      { id: "deepseek-reasoner", name: "deepseek-reasoner (🚫 R1推理模型 - 不支持视觉)", isVision: false }
+    ]
+  },
+  volcengine: {
+    name: "字节火山方舟 (Doubao)",
+    baseUrl: "https://ark.cn-beijing.volces.com/api/v3",
+    models: [
+      { id: "doubao-seed-2-1-pro-260628", name: "doubao-seed-2-1-pro (豆包高精度视觉旗舰)", isVision: true },
+      { id: "doubao-vision-pro-32k", name: "doubao-vision-pro-32k (火山旗舰视觉)", isVision: true },
+      { id: "doubao-vision-lite", name: "doubao-vision-lite (高吞吐极速版)", isVision: true },
+      { id: "doubao-pro-4k", name: "doubao-pro-4k (🚫 纯文本 - 无法解析图纸)", isVision: false }
+    ]
+  },
+  xai: {
+    name: "xAI (Grok)",
+    baseUrl: "https://api.x.ai/v1",
+    models: [
+      { id: "grok-2-vision-1212", name: "grok-2-vision-1212 (官方视觉推理)", isVision: true },
+      { id: "grok-4.6", name: "grok-4.6 (新一代多模态)", isVision: true },
+      { id: "grok-2", name: "grok-2 (🚫 纯文本模型)", isVision: false }
+    ]
+  },
+  minimax: {
+    name: "MiniMax (稀宇科技)",
+    baseUrl: "https://api.minimax.chat/v1",
+    models: [
+      { id: "MiniMax-M3", name: "MiniMax-M3 (全模态原生旗舰)", isVision: true },
+      { id: "abab6.5s-chat", name: "abab6.5s-chat (多模态图纸支持)", isVision: true },
+      { id: "abab6.5t", name: "abab6.5t (🚫 纯文本模型)", isVision: false }
+    ]
+  },
+  custom: {
+    name: "Custom (自定义兼容端点)",
+    baseUrl: "https://your-custom-llm-proxy.internal/v1",
+    models: [
+      { id: "custom-vision-v1", name: "custom-vision-v1 (内部网关多模态模型)", isVision: true }
+    ]
+  }
+};
+
+const TEXT_ONLY_PATTERNS = [
+  "deepseek-chat", "deepseek-reasoner", "gpt-3.5", "text-davinci", 
+  "qwen-turbo", "qwen-max", "glm-4-air", "doubao-pro-4k", "claude-3-haiku-text",
+  "abab6.5t", "grok-2"
+];
+
+let isCustomModelMode = false;
+let currentSettings = null;
+
+function checkIsVisionModel(modelName) {
+  if (!modelName) return false;
+  const lower = modelName.toLowerCase().trim();
+  for (const pattern of TEXT_ONLY_PATTERNS) {
+    if (lower === pattern || (pattern.length > 5 && lower.includes(pattern))) return false;
+  }
+  if (lower.includes("vl") || lower.includes("vision") || lower.includes("4o") || lower.includes("4v") ||
+      lower.includes("gemini") || lower.includes("flash") || lower.includes("seed") || lower.includes("m3") ||
+      lower.includes("luna") || lower.includes("custom")) {
+    return true;
+  }
+  return false;
+}
+
+function applyValidationUI(isVision, modelName) {
+  const banner = $('modelValidationBanner');
+  const successBar = $('modelValidationSuccess');
+  const saveBtn = $('btnSaveSettings');
+  const bannerText = $('modelValidationText');
+  if (!banner || !successBar || !saveBtn) return;
+
+  if (!isVision) {
+    banner.classList.remove('hidden');
+    successBar.classList.add('hidden');
+    if (bannerText) {
+      bannerText.innerHTML = `已拦截纯文本模型！配电箱图纸拆量需要解析 DWG/PDF 蓝图元器件拓扑，当前配置的 <strong class="underline font-mono">[${esc(modelName) || '未命名'}]</strong> 仅支持纯文本，无法解析工程图纸。请切换至带有视觉识别能力的多模态模型（如 qwen-vl-max、glm-4.6v、gpt-4o、gemini-2.5-flash）。`;
+    }
+    saveBtn.disabled = true;
+    saveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+  } else {
+    banner.classList.add('hidden');
+    successBar.classList.remove('hidden');
+    saveBtn.disabled = false;
+    saveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+  }
+}
+
+function populateModelOptions(providerKey, selectedModelId) {
+  const preset = PROVIDER_PRESETS[providerKey] || PROVIDER_PRESETS.qwen;
+  const modelSelect = $('modelSelect');
+  if (!modelSelect) return;
+  modelSelect.innerHTML = '';
+  let found = false;
+  preset.models.forEach((m) => {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = m.name;
+    opt.dataset.isVision = String(m.isVision);
+    if (m.id === selectedModelId) {
+      opt.selected = true;
+      found = true;
+    }
+    modelSelect.appendChild(opt);
+  });
+
+  if (selectedModelId && !found) {
+    setCustomModelMode(true, selectedModelId);
+  } else {
+    setCustomModelMode(false, selectedModelId || (preset.models[0] && preset.models[0].id) || '');
+  }
+}
+
+function setCustomModelMode(isCustom, modelVal) {
+  isCustomModelMode = !!isCustom;
+  const selectBox = $('modelSelectContainer');
+  const inputBox = $('customModelInput');
+  const toggleText = $('customModelToggleText');
+  if (!selectBox || !inputBox) return;
+
+  if (isCustomModelMode) {
+    selectBox.classList.add('hidden');
+    inputBox.classList.remove('hidden');
+    if (toggleText) toggleText.innerText = '选择预设';
+    if (modelVal !== undefined) inputBox.value = modelVal;
+    applyValidationUI(checkIsVisionModel(inputBox.value), inputBox.value);
+  } else {
+    selectBox.classList.remove('hidden');
+    inputBox.classList.add('hidden');
+    if (toggleText) toggleText.innerText = '手动输入';
+    const curOpt = $('modelSelect')?.selectedOptions?.[0];
+    const curVal = curOpt ? curOpt.value : (modelVal || '');
+    const isVision = curOpt ? (curOpt.dataset.isVision === 'true') : checkIsVisionModel(curVal);
+    applyValidationUI(isVision, curVal);
+  }
+}
+
+function handleProviderChange() {
+  const providerKey = $('providerSelect')?.value || 'qwen';
+  const preset = PROVIDER_PRESETS[providerKey];
+  if (!preset) return;
+  if ($('baseUrlInput')) $('baseUrlInput').value = preset.baseUrl;
+  populateModelOptions(providerKey);
+}
+
+function handleModelChange() {
+  const modelSelect = $('modelSelect');
+  const opt = modelSelect?.selectedOptions?.[0];
+  const modelId = opt ? opt.value : '';
+  const isVision = opt ? (opt.dataset.isVision === 'true') : checkIsVisionModel(modelId);
+  if ($('customModelInput')) $('customModelInput').value = modelId;
+  applyValidationUI(isVision, modelId);
+}
+
+function toggleApiKeyVisibility() {
+  const input = $('apiKeyInput');
+  const icon = $('eyeIcon');
+  if (!input || !icon) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.innerText = 'visibility_off';
+  } else {
+    input.type = 'password';
+    icon.innerText = 'visibility';
+  }
+}
+
+async function testEndpointConnection() {
+  const provider = $('providerSelect')?.value || 'qwen';
+  const model = isCustomModelMode ? ($('customModelInput')?.value.trim() || '') : ($('modelSelect')?.value || '');
+  const baseUrl = $('baseUrlInput')?.value.trim() || '';
+  const apiKey = $('apiKeyInput')?.value.trim() || '';
+
+  const testBtn = $('btnTestConnection');
+  const testText = $('testText');
+  const testIcon = $('testIcon');
+  const statusBar = $('connectionStatusBar');
+  const statusLed = $('statusLed');
+  const statusMessage = $('statusMessage');
+
+  if (testBtn) testBtn.disabled = true;
+  if (testIcon) testIcon.classList.add('animate-spin');
+  if (testText) testText.innerText = '测试中...';
+
+  try {
+    const res = await api('/api/settings/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider,
+        vision_model: model,
+        vision_base_url: baseUrl,
+        vision_api_key: apiKey,
+      }),
+    });
+    if (res.ok) {
+      if (statusBar) statusBar.className = 'px-space-md py-1 bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-between font-label-sm text-label-sm border-b border-surface-container transition-all';
+      if (statusLed) statusLed.className = 'w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse shrink-0';
+      if (statusMessage) statusMessage.innerText = `● 连通正常 · 延迟 ${res.latency_ms || 240}ms (多模态 Vision 图像张量通道就绪)`;
+      toast('API 端点连通测试成功！');
+    } else {
+      if (statusBar) statusBar.className = 'px-space-md py-1 bg-error-container text-on-error-container flex items-center justify-between font-label-sm text-label-sm border-b border-surface-container transition-all';
+      if (statusLed) statusLed.className = 'w-1.5 h-1.5 rounded-full bg-error shrink-0';
+      if (statusMessage) statusMessage.innerText = `● 连接失败: ${res.error || '无法连通端点'}`;
+      toast(`连接测试失败：${res.error || '请检查配置'}`, 4500);
+    }
+  } catch (err) {
+    if (statusBar) statusBar.className = 'px-space-md py-1 bg-error-container text-on-error-container flex items-center justify-between font-label-sm text-label-sm border-b border-surface-container transition-all';
+    if (statusLed) statusLed.className = 'w-1.5 h-1.5 rounded-full bg-error shrink-0';
+    if (statusMessage) statusMessage.innerText = `● 连接失败: ${err.message}`;
+    toast(`连接测试失败：${err.message}`, 4500);
+  } finally {
+    if (testBtn) testBtn.disabled = false;
+    if (testIcon) testIcon.classList.remove('animate-spin');
+    if (testText) testText.innerText = '测试连接';
+  }
+}
+
+async function loadModelSettingsSummary() {
+  try {
+    const res = await api('/api/settings');
+    currentSettings = res.settings || {};
+    const configured = !!(res.vision_configured ?? currentSettings.vision_configured);
+    const providerKey = res.vision_provider || currentSettings.vision_provider || 'qwen';
+    const model = res.vision_model || currentSettings.vision_model || 'qwen-vl-max';
+    const preset = PROVIDER_PRESETS[providerKey] || { name: providerKey };
+
+    const dot = $('headerModelStatusDot');
+    const text = $('headerModelText');
+    const badge = $('headerModelBadge');
+
+    if (dot && text && badge) {
+      if (configured) {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0';
+        text.innerText = `视觉模型: ${preset.name.split(' ')[0]} (${model})`;
+        badge.innerText = 'BYOK已就绪';
+        badge.className = 'font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-tertiary-fixed text-on-tertiary-fixed font-mono';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0';
+        text.innerText = '视觉模型: 未配置 (点击配置)';
+        badge.innerText = '需配置KEY';
+        badge.className = 'font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-mono';
+      }
+    }
+    return configured;
+  } catch (err) {
+    console.warn('获取模型配置摘要失败:', err);
+    return false;
+  }
+}
+
+async function openSettingsModal() {
+  if ($('user-menu-dropdown')) $('user-menu-dropdown').classList.add('hidden');
   $('modalSettings').hidden = false;
+
+  // 重置状态条
+  const statusBar = $('connectionStatusBar');
+  const statusLed = $('statusLed');
+  const statusMessage = $('statusMessage');
+  if (statusBar) statusBar.className = 'px-space-md py-1 bg-surface-container text-on-surface-variant flex items-center justify-between font-label-sm text-label-sm border-b border-surface-container transition-all';
+  if (statusLed) statusLed.className = 'w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0';
+  if (statusMessage) statusMessage.innerText = '● 尚未进行连通性测试 (点击右下角测试连接)';
+
   try {
     const data = await api('/api/settings');
     const s = data.settings || {};
-    $('settingVisionModel').value = s.vision_model || data.vision_model || '';
-    $('settingVisionBaseUrl').value = s.vision_base_url || '';
-    $('settingVisionApiKey').value = s.vision_api_key || '';
-    $('settingTileLargePages').checked = !!s.tile_large_pages;
+    currentSettings = s;
+    const providerKey = s.vision_provider || data.vision_provider || 'qwen';
+    const model = s.vision_model || data.vision_model || 'qwen-vl-max';
+
+    if ($('providerSelect')) $('providerSelect').value = providerKey;
+    populateModelOptions(providerKey, model);
+
+    if ($('baseUrlInput')) $('baseUrlInput').value = s.vision_base_url || (PROVIDER_PRESETS[providerKey]?.baseUrl || '');
+    if ($('apiKeyInput')) {
+      $('apiKeyInput').value = '';
+      $('apiKeyInput').placeholder = s.vision_api_key_set ? '•••••••• (已保存密钥，如需修改请直接输入新Key)' : 'sk-...';
+    }
+
+    if ($('settingTileLargePages')) $('settingTileLargePages').checked = !!s.tile_large_pages;
     const brands = data.target_brands || ['正泰', '施耐德', '德力西', 'ABB', '西门子'];
     const defaultBrand = s.excel_template || data.default_target_brand || '正泰';
-    $('settingTargetBrand').innerHTML = brands.map((b) => `<option value="${esc(b)}" ${b === defaultBrand ? 'selected' : ''}>${esc(b)}</option>`).join('');
+    if ($('settingTargetBrand')) {
+      $('settingTargetBrand').innerHTML = brands.map((b) => `<option value="${esc(b)}" ${b === defaultBrand ? 'selected' : ''}>${esc(b)}</option>`).join('');
+    }
   } catch (err) {
     toast(`加载系统设置失败：${err.message}`);
   }
-});
+}
+
 const closeSettings = () => { $('modalSettings').hidden = true; };
-$('btnCloseSettings').addEventListener('click', closeSettings);
-$('btnCancelSettings').addEventListener('click', closeSettings);
-$('btnSaveSettings').addEventListener('click', async () => {
+
+async function saveSettingsConfiguration() {
+  const provider = $('providerSelect')?.value || 'qwen';
+  const model = isCustomModelMode ? ($('customModelInput')?.value.trim() || '') : ($('modelSelect')?.value || '');
+  const baseUrl = $('baseUrlInput')?.value.trim() || '';
+  const apiKey = $('apiKeyInput')?.value.trim() || '';
+
+  if (!checkIsVisionModel(model)) {
+    toast('当前选择的模型不支持 Vision 视觉识图，请更换后再保存', 4000);
+    return;
+  }
+
   const payload = {
-    vision_model: $('settingVisionModel').value.trim() || undefined,
-    vision_base_url: $('settingVisionBaseUrl').value.trim() || undefined,
-    vision_api_key: $('settingVisionApiKey').value.trim() || undefined,
-    excel_template: $('settingTargetBrand').value || undefined,
-    tile_large_pages: $('settingTileLargePages').checked,
+    vision_provider: provider,
+    vision_model: model || undefined,
+    vision_base_url: baseUrl || undefined,
+    excel_template: $('settingTargetBrand')?.value || undefined,
+    tile_large_pages: !!$('settingTileLargePages')?.checked,
   };
+  if (apiKey) {
+    payload.vision_api_key = apiKey;
+  }
+
+  const saveBtn = $('btnSaveSettings');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.innerText = '保存中...'; }
+
   try {
     await api('/api/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    toast('系统设置已更新');
+    toast('系统视觉模型与密钥配置已更新！');
     closeSettings();
+    await loadModelSettingsSummary();
   } catch (err) {
     toast(`保存失败：${err.message}`);
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<span class="material-symbols-outlined text-[15px]">check</span><span>保存生效</span>';
+    }
   }
-});
+}
+
+// 绑定模型设置弹窗与表单事件
+$('btnOpenModelSettings')?.addEventListener('click', openSettingsModal);
+$('btnOpenSettings')?.addEventListener('click', openSettingsModal);
+$('btnCloseSettings')?.addEventListener('click', closeSettings);
+$('btnCancelSettings')?.addEventListener('click', closeSettings);
+$('btnSaveSettings')?.addEventListener('click', saveSettingsConfiguration);
+$('providerSelect')?.addEventListener('change', handleProviderChange);
+$('modelSelect')?.addEventListener('change', handleModelChange);
+$('btnToggleCustomModel')?.addEventListener('click', () => setCustomModelMode(!isCustomModelMode));
+$('customModelInput')?.addEventListener('input', (e) => applyValidationUI(checkIsVisionModel(e.target.value), e.target.value));
+$('btnToggleApiKeyVisibility')?.addEventListener('click', toggleApiKeyVisibility);
+$('btnTestConnection')?.addEventListener('click', testEndpointConnection);
 
 // AI 消耗与费用弹窗交互
 $('btnOpenAiCosts').addEventListener('click', async () => {
@@ -1857,6 +2218,72 @@ const ExtractWorkbench = {
     this.renderSheet();
   },
 
+  // 三栏宽度的统一约束：图纸栏 ≥ 360，箱柜栏 220~480，明细栏 ≥ 600（与 index.html 的 min-w 一致）
+  LAYOUT: { cadMin: 360, cabMin: 220, cabMax: 480, detailMin: 600, gap: 8, key: 'extract.layout' },
+
+  loadLayout() {
+    try { return JSON.parse(localStorage.getItem(this.LAYOUT.key)) || {}; } catch (_) { return {}; }
+  },
+
+  saveLayout(patch) {
+    try { localStorage.setItem(this.LAYOUT.key, JSON.stringify({ ...this.loadLayout(), ...patch })); } catch (_) {}
+  },
+
+  /** 按当前窗口宽度把两栏宽度收进合法范围；cad/cab 为期望宽度（px），不传则用当前值。 */
+  applyLayout(cad, cab) {
+    const L = this.LAYOUT;
+    const cadPanel = $('extCadPanel');
+    const cabPanel = $('extCabinetPanel');
+    const row = cadPanel && cadPanel.parentElement;
+    if (!cadPanel || !cabPanel || !row) return;
+    const total = row.clientWidth;
+    if (!total) return;                       // 页面还没显示，量不到宽度
+    // 窗口窄到放不下三栏最小宽度：临时收起图纸栏（不记为用户收起），变宽后自动恢复
+    const need = L.cadMin + L.cabMin + L.detailMin + L.gap;
+    if (!this.cadCollapsed && total < need) {
+      this.autoCollapsed = true;
+      this.setCadCollapsed(true, false);
+      return;
+    }
+    if (this.autoCollapsed && this.cadCollapsed && total >= need) {
+      this.autoCollapsed = false;
+      this.setCadCollapsed(false, false);
+      return;
+    }
+    const cadShown = !this.cadCollapsed;
+    let cabW = cab ?? cabPanel.getBoundingClientRect().width;
+    cabW = Math.max(L.cabMin, Math.min(L.cabMax, cabW));
+    if (cadShown) {
+      let cadW = cad ?? cadPanel.getBoundingClientRect().width;
+      const cadMax = Math.max(L.cadMin, total - cabW - L.detailMin - L.gap);
+      cadW = Math.max(L.cadMin, Math.min(cadMax, cadW));
+      // 窗口太窄放不下时，先压箱柜栏，再压图纸栏到下限
+      const over = cadW + cabW + L.detailMin + L.gap - total;
+      if (over > 0) cabW = Math.max(L.cabMin, cabW - over);
+      cadPanel.style.flex = `0 0 ${Math.round(cadW)}px`;
+    }
+    cabPanel.style.width = `${Math.round(cabW)}px`;
+    this.updateCadCompact();
+  },
+
+  /** 图纸栏窄时工具条只显示图标（.compact），避免按钮挤在一起。 */
+  updateCadCompact() {
+    const panel = $('extCadPanel');
+    const bar = $('extCadToolbar');
+    if (!panel || !bar) return;
+    // 先按完整模式排一次，放不下（折成两行）再切到只显示图标
+    panel.classList.remove('compact');
+    if (bar.offsetHeight > 40) panel.classList.add('compact');
+  },
+
+  redrawCad() {
+    if (this.cadCollapsed) return;
+    if (this.viewMode === 'vector') {
+      this.resizeVectorCanvas();
+      this.renderVectorCanvas();
+    }
+  },
+
   bindResizers() {
     if (this.resizersBound) return;
     this.resizersBound = true;
@@ -1865,68 +2292,107 @@ const ExtractWorkbench = {
     const cadPanel = $('extCadPanel');
     const resizer2 = $('extResizer2');
     const cabPanel = $('extCabinetPanel');
+    const saved = this.loadLayout();
+    if (saved.collapsed) this.setCadCollapsed(true, false);
+    requestAnimationFrame(() => this.applyLayout(saved.cad, saved.cab));
 
-    if (resizer1 && cadPanel) {
-      let isResizing1 = false;
-      resizer1.onpointerdown = (e) => {
-        isResizing1 = true;
-        resizer1.classList.add('resizing');
+    const drag = (handle, onMove, onEnd) => {
+      let active = false;
+      handle.onpointerdown = (e) => {
+        active = true;
+        handle.classList.add('resizing');
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
-        try { resizer1.setPointerCapture(e.pointerId); } catch (_) {}
+        try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+        onMove.start?.(e);
       };
-      window.addEventListener('pointermove', (e) => {
-        if (!isResizing1) return;
-        const newW = Math.max(260, Math.min(window.innerWidth - 680, e.clientX));
-        cadPanel.style.width = `${newW}px`;
-        if (this.viewMode === 'vector') {
-          this.resizeVectorCanvas();
-          this.renderVectorCanvas();
-        }
-      });
-      const endResize1 = () => {
-        if (!isResizing1) return;
-        isResizing1 = false;
-        resizer1.classList.remove('resizing');
+      window.addEventListener('pointermove', (e) => { if (active) onMove(e); });
+      const end = () => {
+        if (!active) return;
+        active = false;
+        handle.classList.remove('resizing');
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        if (this.viewMode === 'vector') {
-          this.resizeVectorCanvas();
-          this.renderVectorCanvas();
-        }
+        onEnd();
       };
-      window.addEventListener('pointerup', endResize1);
-      window.addEventListener('pointercancel', endResize1);
+      window.addEventListener('pointerup', end);
+      window.addEventListener('pointercancel', end);
+    };
+
+    if (resizer1 && cadPanel) {
+      drag(resizer1, (e) => {
+        this.applyLayout(e.clientX - cadPanel.getBoundingClientRect().left);
+        this.redrawCad();
+      }, () => {
+        this.saveLayout({ cad: Math.round(cadPanel.getBoundingClientRect().width) });
+        this.redrawCad();
+      });
+      resizer1.ondblclick = () => {          // 双击恢复默认
+        this.saveLayout({ cad: undefined });
+        cadPanel.style.flex = '0 0 40%';
+        requestAnimationFrame(() => { this.applyLayout(); this.redrawCad(); });
+      };
     }
 
     if (resizer2 && cabPanel) {
-      let isResizing2 = false;
       let startX = 0;
       let startW = 300;
-      resizer2.onpointerdown = (e) => {
-        isResizing2 = true;
-        startX = e.clientX;
-        startW = cabPanel.getBoundingClientRect().width;
-        resizer2.classList.add('resizing');
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-        try { resizer2.setPointerCapture(e.pointerId); } catch (_) {}
-      };
-      window.addEventListener('pointermove', (e) => {
-        if (!isResizing2) return;
-        const dx = e.clientX - startX;
-        const newW = Math.max(220, Math.min(500, startW + dx));
-        cabPanel.style.width = `${newW}px`;
+      const move = (e) => this.applyLayout(undefined, startW + e.clientX - startX);
+      move.start = (e) => { startX = e.clientX; startW = cabPanel.getBoundingClientRect().width; };
+      drag(resizer2, move, () => {
+        this.saveLayout({ cab: Math.round(cabPanel.getBoundingClientRect().width) });
+        this.redrawCad();
       });
-      const endResize2 = () => {
-        if (!isResizing2) return;
-        isResizing2 = false;
-        resizer2.classList.remove('resizing');
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
+      resizer2.ondblclick = () => {
+        this.saveLayout({ cab: undefined });
+        this.applyLayout(undefined, 300);
+        this.redrawCad();
       };
-      window.addEventListener('pointerup', endResize2);
-      window.addEventListener('pointercancel', endResize2);
+    }
+
+    // 三栏容器宽度变化（窗口缩放等）时重新收进合法范围。监听容器本身，不依赖 window.resize
+    let pending = 0;
+    const relayout = () => {
+      clearTimeout(pending);
+      pending = setTimeout(() => {
+        if ($('viewExtract') && $('viewExtract').hidden) return;
+        this.applyLayout();
+        this.redrawCad();
+      }, 60);
+    };
+    const row = cadPanel && cadPanel.parentElement;
+    if (row && typeof ResizeObserver !== 'undefined') {
+      let lastW = 0;
+      new ResizeObserver(() => {
+        if (row.clientWidth === lastW) return;   // 只关心宽度变化，避免自身调整引发循环
+        lastW = row.clientWidth;
+        relayout();
+      }).observe(row);
+    } else {
+      window.addEventListener('resize', relayout);
+    }
+  },
+
+  /** 收起 / 展开图纸栏。收起时左侧留常驻展开条，展开回到收起前的宽度。 */
+  setCadCollapsed(collapsed, save = true) {
+    this.cadCollapsed = collapsed;
+    const panel = $('extCadPanel');
+    if (panel) panel.style.display = collapsed ? 'none' : 'flex';
+    if ($('extResizer1')) $('extResizer1').style.display = collapsed ? 'none' : '';
+    if ($('extExpandCadRail')) $('extExpandCadRail').hidden = !collapsed;
+    if (save) this.saveLayout({ collapsed });
+    if (!collapsed) {
+      this.applyLayout(this.loadLayout().cad);   // 同步收进合法宽度，避免展开瞬间溢出
+      requestAnimationFrame(() => {
+        if (this.viewMode === 'vector') {
+          this.resizeVectorCanvas();
+          this.renderVectorCanvas();
+        } else {
+          this.fitCad();
+        }
+      });
+    } else {
+      this.applyLayout();
     }
   },
 
@@ -2098,29 +2564,9 @@ const ExtractWorkbench = {
       };
     }
 
-    // 收起/展开图纸视口
-    if ($('extCollapseCadBtn')) {
-      $('extCollapseCadBtn').onclick = () => {
-        this.cadCollapsed = !this.cadCollapsed;
-        const panel = $('extCadPanel');
-        if (panel) {
-          panel.style.width = this.cadCollapsed ? '0px' : '45%';
-          panel.style.display = this.cadCollapsed ? 'none' : 'flex';
-        }
-        if ($('extCollapseCadText')) $('extCollapseCadText').textContent = this.cadCollapsed ? '展开' : '收起';
-        if ($('extCollapseCadIcon')) $('extCollapseCadIcon').textContent = this.cadCollapsed ? 'last_page' : 'first_page';
-        if (!this.cadCollapsed) {
-          requestAnimationFrame(() => {
-            if (this.viewMode === 'vector') {
-              this.resizeVectorCanvas();
-              this.renderVectorCanvas();
-            } else {
-              this.fitCad();
-            }
-          });
-        }
-      };
-    }
+    // 收起/展开图纸视口（展开入口：图纸栏外的常驻展开条）
+    if ($('extCollapseCadBtn')) $('extCollapseCadBtn').onclick = () => { this.autoCollapsed = false; this.setCadCollapsed(true); };
+    if ($('extExpandCadRail')) $('extExpandCadRail').onclick = () => { this.autoCollapsed = false; this.setCadCollapsed(false); };
 
     // 画布滚轮缩放与平移（支持原生矢量 CAD 与位图）
     const canvasWrap = $('extCadCanvasContainer');
@@ -3257,5 +3703,6 @@ function openJob(id) {
   const ok = await Auth.restore();
   if (!ok) { Auth.show('login', hadToken ? '登录状态已失效，请重新登录' : ''); return; }
   Auth.hide();
+  await loadModelSettingsSummary();
   route();
 })();

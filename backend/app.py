@@ -7,6 +7,7 @@ import json
 import uuid
 import shutil
 import glob
+import time
 from datetime import datetime
 from typing import Any
 
@@ -383,10 +384,10 @@ def process_drawing_file(job_id: str, raw_path: str, filename: str):
             _fail(job_id, f"CAD 图纸转换解析失败: {exc}")
             return
 
-        # 优先尝试 CAD 原生矢量提取。准入条件（最少箱体/回路数、断路器填充率）来自 config。
+        # CAD 原生读图（takeoff.py）为主；读不出足够的箱柜和开关时才交给视觉模型。准入条件来自 config。
         try:
-            from extractor.cad_extractor import extract_cad_table_data
-            cad_raw = extract_cad_table_data(raw_path)
+            from extractor.takeoff import extract_takeoff
+            cad_raw = extract_takeoff(raw_path)
             if (len(cad_raw.boxes) >= int(_GATES["cad_min_boxes"])
                     and len(cad_raw.circuits) >= int(_GATES["cad_min_circuits"])):
                 total_c = len(cad_raw.circuits)
@@ -700,7 +701,10 @@ def process_cad_raw_extraction(job_id: str, pdf_path: str, filename: str, raw: R
                             page_by_box[b.code] = int(t["page"])
                             break
 
-        assign_preview_bboxes(raw.boxes, raw.circuits, cad_texts, page_by_box)
+        page_rects = {int(p["page"]): tuple(p["rect"])
+                      for p in ((job.get("read_report") or {}).get("split") or {}).get("pages") or []
+                      if p.get("page") and p.get("rect")}
+        assign_preview_bboxes(raw.boxes, raw.circuits, cad_texts, page_by_box, page_rects)
         _drop_tiles(pdf_path)
 
         meta = {
@@ -815,7 +819,7 @@ def process_pdf(job_id: str, pdf_path: str, filename: str):
 
         provider = VisionProvider()
         if not provider.configured:
-            _fail(job_id, "VISION_API_KEY 未配置，请在 .env 中填写视觉模型 API Key")
+            _fail(job_id, "视觉模型 API Key 未配置，请在右上角「配置识图模型与密钥」中配置服务商与密钥")
             return
 
         items = _extract_plan(pdf_path, images)
@@ -2864,6 +2868,7 @@ def get_settings():
 
 
 class SettingsRequest(BaseModel):
+    vision_provider: str | None = None
     vision_model: str | None = None
     vision_base_url: str | None = None
     vision_api_key: str | None = None
@@ -2873,6 +2878,72 @@ class SettingsRequest(BaseModel):
     excel_template: str | None = None
     include_changes: bool | None = None
     tile_large_pages: bool | None = None
+
+
+class SettingsTestRequest(BaseModel):
+    provider: str | None = None
+    vision_model: str
+    vision_base_url: str
+    vision_api_key: str | None = None
+
+
+@app.post("/api/settings/test")
+def test_settings(req: SettingsTestRequest, request: Request = None):
+    """测试模型服务商端点连通性与多模态视觉通道能力。"""
+    base_url = (req.vision_base_url or "").strip()
+    if not base_url:
+        return {"ok": False, "error": "请提供端点基准地址 (Base URL)"}
+    safe, reason = is_safe_model_url(base_url)
+    if not safe:
+        return {"ok": False, "error": f"端点安全校验拦截：{reason}"}
+
+    api_key = (req.vision_api_key or "").strip()
+    if not api_key:
+        api_key = store.settings().get("vision_api_key") or os.environ.get("VISION_API_KEY", "")
+    if not api_key:
+        return {"ok": False, "error": "请提供 API 访问密钥 (API Key)"}
+
+    model = (req.vision_model or "").strip()
+    if not model:
+        return {"ok": False, "error": "请指定识图模型名称"}
+
+    # 1x1 像素透明 PNG base64 数据，用于实机探测多模态图像张量通道
+    tiny_png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAA="
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "ping"},
+                    {"type": "image_url", "image_url": {"url": tiny_png}}
+                ]
+            }
+        ],
+        "max_tokens": 5
+    }
+
+    t0 = time.time()
+    try:
+        from extractor.vision import post_chat
+        post_chat(base_url, api_key, payload, timeout=12, max_retries=1)
+        latency_ms = max(1, int((time.time() - t0) * 1000))
+        return {"ok": True, "latency_ms": latency_ms, "model": model}
+    except Exception as e:
+        err_str = str(e)
+        if "401" in err_str:
+            msg = "401 Unauthorized · API Key 无效或未授权"
+        elif "404" in err_str:
+            msg = f"404 Not Found · 端点路径不存在或模型 [{model}] 未找到"
+        elif "429" in err_str:
+            msg = "429 Too Many Requests · 账号额度已耗尽或并发请求受限"
+        elif "400" in err_str:
+            msg = f"400 Bad Request · 目标模型 [{model}] 可能为纯文本模型，不支持多模态图像解析"
+        elif "timed out" in err_str.lower() or "timeout" in err_str.lower():
+            msg = "连接超时 · 目标端点响应超过 12 秒"
+        else:
+            msg = f"连接探测失败：{err_str[:120]}"
+        return {"ok": False, "error": msg}
 
 
 @app.put("/api/settings")

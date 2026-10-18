@@ -11,6 +11,7 @@ env/
 
 # Environment variables & secrets (CRITICAL)
 .env
+.env.*
 *.env.local
 
 # Testing & Cache

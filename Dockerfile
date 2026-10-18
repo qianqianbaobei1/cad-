@@ -5,7 +5,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget make texinfo ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# 源码包按固定 SHA256 校验（已用 GNU 公钥环验过维护者签名），不一致即构建失败
 RUN wget -q https://ftp.gnu.org/gnu/libredwg/libredwg-0.12.5.tar.gz \
+    && echo "4b5b38943e4a060bfee34a8542701b26102262610b1dd4dc58d76fadfb995106  libredwg-0.12.5.tar.gz" | sha256sum -c - \
     && tar -xzf libredwg-0.12.5.tar.gz \
     && cd libredwg-0.12.5 \
     && ./configure --prefix=/usr --disable-bindings \

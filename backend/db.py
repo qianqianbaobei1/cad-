@@ -277,17 +277,18 @@ def _init_tables(conn: sqlite3.Connection) -> None:
         INSERT OR IGNORE INTO tenants (id, name, status, created_at)
         VALUES ('default', '电柜智核成套电气工程部', 'active', datetime('now', 'localtime'));
         """)
-        if os.environ.get("ENV") == "production" and not os.environ.get("ADMIN_INITIAL_PASSWORD"):
-            import secrets
-            initial_admin_pass = secrets.token_urlsafe(16)
-            print(f"[SECURITY ALERT] 生产环境检测到未配置 ADMIN_INITIAL_PASSWORD，已自动生成初始管理员安全密码: {initial_admin_pass}")
-        else:
-            initial_admin_pass = os.environ.get("ADMIN_INITIAL_PASSWORD") or "admin123"
-        admin_hash = _hash_password(initial_admin_pass)
-        conn.execute("""
-        INSERT OR IGNORE INTO users (id, tenant_id, username, password_hash, display_name, role, created_at)
-        VALUES ('admin_default', 'default', 'admin', ?, '系统工程师', 'admin', datetime('now', 'localtime'));
-        """, (admin_hash,))
+        # 初始管理员只在首次建库时创建：密码取 ADMIN_INITIAL_PASSWORD，未配置则随机生成并打印一次。
+        # 不设任何默认密码——公开部署（如 Hugging Face Space）上写死的默认密码等于没有密码。
+        if conn.execute("SELECT 1 FROM users WHERE id = 'admin_default'").fetchone() is None:
+            initial_admin_pass = os.environ.get("ADMIN_INITIAL_PASSWORD") or ""
+            if not initial_admin_pass:
+                initial_admin_pass = secrets.token_urlsafe(16)
+                print(f"[SECURITY] 未配置 ADMIN_INITIAL_PASSWORD，已生成初始管理员 admin 的随机密码："
+                      f"{initial_admin_pass}（仅显示这一次，请登录后修改）")
+            conn.execute("""
+            INSERT INTO users (id, tenant_id, username, password_hash, display_name, role, created_at)
+            VALUES ('admin_default', 'default', 'admin', ?, '系统工程师', 'admin', datetime('now', 'localtime'));
+            """, (_hash_password(initial_admin_pass),))
 
 
 def _now() -> str:

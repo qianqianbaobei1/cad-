@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Hugging Face Spaces 入口文件 (Gradio 原生托管 + ZeroGPU 适配 + 原生工作台挂载)."""
+"""Hugging Face Spaces 入口文件（Gradio 托管 + 原生工作台挂载）。
+
+识别、组价全部在 CPU 上完成，不需要 GPU：Space 硬件请选 CPU，不要选 ZeroGPU。
+"""
 import os
 import sys
 import time
+
+# 公开部署一律按生产环境运行：未登录请求不会落到默认租户，初始管理员密码不会有默认值
+os.environ.setdefault("ENV", "production")
 
 # 禁用 Gradio Node SSR，防止 Node.js 抢占 7860 端口
 os.environ["GRADIO_SSR_MODE"] = "False"
@@ -10,18 +16,6 @@ os.environ["GRADIO_SSR_MODE"] = "False"
 # 将 backend 目录加入 Python 模块搜索路径
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE_DIR, "backend"))
-
-# 兼容 Hugging Face ZeroGPU (zero-a10g) 运行环境启动静态扫描
-try:
-    import spaces
-
-    @spaces.GPU
-    def zero_gpu_pipeline(x: str = "") -> str:
-        """ZeroGPU 挂载点，满足 Hugging Face ZeroGPU 启动检测。"""
-        return x
-except Exception:
-    def zero_gpu_pipeline(x: str = "") -> str:
-        return x
 
 import gradio as gr
 from fastapi.staticfiles import StaticFiles
@@ -44,13 +38,6 @@ footer { display: none !important; }
 """
 
 with gr.Blocks(title="电柜智核 · 配电箱智能工作台 (CabinetCore AI)") as demo:
-    # 显式绑定 ZeroGPU 探针事件以通过 Hugging Face ZeroGPU 运行环境检查
-    with gr.Row(visible=False):
-        _dummy_in = gr.Textbox(value="ping", visible=False)
-        _dummy_out = gr.Textbox(visible=False)
-        _dummy_btn = gr.Button("ZeroGPU Probe", visible=False)
-        _dummy_btn.click(fn=zero_gpu_pipeline, inputs=_dummy_in, outputs=_dummy_out)
-
     gr.HTML("""
     <div style="width: 100%; height: 98vh; margin: 0; padding: 0; display: flex; flex-direction: column;">
         <iframe src="/workbench/index.html" style="width: 100%; height: 100%; border: none; flex-grow: 1;"></iframe>
@@ -62,7 +49,7 @@ demo.app.middleware("http")(tenant_middleware)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
-    # 4. 启动 Gradio 原生服务（触发 ZeroGPU startup_report）
+    # 4. 启动 Gradio 原生服务
     server_app, local_url, _ = demo.launch(
         server_name="0.0.0.0",
         server_port=port,

@@ -15,6 +15,7 @@ HISTORY_FILE = os.path.join(DATA_DIR, "history.json")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 
 DEFAULT_SETTINGS = {
+    "vision_provider": "qwen",  # 默认服务商
     "vision_model": "",
     "vision_base_url": "",
     "vision_api_key": "",       # 空表示沿用 .env
@@ -84,6 +85,8 @@ def public_settings(tenant_id: str | None = None) -> dict:
     key = current.get("vision_api_key") or os.environ.get("VISION_API_KEY", "")
     return {
         **{k: v for k, v in current.items() if k != "vision_api_key"},
+        "vision_provider": current.get("vision_provider") or "qwen",
+        "vision_configured": bool(key),
         "vision_api_key_set": bool(key),
         "vision_api_key_hint": "***" if key else "",
     }

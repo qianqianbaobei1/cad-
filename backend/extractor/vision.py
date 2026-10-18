@@ -59,7 +59,13 @@ def is_safe_model_url(url: str) -> tuple[bool, str]:
         "api.openai.com", "openai.com",
         "api.deepseek.com", "deepseek.com",
         "api.anthropic.com", "anthropic.com",
-        "dashscope.aliyuncs.com"
+        "dashscope.aliyuncs.com", "aliyuncs.com",
+        "open.bigmodel.cn", "bigmodel.cn",
+        "generativelanguage.googleapis.com", "googleapis.com",
+        "ark.cn-beijing.volces.com", "volces.com",
+        "api.x.ai", "x.ai",
+        "api.minimax.chat", "minimaxi.com",
+        "openrouter.ai"
     }
     if lower_host in trusted_public_domains or any(lower_host.endswith("." + d) for d in trusted_public_domains):
         return True, ""

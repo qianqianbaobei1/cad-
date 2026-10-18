@@ -7,7 +7,6 @@
 3. DXF / SVG -> 标准 PDF 高保真光栅化，无缝对接下游 VisionExtractor 及 Web 视口。
 """
 
-import concurrent.futures
 import hashlib
 import json
 import math
@@ -42,12 +41,9 @@ if _orig_get_glyph_path:
 
     ttfonts.TTFontRenderer.get_glyph_path = _safe_get_glyph_path
 
-from .config import domain as _domain_top, pipeline as _pipeline_top
+from .config import pipeline as _pipeline_top
 
 MAX_TEXT_ENTITIES_LIMIT = int(_pipeline_top()["cad"]["max_text_entities_limit"])
-
-SYSTEM_KEYWORDS_INCLUDE = list(_domain_top()["cad"]["system_keywords_include"])
-SYSTEM_KEYWORDS_EXCLUDE = list(_domain_top()["cad"]["system_keywords_exclude"])
 
 
 def is_cad_path(path: str) -> bool:
@@ -404,307 +400,10 @@ def load_dxf_document(dxf_path: str):
         return doc
 
 
-def is_system_title(text: str) -> bool:
-    """判断文字是否属于电气系统图标题。"""
-    t = text.replace(" ", "").replace("\n", "").strip()
-    if not t or len(t) > NOTE_TEXT_MAX_LEN:
-        return False
-    # 排除说明句式标点
-    if any(p in t for p in ["。", "；", "，", ";", ","]):
-        return False
-    # 排除序号开头的施工/设计附注（如 "1.", "2）", "7.6", "(3)"）
-    if re.match(r"^(\d+[\.\、\)\）]|\d+\.\d+|\(\d+\)|（\d+）)", t):
-        return False
-    # 排除包含说明句式词汇
-    if any(k in t for k in ["详见", "详弱电", "本子项", "本配电", "安装在", "取自", "规范", "设计说明", "技术要求"]):
-        return False
-    has_inc = any(k in t for k in SYSTEM_KEYWORDS_INCLUDE)
-    if not has_inc:
-        return False
-    has_exc = any(k in t for k in SYSTEM_KEYWORDS_EXCLUDE)
-    if has_exc and "系统图" not in t:
-        return False
-    return True
-
-
-def detect_system_sheets(doc: Any) -> list[dict[str, Any]]:
-    """扫描 CAD 模型空间中的图框标题栏，自动识别所有电气系统图并定位其坐标与包围盒。"""
-    msp = doc.modelspace()
-    candidates = []
-
-    # 1. 扫描单行文字 TEXT 与多行文字 MTEXT
-    for e in list(msp.query("TEXT")) + list(msp.query("MTEXT")):
-        try:
-            t = getattr(e.dxf, "text", "") if e.dxftype() == "TEXT" else getattr(e, "text", "")
-            cleaned = clean_mtext(t)
-            if is_system_title(cleaned):
-                if any(cleaned.endswith(sfx) or cleaned.startswith(sfx) for sfx in ["系统图", "接线图", "原理图", "干线图", "拓扑图"]) or (
-                    "系统图" in cleaned and ("一" in cleaned or "二" in cleaned or "三" in cleaned or "四" in cleaned or "五" in cleaned or "六" in cleaned or "七" in cleaned or "八" in cleaned or "九" in cleaned or "十" in cleaned or bool(re.search(r"\d", cleaned)))
-                ):
-                    candidates.append({
-                        "title": cleaned,
-                        "x": float(e.dxf.insert.x),
-                        "y": float(e.dxf.insert.y),
-                        "layer": str(getattr(e.dxf, "layer", "")),
-                        "height": float(getattr(e.dxf, "height", UNIT_CAPTION_DEFAULT_HEIGHT) if e.dxftype() == "TEXT" else getattr(e.dxf, "char_height", UNIT_CAPTION_DEFAULT_HEIGHT)),
-                    })
-        except Exception:
-            pass
-
-    # 2. 扫描块参照 INSERT (支持正规设计院带 ATTRIB 属性的图框块)
-    for ins in msp.query("INSERT"):
-        try:
-            ins_x, ins_y = float(ins.dxf.insert.x), float(ins.dxf.insert.y)
-            ins_layer = str(getattr(ins.dxf, "layer", ""))
-            for attrib in getattr(ins, "attribs", []):
-                val = clean_mtext(getattr(attrib.dxf, "text", ""))
-                if is_system_title(val):
-                    candidates.append({
-                        "title": val,
-                        "x": float(attrib.dxf.insert.x) if hasattr(attrib.dxf, "insert") else ins_x,
-                        "y": float(attrib.dxf.insert.y) if hasattr(attrib.dxf, "insert") else ins_y,
-                        "layer": ins_layer,
-                        "height": float(getattr(attrib.dxf, "height", BLOCK_TEXT_DEFAULT_HEIGHT)),
-                    })
-        except Exception:
-            pass
-
-    if not candidates:
-        return []
-
-    # 3. 过滤图纸目录表（同一 X 轴紧密垂直堆叠）
-    by_x: dict[int, list[dict[str, Any]]] = {}
-    for c in candidates:
-        bucket = round(c["x"] / TEXT_ROW_BUCKET) * TEXT_ROW_BUCKET
-        by_x.setdefault(bucket, []).append(c)
-
-    filtered = []
-    for bucket, group in by_x.items():
-        if len(group) >= 3:
-            ys = sorted([g["y"] for g in group])
-            diffs = [ys[i + 1] - ys[i] for i in range(len(ys) - 1)]
-            avg_diff = sum(diffs) / len(diffs)
-            if avg_diff < TEXT_ROW_ALIGN_TOL:
-                continue
-        filtered.extend(group)
-
-    if not filtered:
-        return []
-
-    # 4. 去重并优先选取图签栏或大字高标题
-    title_layer_scores = _DOM.get("title_layer_score_hints") or {}
-    title_text_score = int(_DOM.get("title_text_score") or 0)
-    sheet_map: dict[str, dict[str, Any]] = {}
-    for c in filtered:
-        name = c["title"]
-        score = 0
-        layer_upper = (c.get("layer") or "").upper()
-        matched = [v for k, v in title_layer_scores.items() if k in layer_upper]
-        if matched:
-            score += max(matched)
-        if c["height"] >= TITLE_TEXT_MIN_HEIGHT:
-            score += title_text_score
-        if name not in sheet_map or score > sheet_map[name]["score"]:
-            c["score"] = score
-            sheet_map[name] = c
-
-    # 5. 按 Y 降序、X 升序排列
-    detected = sorted(sheet_map.values(), key=lambda s: (-round(s["y"], -4), s["x"]))
-
-    # 6. 扫描图框物理闭合多段线 (LWPOLYLINE / POLYLINE) 以获得高精度真实边界
-    border_boxes: list[tuple[float, float, float, float]] = []
-    for pl in list(msp.query("LWPOLYLINE")) + list(msp.query("POLYLINE")):
-        try:
-            is_closed = getattr(pl, "is_closed", False) or getattr(pl.dxf, "flags", 0) & 1
-            if not is_closed:
-                continue
-            pts = [p[:2] for p in (list(pl.vertices()) if hasattr(pl, "vertices") else list(pl.get_points("xy")))]
-            if len(pts) >= 4:
-                xs = [p[0] for p in pts]
-                ys = [p[1] for p in pts]
-                min_px, max_px = min(xs), max(xs)
-                min_py, max_py = min(ys), max(ys)
-                pw, ph = max_px - min_px, max_py - min_py
-                if pw > BLOCK_PLAN_MIN_W and ph > BLOCK_PLAN_MIN_H:
-                    aspect = max(pw, ph) / min(pw, ph)
-                    if BLOCK_PLAN_ASPECT_MIN <= aspect <= BLOCK_PLAN_ASPECT_MAX:
-                        border_boxes.append((min_px, min_py, max_px, max_py))
-        except Exception:
-            pass
-
-    # 7. 计算每张图框的实际包围盒 (Bounding Box)
-    sheet_w = SHEET_DEFAULT_WIDTH
-    if len(detected) >= 2:
-        xs = sorted(s["x"] for s in detected)
-        diffs = [xs[i + 1] - xs[i] for i in range(len(xs) - 1)
-                 if xs[i + 1] - xs[i] >= SHEET_WIDTH_GAP_MIN]
-        if diffs:
-            sheet_w = min(diffs)
-    elif len(detected) == 1:
-        # 单图自适应比例尺推导 (根据大字高推算 scale)
-        th = detected[0].get("height", UNIT_CAPTION_DEFAULT_HEIGHT)
-        scale = max(1.0, th / SHEET_SCALE_REFERENCE_HEIGHT) if th > SHEET_SCALE_TEXT_HEIGHT else 1.0
-        sheet_w = SHEET_WIDTH_MM_BASIS * scale
-
-    sheet_h = sheet_w / SHEET_ASPECT_RATIO  # ISO 216 标准宽高比
-
-    for s in detected:
-        tx, ty = s["x"], s["y"]
-        # 优先使用包围该图签锚点的真实闭合多段线
-        matched_box = None
-        for bx0, by0, bx1, by1 in border_boxes:
-            if bx0 <= tx <= bx1 and by0 <= ty <= by1:
-                matched_box = (round(bx0, 1), round(by0, 1), round(bx1, 1), round(by1, 1))
-                break
-        if matched_box:
-            s["bbox"] = matched_box
-        else:
-            s["bbox"] = (
-                round(tx - sheet_w * 0.88, 1),
-                round(ty - sheet_h * 0.05, 1),
-                round(tx + sheet_w * 0.12, 1),
-                round(ty + sheet_h * 0.95, 1),
-            )
-
-    return detected
-
-
-def slice_and_render_cad_sheets(doc: Any, sheets: list[dict[str, Any]], out_pdf_path: str) -> list[dict[str, Any]]:
-    """针对检测出的多个电气系统图进行单图框矢量切片与拼接，输出高清多页 PDF 与对应文字元数据。
-
-    采用空间网格索引 (Spatial Grid Indexing) 与电气实体预剪枝，消除无用图元遍历，
-    并发渲染以改善复杂图纸处理速度；实际耗时与完整性需按图纸逐类测量。
-    """
-    msp = doc.modelspace()
-    combined_pdf = pymupdf.open()
-    total_texts: list[dict[str, Any]] = []
-
-    if not sheets:
-        return []
-
-    # 1. 电气核心实体类型白名单（过滤 SPLINE、HATCH、DIMENSION 等耗时上万条的无用非电气装饰图元）
-    ALLOWED_TYPES = {
-        "LINE", "LWPOLYLINE", "POLYLINE", "ARC", "CIRCLE", "TEXT", "MTEXT", "INSERT", "SOLID"
-    }
-
-    # 2. 空间网格索引加速 (Cell Size 35000)
-    CELL_SIZE = float(_CAD["cell_size"])
-    grid: dict[tuple[int, int], list[tuple[Any, float, float]]] = {}
-
-    for e in msp:
-        try:
-            if e.dxftype() not in ALLOWED_TYPES:
-                continue
-            bounds = _entity_bounds(e)
-            if bounds is None:
-                continue
-            px, py = (bounds[0] + bounds[2]) / 2.0, (bounds[1] + bounds[3]) / 2.0
-            gx = int(px // CELL_SIZE)
-            gy = int(py // CELL_SIZE)
-            grid.setdefault((gx, gy), []).append((e, px, py))
-        except Exception:
-            pass
-
-    def _render_sheet_worker(idx: int, sheet: dict[str, Any]) -> tuple[int, list[dict[str, Any]], bytes]:
-        sheet_name = sheet["title"]
-        bx0, by0, bx1, by1 = sheet["bbox"]
-
-        # 从空间网格中筛选与当前图框相交单元格的实体，减少无关图元遍历。
-        min_gx, max_gx = int(bx0 // CELL_SIZE), int(bx1 // CELL_SIZE)
-        min_gy, max_gy = int(by0 // CELL_SIZE), int(by1 // CELL_SIZE)
-
-        candidates = []
-        for gx in range(min_gx, max_gx + 1):
-            for gy in range(min_gy, max_gy + 1):
-                candidates.extend(grid.get((gx, gy), []))
-
-        sheet_doc = ezdxf.new(doc.dxfversion)
-        sheet_msp = sheet_doc.modelspace()
-
-        sheet_texts = []
-        for e, px, py in candidates:
-            if bx0 <= px <= bx1 and by0 <= py <= by1:
-                try:
-                    sheet_msp.add_foreign_entity(e, copy=True)
-                    if e.dxftype() in ("TEXT", "MTEXT"):
-                        raw_text = getattr(e.dxf, "text", "") if e.dxftype() == "TEXT" else getattr(e, "text", "")
-                        cleaned = clean_mtext(raw_text)
-                        if cleaned:
-                            sheet_texts.append({
-                                "type": e.dxftype(),
-                                "text": cleaned,
-                                "x": round(px, 1),
-                                "y": round(py, 1),
-                                "page": idx,
-                                "sheet": sheet_name,
-                            })
-                except Exception:
-                    pass
-
-        try:
-            # 单页渲染为高清晰度白色背景 PDF
-            ctx = RenderContext(sheet_doc)
-            cfg = Configuration(
-                background_policy=BackgroundPolicy.WHITE,
-                color_policy=ColorPolicy.COLOR,
-                hatch_policy=HatchPolicy.IGNORE,
-            )
-            backend = SVGBackend()
-            page = layout.Page.from_dxf_layout(sheet_msp)
-            frontend = Frontend(ctx, backend, config=cfg)
-            frontend.draw_layout(sheet_msp, finalize=True)
-            svg_content = backend.get_string(page)
-
-            clean_svg = sanitize_surrogates(svg_content).encode("utf-8", "ignore")
-            page_pdf_doc = pymupdf.open(stream=clean_svg, filetype="svg")
-            page_bytes = page_pdf_doc.convert_to_pdf()
-        except Exception as render_err:
-            print(f"[CAD] 单页切片渲染降级 (sheet={sheet_name}): {render_err}")
-            # 容错降级：生成标准 A3 白色图纸占位页，保证包含提取的图框名称
-            fallback_doc = pymupdf.open()
-            fb_page = fallback_doc.new_page(width=RENDER_FALLBACK_PAGE[0], height=RENDER_FALLBACK_PAGE[1])
-            fb_page.insert_text((50, 50), f"系统图: {sheet_name} (矢量渲染降级)", fontsize=18)
-            page_bytes = fallback_doc.convert_to_pdf()
-
-        return idx, sheet_texts, page_bytes
-
-    if len(sheets) == 1:
-        idx, sheet_texts, page_bytes = _render_sheet_worker(1, sheets[0])
-        total_texts.extend(sheet_texts)
-        with pymupdf.open(stream=page_bytes, filetype="pdf") as single_doc:
-            combined_pdf.insert_pdf(single_doc)
-    else:
-        max_workers = min(len(sheets), max(1, os.cpu_count() or 4))
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [
-                executor.submit(_render_sheet_worker, idx, sheet)
-                for idx, sheet in enumerate(sheets, 1)
-            ]
-            rendered_items = [f.result() for f in futures]
-
-        rendered_items.sort(key=lambda x: x[0])
-        for idx, sheet_texts, page_bytes in rendered_items:
-            total_texts.extend(sheet_texts)
-            with pymupdf.open(stream=page_bytes, filetype="pdf") as single_doc:
-                combined_pdf.insert_pdf(single_doc)
-
-    combined_pdf.save(out_pdf_path)
-    return total_texts
-
-
 # ---------------------------------------------------------------------------
-# v2 流水线：按真实图框几何分幅，再把每张系统图拆成配电箱单元块
-#
-# 旧流水线用“系统图”标题文字的插入点和估算尺寸当切片边界，可能裁掉页面内容；
-#   2. 实体只按 dxf.insert / dxf.start 归属会漏掉不含这些属性的圆弧、实体和多段线；
-#   3. 多箱系统图整页送模型可能超过输出上限，需拆分并校验跨边界对象；
-#   4. 图签栏里的图名文字可能被误当成独立图纸，导致页数与源图不符。
-#
-# v2 尝试：用图框块参照（INSERT）识别幅面、用标题分类图纸，再按箱框与箱名生成单元块。
-# 该启发式仍依赖图框/图层/标注习惯，输出需经过切片覆盖检查；单元块边界不保证无遗漏。
-# ---------------------------------------------------------------------------
-# 几何判据与领域词典全部来自 config/pipeline.json 的 cad 段与 config/domain.json，
-# 现场按设计院习惯调整时改 JSON（或设同名环境变量）即可，不必改代码。
+# 预览：sheets.py 按真实图框分幅，系统图 / 原理图每张整页渲染成一页，不做任何启发式裁剪；
+# 箱柜与回路的位置由前端在整张图上画高亮框（assign_preview_bboxes 按图框坐标精确换算）。
+# 几何判据与领域词典来自 config/pipeline.json 的 cad / takeoff 段与 config/domain.json。
 # ---------------------------------------------------------------------------
 from .config import domain as _domain, pipeline as _pipeline  # noqa: E402
 
@@ -712,84 +411,14 @@ _CAD = _pipeline()["cad"]
 _DOM = _domain()["cad"]
 
 ISO_LANDSCAPE_SIZES = tuple(tuple(pair) for pair in _CAD["iso_landscape_sizes"])
-FRAME_MIN_DIM = float(_CAD["frame_min_dim"])            # 闭合多段线外框的最小边长（图纸单位）
-FRAME_MIN_SIDE = float(_CAD["frame_min_side"])          # 块参照图框的最小短边
-FRAME_MAX_ASPECT = float(_CAD["frame_max_aspect"])      # 超过此长宽比的是长条符号，不是图纸
-FRAME_DEDUP_TOL = float(_CAD["frame_dedup_tol"])        # 面积容差：落在大框内即视为嵌套子块
-UNIT_RECT_MIN_W, UNIT_RECT_MAX_W = float(_CAD["unit_rect_min_w"]), float(_CAD["unit_rect_max_w"])
-UNIT_RECT_MIN_H, UNIT_RECT_MAX_H = float(_CAD["unit_rect_min_h"]), float(_CAD["unit_rect_max_h"])
-UNIT_RECT_DEDUP_TOL = float(_CAD["unit_rect_dedup_tol"])
-RECT_ASPECT_MIN, RECT_ASPECT_MAX = float(_CAD["rect_aspect_min"]), float(_CAD["rect_aspect_max"])
-POLYLINE_CLOSE_TOL = float(_CAD["polyline_close_tol"])
-TEXT_ROW_BUCKET = float(_CAD["text_row_bucket"])
-TEXT_ROW_ALIGN_TOL = float(_CAD["text_row_align_tol"])
-TITLE_TEXT_MIN_HEIGHT = float(_CAD["title_text_min_height"])
-SHEET_DEFAULT_WIDTH = float(_CAD["sheet_default_width"])
-SHEET_WIDTH_MM_BASIS = float(_CAD["sheet_width_mm_basis"])
-SHEET_ASPECT_RATIO = float(_CAD["sheet_aspect_ratio"])
-SHEET_SCALE_TEXT_HEIGHT = float(_CAD["sheet_scale_text_height"])
-SHEET_SCALE_REFERENCE_HEIGHT = float(_CAD["sheet_scale_reference_height"])
-SHEET_WIDTH_GAP_MIN = float(_CAD["sheet_width_gap_min"])
 FALLBACK_TEXT_HEIGHT = float(_CAD["fallback_text_height"])
 UNIT_CAPTION_DEFAULT_HEIGHT = float(_CAD["unit_caption_default_height"])
-BLOCK_TEXT_DEFAULT_HEIGHT = float(_CAD["block_text_default_height"])
-CROP_OVERLAP_RATIO = float(_CAD["crop_overlap_ratio"])
-CROP_WIDTH_FACTOR = float(_CAD["crop_width_factor"])
-CROP_HEIGHT_RATIO = float(_CAD["crop_height_ratio"])
-CROP_TOP_MAX_PAD = float(_CAD["crop_top_max_pad"])
-CROP_CAPTION_GAP = float(_CAD["crop_caption_gap"])
-CROP_CAPTION_GAP_ALT = float(_CAD["crop_caption_gap_alt"])
-CROP_BOTTOM_GAP = float(_CAD["crop_bottom_gap"])
-CROP_BELOW_PAD = float(_CAD["crop_below_pad"])
-CELL_SIZE = float(_CAD["cell_size"])
-BLOCK_PLAN_MIN_W = float(_CAD["block_plan_min_w"])
-BLOCK_PLAN_MIN_H = float(_CAD["block_plan_min_h"])
-BLOCK_PLAN_ASPECT_MIN = float(_CAD["block_plan_aspect_min"])
-BLOCK_PLAN_ASPECT_MAX = float(_CAD["block_plan_aspect_max"])
-RENDER_FALLBACK_PAGE = tuple(_CAD["render_fallback_page"])
 DWG2DXF_SEARCH_PATHS = tuple(_CAD["dwg2dxf_search_paths"])
 DWG2SVG_SEARCH_PATHS = tuple(_CAD["dwg2svg_search_paths"])
 CONVERT_TIMEOUT_S = int(_CAD["convert_timeout_s"])
-UNIT_CAPTION_SUFFIX = tuple(
-    sorted(_DOM["unit_caption_suffix"], key=len, reverse=True)
-)  # 最长后缀优先，避免「配电箱」抢走「照明配电箱」一类复合后缀
-UNIT_CAPTION_MIN_LEN = int(_DOM["box_caption_min_len"])
-UNIT_CAPTION_MAX_LEN = int(_DOM["box_caption_max_len"])
-BOX_TITLE_MAX_LEN = int(_DOM["box_title_max_len"])
-NOTE_TEXT_MAX_LEN = int(_DOM["note_text_max_len"])
-UNIT_CAPTION_BAD_LAYERS = set(_DOM["unit_caption_bad_layers"])
-CAPTION_ROUTE_MARKS = tuple(_DOM.get("caption_route_marks") or ("由", "引", "至", "沿", "敷设"))
-CAPTION_STRIP_MARKS = tuple(_DOM.get("caption_strip_marks") or ("系统图", "接线图", "原理图"))
-CAPTION_BAD_HEAD_CHARS = str(_DOM.get("caption_bad_head_chars") or "由详注如按本除并引至沿")
-CAPTION_SOFT_TAIL_CHARS = str(_DOM.get("caption_soft_tail_chars") or "箱柜屏盘")
-CAPTION_NOTE_MARKS = tuple(
-    _DOM.get("caption_note_marks")
-    or ("详见", "配置详见", "各配电箱", "各配电柜", "应符合", "不得", "本说明", "参见")
-)
-CAPTION_TAIL_STRIP_REGEXES = tuple(
-    _DOM.get("caption_tail_strip_regexes")
-    or (r"共\d+台.*$", r"(?:挂墙|壁挂|落地|明装|暗装|嵌墙).*$")
-)
-# 平面图/建筑图层上也有闭合箱柜外形，但不是系统图单元块，按图层前缀排掉
-UNIT_RECT_BAD_LAYER_MARKERS = tuple(_DOM["unit_rect_bad_layer_markers"])
-BOX_ABOVE_MIN, BOX_ABOVE_MAX = float(_CAD["box_above_min"]), float(_CAD["box_above_max"])
-BOX_X_TOLERANCE = float(_CAD["box_x_tolerance"])       # 箱名与箱框水平中心的最大额外偏移
-BOX_SIDE_GAP_MAX = float(_CAD.get("box_side_gap_max") or 15000.0)  # 箱名在箱框左右侧时的最大缝隙
-BOX_SIDE_Y_PAD = float(_CAD.get("box_side_y_pad") or 2000.0)       # 侧旁配对允许的垂直越界
-CAPTION_ORPHAN_W = float(_CAD.get("caption_orphan_width") or 22000.0)
-CAPTION_ORPHAN_H = float(_CAD.get("caption_orphan_height") or 28000.0)
-BAD_LAYER_ALLOW_WITH_CODE = bool(_DOM.get("unit_caption_bad_layer_allow_with_code", True))
-INSIDE_CAPTION_BAND_RATIO = float(_DOM.get("unit_inside_caption_band_ratio") or 0.25)
-CROP_PAD_SIDE = float(_CAD["crop_pad_side"])
-CROP_PAD_BOTTOM = float(_CAD["crop_pad_bottom"])
 PAGE_LONG_MM_MIN, PAGE_LONG_MM_MAX = float(_CAD["page_long_mm_min"]), float(_CAD["page_long_mm_max"])
-# 配电箱单元块的页面长边固定到 A3 左右：下游按“长边 2400px”光栅化，
-# 长边落在触发阈值以下才能既拿满像素又不触发再分块。
-UNIT_PAGE_LONG_MM = float(_CAD["unit_page_long_mm"])
-PLAN_TITLE_MARKERS = tuple(_DOM["plan_title_markers"])
-SYSTEM_TITLE_MARKERS = tuple(_DOM["system_title_markers"])
-TITLE_LAYER_HINTS = tuple(_DOM["title_layer_hints"])
 GRID_CELL = float(_CAD["grid_cell"])
+SYSTEM_SHEET_MIN_BREAKERS = int(_pipeline()["takeoff"]["sheets"].get("system_min_breakers", 3))
 
 
 def _entity_bounds(entity: Any) -> tuple[float, float, float, float] | None:
@@ -938,110 +567,16 @@ class GeometryIndex:
 
 
 def detect_drawing_frames(doc: Any, index: GeometryIndex) -> list[dict[str, Any]]:
-    """找出图纸上所有真实图框幅面。
+    """图纸上的全部真实图幅（sheets.detect_sheets：图框块的幅面变体、闭合外框、图纸目录取图号图名）。
+    识别不到图幅时返回空列表，由调用方整图渲染。"""
+    from .native_takeoff import _Walker
+    from .sheets import detect_sheets
 
-    优先采用 sheets.detect_sheets 进行全局多图幅识别与幅面优选（针对动态图框多幅面嵌套进行
-    边际实体密度收敛，并结合图纸目录自动填补图号、图名与类型分类）。
-    若检测不到，回退到几何包围盒去重与大尺寸闭合多段线外框；
-    若仍无，则根据标题启发式推导的系统图幅面接入。
-    """
-    try:
-        from .sheets import detect_sheets
-        from .native_takeoff import _Walker
-        walker = _Walker(doc)
-        texts = walker.layout_texts(doc.modelspace(), "模型空间")
-        if texts:
-            sheets_list = detect_sheets(doc, index, texts)
-            if sheets_list:
-                frames = []
-                for s in sheets_list:
-                    blk = s.source.split(":", 1)[1] if ":" in s.source else (s.name or s.number or "系统图")
-                    frames.append({
-                        "bbox": s.bbox,
-                        "block": blk,
-                        "number": s.number,
-                        "name": s.name,
-                        "kind": s.kind,
-                        "source": s.source,
-                    })
-                frames.sort(key=lambda f: (-round(f["bbox"][3], -4), f["bbox"][0]))
-                return frames
-    except Exception as exc:
-        print(f"[CAD] sheets.detect_sheets 异常，回退常规图框探测: {exc}")
-
-    frames: list[dict[str, Any]] = []
-    for e in doc.modelspace().query("INSERT"):
-        b = _insert_bounds(doc, e, index.block_cache)
-        if b is None:
-            continue
-        w, h = b[2] - b[0], b[3] - b[1]
-        if min(w, h) < FRAME_MIN_SIDE:
-            continue
-        if max(w, h) / max(min(w, h), 1e-6) > FRAME_MAX_ASPECT:
-            continue
-        frames.append({"bbox": b, "block": str(e.dxf.name), "source": "insert"})
-
-    frames.sort(key=lambda f: -((f["bbox"][2] - f["bbox"][0]) * (f["bbox"][3] - f["bbox"][1])))
-    kept: list[dict[str, Any]] = []
-    for f in frames:
-        b = f["bbox"]
-        area = (b[2] - b[0]) * (b[3] - b[1])
-        nested = False
-        for k in kept:
-            kb = k["bbox"]
-            if kb[0] <= b[0] + 10.0 and kb[2] >= b[2] - 10.0 and kb[1] <= b[1] + 10.0 and kb[3] >= b[3] - 10.0:
-                nested = True
-                break
-            ix = max(0.0, min(b[2], kb[2]) - max(b[0], kb[0]))
-            iy = max(0.0, min(b[3], kb[3]) - max(b[1], kb[1]))
-            if ix * iy >= area * (1.0 - FRAME_DEDUP_TOL):
-                nested = True
-                break
-        if not nested:
-            kept.append(f)
-
-    if not kept:
-        polyline_cands = []
-        for i in range(len(index.entities)):
-            e = index.entities[i]
-            if e.dxftype() not in ("LWPOLYLINE", "POLYLINE"):
-                continue
-            if not _polyline_is_closed(e):
-                continue
-            b = index.boxes[i]
-            w, h = b[2] - b[0], b[3] - b[1]
-            if min(w, h) < FRAME_MIN_DIM:
-                continue
-            if not RECT_ASPECT_MIN <= (max(w, h) / max(min(w, h), 1e-6)) <= RECT_ASPECT_MAX:
-                continue
-            polyline_cands.append({"bbox": b, "block": str(e.dxf.layer), "source": "polyline"})
-
-        polyline_cands.sort(key=lambda f: -((f["bbox"][2] - f["bbox"][0]) * (f["bbox"][3] - f["bbox"][1])))
-        for f in polyline_cands:
-            b = f["bbox"]
-            area = (b[2] - b[0]) * (b[3] - b[1])
-            nested = False
-            for k in kept:
-                kb = k["bbox"]
-                if kb[0] <= b[0] + 10.0 and kb[2] >= b[2] - 10.0 and kb[1] <= b[1] + 10.0 and kb[3] >= b[3] - 10.0:
-                    nested = True
-                    break
-                ix = max(0.0, min(b[2], kb[2]) - max(b[0], kb[0]))
-                iy = max(0.0, min(b[3], kb[3]) - max(b[1], kb[1]))
-                if ix * iy >= area * (1.0 - FRAME_DEDUP_TOL):
-                    nested = True
-                    break
-            if not nested:
-                kept.append(f)
-
-    if not kept:
-        # 兜底：若无标准图框块或闭合多段线，采用标题启发式推导的系统图幅面接入
-        fallback_sheets = detect_system_sheets(doc)
-        for s in fallback_sheets:
-            kept.append({"bbox": s["bbox"], "block": s.get("title", "系统图"), "source": "title_heuristic"})
-
-    kept.sort(key=lambda f: (-round(f["bbox"][3], -4), f["bbox"][0]))
-    return kept
+    texts = _Walker(doc).layout_texts(doc.modelspace(), "模型空间")
+    if not texts:
+        return []
+    return [{"bbox": s.bbox, "number": s.number, "name": s.name, "kind": s.kind, "source": s.source}
+            for s in detect_sheets(doc, index, texts)]
 
 
 def _guess_plot_scale(w: float, h: float) -> float:
@@ -1065,122 +600,6 @@ def _guess_plot_scale(w: float, h: float) -> float:
     elif long_mm > PAGE_LONG_MM_MAX:
         scale = long_u / PAGE_LONG_MM_MAX
     return scale
-
-
-def _normalize_box_caption(text: str) -> str:
-    """去掉空格、括号修饰、「系统图」尾巴，以及「共N台/挂墙」安装尾注。"""
-    t = re.sub(r"\s+", "", (text or "").strip())
-    t = re.sub(r"[（(][^）)]*[）)]", "", t)
-    for mark in CAPTION_STRIP_MARKS:
-        if mark and mark in t:
-            t = t.replace(mark, "")
-    for pat in CAPTION_TAIL_STRIP_REGEXES:
-        if pat:
-            t = re.sub(pat, "", t)
-    # 「配电总箱1」这类序号尾巴：只剥箱种后缀后的纯数字，不动 00ALZ 这类代号
-    for sfx in UNIT_CAPTION_SUFFIX:
-        m = re.search(re.escape(sfx) + r"(\d+)$", t)
-        if m:
-            t = t[: m.start(1)]
-            break
-    return t.strip(" -_/、，,")
-
-
-def _is_caption_trailing_code(token: str) -> bool:
-    """箱种后缀后的代号：00ALZ / JXX2 / 03ELB1；拒绝纯数字与回路号。"""
-    tok = (token or "").strip(" -_/")
-    if not tok or len(tok) > 16:
-        return False
-    if not re.fullmatch(r"[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*", tok):
-        return False
-    if not re.search(r"[A-Za-z]", tok):
-        return False
-    if _looks_like_circuit_code(tok):
-        return False
-    return True
-
-
-def _caption_suffix_match(text: str) -> str | None:
-    """标准后缀：优先末尾匹配；也允许「…配电箱00ALZ」这种代号在后缀后。"""
-    for sfx in UNIT_CAPTION_SUFFIX:
-        if text.endswith(sfx):
-            return sfx
-    for sfx in UNIT_CAPTION_SUFFIX:
-        idx = text.rfind(sfx)
-        if idx < 0:
-            continue
-        after = text[idx + len(sfx):]
-        if after and _is_caption_trailing_code(after):
-            return sfx
-    return None
-
-
-def _caption_has_route_note(text: str) -> bool:
-    raw = (text or "").strip()
-    if not raw:
-        return True
-    if raw[0] in CAPTION_BAD_HEAD_CHARS:
-        return True
-    return any(mark and raw.startswith(mark) for mark in CAPTION_ROUTE_MARKS)
-
-
-def _caption_has_note_mark(text: str) -> bool:
-    """说明句/注释不当箱名：配置详见各配电箱柜系统图 等。"""
-    compact = re.sub(r"\s+", "", (text or "").strip())
-    if not compact:
-        return True
-    return any(m and m in compact for m in CAPTION_NOTE_MARKS)
-
-
-def _caption_layer_allowed(layer: str, text: str) -> bool:
-    """坏图层默认拒；若配置允许且能抽出箱号，放行 TEL_TAB 等表栏上的真箱名。
-
-    消控图常见：``03XF01消防配电箱 共1台`` 落在 TEL_TAB，而同框内「应急照明箱03ELB1」
-    在好图层却是框内负荷/关联标注——必须靠箱号+图层策略区分。
-    """
-    layer = str(layer or "")
-    if layer not in UNIT_CAPTION_BAD_LAYERS:
-        return True
-    if not BAD_LAYER_ALLOW_WITH_CODE:
-        return False
-    return bool(_caption_panel_code(text))
-
-
-def _looks_like_box_caption(text: str) -> bool:
-    """箱名判定：标准后缀最长匹配；允许代号在后缀后；拒说明句与路由注释。
-
-    图名（系统图/平面图等）且抽不出箱号时不当箱名。
-    """
-    raw = (text or "").strip()
-    if not raw or _caption_has_route_note(raw) or _caption_has_note_mark(raw):
-        return False
-    compact = re.sub(r"\s+", "", raw)
-    # 纯图名：带系统图/平面图类词且没有箱种后缀 → 不是箱名
-    title_like = any(m in compact for m in SYSTEM_TITLE_MARKERS) or any(m in compact for m in PLAN_TITLE_MARKERS)
-    t = _normalize_box_caption(raw)
-    if not UNIT_CAPTION_MIN_LEN <= len(t) <= UNIT_CAPTION_MAX_LEN:
-        return False
-    sfx = _caption_suffix_match(t)
-    if sfx:
-        idx = t.rfind(sfx)
-        head = t[:idx].strip(" -_/")
-        after = t[idx + len(sfx):]
-        if after and _is_caption_trailing_code(after):
-            # 「路灯照明配电箱00ALZ」：代号在后，head 可空；head 有内容时仍拒坏首字
-            if head and head[0] in CAPTION_BAD_HEAD_CHARS:
-                return False
-            return True
-        if not head or head[0] in CAPTION_BAD_HEAD_CHARS:
-            return False
-        return True
-    if title_like:
-        return False
-    # 软匹配：以箱/柜/屏/盘结尾，且前面有字母数字代号
-    if t and t[-1] in CAPTION_SOFT_TAIL_CHARS:
-        head = t[:-1].strip(" -_/")
-        if head and re.search(r"[A-Za-z0-9]", head) and head[0] not in CAPTION_BAD_HEAD_CHARS:
-            return True
-    return False
 
 
 def _frame_texts(index: GeometryIndex, rect, cached: dict) -> list[dict[str, Any]]:
@@ -1328,530 +747,6 @@ def _explode_texts(ins: Any, cache: dict) -> list[dict[str, Any]]:
     return out
 
 
-def _frame_title(texts: list[dict[str, Any]]) -> str:
-    """图名：优先图签栏里带“系统图/干线图/原理图”字样的短文字（避开图号、子项名称、公司名）。"""
-    def pick(pool, want_marker: bool):
-        best, best_h = "", 0.0
-        for t in pool:
-            txt = t["text"].replace("\n", "").strip()
-            if not txt or len(txt) > BOX_TITLE_MAX_LEN:
-                continue
-            if any(p in txt for p in ("。", "；", "，", ";", ",")):
-                continue
-            if want_marker and not any(m in txt for m in SYSTEM_TITLE_MARKERS):
-                continue
-            h = t["height"]
-            if h > best_h or (h == best_h and len(txt) > len(best)):
-                best, best_h = txt, h
-        return best
-
-    on_title_layer = [t for t in texts if any(k in t["layer"].upper() for k in TITLE_LAYER_HINTS)]
-    return (pick(on_title_layer, True) or pick(texts, True)
-            or pick(on_title_layer, False) or pick(texts, False))
-
-
-def _classify_frame(title: str) -> str:
-    t = title.replace(" ", "")
-    if any(m in t for m in SYSTEM_TITLE_MARKERS):
-        return "system"
-    if any(m in t for m in PLAN_TITLE_MARKERS):
-        return "plan"
-    return "other"
-
-
-def _polyline_is_closed(entity: Any) -> bool:
-    """闭合标志为真，或首尾点在容差内重合，都算闭合。
-
-    现场 DWG 里不少箱框是「画回起点但未勾 closed」的 LWPOLYLINE/POLYLINE，
-    只认 closed 标志会整段丢掉单元块。
-    """
-    kind = entity.dxftype()
-    try:
-        if kind == "LWPOLYLINE":
-            if bool(getattr(entity, "closed", False)):
-                return True
-            pts = list(entity.get_points("xy"))
-        elif kind == "POLYLINE":
-            if bool(getattr(entity, "is_closed", False)) or bool(getattr(entity.dxf, "flags", 0) & 1):
-                return True
-            pts = [(float(p[0]), float(p[1])) for p in entity.points()]
-        else:
-            return False
-        if len(pts) < 4:
-            return False
-        return math.hypot(pts[0][0] - pts[-1][0], pts[0][1] - pts[-1][1]) < POLYLINE_CLOSE_TOL
-    except Exception:
-        return False
-
-
-def _unit_rects(index: GeometryIndex, frame_rect) -> list[tuple[float, float, float, float]]:
-    """图框内所有配电箱虚线箱框（小尺寸闭合多段线），已按近似重复去重。"""
-    rects: list[tuple[float, float, float, float]] = []
-    for i in index.query(frame_rect):
-        e = index.entities[i]
-        if e.dxftype() not in ("LWPOLYLINE", "POLYLINE"):
-            continue
-        if not _polyline_is_closed(e):
-            continue
-        layer = str(e.dxf.layer or "").upper()
-        if any(m in layer for m in UNIT_RECT_BAD_LAYER_MARKERS):
-            continue
-        b = index.boxes[i]
-        w, h = b[2] - b[0], b[3] - b[1]
-        if not (UNIT_RECT_MIN_W <= w <= UNIT_RECT_MAX_W and UNIT_RECT_MIN_H <= h <= UNIT_RECT_MAX_H):
-            continue
-        if any(abs(b[0] - r[0]) < UNIT_RECT_DEDUP_TOL and abs(b[1] - r[1]) < UNIT_RECT_DEDUP_TOL and abs(b[2] - r[2]) < UNIT_RECT_DEDUP_TOL
-               and abs(b[3] - r[3]) < UNIT_RECT_DEDUP_TOL for r in rects):
-            continue
-        rects.append(b)
-    return rects
-
-
-def _match_box_rect_with_kind(
-    rects, cap
-) -> tuple[tuple[float, float, float, float] | None, str | None]:
-    """给箱名找箱框，并返回配对方式。
-
-    优先级：框下（标准）→ 侧旁 → 框内底带。框内深处的负荷/关联名不得抢框
-    （消控图「应急照明箱03ELB1」写在 03XF01 虚线框内部）。
-    """
-    cx, cy = cap["x"], cap["y"]
-    # 1) 箱名在框下方（或略伸入框底）
-    below = []
-    for r in rects:
-        dy = r[1] - cy
-        if not BOX_ABOVE_MIN * -1 <= dy <= BOX_ABOVE_MAX:
-            continue
-        half = (r[2] - r[0]) / 2.0 + BOX_X_TOLERANCE
-        if abs(cx - (r[0] + r[2]) / 2.0) > half:
-            continue
-        below.append((abs(dy) if dy >= 0 else dy + 1e6, r))
-    if below:
-        min_dy = min(c[0] for c in below)
-        best = [c[1] for c in below if abs(c[0] - min_dy) < 500.0]
-        return max(best, key=lambda r: (r[2] - r[0]) * (r[3] - r[1])), "below"
-    # 2) 侧旁
-    side = []
-    for r in rects:
-        if not (r[1] - BOX_SIDE_Y_PAD <= cy <= r[3] + BOX_SIDE_Y_PAD):
-            continue
-        if cx < r[0]:
-            gap = r[0] - cx
-        elif cx > r[2]:
-            gap = cx - r[2]
-        else:
-            continue
-        if gap <= BOX_SIDE_GAP_MAX:
-            side.append((gap, r))
-    if side:
-        side.sort(key=lambda x: (x[0], -(x[1][2] - x[1][0]) * (x[1][3] - x[1][1])))
-        return side[0][1], "side"
-    # 3) 框内底带（真箱名常靠下沿）
-    band = max(0.05, min(0.5, INSIDE_CAPTION_BAND_RATIO))
-    inside_band = []
-    inside_any = []
-    for r in rects:
-        if not (r[0] <= cx <= r[2] and r[1] <= cy <= r[3]):
-            continue
-        h = max(r[3] - r[1], 1e-6)
-        inside_any.append(r)
-        if cy <= r[1] + band * h:
-            inside_band.append(r)
-    if inside_band:
-        return max(inside_band, key=lambda r: (r[2] - r[0]) * (r[3] - r[1])), "inside"
-    # 4) 框内任意：仅兜底（大单箱外框内的箱名）；抢框时排序会让 below/side 优先
-    if inside_any:
-        return max(inside_any, key=lambda r: (r[2] - r[0]) * (r[3] - r[1])), "inside_deep"
-    return None, None
-
-
-
-
-def _column_pitch(rects) -> float:
-    """箱框按列平铺的列距（相邻列左边距的中位数），用于推最右一列单元块的右边。"""
-    xs = sorted({round(r[0], -2) for r in rects})
-    diffs = [xs[i + 1] - xs[i] for i in range(len(xs) - 1) if xs[i + 1] - xs[i] > 1000]
-    if not diffs:
-        return 0.0
-    diffs.sort()
-    return diffs[len(diffs) // 2]
-
-
-def _cell_crop(rect, rects, frame, caption_y: float, pitch_x: float) -> tuple[float, float, float, float]:
-    """把箱框撑成完整的单元块。
-
-    图纸上的虚线箱框只圈住断路器那一列，右侧的电缆规格栏和负荷名称栏画在框外，
-    箱框左侧是内容起点。必须过滤出真正的主体箱框作为邻接边界，杜绝将箱内局部表格列
-    误作为右邻截断。
-    """
-    x0, y0, x1, y1 = rect
-    w, h = x1 - x0, y1 - y0
-
-    # 过滤出独立主体单元框（排除局部小表头与细分列矩形），防止将内部电表栏/负荷栏误判为右邻单元
-    substantial = [r for r in rects if (r[2] - r[0]) >= 5000.0 and (r[3] - r[1]) >= 8000.0]
-    eval_rects = substantial if len(substantial) >= 2 else rects
-
-    def v_overlap(r):
-        return min(r[3], y1) - max(r[1], y0) > CROP_OVERLAP_RATIO * min(h, r[3] - r[1])
-
-    def h_overlap(r):
-        return min(r[2], x1) - max(r[0], x0) > CROP_OVERLAP_RATIO * min(w, r[2] - r[0])
-
-    right_gaps = [r[0] - x1 for r in eval_rects if r is not rect and v_overlap(r) and r[0] >= x1]
-    top_gaps = [r[1] - y1 for r in eval_rects if r is not rect and h_overlap(r) and r[1] >= y1]
-    if right_gaps:
-        right = x1 + min(right_gaps)
-    else:
-        right = x0 + (pitch_x if pitch_x > w else w * CROP_WIDTH_FACTOR)
-    right = min(right, x1 + w * CROP_WIDTH_FACTOR, frame[2])
-    top = min(y1 + (min(top_gaps) / 2 if top_gaps
-                    else min(h * CROP_HEIGHT_RATIO, CROP_TOP_MAX_PAD)), frame[3])
-
-    # 下邻箱框自适应安全裁切（同列且位于当前箱框下方）
-    bottom_cands = [r for r in eval_rects if r is not rect and h_overlap(r) and r[3] <= y0]
-    if bottom_cands:
-        below_top = max(r[3] for r in bottom_cands)
-        # 当前箱名下边界：箱名文字下方留白
-        cap_bot = (min(caption_y - CROP_CAPTION_GAP, y0 - CROP_CAPTION_GAP_ALT)
-                   if caption_y < y0 else y0 - CROP_BOTTOM_GAP)
-        # 严格取箱名下沿与下排箱顶的中位线，并至少高出下排箱顶，坚决不切入下排进线与表头
-        bottom = max(cap_bot, (cap_bot + below_top) / 2.0, below_top + CROP_BELOW_PAD)
-    else:
-        if caption_y < y0:
-            bottom = min(y0 - CROP_BOTTOM_GAP, caption_y - CROP_CAPTION_GAP_ALT)
-        else:
-            bottom = y0 - CROP_PAD_BOTTOM
-    bottom = max(frame[1], bottom)
-
-    return (max(frame[0], x0 - CROP_PAD_SIDE), bottom, right, top)
-
-
-def _looks_like_circuit_code(code: str) -> bool:
-    """回路号/支路号不当箱号：WL/WP… 或 AL1-1 / 1AL1-1 这类带支路后缀。"""
-    from .cad_extractor import _text_is_circuit_anchor
-    raw = (code or "").strip()
-    if not raw:
-        return True
-    if _text_is_circuit_anchor(raw):
-        return True
-    # 箱号后再挂 -数字 支路（AL1-1、2SAL1-3）；纯箱号 01B-03 保留
-    if re.fullmatch(r"\d*[A-Za-z]{2,}\d+[A-Za-z]?-\d+[A-Za-z]?", raw):
-        return True
-    if re.fullmatch(r"(?:WL|WP|WX|WD|WS|WY|WE|QF)\d+[A-Za-z]?", raw, re.I):
-        return True
-    return False
-
-
-def _caption_leading_code(caption: str) -> str | None:
-    """从箱名开头抽出代号，兼容 01B-03 / 2SAL1 / AL1 等 caption 前缀。"""
-    from .cad_extractor import extract_panel_code
-    raw = re.sub(r"\s+", " ", (caption or "").strip())
-    if not raw:
-        return None
-    # 优先走统一词法
-    code = extract_panel_code(raw)
-    if code and not _looks_like_circuit_code(code):
-        return code
-    # 前缀兜底：开头连续字母数字与短横线，碰到中文/空白停下
-    m = re.match(r"^([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)", re.sub(r"\s+", "", raw))
-    if not m:
-        return None
-    token = m.group(1).upper()
-    if _looks_like_circuit_code(token):
-        return None
-    # 至少含一个字母和一个数字，避免把「一层」拼音残片当箱号
-    if re.search(r"[A-Z]", token) and re.search(r"\d", token):
-        return token
-    return None
-
-
-def _caption_trailing_code(caption: str) -> str | None:
-    """从「…配电箱00ALZ / 应急照明箱03ELB1」后缀后抽出代号。"""
-    from .cad_extractor import extract_panel_code
-    t = _normalize_box_caption(caption or "")
-    if not t:
-        return None
-    for sfx in UNIT_CAPTION_SUFFIX:
-        idx = t.rfind(sfx)
-        if idx < 0:
-            continue
-        after = t[idx + len(sfx):]
-        if not _is_caption_trailing_code(after):
-            continue
-        code = extract_panel_code(after)
-        if code and not _looks_like_circuit_code(code):
-            return code
-        token = after.upper()
-        if re.search(r"[A-Z]", token) and re.search(r"\d", token) and not _looks_like_circuit_code(token):
-            return token
-    return None
-
-
-def _caption_panel_code(caption: str) -> str | None:
-    """caption 上的箱号：前缀优先，其次后缀后代号。"""
-    return _caption_leading_code(caption) or _caption_trailing_code(caption)
-
-
-def _extract_unit_box_code(crop_texts: list[dict[str, Any]], caption: str | None = None) -> str | None:
-    """从单元块文本中提取配电箱编号；caption 优先，拒绝回路号抢码。"""
-    from .cad_extractor import extract_panel_code
-    if caption:
-        code = _caption_panel_code(caption)
-        if code:
-            return code
-    for t in crop_texts:
-        txt = t.get("text", "")
-        if "设备编号" in txt or "箱体编号" in txt:
-            clean = txt.replace("设备编号", "").replace("箱体编号", "").replace(":", "").replace("：", "").strip()
-            if clean:
-                c = extract_panel_code(clean)
-                if c and not _looks_like_circuit_code(c):
-                    return c
-            nearby = [t2 for t2 in crop_texts if abs(t2["y"] - t["y"]) < 600 and t2["x"] > t["x"]]
-            if nearby:
-                nearby.sort(key=lambda t2: t2["x"])
-                for n in nearby:
-                    c = extract_panel_code(n.get("text", ""))
-                    if c and not _looks_like_circuit_code(c):
-                        return c
-    for t in crop_texts:
-        c = extract_panel_code(t.get("text", ""))
-        if c and not _looks_like_circuit_code(c):
-            return c
-    return None
-
-
-def build_unit_blocks(doc: Any, index: GeometryIndex, frames: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """把系统图图框拆成配电箱单元块。
-
-    一个配电箱 = 箱名文字 + 它上方的虚线箱框 = 一个单元块。箱框只用来定裁剪范围，
-    真正决定“有几个单元”的是箱名文字，因为设计人一定给每个箱写了箱名，而框可能有
-    重复或拆分。
-
-    图框是否算系统图，由内容判定而不是靠图名猜：框里有“箱名 + 箱框”配对才算，
-    一个都配不上、且图名也不是系统图类的图框（平面图、图签注释块等）整张丢掉。
-    配不上但图名是系统图时，整框降级并显式标记 split_source=frame_fallback。
-    """
-    text_cache: dict = {}
-    blocks: list[dict[str, Any]] = []
-    table_boxes: list[tuple[float, float, float, float]] = []
-    switchgear_boxes: list[tuple[float, float, float, float]] = []
-    try:
-        from .gtable import reconstruct_gtable_from_dxf, parse_switchgear_table
-        gtables = reconstruct_gtable_from_dxf(doc)
-        for tbl in gtables:
-            if tbl.num_rows >= 3 and tbl.num_cols >= 3:
-                table_boxes.append(tbl.bbox)
-                tb_boxes, _, _ = parse_switchgear_table(tbl)
-                if any(b.code.startswith("C") for b in tb_boxes):
-                    switchgear_boxes.append(tbl.bbox)
-    except Exception:
-        table_boxes = []
-        switchgear_boxes = []
-
-    for frame in frames:
-        fbox = frame["bbox"]
-        texts = _frame_texts(index, fbox, text_cache)
-        frame["title"] = _frame_title(texts)
-        if _classify_frame(frame["title"]) == "plan":
-            frame["kind"] = "plan"
-            frame["missed_captions"] = []
-            continue
-
-        rects = _unit_rects(index, fbox)
-        # 排除落在密集表格矩阵内部的文字（如出线回路负荷名称），防止误作为箱名微观切片腰斩柜体
-        captions = [
-            t for t in texts
-            if _looks_like_box_caption(t["text"]) and _caption_layer_allowed(t["layer"], t["text"])
-            and not any(tb[0] <= t["x"] <= tb[2] and tb[1] <= t["y"] <= tb[3] for tb in table_boxes)
-        ]
-        scale = _guess_plot_scale(fbox[2] - fbox[0], fbox[3] - fbox[1])
-        pitch_x = _column_pitch(rects)
-        made = 0
-        used: set[int] = set()
-        matched_ids: set[int] = set()
-        used_codes: set[str] = set()
-        # 配对方式优先于纯 Y：框下真箱名压过框内侧旁负荷名；带箱号压过 XXM 占位
-        kind_rank = {"below": 0, "side": 1, "inside": 2, "inside_deep": 3}
-
-        def _cap_sort_key(t: dict[str, Any]):
-            _rect, kind = _match_box_rect_with_kind(rects, t)
-            has_code = 1 if _caption_panel_code(t["text"]) else 0
-            leading = 1 if _caption_leading_code(t["text"]) else 0
-            return (-has_code, kind_rank.get(kind or "", 9), -leading, -t["y"], t["x"])
-
-        for cap in sorted(captions, key=_cap_sort_key):
-            rect, kind = _match_box_rect_with_kind(rects, cap)
-            if rect is None or id(rect) in used:
-                continue
-            crop = _cell_crop(rect, rects, fbox, cap["y"], pitch_x)
-            crop_texts = _frame_texts(index, crop, text_cache, block_text=True)
-            box_code = _extract_unit_box_code(crop_texts, caption=cap["text"])
-            cap_name = cap["text"].replace(" ", "")
-            label = f"{box_code} {cap_name}" if box_code else cap_name
-
-            long_units = max(crop[2] - crop[0], crop[3] - crop[1])
-            block_scale = max(long_units / UNIT_PAGE_LONG_MM, 1e-6)
-            blocks.append({
-                "rect": crop,
-                "label": label,
-                "frame": frame["title"],
-                "scale": block_scale,
-                "box_code": box_code or "",
-                "split_source": "unit",
-                "split_reason": "",
-                "match_kind": kind or "",
-            })
-            made += 1
-            used.add(id(rect))
-            matched_ids.add(id(cap))
-            if box_code:
-                used_codes.add(box_code.upper())
-
-        # 有箱号的真箱名配不上虚线框：合成 caption_orphan，不假装成几何单元，也不整框吞掉
-        for cap in captions:
-            if id(cap) in matched_ids:
-                continue
-            code = _caption_panel_code(cap["text"])
-            if not code or code.upper() in used_codes:
-                continue
-            cx, cy = float(cap["x"]), float(cap["y"])
-            crop = (
-                max(fbox[0], cx - CAPTION_ORPHAN_W * 0.35),
-                max(fbox[1], cy),
-                min(fbox[2], cx + CAPTION_ORPHAN_W * 0.65),
-                min(fbox[3], cy + CAPTION_ORPHAN_H),
-            )
-            if crop[2] - crop[0] < 1000 or crop[3] - crop[1] < 1000:
-                continue
-            cap_name = cap["text"].replace(" ", "")
-            long_units = max(crop[2] - crop[0], crop[3] - crop[1])
-            block_scale = max(long_units / UNIT_PAGE_LONG_MM, 1e-6)
-            blocks.append({
-                "rect": crop,
-                "label": f"{code} {cap_name}",
-                "frame": frame["title"],
-                "scale": block_scale,
-                "box_code": code,
-                "split_source": "caption_orphan",
-                "split_reason": "caption_without_unit_rect",
-                "match_kind": "orphan",
-            })
-            made += 1
-            matched_ids.add(id(cap))
-            used_codes.add(code.upper())
-
-        # 若图框包含多列连续低压配电柜表格且未产生微观单元块，整框完整保留为图纸幅面 (Sheet)
-        has_switchgear = any(
-            max(fbox[0], tb[0]) < min(fbox[2], tb[2]) and max(fbox[1], tb[1]) < min(fbox[3], tb[3])
-            for tb in switchgear_boxes
-        )
-        if has_switchgear and made == 0:
-            sheet_title = "低压配电柜系统图 (C01~C08)" if ("低压" in frame["title"] or not frame["title"]) else frame["title"]
-            blocks.append({
-                "rect": fbox,
-                "label": sheet_title,
-                "frame": frame["title"],
-                "scale": scale,
-                "box_code": "",
-                "split_source": "sheet",
-                "split_reason": "switchgear_intact",
-            })
-            made += 1
-
-        missed = [t["text"] for t in captions if id(t) not in matched_ids]
-        frame["missed_captions"] = missed
-        if made:
-            frame["kind"] = "system"
-        elif _classify_frame(frame["title"]) == "system":
-            frame["kind"] = "system"
-            reason = "no_caption_rect_pair"
-            if captions and not rects:
-                reason = "captions_without_unit_rects"
-            elif captions:
-                reason = "captions_unmatched_to_rects"
-            elif not captions and not rects:
-                reason = "no_captions_or_rects"
-            blocks.append({
-                "rect": fbox,
-                "label": frame["title"] or "系统图",
-                "frame": frame["title"],
-                "scale": scale,
-                "box_code": "",
-                "split_source": "frame_fallback",
-                "split_reason": reason,
-                "missed_captions": missed,
-            })
-        else:
-            frame["kind"] = "skip"
-
-    # 对输出的幅面/单元块做高重叠率去重，防止相同图签的重叠大图框重复输出
-    unique_blocks: list[dict[str, Any]] = []
-    for b in blocks:
-        r = b["rect"]
-        is_dup = False
-        for ub in unique_blocks:
-            ur = ub["rect"]
-            ix = max(0.0, min(r[2], ur[2]) - max(r[0], ur[0]))
-            iy = max(0.0, min(r[3], ur[3]) - max(r[1], ur[1]))
-            area_r = (r[2] - r[0]) * (r[3] - r[1])
-            area_ur = (ur[2] - ur[0]) * (ur[3] - ur[1])
-            if area_r > 0 and area_ur > 0:
-                overlap = (ix * iy) / min(area_r, area_ur)
-                if overlap > 0.65:
-                    is_dup = True
-                    break
-        if not is_dup:
-            unique_blocks.append(b)
-    return unique_blocks
-
-
-def summarize_unit_split(frames: list[dict[str, Any]], blocks: list[dict[str, Any]]) -> dict[str, Any]:
-    """汇总单元块切分结果，供 read_report / 不确定性清单使用。"""
-    unit_n = sum(1 for b in blocks if b.get("split_source") == "unit")
-    orphan_n = sum(1 for b in blocks if b.get("split_source") == "caption_orphan")
-    fallback_n = sum(1 for b in blocks if b.get("split_source") == "frame_fallback")
-    missed: list[str] = []
-    for frame in frames:
-        missed.extend(frame.get("missed_captions") or [])
-    for block in blocks:
-        missed.extend(block.get("missed_captions") or [])
-    # 保序去重
-    seen: set[str] = set()
-    missed_unique: list[str] = []
-    for item in missed:
-        if item not in seen:
-            seen.add(item)
-            missed_unique.append(item)
-    uncertainties: list[str] = []
-    if fallback_n:
-        uncertainties.append(f"有 {fallback_n} 个图框未能拆成单元块，已整框降级（frame_fallback）")
-    if orphan_n:
-        uncertainties.append(
-            f"有 {orphan_n} 个带箱号箱名未配上虚线框，已按 caption_orphan 合成裁剪（非几何单元）"
-        )
-    if missed_unique:
-        sample = "、".join(missed_unique[:8])
-        more = f" 等{len(missed_unique)}个" if len(missed_unique) > 8 else ""
-        uncertainties.append(f"箱名未配上箱框：{sample}{more}")
-    geometric = unit_n + orphan_n
-    if geometric and not fallback_n:
-        mode = "unit" if not orphan_n else "mixed"
-    elif geometric:
-        mode = "mixed"
-    else:
-        mode = "frame_fallback"
-    return {
-        "mode": mode,
-        "unit_blocks": unit_n,
-        "caption_orphans": orphan_n,
-        "frame_fallbacks": fallback_n,
-        "total_blocks": len(blocks),
-        "missed_captions": missed_unique,
-        "uncertainties": uncertainties,
-    }
-
-
 def _render_block_pdf(doc: Any, index: GeometryIndex, block: dict[str, Any], ctx: RenderContext,
                       cfg: Configuration) -> bytes:
     """把一个单元块渲染成单页 PDF：只画该块相交的实体，靠 render_box 精确裁切。"""
@@ -1900,6 +795,41 @@ def render_cad_unit_blocks(doc: Any, blocks: list[dict[str, Any]], out_pdf_path:
         combined.close()
     texts.sort(key=lambda item: (item["page"], -item["y"], item["x"]))
     return texts
+
+
+def select_system_frames(frames: list[dict[str, Any]], index: GeometryIndex) -> list[dict[str, Any]]:
+    """要出预览页的图幅：图名是系统图 / 原理图类；图名认不出时，图里有 3 条以上开关型号文字也算。
+    设计说明、目录、材料表、平面图不出页（箱柜不在这些图上）。"""
+    from .cad_extractor import _text_is_breaker
+
+    out = []
+    cache: dict = {}
+    for f in frames:
+        kind = f.get("kind") or ""
+        if kind == "system":
+            out.append(f)
+        elif kind in ("", "other"):
+            texts = _frame_texts(index, f["bbox"], cache)
+            if sum(1 for t in texts if _text_is_breaker(t["text"])) >= SYSTEM_SHEET_MIN_BREAKERS:
+                out.append(f)
+    return out
+
+
+def render_cad_sheets(doc: Any, frames: list[dict[str, Any]], out_pdf_path: str,
+                      index: GeometryIndex) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """每张图幅整页渲染（矢量，按图框精确裁边），返回 (按页的原生文字, 每页图框坐标)。"""
+    blocks = []
+    meta = []
+    for f in frames:
+        x0, y0, x1, y1 = f["bbox"]
+        label = " ".join(v for v in (f.get("number") or "", f.get("name") or "") if v) or "系统图"
+        blocks.append({"rect": f["bbox"], "label": label, "scale": _guess_plot_scale(x1 - x0, y1 - y0),
+                       "box_code": "", "split_source": "sheet", "split_reason": ""})
+    texts = render_cad_unit_blocks(doc, blocks, out_pdf_path, index)
+    for page, (f, blk) in enumerate(zip(frames, blocks), 1):
+        meta.append({"page": page, "rect": [round(v, 3) for v in f["bbox"]],
+                     "number": f.get("number") or "", "name": f.get("name") or "", "label": blk["label"]})
+    return texts, meta
 
 
 def _fallback_page(block: dict[str, Any]) -> bytes:
@@ -2133,44 +1063,34 @@ def process_cad_file(cad_path: str, out_pdf_path: str) -> tuple[str, list[dict[s
     try:
         doc = load_dxf_document(dxf_path)
 
-        # 1. v2：按真实图框几何分幅，再把每张系统图拆成配电箱单元块，一块一页
+        # 1. 按真实图框分幅（sheets.py），系统图 / 原理图一张图幅渲染成一页，不做任何裁剪；
+        #    箱柜、回路的位置在前端用高亮框标在整张图上（page_rects 记录每页对应的图框坐标）。
         try:
             index = GeometryIndex(doc)
             frames = detect_drawing_frames(doc, index)
-            if frames:
-                blocks = build_unit_blocks(doc, index, frames)
-                split_summary.update(summarize_unit_split(frames, blocks))
-                if blocks:
-                    extracted_texts = render_cad_unit_blocks(doc, blocks, out_pdf_path, index)
-                    if os.path.exists(out_pdf_path) and os.path.getsize(out_pdf_path) > 0:
-                        return _deliver(extracted_texts, doc, converter)
-                split_summary.setdefault("uncertainties", []).append(
-                    "几何分幅未产出可渲染单元块，回退标题切片/整图"
-                )
-            else:
-                split_summary.update({
-                    "mode": "no_frames",
-                    "uncertainties": ["未检测到图框，回退标题切片/整图"],
-                })
-        except Exception as exc:  # noqa: BLE001 - 几何分幅异常时退回旧链路，不能让上传直接失败
-            print(f"[CAD] 几何分幅失败，回退旧切片链路: {exc}")
+            pages = select_system_frames(frames, index)
+            if pages:
+                extracted_texts, page_meta = render_cad_sheets(doc, pages, out_pdf_path, index)
+                if os.path.exists(out_pdf_path) and os.path.getsize(out_pdf_path) > 0:
+                    split_summary.update({
+                        "mode": "sheets",
+                        "sheets": len(page_meta),
+                        "frames_detected": len(frames),
+                        "pages": page_meta,
+                        "uncertainties": [],
+                    })
+                    return _deliver(extracted_texts, doc, converter)
             split_summary.update({
-                "mode": "geometry_failed",
-                "uncertainties": [f"几何分幅异常，已回退：{exc}"],
+                "mode": "no_system_sheet",
+                "frames_detected": len(frames),
+                "uncertainties": ["未识别出系统图图幅，已整图渲染"],
             })
-
-        # 2. 旧链路：按图签标题文字切分
-        system_sheets = detect_system_sheets(doc)
-        if len(system_sheets) >= 1:
-            extracted_texts = slice_and_render_cad_sheets(doc, system_sheets, out_pdf_path)
-            if os.path.exists(out_pdf_path) and os.path.getsize(out_pdf_path) > 0:
-                _stamp_split(extracted_texts, "sheet_fallback", split_summary.get("mode", "sheet_fallback"))
-                if split_summary.get("mode") in {"unset", "no_frames", "geometry_failed", "frame_fallback"}:
-                    split_summary["mode"] = "sheet_fallback"
-                split_summary.setdefault("uncertainties", []).append(
-                    f"已使用标题切片回退，共 {len(system_sheets)} 个系统图幅面"
-                )
-                return _deliver(extracted_texts, doc, converter)
+        except Exception as exc:  # noqa: BLE001 - 分幅异常时整图渲染，不能让上传直接失败
+            print(f"[CAD] 图幅识别失败，整图渲染: {exc}")
+            split_summary.update({
+                "mode": "sheets_failed",
+                "uncertainties": [f"图幅识别异常，已整图渲染：{exc}"],
+            })
 
         # 3. 若未探测出系统图分幅图框，检查是否属于不包含系统图的海量平面施工图
         msp = doc.modelspace()
@@ -2181,14 +1101,23 @@ def process_cad_file(cad_path: str, out_pdf_path: str) -> tuple[str, list[dict[s
                 f"请上传包含配电箱结线与回路的电气系统图 DWG 或 PDF 切图。"
             )
 
-        # 4. 常规单图渲染
+        # 3. 整图渲染：一页即整个模型空间
         extracted_texts = extract_cad_entities(dxf_path, doc=doc)
         ok = render_dxf_to_pdf(dxf_path, out_pdf_path, doc=doc)
         if not ok:
             raise RuntimeError("CAD 渲染为 PDF 失败")
         _stamp_split(extracted_texts, "page_fallback", "full_page_render")
-        split_summary["mode"] = "page_fallback"
-        split_summary.setdefault("uncertainties", []).append("未检出系统图分幅，已整图渲染")
+        for rec in extracted_texts:
+            rec.setdefault("page", 1)
+        try:
+            from ezdxf import bbox as _bbox
+            ext = _bbox.extents(doc.modelspace(), fast=True)
+            if ext.has_data:
+                split_summary["pages"] = [{"page": 1, "rect": [ext.extmin.x, ext.extmin.y, ext.extmax.x, ext.extmax.y],
+                                           "number": "", "name": "整图"}]
+        except Exception:
+            pass
+        split_summary["mode"] = "page_fallback" if split_summary.get("mode") == "unset" else split_summary["mode"]
         return _deliver(extracted_texts, doc, converter)
     finally:
         if dxf_to_clean:

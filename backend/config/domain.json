@@ -24,13 +24,6 @@
       "图纸目录",
       "防爆区域划分"
     ],
-    "title_layer_hints": [
-      "图签",
-      "TITLE",
-      "PUB_",
-      "图框",
-      "图名"
-    ],
     "unit_caption_suffix": [
       "配电箱",
       "配电柜",
@@ -50,31 +43,9 @@
       "照明柜",
       "配电箱柜"
     ],
-    "caption_route_marks": [
-      "由",
-      "引",
-      "至",
-      "沿",
-      "敷设"
-    ],
-    "wire_kind_words": [
-      "信号线",
-      "电源线",
-      "控制线",
-      "通讯线",
-      "总线"
-    ],
     "breaker_legend_marks": [
       "图中",
       "表示"
-    ],
-    "measure_column_marks": [
-      "Ir",
-      "Ic",
-      "Pe",
-      "Pc",
-      "kVar",
-      "功率因数"
     ],
     "spd_family_patterns": [
       "SPD",
@@ -99,65 +70,6 @@
       ]
     },
     "thermal_setting_regex": "^\\d+~\\d+A$",
-    "table_field_labels": [
-      "设备编号",
-      "箱体编号",
-      "设备名称",
-      "安装位置",
-      "安装方式",
-      "用途",
-      "备注",
-      "小室高度",
-      "计算",
-      "负荷",
-      "数量",
-      "安装高度",
-      "防护等级",
-      "防水型"
-    ],
-    "load_name_reject_substrings": [
-      "过载",
-      "试验",
-      "内配",
-      "距地",
-      "米安装",
-      "梁下",
-      "余同",
-      "功率因数",
-      "kVar",
-      "消防标志",
-      "防火处理",
-      "采用"
-    ],
-    "unit_caption_bad_layers": [
-      "TEL_TAB",
-      "TEL_TITLE",
-      "表格文字",
-      "图框层3",
-      "WORK",
-      "PUB_TITLE",
-      "图签栏",
-      "DIM-照明"
-    ],
-    "unit_caption_bad_layer_allow_with_code": true,
-    "unit_inside_caption_band_ratio": 0.25,
-    "unit_rect_bad_layer_markers": [
-      "EQUIP",
-      "WIRE",
-      "BEAM",
-      "平面",
-      "门窗",
-      "建筑",
-      "TEL",
-      "FURN",
-      "DIM",
-      "HATCH",
-      "看线",
-      "天棚",
-      "楼面",
-      "环境",
-      "暖通"
-    ],
     "plan_title_markers": [
       "平面图",
       "布置图",
@@ -182,15 +94,6 @@
       "结线图",
       "配电图"
     ],
-    "generic_discard_terms": [
-      "控制箱",
-      "配电箱",
-      "动力箱",
-      "照明箱",
-      "照明配电箱",
-      "动力配电箱",
-      "排烟风机控制箱"
-    ],
     "non_box_patterns": [
       "^PY-[0-9A-Z]+",
       "^BP-[0-9A-Z]+",
@@ -211,52 +114,11 @@
       "二次控制箱",
       "就地控制箱"
     ],
-    "box_caption_min_len": 3,
-    "box_caption_max_len": 32,
-    "box_title_max_len": 30,
-    "note_text_max_len": 35,
-    "title_layer_score_hints": {
-      "图签": 20,
-      "图框": 20,
-      "TITLE": 20,
-      "PUB_TITLE": 20,
-      "BORDER": 20,
-      "PUB_TEXT": 10,
-      "TEXT": 10,
-      "TXT": 10,
-      "NOTE": 10
-    },
-    "title_text_score": 5,
     "secondary_device_markers": [
       "监控模块",
       "传感模块",
       "测控装置",
       "电源监控"
-    ],
-    "caption_strip_marks": [
-      "系统图",
-      "接线图",
-      "原理图",
-      "干线图",
-      "拓扑图",
-      "结线图"
-    ],
-    "caption_bad_head_chars": "由详注如按本除并引至沿",
-    "caption_soft_tail_chars": "箱柜屏盘",
-    "caption_note_marks": [
-      "详见",
-      "配置详见",
-      "各配电箱",
-      "各配电柜",
-      "应符合",
-      "不得",
-      "本说明",
-      "参见",
-      "参照图集"
-    ],
-    "caption_tail_strip_regexes": [
-      "共\\d+台.*$",
-      "(?:挂墙|壁挂|落地|明装|暗装|嵌墙).*$"
     ]
   },
   "breaker": {

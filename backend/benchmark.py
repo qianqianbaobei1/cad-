@@ -139,7 +139,7 @@ def run_local(pdf_or_dxf: Path, workdir: Path) -> dict:
     else:
         try:
             from extractor.cad import is_cad_path
-            from extractor.cad_extractor import extract_cad_table_data
+            from extractor.takeoff import extract_takeoff
             if is_cad_path(str(pdf_or_dxf)):
                 if pdf_or_dxf.suffix.lower() == ".dwg":
                     from extractor.cad import dwg_to_dxf
@@ -148,7 +148,7 @@ def run_local(pdf_or_dxf: Path, workdir: Path) -> dict:
                     source = dxf_path
                 else:
                     source = pdf_or_dxf
-                raw = extract_cad_table_data(str(source))
+                raw = extract_takeoff(str(source))
                 out["cad"] = {"boxes": len(raw.boxes), "circuits": len(raw.circuits),
                               "extra_devices": len(raw.extra_devices),
                               "breaker_fill": (round(sum(1 for c in raw.circuits if c.breaker)

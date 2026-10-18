@@ -63,6 +63,7 @@ class TextRecord:
     handle: str = ""
     style: str = ""
     table: int | None = None
+    insert_path: str = ""  # 外层到内层的块参照链：块名#handle>块名#handle
 
 
 @dataclass
@@ -215,14 +216,16 @@ class _Walker:
                 "layer": str(e.dxf.get("layer", "0")), "kind": kind, "owner": owner,
                 "handle": str(e.dxf.get("handle", "")), "style": str(e.dxf.get("style", "")) if e.dxf.is_supported("style") else "", **extra}
 
-    def _transformed(self, items: list[dict[str, Any]], m: Any, owner: str) -> list[dict[str, Any]]:
+    def _transformed(self, items: list[dict[str, Any]], m: Any, owner: str, ref: str) -> list[dict[str, Any]]:
         # 字高跟着插入比例缩放：比例 100 的图框块里 3.5 高的字，图面上是 350
         scale = float(m.transform_direction((0.0, 1.0, 0.0)).magnitude) or 1.0
         res = []
         for it in items:
             p = m.transform((it["x"], it["y"], 0.0))
+            inner = it.get("insert_path") or ""
             res.append({**it, "x": float(p[0]), "y": float(p[1]), "owner": it["owner"] or owner,
-                        "height": float(it.get("height") or 0) * scale})
+                        "height": float(it.get("height") or 0) * scale,
+                        "insert_path": f"{ref}>{inner}" if inner else ref})
         return res
 
     def _entity(self, e: Any, depth: int, owner: str = "") -> list[dict[str, Any]]:
@@ -257,12 +260,14 @@ class _Walker:
                 m = ins.matrix44()
             except Exception:
                 continue
-            out.extend(self._transformed(local, m, owner or name))
+            ref = f"{name}#{ins.dxf.get('handle') or e.dxf.get('handle', '')}"
+            out.extend(self._transformed(local, m, owner or name, ref))
         attribs = []
         for a in getattr(e, "attribs", []):
             text = _entity_text(a, "TEXT")
             if text:
-                attribs.append(self._rec(a, "ATTRIB", text, owner or name, tag=str(a.dxf.get("tag", ""))))
+                attribs.append(self._rec(a, "ATTRIB", text, owner or name, tag=str(a.dxf.get("tag", "")),
+                                         insert_path=f"{name}#{e.dxf.get('handle', '')}"))
         out.extend(self._tangent(attribs) if _TANGENT_BLOCK.match(name) else attribs)
         return out
 
@@ -337,7 +342,8 @@ class _Walker:
                                       height=round(float(it.get("height") or 0), 3),
                                       layer=sanitize_surrogates(it.get("layer", "")), kind=it["kind"],
                                       space=space, owner=sanitize_surrogates(it.get("owner", "")),
-                                      handle=it.get("handle", ""), style=it.get("style", "")))
+                                      handle=it.get("handle", ""), style=it.get("style", ""),
+                                      insert_path=it.get("insert_path", "")))
                 if len(res) >= MAX_TEXTS:
                     return res
         return res
@@ -968,7 +974,8 @@ def extraction_supplements(doc: Any) -> tuple[list[dict[str, Any]], list[Any]]:
                 if rows * cols > 1:
                     local = walker.local(str(e.dxf.name))
                     for ins in list(e.multi_insert())[1:]:
-                        texts.extend(walker._transformed(local, ins.matrix44(), str(e.dxf.name)))
+                        texts.extend(walker._transformed(local, ins.matrix44(), str(e.dxf.name),
+                                                         f"{e.dxf.name}#{e.dxf.get('handle', '')}"))
         except Exception:
             continue
 

@@ -341,3 +341,9 @@ button, input, select { font: inherit; color: inherit; }
   .tools select { max-width: 110px; }
 }
 
+
+/* 拆量页图纸栏：窄时只留图标，放不下时工具条折行（见 app.js Extract.updateCadCompact） */
+#extCadSheetSelect { max-width: 220px; text-overflow: ellipsis; }
+#extCadPanel.compact .tb-label { display: none; }
+#extCadPanel.compact #extCadSheetSelect { max-width: 96px; }
+#extExpandCadRail .rail-text { writing-mode: vertical-rl; letter-spacing: 3px; }

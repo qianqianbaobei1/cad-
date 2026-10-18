@@ -111,7 +111,7 @@ tailwind.config={
   }
 };
 </script>
-<link rel="stylesheet" href="app.css?v=20261017_3">
+<link rel="stylesheet" href="app.css?v=20261018_10">
 <style>
 /* 避免原生顶栏与固定定位顶栏冲突 */
 .topbar { display: none !important; }
@@ -538,6 +538,14 @@ body.auth-locked #authScreen { display: block; }
       </a>
     </div>
 
+    <!-- AI 识图模型与端点快捷指示胶囊 (BYOK) -->
+    <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container border border-surface-container transition-colors cursor-pointer text-left" id="btnOpenModelSettings" type="button" title="点击配置识图模型与 API 密钥">
+      <span class="w-2 h-2 rounded-full bg-slate-400" id="headerModelStatusDot"></span>
+      <span class="material-symbols-outlined text-[16px] text-primary">visibility</span>
+      <span class="font-label-md text-label-md text-on-surface font-semibold hidden md:inline" id="headerModelText">识图模型: 未配置</span>
+      <span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-mono" id="headerModelBadge">BYOK</span>
+    </button>
+
     <!-- 用户下拉菜单 -->
     <div class="relative" id="user-menu-container">
       <button class="flex items-center gap-space-sm px-space-sm py-space-xs rounded bg-surface-container-low hover:bg-surface-container hover:text-on-surface text-on-surface transition-colors cursor-pointer" type="button" id="user-menu-btn">
@@ -818,9 +826,9 @@ body.auth-locked #authScreen { display: block; }
   <!-- 3. 三栏横向主体区域 (min-w 自适应 + 4px 分割拖动条) -->
   <div class="flex-1 w-full flex overflow-hidden select-none bg-slate-100" style="height: calc(100vh - 124px);">
     <!-- ==================== 3.1 图纸栏：弹性自适应（min-w-[480px] 原生矢量 CAD / 位图） ==================== -->
-    <section class="flex-1 min-w-[480px] flex flex-col bg-slate-900 border-r border-slate-300 relative transition-all duration-150" id="extCadPanel">
+    <section class="min-w-0 flex flex-col bg-slate-900 border-r border-slate-300 relative" id="extCadPanel" style="flex: 0 0 40%;">
       <!-- 工具条（单行，严格 34px） -->
-      <div class="h-[34px] bg-slate-900 text-slate-200 px-3 flex items-center justify-between border-b border-slate-800 text-xs shrink-0 select-none">
+      <div class="min-h-[34px] py-1 bg-slate-900 text-slate-200 px-3 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b border-slate-800 text-xs shrink-0 select-none" id="extCadToolbar">
         <!-- 目录下拉、翻页与模式切换 -->
         <div class="flex items-center gap-2">
           <div class="flex items-center bg-slate-800 border border-slate-700 rounded px-2 py-0.5 shadow-2xs">
@@ -838,10 +846,10 @@ body.auth-locked #authScreen { display: block; }
           <!-- CAD 模式切换：原生矢量 CAD vs 高清位图 -->
           <div class="flex items-center bg-slate-800 border border-slate-700 rounded p-0.5 text-[11px] font-mono ml-1">
             <button class="px-2 py-0.5 rounded bg-blue-600 text-white font-bold cursor-pointer transition-colors" id="extBtnViewVector" title="查看真实 DWG 原生矢量图纸（无极缩放、毫米坐标与图层）" type="button">
-              📐 矢量 CAD
+              📐<span class="tb-label"> 矢量 CAD</span>
             </button>
             <button class="px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer transition-colors" id="extBtnViewRaster" title="切换为位图快照视图" type="button">
-              🖼 高清图
+              🖼<span class="tb-label"> 高清图</span>
             </button>
           </div>
         </div>
@@ -857,7 +865,7 @@ body.auth-locked #authScreen { display: block; }
           <button class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sky-400 hover:text-white shadow-2xs cursor-pointer" id="extHdRenderBtn" type="button">1:1</button>
           <button class="flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-white shadow-2xs cursor-pointer" id="extCollapseCadBtn" title="收起图纸以释放表格空间" type="button">
             <span class="material-symbols-outlined text-[13px]" id="extCollapseCadIcon">first_page</span>
-            <span class="text-[11px]" id="extCollapseCadText">收起</span>
+            <span class="text-[11px] tb-label" id="extCollapseCadText">收起</span>
           </button>
         </div>
       </div>
@@ -911,6 +919,12 @@ body.auth-locked #authScreen { display: block; }
       </div>
     </section>
 
+    <!-- 图纸收起后的常驻展开条（收起按钮在图纸栏里，栏一隐藏就没有入口了，所以单独留一条） -->
+    <button class="w-7 shrink-0 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 border-r border-slate-700 flex flex-col items-center gap-1.5 pt-3 text-[11px] cursor-pointer" hidden id="extExpandCadRail" title="展开图纸" type="button">
+      <span class="material-symbols-outlined text-[15px]">last_page</span>
+      <span class="rail-text">展开图纸</span>
+    </button>
+
     <!-- 分割拖动条 1：4px 抓手，hover变蓝 -->
     <div class="resizer-divider w-1 bg-slate-300 shrink-0 hover:bg-blue-500 transition-colors z-20 cursor-col-resize" id="extResizer1" title="左右拖动调整图纸栏宽度"></div>
 
@@ -961,7 +975,7 @@ body.auth-locked #authScreen { display: block; }
     <div class="resizer-divider w-1 bg-slate-300 shrink-0 hover:bg-blue-500 transition-colors z-20 cursor-col-resize" id="extResizer2" title="左右拖动调整清单栏宽度"></div>
 
     <!-- ==================== 3.3 详情栏：弹性自适应（min-w-[640px]） ==================== -->
-    <section class="flex-1 min-w-[640px] flex flex-col bg-white overflow-hidden" id="extDetailPanel">
+    <section class="flex-1 min-w-[600px] flex flex-col bg-white overflow-hidden" id="extDetailPanel">
       <!-- 1. 箱柜头部（两行，不用“标签:输入框”） -->
       <div class="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-col gap-1 shrink-0 select-none">
         <!-- 第一行：序号   箱号   名称     [定位图纸]   [✓ 标记已核对] -->
@@ -1524,47 +1538,154 @@ body.auth-locked #authScreen { display: block; }
   </footer>
 </main>
 
-<!-- ③ 弹窗：系统设置 -->
+<!-- ③ 弹窗：系统设置 / AI 视觉模型与端点配置 -->
 <div class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" id="modalSettings" hidden>
-  <div class="bg-surface-container-lowest rounded-xl shadow-2xl border border-surface-container w-full max-w-lg overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
-    <div class="px-space-lg py-space-md border-b border-surface-container flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <span class="material-symbols-outlined text-primary text-[20px]">settings</span>
-        <h3 class="font-headline-md text-headline-md text-on-surface">系统设置</h3>
+  <div class="bg-surface-container-lowest rounded-xl shadow-2xl border border-surface-container w-full max-w-xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150" id="modalSettingsContent">
+    <!-- 顶部标题栏 -->
+    <div class="px-space-md py-space-sm bg-surface-container-low flex items-center justify-between border-b border-surface-container">
+      <div class="flex items-center gap-space-sm">
+        <div class="w-7 h-7 rounded bg-primary text-on-primary flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-[16px]">visibility</span>
+        </div>
+        <div>
+          <h2 class="font-headline-sm text-headline-sm text-on-surface leading-tight">配置识图模型与密钥</h2>
+          <p class="font-label-sm text-label-sm text-on-surface-variant">BYOK 私有密钥直连 · 本地加密不出域</p>
+        </div>
       </div>
-      <button class="text-outline hover:text-on-surface p-1 rounded hover:bg-surface-container transition-colors" id="btnCloseSettings" type="button">
-        <span class="material-symbols-outlined text-[20px]">close</span>
+      <button class="w-7 h-7 rounded flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors cursor-pointer" id="btnCloseSettings" title="关闭" type="button">
+        <span class="material-symbols-outlined text-[18px]">close</span>
       </button>
     </div>
-    <div class="p-space-lg flex flex-col gap-4 font-body-md max-h-[75vh] overflow-y-auto">
-      <div>
-        <label class="block text-label-md font-label-md text-outline mb-1">识图大模型 (Vision Model)</label>
-        <input class="w-full h-9 px-3 bg-surface-container-low rounded border border-surface-container text-body-sm text-on-surface focus:outline-none focus:border-primary font-mono" id="settingVisionModel" type="text" placeholder="qwen-vl-max">
+
+    <!-- 状态条 (紧凑) -->
+    <div class="px-space-md py-1 bg-surface-container text-on-surface-variant flex items-center justify-between font-label-sm text-label-sm border-b border-surface-container transition-all" id="connectionStatusBar">
+      <div class="flex items-center gap-1.5 truncate">
+        <span class="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" id="statusLed"></span>
+        <span class="font-medium truncate" id="statusMessage">● 尚未进行连通性测试 (点击右下角测试连接)</span>
       </div>
-      <div>
-        <label class="block text-label-md font-label-md text-outline mb-1">API Base URL</label>
-        <input class="w-full h-9 px-3 bg-surface-container-low rounded border border-surface-container text-body-sm text-on-surface focus:outline-none focus:border-primary font-mono" id="settingVisionBaseUrl" type="text" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1">
+      <span class="font-mono opacity-80 shrink-0 ml-2">OpenAI-Compatible</span>
+    </div>
+
+    <!-- 主体输入表单 (带最大高度与滚动) -->
+    <div class="p-space-md space-y-space-md max-h-[70vh] overflow-y-auto">
+      <!-- 1. 服务商与模型选择并排 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+        <div class="space-y-1">
+          <label class="block font-label-md text-label-md text-on-surface font-medium">AI 服务商 (Provider) <span class="text-error">*</span></label>
+          <div class="relative">
+            <select class="w-full h-9 px-2.5 pr-7 rounded bg-surface-container-low text-on-surface font-body-sm text-body-sm focus:bg-surface-container-lowest focus:outline-none focus:ring-1 focus:ring-primary border border-surface-container appearance-none cursor-pointer" id="providerSelect">
+              <option value="qwen" selected>通义千问 (Qwen DashScope)</option>
+              <option value="glm">智谱清言 (GLM-4V)</option>
+              <option value="gemini">Google Gemini (Vision)</option>
+              <option value="openai">OpenAI (GPT-4o)</option>
+              <option value="deepseek">DeepSeek (深度求索)</option>
+              <option value="volcengine">字节火山方舟 (Doubao Vision)</option>
+              <option value="xai">xAI (Grok Vision)</option>
+              <option value="minimax">MiniMax (稀宇科技)</option>
+              <option value="custom">自定义兼容端点 (Custom)</option>
+            </select>
+            <span class="material-symbols-outlined absolute right-2 top-2 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
+          </div>
+        </div>
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <label class="block font-label-md text-label-md text-on-surface font-medium">识图模型 (Model) <span class="text-error">*</span></label>
+            <button class="font-label-sm text-label-sm text-primary hover:underline flex items-center gap-0.5 cursor-pointer" id="btnToggleCustomModel" type="button">
+              <span class="material-symbols-outlined text-[12px]">edit</span>
+              <span id="customModelToggleText">手动输入</span>
+            </button>
+          </div>
+          <div class="relative" id="modelSelectContainer">
+            <select class="w-full h-9 px-2.5 pr-7 rounded bg-surface-container-low text-on-surface font-label-md text-label-md focus:bg-surface-container-lowest focus:outline-none focus:ring-1 focus:ring-primary border border-surface-container appearance-none cursor-pointer" id="modelSelect">
+              <option value="qwen-vl-max" selected>qwen-vl-max (推荐·高精度解析)</option>
+              <option value="qwen-vl-plus">qwen-vl-plus (经济快速)</option>
+              <option value="qwen3-vl-plus">qwen3-vl-plus (新一代多模态)</option>
+            </select>
+            <span class="material-symbols-outlined absolute right-2 top-2 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
+          </div>
+          <input class="hidden w-full h-9 px-2.5 rounded bg-surface-container-low text-on-surface font-label-md text-label-md focus:bg-surface-container-lowest focus:outline-none focus:ring-1 focus:ring-primary border border-surface-container" id="customModelInput" placeholder="输入视觉模型名称 (如 qwen-vl-max)" type="text" value="qwen-vl-max">
+        </div>
       </div>
-      <div>
-        <label class="block text-label-md font-label-md text-outline mb-1">API Key</label>
-        <input class="w-full h-9 px-3 bg-surface-container-low rounded border border-surface-container text-body-sm text-on-surface focus:outline-none focus:border-primary font-mono" id="settingVisionApiKey" type="password" placeholder="sk-...">
+
+      <!-- 视觉模型就绪微徽标提示 -->
+      <div class="flex items-center justify-between px-2.5 py-1 rounded bg-surface-container-low font-label-sm text-label-sm text-tertiary" id="modelValidationSuccess">
+        <div class="flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[14px]">verified</span>
+          <span>已锁定视觉多模态能力 (自动拦截纯文本模型)</span>
+        </div>
+        <span class="text-on-surface-variant font-mono text-[10px]">Vision Mode</span>
       </div>
-      <div>
-        <label class="block text-label-md font-label-md text-outline mb-1">默认目标平替品牌</label>
-        <select class="w-full h-9 px-3 bg-surface-container-low rounded border border-surface-container text-body-sm text-on-surface focus:outline-none focus:border-primary" id="settingTargetBrand">
-          <!-- 动态加载品牌 -->
-        </select>
+      <!-- 强拦截轻量提示条 (按需显隐) -->
+      <div class="hidden px-2.5 py-1.5 rounded bg-error-container text-on-error-container text-body-sm font-label-sm flex items-center gap-1.5" id="modelValidationBanner">
+        <span class="material-symbols-outlined text-error text-[16px] shrink-0">warning</span>
+        <span id="modelValidationText">已拦截纯文本模型，请选择支持 Vision 视觉解析的模型。</span>
       </div>
-      <div class="flex items-center gap-2 pt-1">
-        <input type="checkbox" id="settingTileLargePages" class="rounded border-outline-variant text-primary focus:ring-primary w-4 h-4 cursor-pointer">
-        <label for="settingTileLargePages" class="text-body-sm text-on-surface cursor-pointer select-none">
-          超大图纸自动切片分块识别（提高密集回路识别精度）
-        </label>
+
+      <!-- 2. 私有访问密钥 (API Key) -->
+      <div class="space-y-1">
+        <div class="flex items-center justify-between">
+          <label class="block font-label-md text-label-md text-on-surface font-medium">API 访问密钥 (API Key) <span class="text-error">*</span></label>
+          <span class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
+            <span class="material-symbols-outlined text-[12px] text-tertiary">lock</span> 本地脱敏存储 (BYOK)
+          </span>
+        </div>
+        <div class="relative flex items-center">
+          <span class="material-symbols-outlined absolute left-2.5 text-on-surface-variant text-[16px]">key</span>
+          <input class="w-full h-9 pl-8 pr-8 rounded bg-surface-container-low text-on-surface font-label-md text-label-md tracking-wider focus:bg-surface-container-lowest focus:outline-none focus:ring-1 focus:ring-primary border border-surface-container" id="apiKeyInput" placeholder="sk-..." type="password">
+          <button class="absolute right-2 w-6 h-6 flex items-center justify-center text-on-surface-variant hover:text-on-surface cursor-pointer" id="btnToggleApiKeyVisibility" title="显示/隐藏" type="button">
+            <span class="material-symbols-outlined text-[16px]" id="eyeIcon">visibility</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. API 端点 (Base URL) -->
+      <div class="space-y-1">
+        <label class="block font-label-md text-label-md text-on-surface font-medium">API 端点基准地址 (Base URL) <span class="text-error">*</span></label>
+        <div class="relative flex items-center">
+          <span class="material-symbols-outlined absolute left-2.5 text-on-surface-variant text-[16px]">dns</span>
+          <input class="w-full h-9 pl-8 pr-2.5 rounded bg-surface-container-low text-on-surface font-label-md text-label-md focus:bg-surface-container-lowest focus:outline-none focus:ring-1 focus:ring-primary border border-surface-container" id="baseUrlInput" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" type="text" value="https://dashscope.aliyuncs.com/compatible-mode/v1">
+        </div>
+      </div>
+
+      <!-- 4. 业务工程配置 (平替品牌 + 超大切片) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-sm pt-1 border-t border-surface-container/60">
+        <div class="space-y-1">
+          <label class="block font-label-md text-label-md text-on-surface font-medium">默认目标平替品牌</label>
+          <div class="relative">
+            <select class="w-full h-9 px-2.5 pr-7 rounded bg-surface-container-low text-on-surface font-body-sm text-body-sm focus:bg-surface-container-lowest focus:outline-none focus:ring-1 focus:ring-primary border border-surface-container appearance-none cursor-pointer" id="settingTargetBrand">
+              <!-- 动态加载品牌 -->
+            </select>
+            <span class="material-symbols-outlined absolute right-2 top-2 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 pt-6">
+          <input type="checkbox" id="settingTileLargePages" class="rounded border-outline-variant text-primary focus:ring-primary w-4 h-4 cursor-pointer">
+          <label for="settingTileLargePages" class="text-body-sm text-on-surface cursor-pointer select-none">
+            超大图纸自动切片分块识别
+          </label>
+        </div>
       </div>
     </div>
-    <div class="px-space-lg py-space-sm bg-surface-container-low border-t border-surface-container flex items-center justify-end gap-2">
-      <button class="px-4 py-1.5 rounded border border-outline-variant hover:bg-surface-container text-body-sm text-on-surface transition-colors" id="btnCancelSettings" type="button">取消</button>
-      <button class="px-4 py-1.5 rounded bg-primary text-on-primary hover:bg-primary-container text-body-sm font-medium shadow-sm transition-colors" id="btnSaveSettings" type="button">保存配置</button>
+
+    <!-- 底部精简操作栏 -->
+    <div class="px-space-md py-space-sm bg-surface-container-low flex items-center justify-between border-t border-surface-container">
+      <div class="flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
+        <span class="material-symbols-outlined text-[14px] text-tertiary">shield</span>
+        <span>企业私有端点 · 本地脱敏保护</span>
+      </div>
+      <div class="flex items-center gap-space-xs">
+        <button class="flex items-center gap-1 px-space-sm py-1.5 rounded bg-surface-container hover:bg-surface-container-high text-on-surface font-headline-sm text-headline-sm text-[13px] transition-colors cursor-pointer" id="btnTestConnection" type="button">
+          <span class="material-symbols-outlined text-[15px] text-primary" id="testIcon">bolt</span>
+          <span id="testText">测试连接</span>
+        </button>
+        <button class="px-space-sm py-1.5 rounded hover:bg-surface-container text-on-surface font-headline-sm text-headline-sm text-[13px] transition-colors cursor-pointer" id="btnCancelSettings" type="button">
+          取消
+        </button>
+        <button class="flex items-center gap-1 px-space-md py-1.5 rounded bg-primary text-on-primary font-headline-sm text-headline-sm text-[13px] hover:bg-primary/90 transition-all shadow-sm cursor-pointer" id="btnSaveSettings" type="button">
+          <span class="material-symbols-outlined text-[15px]">check</span>
+          <span>保存生效</span>
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -1672,6 +1793,6 @@ body.auth-locked #authScreen { display: block; }
 </div>
 
 <div class="toast" id="toast" hidden></div>
-<script src="app.js?v=20261018_3"></script>
+<script src="app.js?v=20261018_10"></script>
 </body>
 </html>

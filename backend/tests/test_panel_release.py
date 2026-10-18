@@ -9,7 +9,6 @@ import ezdxf
 
 from extractor.assemble import _parse_devices, assemble
 from extractor.cad import _explode_texts, extract_cad_entities, process_cad_file
-from extractor.cad_extractor import extract_cad_table_data
 from extractor.cad_ledger import (
     INSUFFICIENT_RELEASE_REASON,
     apply_read_gate,
@@ -18,6 +17,7 @@ from extractor.cad_ledger import (
     source_key,
 )
 from extractor.schema import BomRelease
+from extractor.takeoff import extract_takeoff
 from extractor.schema import Box, Circuit, RawExtraction, Requirement
 
 
@@ -157,16 +157,26 @@ class IdentityAndInventoryTests(unittest.TestCase):
         self.assertTrue(report["file_sha256"])
 
 
+def _add_rows(msp, first_breaker_handle: list | None = None) -> None:
+    """在箱名下方画三条出线回路：回路号 / 断路器 / 负荷。"""
+    for k in range(3):
+        y = -800 - k * 600
+        msp.add_text(f"WL{k + 1}", dxfattribs={"insert": (0, y), "height": 200})
+        breaker = msp.add_text("MCB-C16A/1P", dxfattribs={"insert": (1500, y), "height": 200})
+        msp.add_text("走廊照明", dxfattribs={"insert": (3000, y), "height": 200})
+        if first_breaker_handle is not None and k == 0:
+            first_breaker_handle.append(str(breaker.dxf.handle))
+
+
 class NativeEvidenceTests(unittest.TestCase):
     def test_claim_points_at_the_cad_entity_that_wrote_it(self):
         doc = ezdxf.new("R2010")
         msp = doc.modelspace()
         header = msp.add_text("9KX3 照明配电箱", dxfattribs={"insert": (0, 0), "height": 200})
-        msp.add_text("WL1", dxfattribs={"insert": (0, -800), "height": 200})
-        breaker = msp.add_text("MCB-C16A/1P", dxfattribs={"insert": (1500, -800), "height": 200})
-        msp.add_text("走廊照明", dxfattribs={"insert": (3000, -800), "height": 200})
+        handles: list = []
+        _add_rows(msp, handles)
 
-        raw = extract_cad_table_data(doc)
+        raw = extract_takeoff(doc)
         box = next(item for item in raw.boxes if item.code == "9KX3")
         code_evidence = raw.evidence_store[box.claims["box.code"].value_evidence_ids[0]]
         self.assertEqual(code_evidence.origin, "cad_native")
@@ -175,13 +185,13 @@ class NativeEvidenceTests(unittest.TestCase):
 
         circuit = next(item for item in raw.circuits if item.box == "9KX3" and item.circuit_no == "WL1")
         breaker_evidence = raw.evidence_store[circuit.claims["circuit.breaker"].value_evidence_ids[0]]
-        self.assertEqual(breaker_evidence.handle, str(breaker.dxf.handle))
+        self.assertEqual(breaker_evidence.handle, handles[0])
         self.assertNotEqual(breaker_evidence.handle, code_evidence.handle)
 
         result = assemble(raw)
         kept = result.evidence_store[circuit.claims["circuit.breaker"].value_evidence_ids[0]]
         self.assertEqual(kept.origin, "cad_native")
-        self.assertEqual(kept.handle, str(breaker.dxf.handle))
+        self.assertEqual(kept.handle, handles[0])
 
     def test_block_attribute_keeps_its_insert_path(self):
         doc = ezdxf.new("R2010")
@@ -194,11 +204,9 @@ class NativeEvidenceTests(unittest.TestCase):
             dxfattribs={"insert": (0, 0), "height": 200},
         )
         msp.add_text("共2台", dxfattribs={"insert": (800, 0), "height": 80})
-        msp.add_text("WL1", dxfattribs={"insert": (0, -800), "height": 200})
-        msp.add_text("MCB-C16A/1P", dxfattribs={"insert": (1500, -800), "height": 200})
-        msp.add_text("走廊照明", dxfattribs={"insert": (3000, -800), "height": 200})
+        _add_rows(msp)
 
-        raw = extract_cad_table_data(doc)
+        raw = extract_takeoff(doc)
         box = next(item for item in raw.boxes if item.code == "9KX3")
         self.assertTrue(box.quantity_confirmed)
         self.assertEqual(box.quantity, 2)

@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import multiprocessing
 import os
 from pathlib import Path
@@ -125,6 +126,20 @@ def build_acadrust_if_needed() -> str | None:
     return None
 
 
+LIBREDWG_SHA256 = "cb6ee0b078c6d9e0f09d66f1feac33ba6342df88ae544e9f9335fab475218351"
+
+
+def _verified(path: Path) -> bool:
+    """源码包存在且 SHA256 与固定值一致。"""
+    if not path.is_file():
+        return False
+    digest = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for chunk in iter(lambda: stream.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest() == LIBREDWG_SHA256
+
+
 def build_libredwg_if_needed() -> str | None:
     """编译 GNU LibreDWG 并安装到 /tmp/libredwg/bin。"""
     existing = probe_dwg2dxf()
@@ -142,27 +157,31 @@ def build_libredwg_if_needed() -> str | None:
     TMP_BIN_DIR.mkdir(parents=True, exist_ok=True)
 
     print("[CAD Bootstrap] 开始准备 GNU LibreDWG 运行时环境...")
+    # 只用 GNU 官方站点；下载后必须与固定的 SHA256 一致才解压编译，不一致立即删除。
+    # 哈希取自 ftp.gnu.org 的 libredwg-0.14.tar.gz，已用 GNU 公钥环验过维护者签名。
     mirrors = [
-        "https://mirror.twds.com.tw/gnu/libredwg/libredwg-0.14.tar.gz",
-        "https://ftpmirror.gnu.org/libredwg/libredwg-0.14.tar.gz",
         "https://ftp.gnu.org/gnu/libredwg/libredwg-0.14.tar.gz",
+        "https://ftpmirror.gnu.org/libredwg/libredwg-0.14.tar.gz",
     ]
 
-    downloaded = False
-    if tar_path.is_file() and tar_path.stat().st_size > 10_000_000:
-        downloaded = True
-    else:
+    downloaded = _verified(tar_path)
+    if not downloaded:
         for m in mirrors:
+            tar_path.unlink(missing_ok=True)
             try:
-                res = subprocess.run([curl_bin, "-sSL", "--connect-timeout", "10", m, "-o", str(tar_path)], timeout=60)
-                if res.returncode == 0 and tar_path.is_file() and tar_path.stat().st_size > 10_000_000:
-                    downloaded = True
-                    break
+                res = subprocess.run([curl_bin, "-sSL", "--proto", "=https", "--connect-timeout", "10", m,
+                                      "-o", str(tar_path)], timeout=120)
             except Exception:
                 continue
+            if res.returncode == 0 and _verified(tar_path):
+                downloaded = True
+                break
+            print(f"[CAD Bootstrap] {m} 下载失败或 SHA256 不符，已丢弃")
+        if not downloaded:
+            tar_path.unlink(missing_ok=True)
 
     if not downloaded:
-        print("[CAD Bootstrap] 下载 LibreDWG 源码归档超时或失败")
+        print("[CAD Bootstrap] 未取得通过校验的 LibreDWG 源码，跳过编译")
         return None
 
     try:
