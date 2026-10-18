@@ -1362,7 +1362,16 @@ def job_status(job_id: str):
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
     check_job_tenant_access(job)
-    return JSONResponse({k: v for k, v in job.items()})
+    payload = {k: v for k, v in job.items()}
+    # 拆量页每柜元器件直接吃组价同一份拆分结果，前端不再自算一套。
+    # 只挂在响应上（浅拷贝），不回写任务数据，避免派生字段写进 job.json。
+    data = dict(job.get("data") or {})
+    if data:
+        from extractor.box_components import split_components_by_box
+
+        data["box_components"] = split_components_by_box(data)
+        payload["data"] = data
+    return JSONResponse(payload)
 
 
 @app.get("/api/jobs/{job_id}/page/{page_num}")
@@ -3023,7 +3032,6 @@ def _calculate_job_quotation(
     data = job.get("data") or {}
     boxes = data.get("boxes") or []
     circuits = data.get("circuits") or []
-    components = data.get("components") or []
 
     total_components_cost = 0.0
     total_enclosure_cost = 0.0
@@ -3045,6 +3053,10 @@ def _calculate_job_quotation(
 
     boxes_output = []
 
+    from extractor.box_components import split_components_by_box
+
+    comps_by_box = split_components_by_box(data)
+
     for b_idx, box in enumerate(boxes, start=1):
         box_code = box.get("code") or box.get("box_code") or f"BOX{b_idx}"
         box_name = box.get("name") or "配电箱"
@@ -3059,17 +3071,8 @@ def _calculate_job_quotation(
 
         box_cir = [c for c in circuits if (c.get("box") == box_code or c.get("box_code") == box_code)]
 
-        # 严格过滤属于当前箱柜的元器件（排除箱体本身，箱体由 enclosure 定额计算）
-        box_comps = []
-        for c in components:
-            if c.get("name") == "配电箱体":
-                continue
-            used = str(c.get("used_in") or c.get("box") or c.get("box_code") or "").strip()
-            if not used:
-                continue
-            toks = [t.strip() for t in re.split(r"[、,，;；\n]+", used) if t.strip()]
-            if any(t == box_code or t.startswith(f"{box_code} ") or t.startswith(f"{box_code}-") for t in toks):
-                box_comps.append(c)
+        # 每柜元器件只认拆分函数的输出：components 是项目级汇总，整行数量不能直接给本柜
+        box_comps = comps_by_box.get(box_code) or []
 
         q = calculate_box_quotation(
             box, box_cir, box_comps,

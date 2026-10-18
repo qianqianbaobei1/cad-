@@ -1283,135 +1283,21 @@ $('btnDoneAiCosts').addEventListener('click', closeAiCosts);
 
 const ALL = '__all__';
 const BOX_COMPONENT = '配电箱体';
-const splitUsed = (s) => String(s || '').split(/[、,，;；\n]+/).map((t) => t.trim()).filter(Boolean);
-
 /**
- * 从汇总表 components 里拆出某个箱柜的元器件。
+ * 每柜元器件直接吃后端拆分结果（backend/extractor/box_components.py），
+ * 组价页、拆量页、导出共用同一份数量，前端不再自己按 used_in 算一套。
  */
-function partsForBox(code, components, boxCodes = new Set()) {
-  const out = [];
-  for (const c of components) {
-    if (c.name === BOX_COMPONENT) continue;
-    const nm = String(c.name || '').trim();
-    const sp = String(c.spec || '').trim();
-    // 严格过滤接线端子代号、跨图线号、柜号与纯工程数值，杜绝垃圾条目
-    if (sp.includes(':D') || sp.includes('~') || sp.includes('-C1') || sp.includes('-C2') || sp.includes('-C3')) continue;
-    if (['5.5kW', '回路名称', '回路名称\n二次图编号', '低压配电柜型号 GGD', 'A\n计算电流'].includes(nm)) continue;
-    // 柜号/符号代号不是元器件型号：柜号由调用方按当前图纸的真实箱柜清单传入，其余是纯代号垃圾条目
-    if (boxCodes.has(sp) || ['DF', 'XKP', '371', 'GGD'].includes(sp)) continue;
-    if (sp.startsWith('ET1') || sp.includes('引上至') || sp.includes('机械应急')) continue;
-
-    const toks = splitUsed(c.used_in);
-    const hits = toks.filter((t) => t === code || t.startsWith(`${code} `));
-    if (!hits.length) continue;
-    const refs = hits.map((t) => t.slice(code.length).trim()).filter(Boolean);
-    const allBare = toks.every((t) => !t.includes(' '));
-    const qty = allBare ? Number(c.quantity) : hits.length * (Number(c.quantity) / (toks.length || 1));
-    out.push({
-      name: nm,
-      spec: sp,
-      unit: c.unit || '只',
-      quantity: Math.max(1, Math.round(qty || 1)),
-      where: refs.join('、') || '主回路',
-      note: c.note || '',
-      calibrated: false
-    });
-  }
-  return out;
-}
-
-/**
- * 当箱柜未在 components 表单独声明但有出线回路时，自动从回路图抽取提纯器件清单
- */
-function partsFromCircuits(code, circuits) {
-  const out = [];
-  const breakerMap = new Map();
-  const contactorMap = new Map();
-  const ctMap = new Map();
-  const thermalMap = new Map();
-
-  for (const c of circuits) {
-    if (c.breaker) {
-      const k = c.breaker.trim();
-      breakerMap.set(k, (breakerMap.get(k) || 0) + 1);
-    }
-    if (c.contactor) {
-      const k = c.contactor.trim();
-      contactorMap.set(k, (contactorMap.get(k) || 0) + 1);
-    }
-    if (c.ct) {
-      const k = c.ct.trim();
-      ctMap.set(k, (ctMap.get(k) || 0) + 1);
-    }
-    if (c.thermal) {
-      const k = c.thermal.trim();
-      thermalMap.set(k, (thermalMap.get(k) || 0) + 1);
-    }
-  }
-
-  for (const [spec, qty] of breakerMap) {
-    const isMccb = spec.toUpperCase().includes('MCCB') || spec.includes('塑壳') || spec.includes('3P') || spec.includes('4P');
-    out.push({
-      name: isMccb ? '塑壳断路器' : '微型断路器',
-      spec,
-      unit: '只',
-      quantity: qty,
-      where: '出线回路',
-      note: '由出线回路图提取',
-      calibrated: false
-    });
-  }
-  for (const [spec, qty] of contactorMap) {
-    out.push({
-      name: '交流接触器',
-      spec: spec.includes('A') ? spec : `${spec}A`,
-      unit: '只',
-      quantity: qty * 3,
-      where: '电机控制',
-      note: '由回路接触器配置提取',
-      calibrated: false
-    });
-  }
-  for (const [spec, qty] of ctMap) {
-    out.push({
-      name: '电流互感器',
-      spec,
-      unit: '只',
-      quantity: qty,
-      where: '测量回路',
-      note: '由回路互感器配置提取',
-      calibrated: false
-    });
-  }
-  for (const [spec, qty] of thermalMap) {
-    out.push({
-      name: '热继电器',
-      spec,
-      unit: '只',
-      quantity: qty,
-      where: '过载保护',
-      note: '由电动机热保护提取',
-      calibrated: false
-    });
-  }
-  return out;
-}
-
 function buildBoxes(data) {
-  const comps = data.components || [];
   const circuits = data.circuits || [];
+  const partsByBox = data.box_components || {};
   const counted = {};
-  const boxCodes = new Set((data.boxes || []).map((b) => String(b.code || '').trim()).filter(Boolean));
   return (data.boxes || []).map((b, i) => {
     const code = b.code || `箱柜${i + 1}`;
     const first = !counted[code];
     counted[code] = true;
     const cir = first ? circuits.filter((c) => c.box === code) : [];
     const bbox = b.bbox || (cir.find((c) => c.bbox) || {}).bbox || null;
-    let parts = first ? partsForBox(code, comps, boxCodes) : [];
-    if (first && parts.length === 0 && cir.length > 0) {
-      parts = partsFromCircuits(code, cir);
-    }
+    const parts = first ? (partsByBox[code] || []) : [];
     return {
       key: `${i}`,
       code,
@@ -1490,10 +1376,21 @@ const ExtractWorkbench = {
             spec: p.spec,
             unit: p.unit || '只',
             quantity: Number(p.quantity) || 1,
-            used_in: b.code,
+            used_in: p.used_in || b.code,
             where: p.where || '主回路',
             note: p.note || ''
           });
+        });
+      });
+      // 归不到任何柜的元器件行原样带回，用户改一次数据也不能把待核对项弄丢
+      ((this.job.data && this.job.data.box_components && this.job.data.box_components['未归属']) || []).forEach(p => {
+        allComps.push({
+          name: p.name,
+          spec: p.spec,
+          unit: p.unit || '只',
+          quantity: Number(p.quantity) || 1,
+          used_in: p.used_in || '',
+          note: p.note || ''
         });
       });
       const payload = {
@@ -2317,7 +2214,7 @@ const ExtractWorkbench = {
         <td class="text-center font-mono text-[11px] bg-[#f8fafc] text-slate-400">${idx + 1}</td>
         <td class="px-1 text-center font-mono font-bold text-blue-700">${esc(c.circuit_no || `WL${idx + 1}`)}</td>
         <td class="px-2.5 font-medium truncate">${esc(c.load_name || '—')}</td>
-        <td class="px-2.5 font-mono text-slate-700 truncate">${esc([c.breaker, c.cable].filter(Boolean).join(' · '))}</td>
+        <td class="px-2.5 font-mono text-slate-700 truncate">${esc(c.breaker ? [c.breaker, c.cable].filter(Boolean).join(' · ') : (c.cable ? `控制电缆出线 · ${c.cable}` : '回路'))}</td>
         <td class="px-2 text-right font-mono font-bold text-slate-900 tabular-nums">${c.power_kw ? `${c.power_kw} kW` : '—'}</td>
         <td class="px-1 text-center text-slate-600">回路</td>
         <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>

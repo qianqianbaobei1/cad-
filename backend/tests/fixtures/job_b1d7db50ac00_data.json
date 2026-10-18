@@ -1,0 +1,2674 @@
+{
+"_note": "锅炉房真实任务 b1d7db50ac00 的 data 精简快照（只留拆分/组价用到的字段），用于回归“数量成倍放大”。",
+"job_id": "b1d7db50ac00",
+"boxes": [
+{
+"code": "02AP1",
+"size": "GGD",
+"ip_rating": "IP54",
+"quantity": 1,
+"quantity_confirmed": false
+},
+{
+"code": "02AP01",
+"name": "配电总箱1",
+"size": "GGD",
+"ip_rating": "IP3X",
+"install": "落地式 抬高300mm",
+"quantity": 1,
+"quantity_confirmed": false
+},
+{
+"code": "JXX1",
+"name": "防爆检修电源配电箱",
+"size": "XXM",
+"ip_rating": "IP65",
+"install": "壁挂式 中心距地1.0m",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "02AP2",
+"size": "GGD",
+"ip_rating": "IP54",
+"install": "落地安装",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "JXX2",
+"name": "检修电源配电箱",
+"size": "XXM",
+"ip_rating": "IP4X",
+"install": "壁挂式 中心距地1.0m",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "02AP02",
+"name": "配电总箱2",
+"size": "GGD",
+"ip_rating": "IP3X",
+"install": "落地式 抬高300mm",
+"quantity": 1,
+"quantity_confirmed": false
+},
+{
+"code": "02AP3",
+"size": "GGD",
+"ip_rating": "IP54",
+"install": "落地安装",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "JXX3",
+"name": "防水检修电源配电箱",
+"size": "XXM",
+"ip_rating": "IP55",
+"install": "壁挂式 中心距地1.0m",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "02PBSGFJ",
+"name": "事故风机配电箱",
+"size": "JXF",
+"ip_rating": "IP55",
+"install": "壁挂式 中心距地1.5m",
+"quantity": 1,
+"quantity_confirmed": false
+},
+{
+"code": "02AP4",
+"size": "GGD",
+"ip_rating": "IP44",
+"install": "落地安装",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "02AP6",
+"size": "GGD",
+"ip_rating": "IP44",
+"install": "落地安装",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "02AP5",
+"size": "GGD",
+"ip_rating": "IP44",
+"install": "落地安装",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "02AP7",
+"size": "GGD",
+"ip_rating": "IP44",
+"install": "落地安装",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "02YJ02",
+"name": "A型应急照明集中电源配电箱",
+"ip_rating": "IP44",
+"install": "壁挂式安装",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "02YJ01",
+"name": "A型应急照明集中电源配电箱",
+"ip_rating": "IP44",
+"install": "壁挂式安装",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "02AL01",
+"name": "照明配电箱",
+"quantity": 1,
+"quantity_confirmed": false
+},
+{
+"code": "02AL02",
+"name": "照明配电箱",
+"size": "XXM",
+"ip_rating": "IP4X",
+"quantity": 1,
+"quantity_confirmed": false
+},
+{
+"code": "02AK01",
+"name": "空调配电箱",
+"size": "XXM",
+"ip_rating": "IP4X",
+"quantity": 1,
+"quantity_confirmed": false
+},
+{
+"code": "C05",
+"name": "低压配电柜 C05",
+"size": "800×600×2200",
+"ip_rating": "IP30",
+"install": "落地式",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "C06",
+"name": "低压配电柜 C06",
+"size": "800×600×2200",
+"ip_rating": "IP30",
+"install": "落地式",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "C07",
+"name": "低压配电柜 C07",
+"size": "800×600×2200",
+"ip_rating": "IP30",
+"install": "落地式",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "C08",
+"name": "低压配电柜 C08",
+"size": "800×600×2200",
+"ip_rating": "IP30",
+"install": "落地式",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "C01",
+"name": "低压配电柜 C01",
+"size": "800×600×2200",
+"ip_rating": "IP30",
+"install": "落地式",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "C02",
+"name": "低压配电柜 C02",
+"size": "800×600×2200",
+"ip_rating": "IP30",
+"install": "落地式",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "C03",
+"name": "低压配电柜 C03",
+"size": "800×600×2200",
+"ip_rating": "IP30",
+"install": "落地式",
+"quantity": 1,
+"quantity_confirmed": true
+},
+{
+"code": "C04",
+"name": "低压配电柜 C04",
+"size": "800×600×2200",
+"ip_rating": "IP30",
+"install": "落地式",
+"quantity": 1,
+"quantity_confirmed": true
+}
+],
+"circuits": [
+{
+"box": "02AP1",
+"circuit_no": "进线",
+"breaker": "GL-250/200A/3P",
+"cable": "ZR-YJV-0.6/1kV-4x50+1x25 SC70 CT",
+"load_name": "进线"
+},
+{
+"box": "02AP01",
+"circuit_no": "进线",
+"breaker": "MCCB-400TM/400A/4P",
+"cable": "电缆型号详见上级配电",
+"load_name": "进线"
+},
+{
+"box": "JXX1",
+"circuit_no": "进线",
+"breaker": "GL-100/63A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "进线"
+},
+{
+"box": "JXX2",
+"circuit_no": "进线",
+"breaker": "GL-100/63A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "进线"
+},
+{
+"box": "02AP02",
+"circuit_no": "进线",
+"breaker": "MCCB-160TM/160A/4P",
+"cable": "电缆型号详见上级配电",
+"load_name": "进线"
+},
+{
+"box": "JXX3",
+"circuit_no": "进线",
+"breaker": "GL-100/63A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "进线"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "进线",
+"breaker": "MCCB-160TM/20A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x4 SC25 CT",
+"load_name": "进线"
+},
+{
+"box": "02AP4",
+"circuit_no": "进线",
+"breaker": "GL-160/40A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x6 SC32 CT",
+"load_name": "进线"
+},
+{
+"box": "02AP6",
+"circuit_no": "进线",
+"breaker": "GL-160/40A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "进线"
+},
+{
+"box": "02AP5",
+"circuit_no": "进线",
+"breaker": "GL-160/40A/3P",
+"load_name": "进线"
+},
+{
+"box": "02AP7",
+"circuit_no": "进线",
+"breaker": "GL-160/40A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x6 SC32 CT",
+"load_name": "进线"
+},
+{
+"box": "02YJ02",
+"circuit_no": "进线",
+"breaker": "MCB-C10A/1P",
+"load_name": "进线"
+},
+{
+"box": "02YJ01",
+"circuit_no": "进线",
+"breaker": "MCB-C10A/1P",
+"load_name": "进线"
+},
+{
+"box": "02AL01",
+"circuit_no": "进线",
+"breaker": "GL-160/63A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "进线"
+},
+{
+"box": "02AL01",
+"circuit_no": "进线",
+"load_name": "进线"
+},
+{
+"box": "02AL02",
+"circuit_no": "进线",
+"breaker": "GL-160/63A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "进线"
+},
+{
+"box": "02AL02",
+"circuit_no": "进线",
+"load_name": "进线"
+},
+{
+"box": "02AK01",
+"circuit_no": "进线",
+"breaker": "GL-160/63A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "进线"
+},
+{
+"box": "02AK01",
+"circuit_no": "进线",
+"load_name": "进线"
+},
+{
+"box": "02AP1",
+"circuit_no": "D01",
+"breaker": "MCCB-160MA/50A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+"load_name": "1#锅炉给水泵"
+},
+{
+"box": "02AP1",
+"circuit_no": "D02",
+"breaker": "MCCB-160MA/50A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+"load_name": "1#锅炉给水泵"
+},
+{
+"box": "02AP1",
+"circuit_no": "D01-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP1",
+"circuit_no": "D01-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP1",
+"circuit_no": "D01-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP1",
+"circuit_no": "D02-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP1",
+"circuit_no": "D02-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP1",
+"circuit_no": "D02-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP01",
+"circuit_no": "N1",
+"breaker": "MCCB-160TM/125A/3P",
+"ct": "150/5",
+"cable": "ZR-YJV-0.6/1kV-4x50+1x25 SC70 CT",
+"load_name": "1#锅炉燃烧器"
+},
+{
+"box": "02AP01",
+"circuit_no": "N2",
+"breaker": "MCCB-160TM/125A/3P",
+"ct": "150/5",
+"cable": "ZR-YJV-0.6/1kV-4x50+1x25 SC70 CT",
+"load_name": "2#锅炉燃烧器"
+},
+{
+"box": "02AP01",
+"circuit_no": "N3",
+"breaker": "MCCB-160TM/100A/3P",
+"ct": "100/5",
+"cable": "ZR-YJV-0.6/1kV-4x35+1x16 SC50 CT",
+"load_name": "3#锅炉燃烧器"
+},
+{
+"box": "02AP01",
+"circuit_no": "N4",
+"breaker": "MCCB-160TM/125A/3P",
+"ct": "150/5",
+"cable": "ZR-YJV-0.6/1kV-4x50+1x25 SC70 CT",
+"load_name": "02AP1"
+},
+{
+"box": "02AP01",
+"circuit_no": "N5",
+"breaker": "MCCB-160TM/32A/3P",
+"ct": "20/5",
+"cable": "ZR-YJV-0.6/1kV-5x6 SC32 CT",
+"load_name": "02AP4"
+},
+{
+"box": "02AP01",
+"circuit_no": "N6",
+"breaker": "MCCB-160TM/50A/3P",
+"ct": "50/5",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "02AP5"
+},
+{
+"box": "02AP01",
+"circuit_no": "N7",
+"breaker": "MCCB-160TM/32A/3P",
+"ct": "50/5",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "02AP6"
+},
+{
+"box": "02AP01",
+"circuit_no": "N8",
+"breaker": "MCCB-160TM/32A/3P",
+"ct": "20/5",
+"cable": "ZR-YJV-0.6/1kV-5x6 SC32 CT",
+"load_name": "02AP7"
+},
+{
+"box": "02AP01",
+"circuit_no": "备用",
+"breaker": "MCCB-160TM/125A/3P"
+},
+{
+"box": "JXX1",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"load_name": "220V 16A"
+},
+{
+"box": "JXX1",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"load_name": "220V 16A"
+},
+{
+"box": "JXX1",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"load_name": "220V 16A"
+},
+{
+"box": "JXX1",
+"breaker": "RCBO/3P D40+VM(30mA,瞬时)",
+"load_name": "380V 32A"
+},
+{
+"box": "JXX1",
+"breaker": "RCBO/4P D40+VM(30mA,瞬时)",
+"load_name": "380V 32A\n三相接线柱"
+},
+{
+"box": "02AP2",
+"circuit_no": "D03",
+"breaker": "MCCB-160MA/50A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+"load_name": "2#锅炉给水泵"
+},
+{
+"box": "02AP2",
+"circuit_no": "D04",
+"breaker": "MCCB-160MA/50A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+"load_name": "2#锅炉给水泵"
+},
+{
+"box": "02AP2",
+"circuit_no": "D03-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP2",
+"circuit_no": "D03-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP2",
+"circuit_no": "D03-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP2",
+"circuit_no": "D04-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP2",
+"circuit_no": "D04-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP2",
+"circuit_no": "D04-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "JXX2",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"load_name": "220V 16A"
+},
+{
+"box": "JXX2",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"load_name": "220V 16A"
+},
+{
+"box": "JXX2",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"load_name": "220V 16A"
+},
+{
+"box": "JXX2",
+"breaker": "RCBO/3P D40+VM(30mA,瞬时)",
+"load_name": "380V 32A"
+},
+{
+"box": "JXX2",
+"breaker": "RCBO/4P D40+VM(30mA,瞬时)",
+"load_name": "380V 32A\n三相接线柱"
+},
+{
+"box": "02AP02",
+"circuit_no": "N1",
+"breaker": "MCCB-160TM/40A/3P",
+"ct": "50/5",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "02AL01"
+},
+{
+"box": "02AP02",
+"circuit_no": "N2",
+"breaker": "MCCB-160TM/40A/3P",
+"ct": "50/5",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "02AL02"
+},
+{
+"box": "02AP02",
+"circuit_no": "N3",
+"breaker": "MCCB-160TM/40A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "检修电源配电箱"
+},
+{
+"box": "02AP02",
+"circuit_no": "N4",
+"breaker": "MCCB-160TM/40A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "检修电源配电箱"
+},
+{
+"box": "02AP02",
+"circuit_no": "N5",
+"breaker": "MCCB-160TM/40A/3P",
+"ct": "50/5",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "02AK01"
+},
+{
+"box": "02AP02",
+"circuit_no": "N6",
+"breaker": "MCCB-160TM/25A/3P",
+"ct": "30/5",
+"cable": "ZR-YJV-0.6/1kV-5x4 SC25 CT",
+"load_name": "02PBsgfj"
+},
+{
+"box": "02AP02",
+"circuit_no": "N7",
+"breaker": "MCCB-160TM/32A/3P",
+"ct": "50/5",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT",
+"load_name": "弱电配电箱"
+},
+{
+"box": "02AP02",
+"circuit_no": "N8",
+"breaker": "MCCB-160TM/25A/3P",
+"ct": "30/5",
+"cable": "ZR-YJV-0.6/1KV-5x4 SC32 CT FC",
+"load_name": "中水供水设备\n（设备自带控制柜）"
+},
+{
+"box": "02AP02",
+"circuit_no": "预留",
+"breaker": "MCB-D25A/3P",
+"ct": "30/5"
+},
+{
+"box": "02AP02",
+"circuit_no": "备用",
+"breaker": "MCCB-160TM/40A/3P"
+},
+{
+"box": "02AP3",
+"circuit_no": "D05",
+"breaker": "MCCB-160MA/50A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+"load_name": "3#锅炉给水泵"
+},
+{
+"box": "02AP3",
+"circuit_no": "D06",
+"breaker": "MCCB-160MA/50A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x10-SC40-CT/FC",
+"load_name": "3#锅炉给水泵"
+},
+{
+"box": "02AP3",
+"circuit_no": "D05-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP3",
+"circuit_no": "D05-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP3",
+"circuit_no": "D05-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP3",
+"circuit_no": "D06-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP3",
+"circuit_no": "D06-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP3",
+"circuit_no": "D06-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "JXX3",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"load_name": "220V 16A"
+},
+{
+"box": "JXX3",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"load_name": "220V 16A"
+},
+{
+"box": "JXX3",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"load_name": "220V 16A"
+},
+{
+"box": "JXX3",
+"breaker": "RCBO/3P D40+VM(30mA,瞬时)",
+"load_name": "380V 32A"
+},
+{
+"box": "JXX3",
+"breaker": "RCBO/4P D40+VM(30mA,瞬时)",
+"load_name": "380V 32A\n三相接线柱"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "N1",
+"breaker": "RCBO-100MA/16A/3P+VM(30mA,瞬时)",
+"cable": "ZR-YJV-0.6/1kV-4x4.0-CT.WS.SC25",
+"load_name": "交流电动机\nM"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "N2",
+"breaker": "RCBO-100MA/16A/3P+VM(30mA,瞬时)",
+"cable": "ZR-YJV-0.6/1kV-4x4.0-CT.WS.SC25",
+"load_name": "交流电动机\nM"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "N3",
+"breaker": "RCBO-100MA/16A/3P+VM(30mA,瞬时)",
+"cable": "ZR-YJV-0.6/1kV-4x4.0-CT.WS.SC25",
+"load_name": "交流电动机\nM"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "N4",
+"breaker": "MCB-C16A/1P",
+"cable": "ZR-BV-450/750V-3x2.5 SC20 WC CC",
+"load_name": "锅炉房事故照明"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "备用",
+"breaker": "MCCB-100MA/16A/3P"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "K1-2",
+"cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+"load_name": "至锅炉房门外就地按钮盒"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "K1-3",
+"cable": "电缆型号规格详见弱电专业",
+"load_name": "至可燃气体报警控制器"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "K1-1",
+"cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+"load_name": "至锅炉房门内就地按钮盒（带可切除远方控制的手动旋转开关）"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "K2-2",
+"cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+"load_name": "至锅炉房门外就地按钮盒"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "K2-3",
+"cable": "电缆型号规格详见弱电专业",
+"load_name": "至可燃气体报警控制器"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "K2-1",
+"cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+"load_name": "至锅炉房门内就地按钮盒（带可切除远方控制的手动旋转开关）"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "K3-2",
+"cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+"load_name": "至在线检测间门外就地按钮盒"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "K3-3",
+"cable": "电缆型号规格详见弱电专业",
+"load_name": "至可燃气体报警控制器"
+},
+{
+"box": "02PBSGFJ",
+"circuit_no": "K3-1",
+"cable": "ZR-KYJV-0.6/1kV-7x1.5-CT.WC.SC25",
+"load_name": "至在线检测间门内就地按钮盒（带可切除远方控制的手动旋转开关）"
+},
+{
+"box": "02AP4",
+"circuit_no": "D07",
+"breaker": "MCCB-160MA/6.5A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "1#冷凝器循环水泵"
+},
+{
+"box": "02AP4",
+"circuit_no": "D08",
+"breaker": "MCCB-160MA/6.5A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "1#冷凝器循环水泵"
+},
+{
+"box": "02AP4",
+"circuit_no": "D09",
+"breaker": "MCCB-160MA/6.5A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "2#冷凝器循环水泵"
+},
+{
+"box": "02AP4",
+"circuit_no": "D10",
+"breaker": "MCCB-160MA/6.5A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "2#冷凝器循环水泵"
+},
+{
+"box": "02AP4",
+"circuit_no": "D07-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP4",
+"circuit_no": "D07-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP4",
+"circuit_no": "D07-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP4",
+"circuit_no": "D08-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP4",
+"circuit_no": "D08-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP4",
+"circuit_no": "D08-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP4",
+"circuit_no": "D09-C1",
+"cable": "ZR-YJV-0.6/1kV-5x10 SC50 CT"
+},
+{
+"box": "02AP4",
+"circuit_no": "D09-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP4",
+"circuit_no": "D09-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP4",
+"circuit_no": "D10-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP4",
+"circuit_no": "D10-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP4",
+"circuit_no": "D10-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP6",
+"circuit_no": "D17",
+"breaker": "MCCB-160MA/20A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x6-SC32-CT/FC",
+"load_name": "1#工艺水泵"
+},
+{
+"box": "02AP6",
+"circuit_no": "D18",
+"breaker": "MCCB-160MA/20A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x6-SC32-CT/FC",
+"load_name": "2#工艺水泵"
+},
+{
+"box": "02AP6",
+"circuit_no": "D19",
+"breaker": "MCCB-160MA/20A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "1#除铁水泵"
+},
+{
+"box": "02AP6",
+"circuit_no": "D20",
+"breaker": "MCCB-160MA/20A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "2#除铁水泵"
+},
+{
+"box": "02AP6",
+"circuit_no": "D17-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP6",
+"circuit_no": "D17-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP6",
+"circuit_no": "D17-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP6",
+"circuit_no": "D18-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP6",
+"circuit_no": "D18-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP6",
+"circuit_no": "D18-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP6",
+"circuit_no": "D19-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP6",
+"circuit_no": "D19-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP6",
+"circuit_no": "D19-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP6",
+"circuit_no": "D20-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP6",
+"circuit_no": "D20-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP6",
+"circuit_no": "D20-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP5",
+"circuit_no": "D13",
+"breaker": "MCCB-160MA/20A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x6-SC32-CT/FC",
+"load_name": "1#除氧水泵"
+},
+{
+"box": "02AP5",
+"circuit_no": "D14",
+"breaker": "MCCB-160MA/20A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x6-SC32-CT/FC",
+"load_name": "2#除氧水泵"
+},
+{
+"box": "02AP5",
+"circuit_no": "D15",
+"breaker": "MCCB-160MA/8.5A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "1#除盐水泵"
+},
+{
+"box": "02AP5",
+"circuit_no": "D16",
+"breaker": "MCCB-160MA/8.5A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "2#除盐水泵"
+},
+{
+"box": "02AP5",
+"circuit_no": "D13-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP5",
+"circuit_no": "D13-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP5",
+"circuit_no": "D13-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP5",
+"circuit_no": "D14-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP5",
+"circuit_no": "D14-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP5",
+"circuit_no": "D14-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP5",
+"circuit_no": "D15-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP5",
+"circuit_no": "D15-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP5",
+"circuit_no": "D15-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP5",
+"circuit_no": "D16-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP5",
+"circuit_no": "D16-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP5",
+"circuit_no": "D16-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP7",
+"circuit_no": "D21",
+"breaker": "MCCB-160MA/6.5A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "1#再生盐液泵"
+},
+{
+"box": "02AP7",
+"circuit_no": "D22",
+"breaker": "MCCB-160MA/6.5A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "2#再生盐液泵"
+},
+{
+"box": "02AP7",
+"circuit_no": "D11",
+"breaker": "MCCB-160MA/4A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "3#冷凝器循环水泵"
+},
+{
+"box": "02AP7",
+"circuit_no": "D12",
+"breaker": "MCCB-160MA/4A/3P",
+"cable": "ZR-YJV-0.6/1KV-4x4-SC25-CT/FC",
+"load_name": "3#冷凝器循环水泵"
+},
+{
+"box": "02AP7",
+"circuit_no": "D11-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP7",
+"circuit_no": "D11-C2",
+"cable": "ZRNH-BV-450/750V-3x2.5 SC20 WC CC"
+},
+{
+"box": "02AP7",
+"circuit_no": "D11-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP7",
+"circuit_no": "D12-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP7",
+"circuit_no": "D12-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP7",
+"circuit_no": "D12-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP7",
+"circuit_no": "D21-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP7",
+"circuit_no": "D21-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP7",
+"circuit_no": "D21-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP7",
+"circuit_no": "D22-C1",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至现场操作柱"
+},
+{
+"box": "02AP7",
+"circuit_no": "D22-C2",
+"cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02AP7",
+"circuit_no": "D22-C3",
+"cable": "ZR-KYJVP-0.6/1KV-7x1.5-SC32-CT/WS/FC",
+"load_name": "至设备PLC柜"
+},
+{
+"box": "02YJ02",
+"circuit_no": "E1",
+"breaker": "4x6A",
+"cable": "ZRNH-RVV-2X2.5 SC20 WC CT"
+},
+{
+"box": "02YJ02",
+"circuit_no": "E2",
+"cable": "ZRNH-RVV-2X2.5 SC20 WC CT",
+"load_name": "辅房疏散、应急照明"
+},
+{
+"box": "02YJ02",
+"circuit_no": "E3",
+"cable": "ZRNH-RVV-2X2.5 SC20 WC CT",
+"load_name": "化水间疏散、应急照明"
+},
+{
+"box": "02YJ02",
+"circuit_no": "E4",
+"load_name": "消防备用"
+},
+{
+"box": "02YJ01",
+"circuit_no": "E1",
+"breaker": "4x6A",
+"cable": "ZRNH-RVV-2X2.5 SC20 WC CT",
+"load_name": "其它印章\nOTHER STAMP"
+},
+{
+"box": "02YJ01",
+"circuit_no": "E2",
+"cable": "ZRNH-RVV-2X2.5 SC20 WC CT",
+"load_name": "楼梯间疏散、应急照明"
+},
+{
+"box": "02YJ01",
+"circuit_no": "E3",
+"cable": "ZRNH-RVV-2X2.5 SC20 WC CT",
+"load_name": "楼梯间疏散、应急照明"
+},
+{
+"box": "02YJ01",
+"circuit_no": "E4",
+"load_name": "消防备用"
+},
+{
+"box": "02AL01",
+"circuit_no": "N1",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x2.5 SC20 CT CE"
+},
+{
+"box": "02AL01",
+"circuit_no": "N2",
+"breaker": "RCBO/2P D16+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x2.5 SC20 CT CE"
+},
+{
+"box": "02AL01",
+"circuit_no": "N3",
+"breaker": "RCBO/2P D16+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x2.5 SC20 CT WC CC"
+},
+{
+"box": "02AL01",
+"circuit_no": "N4",
+"breaker": "RCBO/2P C16+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x2.5 SC20 CT WC CC"
+},
+{
+"box": "02AL01",
+"circuit_no": "N5",
+"breaker": "RCBO/2P C16+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x2.5 SC20 CT WC CC"
+},
+{
+"box": "02AL01",
+"circuit_no": "N6",
+"breaker": "RCBO/2P C16+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x2.5 SC20 CT WC CC"
+},
+{
+"box": "02AL01",
+"circuit_no": "N7",
+"breaker": "RCBO/2P C20+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x4.0 SC20 FC WC"
+},
+{
+"box": "02AL01",
+"circuit_no": "N8",
+"breaker": "RCBO/2P C20+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x4.0 SC20 FC WC"
+},
+{
+"box": "02AL01",
+"circuit_no": "N9",
+"breaker": "RCBO/2P C20+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x4.0 SC20 FC WC"
+},
+{
+"box": "02AL01",
+"circuit_no": "N10",
+"cable": "ZRNH-BV-450/750V-3x2.5 SC20 WC CC"
+},
+{
+"box": "02AL01",
+"circuit_no": "N11",
+"cable": "ZRNH-BV-450/750V-3x2.5 SC20 WC CC"
+},
+{
+"box": "02AL01",
+"breaker": "MCB-C16A/1P",
+"load_name": "300VA 220V/12V"
+},
+{
+"box": "02AL01",
+"circuit_no": "N12",
+"cable": "ZR-BV-450/750V-3x2.5 SC20 WC CC"
+},
+{
+"box": "02AL01",
+"circuit_no": "N13",
+"breaker": "RCBO/2P C20+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x2.5 SC20 CT WC CC"
+},
+{
+"box": "02AL01",
+"circuit_no": "N14",
+"breaker": "RCBO/2P C20+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x4.0 SC20 CT FC WC"
+},
+{
+"box": "02AL01",
+"circuit_no": "N15",
+"breaker": "RCBO/2P C20+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x4.0 SC20 CT FC WC"
+},
+{
+"box": "02AL01",
+"circuit_no": "备用",
+"breaker": "RCBO/2P C16+VM(30mA,瞬时)"
+},
+{
+"box": "02AL01",
+"circuit_no": "备用",
+"breaker": "RCBO/2P C20+VM(30mA,瞬时)"
+},
+{
+"box": "02AL01",
+"circuit_no": "备用",
+"breaker": "RCBO/2P C20+VM(30mA,瞬时)"
+},
+{
+"box": "02AL02",
+"circuit_no": "N1",
+"breaker": "RCBO/2P C16+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x2.5 SC20 WC CC"
+},
+{
+"box": "02AL02",
+"circuit_no": "N2",
+"breaker": "RCBO/2P C16+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x2.5 SC20 WC CC"
+},
+{
+"box": "02AL02",
+"circuit_no": "N3",
+"breaker": "RCBO/2P C16+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x4.0 SC20 FC WC"
+},
+{
+"box": "02AL02",
+"circuit_no": "N4",
+"breaker": "MCB-D32A/3P",
+"cable": "ZR-YJV-0.6/1kV-5x6 SC40 FC WC"
+},
+{
+"box": "02AL02",
+"circuit_no": "N5",
+"breaker": "MCB-C20A/1P",
+"cable": "ZR-BV-450/750V-3x4.0 SC20 FC WC"
+},
+{
+"box": "02AL02",
+"circuit_no": "N6",
+"breaker": "MCB-D20A/3P",
+"cable": "ZR-YJV-0.6/1kV-4X4 SC25 CT.WC CC"
+},
+{
+"box": "02AL02",
+"circuit_no": "备用",
+"breaker": "MCB-C20A/1P"
+},
+{
+"box": "02AL02",
+"circuit_no": "备用",
+"breaker": "MCB-C20A/1P"
+},
+{
+"box": "02AL02",
+"circuit_no": "备用",
+"breaker": "RCBO/2P C16+VM(30mA,瞬时)"
+},
+{
+"box": "02AL02",
+"circuit_no": "备用",
+"breaker": "RCBO/2P C20+VM(30mA,瞬时)"
+},
+{
+"box": "02AL02",
+"circuit_no": "备用",
+"breaker": "RCBO/2P C20+VM(30mA,瞬时)"
+},
+{
+"box": "02AK01",
+"circuit_no": "N1",
+"breaker": "MCB-D20A/3P",
+"cable": "ZR-YJV-0.6/1kV-4X4 SC25 CT.CE"
+},
+{
+"box": "02AK01",
+"circuit_no": "N2",
+"breaker": "MCB-D20A/3P",
+"cable": "ZR-YJV-0.6/1kV-4X4 SC25 CT.CE"
+},
+{
+"box": "02AK01",
+"circuit_no": "N3",
+"breaker": "MCB-D20A/3P",
+"cable": "ZR-YJV-0.6/1kV-4X4 SC25 CT.CE"
+},
+{
+"box": "02AK01",
+"circuit_no": "N4",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x4.0 SC20 FC WC"
+},
+{
+"box": "02AK01",
+"circuit_no": "N5",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x4.0 SC20 FC WC"
+},
+{
+"box": "02AK01",
+"circuit_no": "N6",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x4.0 SC20 FC WC"
+},
+{
+"box": "02AK01",
+"circuit_no": "N7",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)",
+"cable": "ZR-BV-450/750V-3x4.0 SC20 FC WC"
+},
+{
+"box": "02AK01",
+"circuit_no": "N8",
+"breaker": "RCBO/4P D25+VM(30mA,瞬时)",
+"cable": "ZR-YJV-0.6/1kV-5X4 SC32 CT.WC CC"
+},
+{
+"box": "02AK01",
+"circuit_no": "备用",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)"
+},
+{
+"box": "02AK01",
+"circuit_no": "备用",
+"breaker": "RCBO/2P D20+VM(30mA,瞬时)"
+},
+{
+"box": "02AK01",
+"breaker": "RCBO/4P D25+VM(30mA,瞬时)"
+},
+{
+"box": "C05",
+"circuit_no": "S-3a-P",
+"breaker": "MCCB-160MA/160A/3P",
+"contactor": "3x110A",
+"ct": "200/5\n74~98A",
+"load_name": "出线回路"
+},
+{
+"box": "C06",
+"circuit_no": "S-3b-P",
+"breaker": "MCCB-160MA/160A/3P",
+"contactor": "3x110A",
+"ct": "200/5\n74~98A",
+"cable": "BBTRZ-1kV-4×50-SC70",
+"load_name": "出线回路"
+},
+{
+"box": "C06",
+"circuit_no": "S-2a-P",
+"breaker": "MCCB-250MA/250A/3P",
+"contactor": "3x185A",
+"ct": "300/5\n110~150A",
+"cable": "BBTRZ-1kV-4×50-SC70",
+"load_name": "出线回路"
+},
+{
+"box": "C07",
+"circuit_no": "S-2b-P",
+"breaker": "MCCB-250MA/250A/3P",
+"contactor": "3x185A",
+"ct": "300/5\n110~150A",
+"cable": "BBTRZ-1kV-4×70-SC80",
+"load_name": "室内外消火栓泵"
+},
+{
+"box": "C02",
+"circuit_no": "S-1a-P",
+"breaker": "MCCB-250MA/200A/3P\n3x145A",
+"ct": "250/5\n90~130A",
+"cable": "ZRNH-YJV-0.6/1kV-4×70-SC80\nZRNH-YJV-0.6/1kV-3×70-SC80",
+"load_name": "出线回路"
+},
+{
+"box": "C02",
+"circuit_no": "S-1b-P",
+"breaker": "MCCB-250MA/200A/3P\n3x145A",
+"ct": "250/5\n90~130A",
+"cable": "ZRNH-YJV-0.6/1kV-4×70-SC80\nZRNH-YJV-0.6/1kV-3×70-SC80",
+"load_name": "喷淋泵\n详设备成套控制原理图（两用一备，互为备用）"
+},
+{
+"box": "C02",
+"circuit_no": "S-1c-P",
+"breaker": "MCCB-250MA/200A/3P\n3x145A",
+"ct": "250/5\n90~130A",
+"cable": "ZRNH-YJV-0.6/1kV-4×70-SC80\nZRNH-YJV-0.6/1kV-3×70-SC80",
+"load_name": "出线回路"
+},
+{
+"box": "C02",
+"circuit_no": "XKP-1-P",
+"breaker": "MCCB-160MA/32A/3P",
+"ct": "30/5",
+"cable": "ZRNH-YJV-0.6/1kV-5×6-SC32",
+"load_name": "潜污泵控制箱\n注:1.XKP为排污泵控制箱，选用标准箱，\n控制原理图详见国标16D303-3第240~242页。"
+},
+{
+"box": "C02",
+"circuit_no": "DF-1-P",
+"breaker": "MCCB-160MA/25A/3P",
+"ct": "10/5",
+"cable": "ZRNH-YJV-0.6/1kV-5×4-SC32",
+"load_name": "泵房、配电间照明"
+},
+{
+"box": "C02",
+"circuit_no": "E1",
+"breaker": "MCB-C16A/1P",
+"cable": "ZRNH-BV-450/750V-3×4.0",
+"load_name": "泵房、配电间照明"
+},
+{
+"box": "C02",
+"circuit_no": "E2",
+"breaker": "MCB-C16A/1P",
+"cable": "ZRNH-BV-450/750V-3×4.0",
+"load_name": "微型消防站照明"
+},
+{
+"box": "C02",
+"circuit_no": "E3",
+"breaker": "MCB-MA C16A/1P",
+"cable": "ZRNH-BV-450/750V-3×2.5",
+"load_name": "应急照明箱02YJ01"
+},
+{
+"box": "C03",
+"circuit_no": "E4",
+"breaker": "MCB-MA C16A/1P",
+"cable": "ZRNH-BV-450/750V-3×2.5",
+"load_name": "应急照明箱02YJ02"
+},
+{
+"box": "C03",
+"circuit_no": "E5",
+"breaker": "MCB-MA C16A/1P",
+"cable": "ZRNH-BV-450/750V-3×2.5",
+"load_name": "火灾自动报警电源"
+},
+{
+"box": "C03",
+"circuit_no": "E6",
+"breaker": "MCB-MA C16A/1P",
+"cable": "ZRNH-BV-450/750V-3×2.5",
+"load_name": "危险源电源"
+},
+{
+"box": "C03",
+"circuit_no": "E7",
+"breaker": "MCB-MA C16A/1P",
+"cable": "ZRNH-BV-450/750V-3×2.5",
+"load_name": "防火门电源"
+},
+{
+"box": "C03",
+"circuit_no": "E8",
+"breaker": "MCB-MA C16A/1P",
+"cable": "ZRNH-BV-450/750V-3×2.5",
+"load_name": "消防液位监测电源"
+},
+{
+"box": "C03",
+"circuit_no": "E9",
+"breaker": "MCB-MA C16A/1P",
+"cable": "ZRNH-BV-450/750V-3×2.5",
+"load_name": "试水流量计电源"
+}
+],
+"components": [
+{
+"name": "配电箱体",
+"spec": "02AK01 XXM",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AK01",
+"note": "IP4X，单箱候选，项目总量未放行"
+},
+{
+"name": "配电箱体",
+"spec": "02AL01",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AL01",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "配电箱体",
+"spec": "02AL02 XXM",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AL02",
+"note": "IP4X，单箱候选，项目总量未放行"
+},
+{
+"name": "配电箱体",
+"spec": "02AP01 GGD",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AP01",
+"note": "IP3X，落地式 抬高300mm，单箱候选，项目总量未放行"
+},
+{
+"name": "配电箱体",
+"spec": "02AP02 GGD",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AP02",
+"note": "IP3X，落地式 抬高300mm，单箱候选，项目总量未放行"
+},
+{
+"name": "配电箱体",
+"spec": "02AP1 GGD",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AP1",
+"note": "IP54，单箱候选，项目总量未放行"
+},
+{
+"name": "配电箱体",
+"spec": "02AP2 GGD",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AP2",
+"note": "IP54，落地安装"
+},
+{
+"name": "配电箱体",
+"spec": "02AP3 GGD",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AP3",
+"note": "IP54，落地安装"
+},
+{
+"name": "配电箱体",
+"spec": "02AP4 GGD",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AP4",
+"note": "IP44，落地安装"
+},
+{
+"name": "配电箱体",
+"spec": "02AP5 GGD",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AP5",
+"note": "IP44，落地安装"
+},
+{
+"name": "配电箱体",
+"spec": "02AP6 GGD",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AP6",
+"note": "IP44，落地安装"
+},
+{
+"name": "配电箱体",
+"spec": "02AP7 GGD",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02AP7",
+"note": "IP44，落地安装"
+},
+{
+"name": "配电箱体",
+"spec": "02PBSGFJ JXF",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02PBSGFJ",
+"note": "IP55，壁挂式 中心距地1.5m，单箱候选，项目总量未放行"
+},
+{
+"name": "配电箱体",
+"spec": "02YJ01",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02YJ01",
+"note": "IP44，壁挂式安装"
+},
+{
+"name": "配电箱体",
+"spec": "02YJ02",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "02YJ02",
+"note": "IP44，壁挂式安装"
+},
+{
+"name": "配电箱体",
+"spec": "C01 800×600×2200",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "C01",
+"note": "IP30，落地式"
+},
+{
+"name": "配电箱体",
+"spec": "C02 800×600×2200",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "C02",
+"note": "IP30，落地式"
+},
+{
+"name": "配电箱体",
+"spec": "C03 800×600×2200",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "C03",
+"note": "IP30，落地式"
+},
+{
+"name": "配电箱体",
+"spec": "C04 800×600×2200",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "C04",
+"note": "IP30，落地式"
+},
+{
+"name": "配电箱体",
+"spec": "C05 800×600×2200",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "C05",
+"note": "IP30，落地式"
+},
+{
+"name": "配电箱体",
+"spec": "C06 800×600×2200",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "C06",
+"note": "IP30，落地式"
+},
+{
+"name": "配电箱体",
+"spec": "C07 800×600×2200",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "C07",
+"note": "IP30，落地式"
+},
+{
+"name": "配电箱体",
+"spec": "C08 800×600×2200",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "C08",
+"note": "IP30，落地式"
+},
+{
+"name": "配电箱体",
+"spec": "JXX1 XXM",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "JXX1",
+"note": "IP65，壁挂式 中心距地1.0m"
+},
+{
+"name": "配电箱体",
+"spec": "JXX2 XXM",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "JXX2",
+"note": "IP4X，壁挂式 中心距地1.0m"
+},
+{
+"name": "配电箱体",
+"spec": "JXX3 XXM",
+"unit": "台",
+"quantity": 1.0,
+"used_in": "JXX3",
+"note": "IP55，壁挂式 中心距地1.0m"
+},
+{
+"name": "微型断路器",
+"spec": "MCB-C10A/1P",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "02YJ02 进线、02YJ01 进线"
+},
+{
+"name": "微型断路器",
+"spec": "MCB-C16A/1P",
+"unit": "只",
+"quantity": 4.0,
+"used_in": "02PBSGFJ N4、02AL01 300VA 220V/12V、C02 E1、C02 E2",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "微型断路器",
+"spec": "MCB-C20A/1P",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "02AL02 N5、02AL02 备用",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "微型断路器",
+"spec": "MCB-D20A/3P",
+"unit": "只",
+"quantity": 4.0,
+"used_in": "02AL02 N6、02AK01 N1、02AK01 N2、02AK01 N3",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "微型断路器",
+"spec": "MCB-D25A/3P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP02 预留",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "微型断路器",
+"spec": "MCB-D32A/3P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AL02 N4",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "微型断路器",
+"spec": "MCB-MA C16A/1P",
+"unit": "只",
+"quantity": 7.0,
+"used_in": "C02 E3、C03 E4、C03 E5、C03 E6、C03 E7、C03 E8、C03 E9"
+},
+{
+"name": "剩余电流动作断路器",
+"spec": "RCBO-100MA/16A/3P+VM(30mA,瞬时)",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "02PBSGFJ N1、02PBSGFJ N2、02PBSGFJ N3",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "剩余电流动作断路器",
+"spec": "RCBO/2P C16+VM(30mA,瞬时)",
+"unit": "只",
+"quantity": 8.0,
+"used_in": "02AL01 N4、02AL01 N5、02AL01 N6、02AL01 备用、02AL02 N1、02AL02 N2、02AL02 N3、02AL02 备用",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "剩余电流动作断路器",
+"spec": "RCBO/2P C20+VM(30mA,瞬时)",
+"unit": "只",
+"quantity": 10.0,
+"used_in": "02AL01 N7、02AL01 N8、02AL01 N9、02AL01 N13、02AL01 N14、02AL01 N15、02AL01 备用、02AL02 备用",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "剩余电流动作断路器",
+"spec": "RCBO/2P D16+VM(30mA,瞬时)",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "02AL01 N2、02AL01 N3",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "剩余电流动作断路器",
+"spec": "RCBO/2P D20+VM(30mA,瞬时)",
+"unit": "只",
+"quantity": 16.0,
+"used_in": "JXX1 220V 16A、JXX2 220V 16A、JXX3 220V 16A、02AL01 N1、02AK01 N4、02AK01 N5、02AK01 N6、02AK01 N7、02AK01 备用",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "剩余电流动作断路器",
+"spec": "RCBO/3P D40+VM(30mA,瞬时)",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "JXX1 380V 32A、JXX2 380V 32A、JXX3 380V 32A"
+},
+{
+"name": "剩余电流动作断路器",
+"spec": "RCBO/4P D25+VM(30mA,瞬时)",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "02AK01 N8、02AK01 未编号回路",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "剩余电流动作断路器",
+"spec": "RCBO/4P D40+VM(30mA,瞬时)",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "JXX1 380V 32A\n三相接线柱、JXX2 380V 32A\n三相接线柱、JXX3 380V 32A\n三相接线柱"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-100MA/16A/3P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02PBSGFJ 备用",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160MA/160A/3P",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "C05 S-3a-P、C06 S-3b-P"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160MA/20A/3P",
+"unit": "只",
+"quantity": 6.0,
+"used_in": "02AP6 D17、02AP6 D18、02AP6 D19、02AP6 D20、02AP5 D13、02AP5 D14"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160MA/25A/3P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C02 DF-1-P"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160MA/32A/3P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C02 XKP-1-P"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160MA/4A/3P",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "02AP7 D11、02AP7 D12"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160MA/50A/3P",
+"unit": "只",
+"quantity": 6.0,
+"used_in": "02AP1 D01、02AP1 D02、02AP2 D03、02AP2 D04、02AP3 D05、02AP3 D06",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160MA/6.5A/3P",
+"unit": "只",
+"quantity": 6.0,
+"used_in": "02AP4 D07、02AP4 D08、02AP4 D09、02AP4 D10、02AP7 D21、02AP7 D22"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160MA/8.5A/3P",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "02AP5 D15、02AP5 D16"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160TM/100A/3P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP01 N3",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160TM/125A/3P",
+"unit": "只",
+"quantity": 4.0,
+"used_in": "02AP01 N1、02AP01 N2、02AP01 N4、02AP01 备用",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160TM/160A/4P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP02 进线",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160TM/20A/3P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02PBSGFJ 进线",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160TM/25A/3P",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "02AP02 N6、02AP02 N8",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160TM/32A/3P",
+"unit": "只",
+"quantity": 4.0,
+"used_in": "02AP01 N5、02AP01 N7、02AP01 N8、02AP02 N7",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160TM/40A/3P",
+"unit": "只",
+"quantity": 6.0,
+"used_in": "02AP02 N1、02AP02 N2、02AP02 N3、02AP02 N4、02AP02 N5、02AP02 备用",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-160TM/50A/3P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP01 N6",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-250MA/200A/3P\n3x145A",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "C02 S-1a-P、C02 S-1b-P、C02 S-1c-P"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-250MA/250A/3P",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "C06 S-2a-P、C07 S-2b-P"
+},
+{
+"name": "塑壳断路器",
+"spec": "MCCB-400TM/400A/4P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP01 进线",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "隔离开关",
+"spec": "GL-100/63A/3P",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "JXX1 进线、JXX2 进线、JXX3 进线"
+},
+{
+"name": "隔离开关",
+"spec": "GL-160/40A/3P",
+"unit": "只",
+"quantity": 4.0,
+"used_in": "02AP4 进线、02AP6 进线、02AP5 进线、02AP7 进线"
+},
+{
+"name": "隔离开关",
+"spec": "GL-160/63A/3P",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "02AL01 进线、02AL02 进线、02AK01 进线",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "隔离开关",
+"spec": "GL-250/200A/3P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP1 进线",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "断路器（其他）",
+"spec": "6A",
+"unit": "只",
+"quantity": 8.0,
+"used_in": "02YJ02 E1、02YJ01 E1"
+},
+{
+"name": "交流接触器",
+"spec": "110A",
+"unit": "只",
+"quantity": 6.0,
+"used_in": "C05 S-3a-P、C06 S-3b-P"
+},
+{
+"name": "交流接触器",
+"spec": "185A",
+"unit": "只",
+"quantity": 6.0,
+"used_in": "C06 S-2a-P、C07 S-2b-P"
+},
+{
+"name": "电流互感器",
+"spec": "10/5",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C02 DF-1-P"
+},
+{
+"name": "电流互感器",
+"spec": "100/5",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP01 N3",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "电流互感器",
+"spec": "150/5",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "02AP01 N1、02AP01 N2、02AP01 N4",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "电流互感器",
+"spec": "20/5",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "02AP01 N5、02AP01 N8",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "电流互感器",
+"spec": "200/5",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "02AP02",
+"note": "进线计量互感器，按三相计量计 3 只，请核对；单箱候选，项目总量未放行"
+},
+{
+"name": "电流互感器",
+"spec": "200/5\n74~98A",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "C05 S-3a-P、C06 S-3b-P"
+},
+{
+"name": "电流互感器",
+"spec": "250/5\n90~130A",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "C02 S-1a-P、C02 S-1b-P、C02 S-1c-P"
+},
+{
+"name": "电流互感器",
+"spec": "30/5",
+"unit": "只",
+"quantity": 4.0,
+"used_in": "02AP02 N6、02AP02 N8、02AP02 预留、C02 XKP-1-P",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "电流互感器",
+"spec": "300/5\n110~150A",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "C06 S-2a-P、C07 S-2b-P"
+},
+{
+"name": "电流互感器",
+"spec": "400/5",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "02AP01",
+"note": "进线计量互感器，按三相计量计 3 只，请核对；单箱候选，项目总量未放行"
+},
+{
+"name": "电流互感器",
+"spec": "50/5",
+"unit": "只",
+"quantity": 6.0,
+"used_in": "02AP01 N6、02AP01 N7、02AP02 N1、02AP02 N2、02AP02 N5、02AP02 N7",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "电流互感器",
+"spec": "500/5",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C01",
+"note": "来自表栏【电流互感器 <BH-0.66->\n热继电器】"
+},
+{
+"name": "浪涌保护器",
+"spec": "SPD 4P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP1",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "浪涌保护器",
+"spec": "T1级 I级试验电涌保护器 SPD 4P Up≤2.5kV Iimp≥12.5kA（10/350μs）",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "02AP01、02AP02",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "浪涌保护器",
+"spec": "T2级 II级试验电涌保护器 SPD 4P Up≤2.5kV Iimp≥5kA（8/20μs）",
+"unit": "只",
+"quantity": 7.0,
+"used_in": "JXX1、JXX2、JXX3、02PBSGFJ、02AL01、02AL02、02AK01",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "A\n计算电流",
+"spec": "371",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C01",
+"note": "来自表栏【A\n计算电流】"
+},
+{
+"name": "进线电流互感器",
+"spec": "500/5",
+"unit": "只",
+"quantity": 6.0,
+"used_in": "C05 进线侧、C01 进线侧",
+"note": "由 GTable 进线侧拓扑提取"
+},
+{
+"name": "低压配电柜型号 GGD",
+"spec": "GGD",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "C08、C04",
+"note": "来自表栏【低压配电柜型号 GGD】"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 13.0,
+"used_in": "02AP1、02AP01、JXX1、02AP2、JXX2、02AP02、02AP3、JXX3、02PBSGFJ、02AP4、02AL01、02AL02、02AK01",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "多功能仪表",
+"spec": "带通讯接口多功能表",
+"unit": "只",
+"quantity": 2.0,
+"used_in": "02AP01、02AP02",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "回路名称",
+"spec": "机械应急启动柜",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C08",
+"note": "来自表栏【回路名称】"
+},
+{
+"name": "回路名称\n二次图编号",
+"spec": "机械应急启动柜",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C04",
+"note": "来自表栏【回路名称\n二次图编号】"
+},
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 11.0,
+"used_in": "02AP1、JXX1、02AP2、JXX2、02AP3、JXX3、02PBSGFJ、02AP4、02AP6、02AP5、02AP7",
+"note": "单箱候选，项目总量未放行"
+},
+{
+"name": "SPD后备保护器",
+"spec": "过电流(后备)保护器",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP7"
+}
+],
+"extra_devices": [
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP1"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP1"
+},
+{
+"name": "浪涌保护器",
+"spec": "SPD 4P",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP1"
+},
+{
+"name": "多功能仪表",
+"spec": "带通讯接口多功能表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP01"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP01"
+},
+{
+"name": "浪涌保护器",
+"spec": "T1级 I级试验电涌保护器 SPD 4P Up≤2.5kV Iimp≥12.5kA（10/350μs）",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP01"
+},
+{
+"name": "电流互感器",
+"spec": "400/5",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "02AP01",
+"note": "进线计量互感器，按三相计量计 3 只，请核对"
+},
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "JXX1"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "JXX1"
+},
+{
+"name": "浪涌保护器",
+"spec": "T2级 II级试验电涌保护器 SPD 4P Up≤2.5kV Iimp≥5kA（8/20μs）",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "JXX1"
+},
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP2"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP2"
+},
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "JXX2"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "JXX2"
+},
+{
+"name": "浪涌保护器",
+"spec": "T2级 II级试验电涌保护器 SPD 4P Up≤2.5kV Iimp≥5kA（8/20μs）",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "JXX2"
+},
+{
+"name": "多功能仪表",
+"spec": "带通讯接口多功能表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP02"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP02"
+},
+{
+"name": "浪涌保护器",
+"spec": "T1级 I级试验电涌保护器 SPD 4P Up≤2.5kV Iimp≥12.5kA（10/350μs）",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP02"
+},
+{
+"name": "电流互感器",
+"spec": "200/5",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "02AP02",
+"note": "进线计量互感器，按三相计量计 3 只，请核对"
+},
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP3"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP3"
+},
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "JXX3"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "JXX3"
+},
+{
+"name": "浪涌保护器",
+"spec": "T2级 II级试验电涌保护器 SPD 4P Up≤2.5kV Iimp≥5kA（8/20μs）",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "JXX3"
+},
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02PBSGFJ"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02PBSGFJ"
+},
+{
+"name": "浪涌保护器",
+"spec": "T2级 II级试验电涌保护器 SPD 4P Up≤2.5kV Iimp≥5kA（8/20μs）",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02PBSGFJ"
+},
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP4"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP4"
+},
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP6"
+},
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP5"
+},
+{
+"name": "电压表",
+"spec": "电压表",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP7"
+},
+{
+"name": "SPD后备保护器",
+"spec": "过电流(后备)保护器",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AP7"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AL01"
+},
+{
+"name": "浪涌保护器",
+"spec": "T2级 II级试验电涌保护器 SPD 4P Up≤2.5kV Iimp≥5kA（8/20μs）",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AL01"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AL02"
+},
+{
+"name": "浪涌保护器",
+"spec": "T2级 II级试验电涌保护器 SPD 4P Up≤2.5kV Iimp≥5kA（8/20μs）",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AL02"
+},
+{
+"name": "SPD后备保护器",
+"spec": "SPD厂家配套",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AK01"
+},
+{
+"name": "浪涌保护器",
+"spec": "T2级 II级试验电涌保护器 SPD 4P Up≤2.5kV Iimp≥5kA（8/20μs）",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "02AK01"
+},
+{
+"name": "进线电流互感器",
+"spec": "500/5",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "C05 进线侧",
+"note": "由 GTable 进线侧拓扑提取"
+},
+{
+"name": "低压配电柜型号 GGD",
+"spec": "GGD",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C08",
+"note": "来自表栏【低压配电柜型号 GGD】"
+},
+{
+"name": "回路名称",
+"spec": "机械应急启动柜",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C08",
+"note": "来自表栏【回路名称】"
+},
+{
+"name": "进线电流互感器",
+"spec": "500/5",
+"unit": "只",
+"quantity": 3.0,
+"used_in": "C01 进线侧",
+"note": "由 GTable 进线侧拓扑提取"
+},
+{
+"name": "电流互感器",
+"spec": "500/5",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C01",
+"note": "来自表栏【电流互感器 <BH-0.66->\n热继电器】"
+},
+{
+"name": "A\n计算电流",
+"spec": "371",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C01",
+"note": "来自表栏【A\n计算电流】"
+},
+{
+"name": "低压配电柜型号 GGD",
+"spec": "GGD",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C04",
+"note": "来自表栏【低压配电柜型号 GGD】"
+},
+{
+"name": "回路名称\n二次图编号",
+"spec": "机械应急启动柜",
+"unit": "只",
+"quantity": 1.0,
+"used_in": "C04",
+"note": "来自表栏【回路名称\n二次图编号】"
+}
+]
+}

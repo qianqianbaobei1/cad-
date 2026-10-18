@@ -855,13 +855,22 @@ def calculate_box_quotation(
     comp_list_total = 0.0
     priced_components = []
 
+    # 控制/信号电缆回路（至操作柱/PLC、KVV/KYJVP 等）不是断路器出线：
+    # 不生成断路器、不计入断路器回路数与出线组装工时，但仍在回路清单里可见。
+    from .assemble import is_control_cable_circuit
+
+    switch_circuits: list[dict] = []
+    control_circuits: list[dict] = []
+    for c in circuits:
+        (control_circuits if is_control_cable_circuit(c) else switch_circuits).append(c)
+
     effective_components = list(components)
     has_breakers = any(
         "断路器" in comp.get("name", "") or "开关" in comp.get("name", "") or "微断" in comp.get("name", "")
         for comp in effective_components
     )
-    if not has_breakers and circuits:
-        for c in circuits:
+    if not has_breakers and switch_circuits:
+        for c in switch_circuits:
             brk = (c.get("breaker_spec") or c.get("breaker") or "").strip()
             if not brk or brk in ("-", "待确认"):
                 continue
@@ -890,13 +899,13 @@ def calculate_box_quotation(
             "pricing_basis": basis,
         })
 
-    # 2. 箱体外壳成本
-    circuits_count = len(circuits)
+    # 2. 箱体外壳成本（按断路器回路数取档，控制电缆回路不占开关位）
+    circuits_count = len(switch_circuits)
     enclosure_cost, enclosure_desc = estimate_box_enclosure_price(box, circuits_count)
 
     # 3. 铜排母线成本 (按最大进线断路器或总回路估算额定电流)
     main_curr = 0
-    for c in circuits:
+    for c in switch_circuits:
         if c.get("circuit_type") == "incoming" or "进线" in str(c.get("load_name") or "") or "进线" in str(c.get("circuit_no") or ""):
             feat = parse_component_features(c.get("breaker_spec", "") or c.get("breaker", ""))
             if feat.get("current_a"):
@@ -933,7 +942,7 @@ def calculate_box_quotation(
     auxiliary_cost = round(comp_total * AUXILIARY_RATE, 2)
 
     # 5. 人工组装调试费 (传统定额)
-    incoming_count = sum(1 for c in circuits if c.get("circuit_type") == "incoming" or "进线" in str(c.get("load_name") or "") or "进线" in str(c.get("circuit_no") or ""))
+    incoming_count = sum(1 for c in switch_circuits if c.get("circuit_type") == "incoming" or "进线" in str(c.get("load_name") or "") or "进线" in str(c.get("circuit_no") or ""))
     outgoing_count = max(0, circuits_count - incoming_count)
     labor_cost = round(incoming_count * LABOR_INCOMING_RATE + outgoing_count * LABOR_OUTGOING_RATE, 2)
 
@@ -988,6 +997,7 @@ def calculate_box_quotation(
         "box_name": box.get("box_name") or box.get("name") or "",
         "brand": brand,
         "circuits_count": circuits_count,
+        "control_circuits_count": len(control_circuits),
         "cost_breakdown": {
             "enclosure_cost": enclosure_cost,
             "enclosure_desc": enclosure_desc,

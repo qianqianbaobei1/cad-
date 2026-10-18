@@ -157,6 +157,39 @@ def _parse_devices(value: str, allow_combo: bool = False) -> list[tuple[str, int
     return parsed
 
 
+# ---- 控制/信号电缆回路：没有断路器，不许被当成断路器出线 ----
+# 电缆型号词表直接复用 config 的 cable.signal_family_patterns（KVV/KVVP/RVVP/RVSP/RYJS/DJYVP），
+# 这份图纸用的是 KYJV/KYJVP，补在同一条模式里，不另起一套规则。
+_SIGNAL_CABLE_PATTERNS = tuple(_DOMAIN.get("cable", {}).get("signal_family_patterns") or ()) + (
+    r"(?:WDZ[A-Z]*|ZR[A-Z]*|NH[A-Z]*|FS)?-?(?:KYJV|KYJVP)(?=[-_\s\d*(×x]|$)",
+    r"(?:WDZ[A-Z]*|ZR[A-Z]*|NH[A-Z]*|FS)?-?(?:RVV|RVVP)(?=[-_\s\d*(×x]|$)",
+)
+CONTROL_CABLE_RES = tuple(re.compile(pattern, re.I) for pattern in _SIGNAL_CABLE_PATTERNS)
+# 负载写法：“至现场操作柱”“至设备PLC柜”“至报警控制器”这类二次控制/信号用途
+CONTROL_LOAD_MARKS = ("操作柱", "操作箱", "PLC", "控制箱", "控制柜", "信号", "报警", "联锁", "反馈", "通讯")
+EMPTY_BREAKERS = ("", "-", "待确认", "无")
+
+
+def is_control_cable_circuit(circuit: object) -> bool:
+    """控制/信号电缆回路：没有断路器，且电缆是控制电缆或负载写的是操作柱/PLC/控制箱/信号。
+
+    这类回路的 breaker 本来空着，组价不能凭空补一只“分支断路器（规格未标注）”；
+    它们仍作为该柜的控制电缆出线留在回路清单里。
+    """
+    if isinstance(circuit, dict):
+        get = circuit.get
+    else:
+        get = lambda key: getattr(circuit, key, "")  # noqa: E731 - pydantic Circuit 同名字段
+    breaker = str(get("breaker") or get("breaker_spec") or "").strip()
+    if breaker not in EMPTY_BREAKERS:
+        return False
+    cable = str(get("cable") or "").strip()
+    if cable and any(pattern.search(cable) for pattern in CONTROL_CABLE_RES):
+        return True
+    load = f"{get('load_name') or ''} {get('circuit_no') or ''}".upper()
+    return any(mark.upper() in load for mark in CONTROL_LOAD_MARKS)
+
+
 def split_size_annotation(size: str, note: str) -> tuple[str, str]:
     """尺寸格只留外形数字。轴说明和厂家备注挪到 note，不改已经干净的尺寸。"""
     text = (size or "").strip()
@@ -735,8 +768,11 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
             )
             continue
         spare_note = INSTALLED_SPARE_NOTE if disposition == "installed_spare" else ""
+        control_line = is_control_cable_circuit(circuit)
         for field, name in (("breaker", ""), ("contactor", "交流接触器"),
                             ("ct", "电流互感器"), ("thermal", "热继电器")):
+            if field == "breaker" and control_line:
+                continue  # 控制/信号电缆回路不出断路器，也不许把线型号当成断路器计入
             value = getattr(circuit, field)
             devices = _parse_devices(value, allow_combo=field == "breaker")
             if devices is None:
