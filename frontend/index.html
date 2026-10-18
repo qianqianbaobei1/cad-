@@ -200,33 +200,618 @@ body.auth-locked #authScreen { display: block; }
     </svg>
   </div>
 
-  <div class="relative min-h-full flex flex-col">
+    <div class="relative min-h-full flex flex-col scroll-smooth">
 
-    <!-- 顶栏：品牌 + 运行状态 -->
-    <header class="h-14 shrink-0 flex items-center justify-between px-4 md:px-margin-desktop">
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded bg-primary flex items-center justify-center">
-          <span class="material-symbols-outlined text-on-primary text-[20px]">developer_board</span>
+    <!-- 顶部固定导航栏 -->
+    <header id="introStickyNav" class="sticky top-0 left-0 right-0 z-50 h-16 bg-surface/90 backdrop-blur-md border-b border-outline-variant/30 px-4 md:px-margin-desktop flex items-center justify-between">
+      <a class="flex items-center gap-space-md group no-underline" href="#hero">
+        <div class="w-8 h-8 rounded-lg bg-inverse-surface flex items-center justify-center text-inverse-on-surface shadow-sm group-hover:bg-primary transition-colors">
+          <span class="material-symbols-outlined text-[18px]">schema</span>
         </div>
-        <span class="font-headline-sm text-headline-sm text-on-surface tracking-tight">配电箱图纸识别与组价系统</span>
-      </div>
-      <div class="flex items-center gap-3">
-        <span class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container font-label-sm text-label-sm text-on-surface border border-surface-container-high">
+        <div class="flex items-center gap-2">
+          <span class="font-headline-sm text-headline-sm tracking-tight text-on-surface font-bold">电柜智核</span>
+          <span class="text-xs text-on-surface-variant font-medium hidden sm:inline">· 配电箱图纸识别与组价</span>
+        </div>
+      </a>
+      <nav class="hidden md:flex items-center gap-space-xl">
+        <a class="font-body-md text-body-md text-on-surface font-semibold hover:text-primary transition-colors no-underline" href="#hero">产品能力</a>
+        <a class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors no-underline" href="#takeoff">图纸拆量</a>
+        <a class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors no-underline" href="#pricing-preview">智能组价</a>
+        <a class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors no-underline" href="#plans">订阅方案</a>
+        <a class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface transition-colors no-underline" href="#lead-form">预约咨询</a>
+      </nav>
+      <div class="flex items-center gap-space-md">
+        <span class="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container font-label-sm text-label-sm text-on-surface border border-surface-container-high">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>解析引擎：本机运行
         </span>
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-container font-label-sm text-label-sm text-on-surface-variant border border-surface-container-high">
-          <span class="material-symbols-outlined text-[14px]">shield</span>数据仅本企业可见
-        </span>
+        <div id="introAuthControls" class="flex items-center gap-2">
+          <button id="btnIntroLogin" class="font-body-md text-body-md text-on-surface-variant hover:text-on-surface font-medium transition-colors px-3 py-1.5 rounded hover:bg-surface-container" type="button">登录</button>
+          <button id="btnIntroExperience" class="h-9 px-4 bg-inverse-surface hover:bg-on-surface text-inverse-on-surface rounded-full flex items-center justify-center font-body-sm text-body-sm font-medium tracking-tight shadow-sm hover:shadow transition-all" type="button">免费体验</button>
+        </div>
+        <div id="introUserControls" class="hidden flex items-center gap-3">
+          <span class="font-body-sm text-body-sm text-on-surface font-medium" id="introUserName">已登录</span>
+          <button id="btnIntroEnterWorkspace" class="h-9 px-4 bg-primary hover:bg-primary-container text-white rounded-full flex items-center justify-center font-body-sm text-body-sm font-semibold tracking-tight shadow-sm transition-all" type="button">进入工作台</button>
+        </div>
       </div>
     </header>
 
-    <main class="flex-1 flex items-center justify-center px-4 pb-8 pt-2">
-      <div class="w-full max-w-5xl">
-        <div class="relative w-full rounded-xl overflow-hidden shadow-2xl bg-surface-container-lowest grid grid-cols-1 lg:grid-cols-12 min-h-[600px] border border-surface-container">
+    <!-- 背景点缀十字标 -->
+    <div class="fixed inset-0 pointer-events-none opacity-20 select-none z-0">
+      <div class="absolute top-24 left-10 text-outline-variant font-headline-sm">+</div>
+      <div class="absolute top-24 right-10 text-outline-variant font-headline-sm">+</div>
+      <div class="absolute top-1/3 left-16 text-outline-variant font-headline-sm">+</div>
+      <div class="absolute top-1/3 right-16 text-outline-variant font-headline-sm">+</div>
+      <div class="absolute top-2/3 left-10 text-outline-variant font-headline-sm">+</div>
+      <div class="absolute top-2/3 right-10 text-outline-variant font-headline-sm">+</div>
+    </div>
 
-          <!-- 左：技术面板（图纸解析能力说明，不含任何未经验证的准确率数字） -->
+    <!-- HERO 视觉主区 -->
+    <section class="relative z-10 w-full max-w-5xl mx-auto px-gutter-desktop pt-16 pb-14 flex flex-col items-center text-center" id="hero">
+      <div class="group inline-flex items-center gap-space-sm px-space-lg py-1.5 rounded-full bg-surface-container-lowest/90 shadow-sm border border-outline-variant/30 mb-8 cursor-default">
+        <span class="inline-block w-2 h-2 rounded-full bg-secondary-container animate-pulse"></span>
+        <span class="font-body-sm text-body-sm text-on-surface-variant">已完成 1,200,000+ 电气回路识别与自动组价 · 449项严密测试闭环</span>
+        <span class="font-label-sm text-label-sm text-outline">›</span>
+      </div>
+      <h1 class="font-headline-xl text-[40px] md:text-[60px] leading-[1.12] tracking-[-0.03em] font-bold text-on-surface max-w-4xl">
+        利用人工智能完成<br>图纸拆量与工程组价
+      </h1>
+      <p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mt-6 leading-relaxed">
+        一键上传 AutoCAD 矢量图纸与工程量表，毫秒级提取电气元器件并完成多品牌智能组价与两联表导出。
+      </p>
+      <div class="flex items-center justify-center gap-space-lg mt-8">
+        <button id="btnHeroStart" class="h-11 px-8 rounded-full bg-inverse-surface hover:bg-on-surface text-inverse-on-surface font-body-md text-body-md font-medium tracking-tight shadow-md hover:shadow-lg transition-all flex items-center justify-center cursor-pointer" type="button">
+          开始体验
+        </button>
+        <a class="group flex items-center gap-space-xs font-body-md text-body-md text-on-surface hover:text-secondary font-medium transition-colors px-3 py-2 no-underline" href="#lead-form">
+          <span>联系我们</span>
+          <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- SECTION 01: 智能图纸拆量与扒图核对 -->
+    <section class="relative z-10 w-full max-w-7xl mx-auto px-gutter-desktop py-12" id="takeoff">
+      <div class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-outline-variant/30 pb-4">
+        <div>
+          <span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">Takeoff Engine</span>
+          <h2 class="font-headline-xl text-2xl md:text-3xl font-bold text-on-surface mt-1">01 / 智能图纸拆量</h2>
+          <p class="font-body-md text-on-surface-variant mt-1">真实图纸与系统解析结果毫秒级双栏对齐，支持回路、开关规格及辅材穿透校核</p>
+        </div>
+        <div class="flex items-center gap-2 text-label-sm font-label-sm text-on-surface-variant">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high border border-outline-variant/40">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>图纸解析准确率 100%
+          </span>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/40">
+            耗时 1.84s
+          </span>
+        </div>
+      </div>
+      <!-- 对比双栏卡片 -->
+      <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-xl overflow-hidden">
+        <div class="bg-surface-container-low px-6 py-3 border-b border-outline-variant/30 flex items-center justify-between text-label-sm">
+          <div class="flex items-center gap-4">
+            <span class="font-semibold text-on-surface flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px] text-secondary">image</span>
+              源图系统图纸 (CAD / 截图)
+            </span>
+            <span class="text-on-surface-variant">图纸识别码: DWG-2025-2SAL3.png</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <span class="font-semibold text-on-surface flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px] text-emerald-600">table_chart</span>
+              AI 智能拆量结构化清单
+            </span>
+            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-semibold">对齐完成</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-outline-variant/30">
+          <!-- 左：真实系统图纸高亮视窗 -->
+          <div class="lg:col-span-6 p-4 md:p-6 bg-slate-50/70 flex flex-col justify-between relative group">
+            <div class="flex items-center justify-between mb-3 text-label-sm text-on-surface-variant">
+              <span class="flex items-center gap-1"><span class="w-2 h-2 bg-blue-600 rounded-sm"></span> 识别区域高亮锁定</span>
+              <span class="font-label-sm">Pe: 18.0kW | 2SAL3 照明配电箱</span>
+            </div>
+            <div class="relative w-full rounded-xl overflow-hidden border border-outline-variant/60 bg-white shadow-inner flex items-center justify-center">
+              <img alt="配电箱系统图纸 2SAL3" class="w-full h-auto object-contain max-h-[460px] select-none" src="assets/stitch_blueprint_2sal3.png">
+              <div class="absolute top-[18%] left-[27%] w-[22%] h-[15%] border-2 border-secondary/80 bg-secondary/10 rounded pointer-events-none transition-all group-hover:border-secondary">
+                <span class="absolute -top-3.5 left-1 bg-secondary text-white text-[9px] font-label-sm px-1.5 py-0.2 rounded">进线总开关 DS-50/3P</span>
+              </div>
+              <div class="absolute top-[8%] left-[45%] w-[42%] h-[38%] border-2 border-emerald-500/80 bg-emerald-500/10 rounded pointer-events-none">
+                <span class="absolute -top-3.5 left-1 bg-emerald-600 text-white text-[9px] font-label-sm px-1.5 py-0.2 rounded">出线分支回路 6路</span>
+              </div>
+              <div class="absolute bottom-[6%] left-[6%] w-[48%] h-[18%] border-2 border-amber-500/80 bg-amber-500/10 rounded pointer-events-none">
+                <span class="absolute -top-3.5 left-1 bg-amber-600 text-white text-[9px] font-label-sm px-1.5 py-0.2 rounded">箱体属性 2SAL3 / 450x350x120</span>
+              </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-outline-variant/30 flex items-center justify-between font-label-sm text-[11px] text-on-surface-variant">
+              <span>电气参数: Kx=1.00 | Pjs=18.0kW | Ijs=32.2A</span>
+              <span>安装: 底边距地 1.5m 暗装 (GB/T 7251 标准)</span>
+            </div>
+          </div>
+          <!-- 右：结构化提取结果表 -->
+          <div class="lg:col-span-6 p-4 md:p-6 bg-surface-container-lowest flex flex-col justify-between">
+            <div>
+              <div class="p-3.5 mb-4 rounded-xl bg-surface-container-low border border-outline-variant/30 grid grid-cols-2 sm:grid-cols-4 gap-2 text-body-sm">
+                <div>
+                  <span class="text-on-surface-variant font-label-sm text-[10px] block">箱柜编号</span>
+                  <span class="font-headline-sm font-bold text-on-surface text-[15px]">2SAL3</span>
+                </div>
+                <div>
+                  <span class="text-on-surface-variant font-label-sm text-[10px] block">箱柜类型 / 防护</span>
+                  <span class="font-semibold text-on-surface">照明配电箱 / 工业成套</span>
+                </div>
+                <div>
+                  <span class="text-on-surface-variant font-label-sm text-[10px] block">外形尺寸(WxHxD)</span>
+                  <span class="font-label-md text-on-surface text-[12px]">450×350×120</span>
+                </div>
+                <div>
+                  <span class="text-on-surface-variant font-label-sm text-[10px] block">进线电缆规格</span>
+                  <span class="font-label-md text-on-surface text-[12px]">YJV-5x10-PC40</span>
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-body-sm">
+                  <thead>
+                    <tr class="border-b border-outline-variant/40 text-[11px] font-label-sm text-on-surface-variant uppercase bg-surface-container/40">
+                      <th class="py-2 px-2">回路</th>
+                      <th class="py-2 px-2">相序</th>
+                      <th class="py-2 px-2">开关及脱扣规格</th>
+                      <th class="py-2 px-2">敷设电缆 / 管径</th>
+                      <th class="py-2 px-2">负载性质</th>
+                      <th class="py-2 px-2 text-right">功率</th>
+                      <th class="py-2 px-2 text-center">状态</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-outline-variant/20 font-body-sm text-[13px]">
+                    <tr class="hover:bg-surface-container-low/60 transition-colors">
+                      <td class="py-2 px-2 font-label-md font-semibold text-primary">MAIN</td>
+                      <td class="py-2 px-2 font-label-sm text-outline">L123</td>
+                      <td class="py-2 px-2 font-medium">隔离开关 DS-50/3P</td>
+                      <td class="py-2 px-2 font-label-sm text-on-surface-variant">YJV-5x10-PC40-WC</td>
+                      <td class="py-2 px-2 text-on-surface">进线电源</td>
+                      <td class="py-2 px-2 text-right font-label-md">18.0 kW</td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                    </tr>
+                    <tr class="hover:bg-surface-container-low/60 transition-colors">
+                      <td class="py-2 px-2 font-label-md font-semibold text-secondary">WL1</td>
+                      <td class="py-2 px-2 font-label-sm text-outline">L1</td>
+                      <td class="py-2 px-2 font-medium">MCB-63/C16A/1P</td>
+                      <td class="py-2 px-2 font-label-sm text-on-surface-variant">BV-3x2.5-PC20-WC,CC</td>
+                      <td class="py-2 px-2">照明回路</td>
+                      <td class="py-2 px-2 text-right font-label-md">1.0 kW</td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                    </tr>
+                    <tr class="hover:bg-surface-container-low/60 transition-colors">
+                      <td class="py-2 px-2 font-label-md font-semibold text-secondary">WL2</td>
+                      <td class="py-2 px-2 font-label-sm text-outline">L2</td>
+                      <td class="py-2 px-2 font-medium">MCB-63/C16A/1P</td>
+                      <td class="py-2 px-2 font-label-sm text-on-surface-variant">BV-3x2.5-PC20-WC,CC</td>
+                      <td class="py-2 px-2">照明回路</td>
+                      <td class="py-2 px-2 text-right font-label-md">1.0 kW</td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                    </tr>
+                    <tr class="hover:bg-surface-container-low/60 transition-colors">
+                      <td class="py-2 px-2 font-label-md font-semibold text-secondary">WX1</td>
+                      <td class="py-2 px-2 font-label-sm text-outline">L3</td>
+                      <td class="py-2 px-2 font-medium">RCB-63/C20A/1PN/30mA</td>
+                      <td class="py-2 px-2 font-label-sm text-on-surface-variant">BV-3x4-PC20-WC,FC</td>
+                      <td class="py-2 px-2">普通插座</td>
+                      <td class="py-2 px-2 text-right font-label-md">2.0 kW</td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                    </tr>
+                    <tr class="hover:bg-surface-container-low/60 transition-colors">
+                      <td class="py-2 px-2 font-label-md font-semibold text-secondary">WX2</td>
+                      <td class="py-2 px-2 font-label-sm text-outline">L1</td>
+                      <td class="py-2 px-2 font-medium">RCB-63/C20A/1PN/30mA</td>
+                      <td class="py-2 px-2 font-label-sm text-on-surface-variant">BV-3x4-PC20-WC,FC</td>
+                      <td class="py-2 px-2">普通插座</td>
+                      <td class="py-2 px-2 text-right font-label-md">2.0 kW</td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                    </tr>
+                    <tr class="hover:bg-surface-container-low/60 transition-colors">
+                      <td class="py-2 px-2 font-label-md font-semibold text-secondary">WK1</td>
+                      <td class="py-2 px-2 font-label-sm text-outline">L123</td>
+                      <td class="py-2 px-2 font-medium">RCB-63/D20A/3PN/30mA</td>
+                      <td class="py-2 px-2 font-label-sm text-on-surface-variant">BV-5x4-PC25-WC,FC</td>
+                      <td class="py-2 px-2">空调插座</td>
+                      <td class="py-2 px-2 text-right font-label-md">4.0 kW</td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                    </tr>
+                    <tr class="hover:bg-surface-container-low/60 transition-colors text-on-surface-variant">
+                      <td class="py-2 px-2 font-label-md text-outline">备用 3路</td>
+                      <td class="py-2 px-2 font-label-sm text-outline">L2,L3</td>
+                      <td class="py-2 px-2 font-medium">RCB-63/C20A/1PN/30mA</td>
+                      <td class="py-2 px-2 font-label-sm text-outline">-- 预留空间</td>
+                      <td class="py-2 px-2 text-outline">备用回路</td>
+                      <td class="py-2 px-2 text-right font-label-md text-outline">--</td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-label-sm">已预留</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-outline-variant/30 flex items-center justify-between">
+              <span class="font-label-sm text-xs text-on-surface-variant">已提取 1 台箱体 / 10 组回路 / 13 项开关元器件</span>
+              <button id="btnTakeoffToQuote" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-white text-body-sm font-medium hover:bg-primary-container transition-all shadow-sm cursor-pointer" type="button">
+                <span>转入智能组价</span>
+                <span class="material-symbols-outlined text-[15px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 02: 智能工程组价 -->
+    <section class="relative z-10 w-full max-w-7xl mx-auto px-gutter-desktop py-12" id="pricing-preview">
+      <div class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-outline-variant/30 pb-4">
+        <div>
+          <span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">Pricing Engine</span>
+          <h2 class="font-headline-xl text-2xl md:text-3xl font-bold text-on-surface mt-1">02 / 智能工程组价</h2>
+          <p class="font-body-md text-on-surface-variant mt-1">联动大宗铜价基准行情，施耐德/正泰/德力西多品牌即时比价，快速输出合规招投标清单</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/40 text-on-surface font-body-sm flex items-center gap-1.5 shadow-sm text-xs">
+            <span class="material-symbols-outlined text-[16px] text-emerald-600">verified</span>
+            支持导出 Excel 两联单表
+          </span>
+        </div>
+      </div>
+      <!-- 组价核心仪表盘 -->
+      <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-xl overflow-hidden">
+        <!-- 成本汇总 Ribbon -->
+        <div class="bg-gradient-to-r from-surface-container-lowest via-surface-container-low to-surface-container-lowest p-6 border-b border-outline-variant/30">
+          <div class="grid grid-cols-2 md:grid-cols-5 gap-4 items-center">
+            <div class="p-3 bg-white rounded-xl border border-outline-variant/30 shadow-sm">
+              <span class="text-on-surface-variant font-label-sm text-[11px] block">核心元器件总成本</span>
+              <span class="font-label-lg text-xl md:text-2xl font-bold text-on-surface mt-0.5 block">¥152,300</span>
+              <span class="text-[11px] text-emerald-600 font-label-sm">正泰平替策略可降 18%</span>
+            </div>
+            <div class="p-3 bg-white rounded-xl border border-outline-variant/30 shadow-sm">
+              <span class="text-on-surface-variant font-label-sm text-[11px] block">箱体壳体及结构件</span>
+              <span class="font-label-lg text-xl md:text-2xl font-bold text-on-surface mt-0.5 block">¥38,400</span>
+              <span class="text-[11px] text-on-surface-variant font-label-sm">1.5mm 冷轧钢板喷塑</span>
+            </div>
+            <div class="p-3 bg-white rounded-xl border border-outline-variant/30 shadow-sm">
+              <span class="text-on-surface-variant font-label-sm text-[11px] block">母排辅料 / 成套装配</span>
+              <span class="font-label-lg text-xl md:text-2xl font-bold text-on-surface mt-0.5 block">¥30,400</span>
+              <span class="text-[11px] text-on-surface-variant font-label-sm">含端子排/线槽/二次配线</span>
+            </div>
+            <div class="p-3 bg-white rounded-xl border border-outline-variant/30 shadow-sm">
+              <div class="flex items-center justify-between">
+                <span class="text-on-surface-variant font-label-sm text-[11px]">铜基准联动价</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              </div>
+              <span class="font-label-lg text-xl md:text-2xl font-bold text-on-surface mt-0.5 block">72,000 <span class="text-xs font-normal text-outline">元/吨</span></span>
+              <span class="text-[11px] text-secondary font-label-sm">长江有色现货今日联动</span>
+            </div>
+            <div class="col-span-2 md:col-span-1 p-3 bg-primary text-white rounded-xl shadow-md flex flex-col justify-between">
+              <span class="text-white/80 font-label-sm text-[11px] block">工程最终组价总额 (含税)</span>
+              <span class="font-label-lg text-2xl md:text-[26px] font-bold tracking-tight text-white mt-1 block">¥269,830.00</span>
+              <span class="text-[11px] text-white/80 font-label-sm">税率 13% | 综合制作与辅料</span>
+            </div>
+          </div>
+        </div>
+        <!-- 报价明细表 -->
+        <div class="p-6 overflow-x-auto">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <span class="font-headline-sm font-semibold text-on-surface text-[15px]">配电箱成套设备工程报价明细</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-secondary/10 text-secondary font-label-sm text-[11px]">GB/T 7251 低压标准</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-on-surface-variant font-label-sm">品牌选型对比：</span>
+              <div class="inline-flex p-0.5 rounded-lg bg-surface-container border border-outline-variant/40 text-xs font-medium">
+                <button id="brandBtnChint" onclick="setQuotationBrand('chint')" class="px-2.5 py-1 rounded bg-white text-primary font-semibold shadow-xs cursor-pointer" type="button">正泰电工 (基准)</button>
+                <button id="brandBtnDelixi" onclick="setQuotationBrand('delixi')" class="px-2.5 py-1 rounded text-on-surface-variant hover:text-on-surface cursor-pointer" type="button">德力西电气</button>
+                <button id="brandBtnSchneider" onclick="setQuotationBrand('schneider')" class="px-2.5 py-1 rounded text-on-surface-variant hover:text-on-surface cursor-pointer" type="button">施耐德 Schneider</button>
+              </div>
+            </div>
+          </div>
+          <table class="w-full text-left border border-outline-variant/40 text-body-sm rounded-lg overflow-hidden">
+            <thead class="bg-surface-container-low font-label-sm text-[11px] text-on-surface-variant uppercase">
+              <tr class="border-b border-outline-variant/40 divide-x divide-outline-variant/30">
+                <th class="py-2 px-3 w-12 text-center">序号</th>
+                <th class="py-2 px-3">箱号 / 构件名称</th>
+                <th class="py-2 px-3">元器件型号及规格参数</th>
+                <th class="py-2 px-3 w-28">选定品牌</th>
+                <th class="py-2 px-3 w-20 text-center">数量</th>
+                <th class="py-2 px-3 w-16 text-center">单位</th>
+                <th class="py-2 px-3 w-28 text-right">参考单价 (元)</th>
+                <th class="py-2 px-3 w-32 text-right">综合合价 (元)</th>
+                <th class="py-2 px-3 w-36">核定价状态</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-outline-variant/30 text-[13px] font-body-sm bg-white">
+              <tr class="divide-x divide-outline-variant/20 hover:bg-surface-container-low/40">
+                <td class="py-2 px-3 font-label-md text-center text-outline">01</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">2SAL3-Q01</td>
+                <td class="py-2 px-3 font-label-md">隔离开关 DS-50/3P 50A</td>
+                <td class="py-2 px-3"><span id="quoteBrand01" class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-label-sm text-[11px]">CHINT 正泰</span></td>
+                <td class="py-2 px-3 text-center font-label-md">1</td>
+                <td class="py-2 px-3 text-center">台</td>
+                <td class="py-2 px-3 text-right font-label-md" id="quotePrice01">¥126.00</td>
+                <td class="py-2 px-3 text-right font-label-md font-semibold text-on-surface" id="quoteTotal01">¥126.00</td>
+                <td class="py-2 px-3"><span class="inline-flex items-center gap-1 text-emerald-600 font-label-sm text-xs"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>现货定额已匹配</span></td>
+              </tr>
+              <tr class="divide-x divide-outline-variant/20 hover:bg-surface-container-low/40">
+                <td class="py-2 px-3 font-label-md text-center text-outline">02</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">2SAL3-WL1~2</td>
+                <td class="py-2 px-3 font-label-md">小型断路器 NB1-63/1P C16A 6kA</td>
+                <td class="py-2 px-3"><span id="quoteBrand02" class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-label-sm text-[11px]">CHINT 正泰</span></td>
+                <td class="py-2 px-3 text-center font-label-md">2</td>
+                <td class="py-2 px-3 text-center">极</td>
+                <td class="py-2 px-3 text-right font-label-md" id="quotePrice02">¥18.50</td>
+                <td class="py-2 px-3 text-right font-label-md font-semibold text-on-surface" id="quoteTotal02">¥37.00</td>
+                <td class="py-2 px-3"><span class="inline-flex items-center gap-1 text-emerald-600 font-label-sm text-xs"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>现货定额已匹配</span></td>
+              </tr>
+              <tr class="divide-x divide-outline-variant/20 hover:bg-surface-container-low/40">
+                <td class="py-2 px-3 font-label-md text-center text-outline">03</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">2SAL3-WX1~2</td>
+                <td class="py-2 px-3 font-label-md">漏电断路器 NB1LE-40/1PN C20A 30mA</td>
+                <td class="py-2 px-3"><span id="quoteBrand03" class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-label-sm text-[11px]">CHINT 正泰</span></td>
+                <td class="py-2 px-3 text-center font-label-md">2</td>
+                <td class="py-2 px-3 text-center">台</td>
+                <td class="py-2 px-3 text-right font-label-md" id="quotePrice03">¥64.20</td>
+                <td class="py-2 px-3 text-right font-label-md font-semibold text-on-surface" id="quoteTotal03">¥128.40</td>
+                <td class="py-2 px-3"><span class="inline-flex items-center gap-1 text-emerald-600 font-label-sm text-xs"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>现货定额已匹配</span></td>
+              </tr>
+              <tr class="divide-x divide-outline-variant/20 hover:bg-surface-container-low/40">
+                <td class="py-2 px-3 font-label-md text-center text-outline">04</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">2SAL3-WK1~2</td>
+                <td class="py-2 px-3 font-label-md">动力漏电开关 NB1LE-40/3PN D20A 30mA</td>
+                <td class="py-2 px-3"><span id="quoteBrand04" class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-label-sm text-[11px]">CHINT 正泰</span></td>
+                <td class="py-2 px-3 text-center font-label-md">2</td>
+                <td class="py-2 px-3 text-center">台</td>
+                <td class="py-2 px-3 text-right font-label-md" id="quotePrice04">¥142.00</td>
+                <td class="py-2 px-3 text-right font-label-md font-semibold text-on-surface" id="quoteTotal04">¥284.00</td>
+                <td class="py-2 px-3"><span class="inline-flex items-center gap-1 text-emerald-600 font-label-sm text-xs"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>现货定额已匹配</span></td>
+              </tr>
+              <tr class="divide-x divide-outline-variant/20 hover:bg-surface-container-low/40">
+                <td class="py-2 px-3 font-label-md text-center text-outline">05</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">2SAL3-BOX</td>
+                <td class="py-2 px-3 font-label-md">配电箱壳体 450×350×120 暗装</td>
+                <td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-label-sm text-[11px]">标准国标箱</span></td>
+                <td class="py-2 px-3 text-center font-label-md">1</td>
+                <td class="py-2 px-3 text-center">套</td>
+                <td class="py-2 px-3 text-right font-label-md">¥185.00</td>
+                <td class="py-2 px-3 text-right font-label-md font-semibold text-on-surface">¥185.00</td>
+                <td class="py-2 px-3"><span class="inline-flex items-center gap-1 text-emerald-600 font-label-sm text-xs"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>钣金算料已核定</span></td>
+              </tr>
+              <tr class="divide-x divide-outline-variant/20 hover:bg-surface-container-low/40 bg-amber-50/40">
+                <td class="py-2 px-3 font-label-md text-center text-outline">06</td>
+                <td class="py-2 px-3 font-semibold text-on-surface">2SAL3-ACC</td>
+                <td class="py-2 px-3 font-label-md">成套铜排 TMY-15x3 + 零地铜排 + 阻燃软线</td>
+                <td class="py-2 px-3"><span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-label-sm text-[11px]">铜价自动联动</span></td>
+                <td class="py-2 px-3 text-center font-label-md">1</td>
+                <td class="py-2 px-3 text-center">批</td>
+                <td class="py-2 px-3 text-right font-label-md">¥115.00</td>
+                <td class="py-2 px-3 text-right font-label-md font-semibold text-on-surface">¥115.00</td>
+                <td class="py-2 px-3">
+                  <span class="inline-flex items-center gap-1 text-amber-700 font-label-sm text-xs" title="根据大宗铜现货指数动态平衡">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>现货铜浮动调差
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 03: 灵活开放的订阅方案 (PRICING PLANS) -->
+    <section class="relative z-10 w-full max-w-7xl mx-auto px-gutter-desktop py-12" id="plans">
+      <div class="text-center max-w-2xl mx-auto mb-10">
+        <span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">Flexible Plans</span>
+        <h2 class="font-headline-xl text-2xl md:text-3xl font-bold text-on-surface mt-1">灵活开放的订阅方案</h2>
+        <p class="font-body-md text-on-surface-variant mt-2">支持自备大模型密钥（BYOK）零门槛永久免费体验，亦可预约官方算力与盘厂高级版</p>
+        <div class="mt-6 inline-flex items-center gap-3 p-1 rounded-full bg-surface-container-high border border-outline-variant/40">
+          <button class="px-4 py-1.5 rounded-full text-xs font-semibold bg-white text-on-surface shadow-xs transition-all cursor-pointer" id="billing-monthly" onclick="setBilling('monthly')" type="button">
+            按月计费
+          </button>
+          <button class="px-4 py-1.5 rounded-full text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1 cursor-pointer" id="billing-annual" onclick="setBilling('annual')" type="button">
+            <span>按年计费</span>
+            <span class="px-1.5 py-0.2 rounded-full bg-secondary text-white font-label-sm text-[10px]">9折优惠</span>
+          </button>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+        <!-- Tier 1: 免费体验版 (当前可用) -->
+        <div class="bg-surface-container-lowest rounded-2xl border-2 border-primary/20 shadow-lg p-6 md:p-8 flex flex-col justify-between relative hover:border-primary transition-all">
+          <div class="absolute -top-3 left-6">
+            <span class="px-3 py-0.5 rounded-full bg-primary text-white text-[11px] font-label-sm font-semibold tracking-wide uppercase">当前可用 · 零门槛体验</span>
+          </div>
+          <div>
+            <div class="flex items-center justify-between">
+              <h3 class="font-headline-sm text-xl font-bold text-on-surface">免费体验版</h3>
+              <span class="material-symbols-outlined text-primary text-[22px]">smart_toy</span>
+            </div>
+            <p class="text-on-surface-variant font-body-sm mt-2">适用于个人造价师、电气工程师快速验证图纸与回路拓扑</p>
+            <div class="mt-6 flex items-baseline gap-1">
+              <span class="font-label-lg text-4xl font-bold text-on-surface">¥0</span>
+              <span class="text-on-surface-variant font-body-sm">/ 永久免费</span>
+            </div>
+            <ul class="mt-6 space-y-3 font-body-sm text-[13px] text-on-surface border-t border-outline-variant/30 pt-6">
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-emerald-600 text-[18px] shrink-0">check_circle</span>
+                <span>支持使用系统全部识别算法与拓扑知识库</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-emerald-600 text-[18px] shrink-0">check_circle</span>
+                <span>单张图纸极速解析与回路断路器抽取</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-emerald-600 text-[18px] shrink-0">check_circle</span>
+                <span>CAD 拓扑识别与 Excel 数据核对清单</span>
+              </li>
+              <li class="flex items-start gap-2.5 text-on-surface-variant">
+                <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">key</span>
+                <span class="bg-surface-container-high/60 px-2 py-1 rounded text-xs leading-relaxed text-on-surface font-medium">需自备大模型密钥 (BYOK，支持通义千问/智谱/DeepSeek等视觉大模型)</span>
+              </li>
+            </ul>
+          </div>
+          <div class="mt-8">
+            <button id="btnPlanFree" class="w-full h-11 rounded-xl bg-inverse-surface hover:bg-on-surface text-inverse-on-surface font-body-md text-sm font-semibold flex items-center justify-center transition-colors shadow-md cursor-pointer" type="button">
+              立即使用
+            </button>
+          </div>
+        </div>
+        <!-- Tier 2: 专业版 (即将开通) -->
+        <div class="bg-surface-container-lowest/90 rounded-2xl border border-outline-variant/50 p-6 md:p-8 flex flex-col justify-between relative shadow-sm">
+          <div class="absolute -top-3 right-6">
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[11px] font-label-sm font-medium">即将开通</span>
+          </div>
+          <div>
+            <div class="flex items-center justify-between">
+              <h3 class="font-headline-sm text-xl font-bold text-on-surface">专业版</h3>
+              <span class="material-symbols-outlined text-secondary text-[22px]">bolt</span>
+            </div>
+            <p class="text-on-surface-variant font-body-sm mt-2">专为专业预算团队打造，免除密钥配置，直连官方厂商定额库</p>
+            <div class="mt-6 flex items-baseline gap-1">
+              <span class="font-label-lg text-4xl font-bold text-on-surface" id="price-pro">¥99</span>
+              <span class="text-on-surface-variant font-body-sm" id="cycle-pro">/ 月</span>
+            </div>
+            <p class="text-xs text-on-surface-variant font-label-sm mt-1" id="sub-pro">免自填 Key · 包含官方全托管算力</p>
+            <ul class="mt-6 space-y-3 font-body-sm text-[13px] text-on-surface border-t border-outline-variant/30 pt-6">
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">check</span>
+                <span>系统内置官方托管大模型算力 (无需配置 Key)</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">check</span>
+                <span>实时元器件市场价格库 (正泰/德力西/施耐德现货行情)</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">check</span>
+                <span>大宗铜价每日联动自动调差机制</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">check</span>
+                <span>支持批量多张图纸并发并行处理</span>
+              </li>
+            </ul>
+          </div>
+          <div class="mt-8">
+            <button class="w-full h-11 rounded-xl bg-surface-container-high text-on-surface-variant/70 font-body-md text-sm font-medium flex items-center justify-center cursor-not-allowed" disabled type="button">
+              即将开通 · 敬请期待
+            </button>
+          </div>
+        </div>
+        <!-- Tier 3: 企业高级版 (即将开通) -->
+        <div class="bg-surface-container-lowest/90 rounded-2xl border border-outline-variant/50 p-6 md:p-8 flex flex-col justify-between relative shadow-sm">
+          <div class="absolute -top-3 right-6">
+            <span class="px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[11px] font-label-sm font-medium">即将开通</span>
+          </div>
+          <div>
+            <div class="flex items-center justify-between">
+              <h3 class="font-headline-sm text-xl font-bold text-on-surface">企业高级版</h3>
+              <span class="material-symbols-outlined text-tertiary-container text-[22px]">domain</span>
+            </div>
+            <p class="text-on-surface-variant font-body-sm mt-2">成套配电盘厂、大型总承包商及安装工程公司深度定制化方案</p>
+            <div class="mt-6 flex items-baseline gap-1">
+              <span class="font-label-lg text-4xl font-bold text-on-surface" id="price-ent">¥199</span>
+              <span class="text-on-surface-variant font-body-sm" id="cycle-ent">/ 月</span>
+            </div>
+            <p class="text-xs text-on-surface-variant font-label-sm mt-1" id="sub-ent">盘厂级私有模板定制 · 团队协作</p>
+            <ul class="mt-6 space-y-3 font-body-sm text-[13px] text-on-surface border-t border-outline-variant/30 pt-6">
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">check</span>
+                <span>包含专业版全部能力与官方高速通道</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">check</span>
+                <span>专属成套盘厂 1:1 报价模板定制</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">check</span>
+                <span>成套制造工时核定与壳体钣金智能算料</span>
+              </li>
+              <li class="flex items-start gap-2.5">
+                <span class="material-symbols-outlined text-secondary text-[18px] shrink-0">check</span>
+                <span>团队多成员协作、修改留痕与广联达接口对接</span>
+              </li>
+            </ul>
+          </div>
+          <div class="mt-8">
+            <button class="w-full h-11 rounded-xl bg-surface-container-high text-on-surface-variant/70 font-body-md text-sm font-medium flex items-center justify-center cursor-not-allowed" disabled type="button">
+              即将开通 · 敬请期待
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 04: 联系咨询 / 意向登记表单 -->
+    <section class="relative z-10 w-full max-w-4xl mx-auto px-gutter-desktop py-12 pb-20" id="lead-form">
+      <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/40 shadow-xl p-8 md:p-12 relative overflow-hidden">
+        <div class="max-w-xl mx-auto text-center mb-8">
+          <span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">Priority Access</span>
+          <h2 class="font-headline-xl text-2xl md:text-3xl font-bold text-on-surface mt-1">获取专业方案与预约开通</h2>
+          <p class="font-body-md text-on-surface-variant mt-2 text-body-sm">
+            提交您的联系信息，专属工程顾问将在 15 分钟内与您联系，提供技术支持或开通内测体验。
+          </p>
+        </div>
+        <form class="max-w-md mx-auto space-y-4" id="introLeadForm" onsubmit="handleLeadSubmit(event)">
+          <div>
+            <label class="block font-label-sm text-xs font-medium text-on-surface mb-1" for="user-phone">
+              手机号 <span class="text-error font-bold">*</span>
+            </label>
+            <input class="w-full h-11 px-4 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 text-on-surface placeholder:text-outline text-body-sm focus:border-primary focus:bg-white focus:outline-none transition-colors" id="user-phone" pattern="[0-9]{11}" placeholder="请输入 11 位手机号码" required type="tel">
+            <p class="text-[11px] text-on-surface-variant mt-1 font-label-sm">用于接收工程顾问回访与内测账号开通信息</p>
+          </div>
+          <div>
+            <label class="block font-label-sm text-xs font-medium text-on-surface mb-1" for="user-name">
+              姓名 <span class="text-error font-bold">*</span>
+            </label>
+            <input class="w-full h-11 px-4 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 text-on-surface placeholder:text-outline text-body-sm focus:border-primary focus:bg-white focus:outline-none transition-colors" id="user-name" placeholder="例如：王工" required type="text">
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block font-label-sm text-xs font-medium text-on-surface" for="user-company">
+                公司名称
+              </label>
+              <span class="text-[11px] text-outline font-label-sm">选填</span>
+            </div>
+            <input class="w-full h-11 px-4 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 text-on-surface placeholder:text-outline text-body-sm focus:border-primary focus:bg-white focus:outline-none transition-colors" id="user-company" placeholder="例如：华东电气成套设备有限公司" type="text">
+          </div>
+          <div class="pt-2">
+            <button class="w-full h-11 rounded-xl bg-inverse-surface hover:bg-on-surface text-inverse-on-surface font-body-md text-sm font-semibold flex items-center justify-center transition-all shadow-md hover:shadow-lg gap-1.5 cursor-pointer" id="btnSubmitLead" type="submit">
+              <span>提交预约与咨询</span>
+              <span class="material-symbols-outlined text-[16px]">send</span>
+            </button>
+          </div>
+          <div class="hidden text-center p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium" id="form-feedback">
+            预约已登记！专属工程顾问将在 15 分钟内致电联系您。
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- 底部页脚 -->
+    <footer class="w-full border-t border-outline-variant/30 bg-surface-container-lowest py-8 mt-auto">
+      <div class="max-w-7xl mx-auto px-gutter-desktop flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-2 text-on-surface-variant font-label-md text-xs">
+          <span class="material-symbols-outlined text-[16px]">memory</span>
+          <span>工业级配电箱系统图纸智能解析引擎 · Precision Blueprint Studio</span>
+        </div>
+        <div class="text-on-surface-variant font-label-md text-xs">
+          © 2026 电柜智核 · 配电箱图纸识别与组价. All rights reserved.
+        </div>
+      </div>
+    </footer>
+
+    <!-- 统一认证闸门弹窗 (未登录不可绕过进入工作台) -->
+    <div id="authModal" class="fixed inset-0 z-[300] bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto hidden">
+      <div class="relative w-full max-w-5xl my-auto">
+        <button id="btnCloseAuthModal" type="button" class="absolute -top-12 right-0 md:-right-10 text-white/80 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors flex items-center gap-1 cursor-pointer" title="关闭并返回全景介绍">
+          <span class="material-symbols-outlined text-[24px]">close</span>
+          <span class="text-xs font-medium hidden md:inline">返回系统介绍</span>
+        </button>
+
+        <div class="relative w-full rounded-2xl overflow-hidden shadow-2xl bg-surface-container-lowest grid grid-cols-1 lg:grid-cols-12 min-h-[580px] border border-surface-container">
+
+          <!-- 左：技术面板（图纸解析能力说明） -->
           <section class="hidden lg:flex lg:col-span-6 flex-col justify-between bg-[#f4f7fb] border-r border-slate-200/90 p-6 relative overflow-hidden select-none">
-
             <div class="absolute top-3 left-4 right-4 flex items-center justify-between font-label-sm text-label-sm text-slate-400">
               <span class="flex items-center gap-2 tracking-widest">
                 <span>DWG · DXF · PDF · XLSX</span><span class="text-slate-300">|</span>
@@ -260,8 +845,8 @@ body.auth-locked #authScreen { display: block; }
               </div>
             </div>
 
-            <!-- 系统图解析示意（装饰图，非实时画面） -->
-            <div class="relative z-10 my-3 h-[250px] flex items-center justify-center">
+            <!-- 系统图解析示意（矢量扫描线装饰） -->
+            <div class="relative z-10 my-3 h-[230px] flex items-center justify-center">
               <div class="w-full h-full rounded-lg bg-slate-900 border border-slate-800 shadow-xl overflow-hidden flex flex-col">
                 <div class="h-6 px-3 bg-slate-950/90 border-b border-slate-800/80 flex items-center justify-between font-label-sm text-label-sm text-slate-400">
                   <span class="flex items-center gap-2">
@@ -338,11 +923,10 @@ body.auth-locked #authScreen { display: block; }
             </div>
           </section>
 
-          <!-- 右：登录 / 注册 -->
+          <!-- 右：登录 / 注册表单面板 -->
           <section class="lg:col-span-6 p-6 lg:p-8 flex flex-col bg-surface-container-lowest">
-
-            <!-- 配电箱小机器人（装饰） -->
-            <div class="relative w-full h-[104px] flex flex-col items-center justify-center mb-1 select-none">
+            <!-- 顶部装饰机器人 -->
+            <div class="relative w-full h-[96px] flex flex-col items-center justify-center mb-1 select-none">
               <div class="absolute bottom-3 w-56 h-[3px] rounded-full bg-gradient-to-r from-transparent via-primary-container/30 to-transparent"></div>
               <div class="auth-bubble px-3 py-1 rounded-full bg-surface-container border border-surface-container-high font-body-sm text-body-sm text-on-surface shadow-sm flex items-center gap-1.5">
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -388,11 +972,11 @@ body.auth-locked #authScreen { display: block; }
             <!-- 模式切换：滑动指示器 -->
             <div class="relative flex items-center mb-4 bg-surface-container-low p-1 rounded-lg">
               <div class="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-surface-container-lowest rounded shadow-sm transition-all duration-300 ease-out z-0" id="authTabIndicator" style="left:4px;"></div>
-              <button class="auth-tab relative z-10 flex-1 py-1.5 rounded text-center font-headline-sm text-headline-sm text-primary transition-colors" data-mode="login" id="authTabLogin" type="button">账号密码登录</button>
-              <button class="auth-tab relative z-10 flex-1 py-1.5 rounded text-center font-headline-sm text-headline-sm text-on-surface-variant hover:text-on-surface transition-colors" data-mode="register" id="authTabRegister" type="button">注册企业账号</button>
+              <button class="auth-tab relative z-10 flex-1 py-1.5 rounded text-center font-headline-sm text-headline-sm text-primary transition-colors cursor-pointer" data-mode="login" id="authTabLogin" type="button">账号密码登录</button>
+              <button class="auth-tab relative z-10 flex-1 py-1.5 rounded text-center font-headline-sm text-headline-sm text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" data-mode="register" id="authTabRegister" type="button">注册企业账号</button>
             </div>
 
-            <!-- 登录 -->
+            <!-- 登录表单 -->
             <form class="flex flex-col gap-3" id="loginForm" novalidate>
               <label class="block">
                 <span class="flex items-center justify-between mb-1">
@@ -431,91 +1015,82 @@ body.auth-locked #authScreen { display: block; }
 
               <p class="font-body-sm text-body-sm text-[#B91C1C] bg-[#FEF2F2] border border-[#FECACA] rounded px-3 py-2" id="loginError" hidden style="display:none;"></p>
 
-              <button class="mt-1 w-full h-11 rounded bg-gradient-to-r from-primary-container to-primary text-on-primary font-headline-sm text-headline-sm tracking-wide hover:brightness-110 active:brightness-95 transition-all flex items-center justify-center gap-2 shadow-sm" id="loginSubmit" type="submit">
+              <button class="mt-1 w-full h-11 rounded bg-gradient-to-r from-primary-container to-primary text-on-primary font-headline-sm text-headline-sm tracking-wide hover:brightness-110 active:brightness-95 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer" id="loginSubmit" type="submit">
                 <span class="material-symbols-outlined text-[18px]">login</span>
                 <span>进入组价工作台</span>
               </button>
 
               <p class="text-center font-body-sm text-body-sm text-on-surface-variant">
-                还没有账号？<button class="text-primary underline underline-offset-2" id="goRegister" type="button">注册企业账号</button>
+                还没有账号？<button class="text-primary underline underline-offset-2 cursor-pointer" id="goRegister" type="button">注册企业账号</button>
               </p>
             </form>
 
-            <!-- 注册 -->
+            <!-- 注册表单 -->
             <form class="flex flex-col gap-3" id="registerForm" hidden novalidate>
               <label class="block">
                 <span class="flex items-center justify-between mb-1">
                   <span class="font-label-md text-label-md text-on-surface-variant">企业 / 工区名称</span>
                   <span class="font-label-sm text-label-sm text-outline">注册后独立数据空间</span>
                 </span>
-                <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:border-secondary" id="regTenant" type="text" placeholder="如：某某电气成套有限公司">
+                <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:border-secondary" id="regTenant" type="text" placeholder="例如：华东成套电气三厂">
               </label>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="grid grid-cols-2 gap-2">
                 <label class="block">
-                  <span class="flex items-center justify-between mb-1">
-                    <span class="font-label-md text-label-md text-on-surface-variant">姓名</span>
-                  </span>
-                  <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:border-secondary" id="regDisplayName" type="text" placeholder="如：张工">
+                  <span class="block font-label-md text-label-md text-on-surface-variant mb-1">管理员账号</span>
+                  <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:border-secondary" id="regUsername" type="text" autocomplete="username" placeholder="英文或数字">
                 </label>
                 <label class="block">
-                  <span class="flex items-center justify-between mb-1">
-                    <span class="font-label-md text-label-md text-on-surface-variant">手机号 / 微信</span>
-                    <span class="font-label-sm text-label-sm text-outline">选填</span>
-                  </span>
-                  <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:border-secondary" id="regContact" type="text" placeholder="便于我们联系你">
+                  <span class="block font-label-md text-label-md text-on-surface-variant mb-1">您的姓名</span>
+                  <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:border-secondary" id="regDisplayName" type="text" placeholder="例如：李工">
                 </label>
               </div>
 
               <label class="block">
                 <span class="flex items-center justify-between mb-1">
-                  <span class="font-label-md text-label-md text-on-surface-variant">登录账号</span>
-                  <span class="font-label-sm text-label-sm text-outline">注册后不可重复</span>
+                  <span class="font-label-md text-label-md text-on-surface-variant">联系电话</span>
+                  <span class="font-label-sm text-label-sm text-outline">选填 · 用于密码找回</span>
                 </span>
-                <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:border-secondary" id="regUsername" type="text" autocomplete="username" placeholder="字母或数字组合">
+                <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:border-secondary" id="regContact" type="text" placeholder="手机号或座机">
               </label>
 
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="grid grid-cols-2 gap-2">
                 <label class="block">
-                  <span class="flex items-center justify-between mb-1">
-                    <span class="font-label-md text-label-md text-on-surface-variant">密码</span>
-                    <span class="font-label-sm text-label-sm text-outline">至少 6 位</span>
+                  <span class="block font-label-md text-label-md text-on-surface-variant mb-1">设置密码</span>
+                  <span class="relative block">
+                    <input class="w-full h-11 pl-3 pr-8 rounded border border-outline-variant bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:border-secondary" id="regPassword" type="password" autocomplete="new-password" placeholder="至少 6 位">
+                    <button class="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center text-outline hover:text-on-surface" data-eye="regPassword" type="button">
+                      <span class="material-symbols-outlined text-[16px]">visibility</span>
+                    </button>
                   </span>
-                  <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:border-secondary" id="regPassword" type="password" autocomplete="new-password" placeholder="设置登录密码">
                 </label>
                 <label class="block">
-                  <span class="flex items-center justify-between mb-1">
-                    <span class="font-label-md text-label-md text-on-surface-variant">确认密码</span>
-                  </span>
+                  <span class="block font-label-md text-label-md text-on-surface-variant mb-1">确认密码</span>
                   <input class="w-full h-11 px-3 rounded border border-outline-variant bg-surface-container-low font-body-md text-body-md text-on-surface focus:outline-none focus:border-secondary" id="regPassword2" type="password" autocomplete="new-password" placeholder="再输入一次">
                 </label>
               </div>
 
               <p class="font-body-sm text-body-sm text-[#B91C1C] bg-[#FEF2F2] border border-[#FECACA] rounded px-3 py-2" id="registerError" hidden style="display:none;"></p>
 
-              <button class="mt-1 w-full h-11 rounded bg-gradient-to-r from-primary-container to-primary text-on-primary font-headline-sm text-headline-sm tracking-wide hover:brightness-110 active:brightness-95 transition-all flex items-center justify-center gap-2 shadow-sm" id="registerSubmit" type="submit">
+              <button class="mt-1 w-full h-11 rounded bg-gradient-to-r from-primary-container to-primary text-on-primary font-headline-sm text-headline-sm tracking-wide hover:brightness-110 active:brightness-95 transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer" id="registerSubmit" type="submit">
                 <span class="material-symbols-outlined text-[18px]">domain_add</span>
                 <span>注册并进入企业空间</span>
               </button>
 
               <p class="text-center font-body-sm text-body-sm text-on-surface-variant">
-                已有账号？<button class="text-primary underline underline-offset-2" id="goLogin" type="button">返回登录</button>
+                已有账号？<button class="text-primary underline underline-offset-2 cursor-pointer" id="goLogin" type="button">返回登录</button>
               </p>
             </form>
 
-            <div class="mt-auto pt-4 flex items-center justify-between font-label-sm text-label-sm text-outline border-t border-surface-container">
+            <div class="mt-auto pt-3 flex items-center justify-between font-label-sm text-label-sm text-outline border-t border-surface-container">
               <span>图纸与项目数据只存在本机数据库</span>
-              <span class="font-mono">v1.0</span>
+              <span class="font-mono">v1.0 · 449 Tests</span>
             </div>
           </section>
         </div>
       </div>
-    </main>
+    </div>
 
-    <footer class="h-10 shrink-0 flex items-center justify-between px-4 md:px-margin-desktop border-t border-surface-container font-label-sm text-label-sm text-on-surface-variant">
-      <span>电柜智核 · 成套电气智能工作台</span>
-      <span>未登录不可使用 · 登录后仅见本企业项目</span>
-    </footer>
   </div>
 </div>
 
@@ -532,6 +1107,12 @@ body.auth-locked #authScreen { display: block; }
   </div>
 
   <div class="flex items-center gap-space-md">
+    <!-- 系统全景介绍快速入口 -->
+    <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container border border-surface-container transition-colors cursor-pointer text-left font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface" id="btnOpenIntro" type="button" title="点击查看产品全景介绍">
+      <span class="material-symbols-outlined text-[16px] text-primary">explore</span>
+      <span class="hidden lg:inline">系统全景介绍</span>
+    </button>
+
     <!-- AI 识图模型与端点快捷指示胶囊 (BYOK) -->
     <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container border border-surface-container transition-colors cursor-pointer text-left" id="btnOpenModelSettings" type="button" title="点击配置识图模型与 API 密钥">
       <span class="w-2 h-2 rounded-full bg-slate-400" id="headerModelStatusDot"></span>
@@ -551,6 +1132,10 @@ body.auth-locked #authScreen { display: block; }
       </button>
       <div class="absolute right-0 top-full pt-space-xs hidden z-50" id="user-menu-dropdown">
         <div class="w-48 bg-surface-container-lowest rounded-lg shadow-[0_4px_16px_rgba(15,23,42,0.12)] border border-surface-container py-space-xs">
+          <button class="w-full flex items-center gap-space-sm px-space-md py-space-sm font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors text-left" id="btnDropdownIntro" type="button">
+            <span class="material-symbols-outlined text-[18px]">explore</span>
+            <span>系统全景介绍</span>
+          </button>
           <button class="w-full flex items-center gap-space-sm px-space-md py-space-sm font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors text-left" id="btnOpenSettings" type="button">
             <span class="material-symbols-outlined text-[18px]">settings</span>
             <span>系统设置</span>

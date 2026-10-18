@@ -272,6 +272,20 @@ def _init_tables(conn: sqlite3.Connection) -> None:
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_export_tenant ON export_history(tenant_id);")
 
+        # 7. 联系咨询与预约登记表
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS leads (
+            id TEXT PRIMARY KEY,
+            phone TEXT NOT NULL,
+            name TEXT NOT NULL,
+            company TEXT DEFAULT '',
+            source TEXT DEFAULT 'landing_priority_access',
+            status TEXT DEFAULT 'pending',
+            created_at TEXT NOT NULL
+        );
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(phone);")
+
         # 初始化默认租户与系统管理员 (开箱即用)
         conn.execute("""
         INSERT OR IGNORE INTO tenants (id, name, status, created_at)
@@ -1006,5 +1020,34 @@ def db_clean_all_test_data(work_dir: str | None = None) -> dict:
     }
 
 
+def db_create_lead(phone: str, name: str, company: str = "", source: str = "landing_priority_access") -> dict:
+    """保存产品介绍页的优先体验/咨询意向登记。"""
+    lead_id = f"lead_{secrets.token_hex(8)}"
+    now_str = _now()
+    conn = _get_conn()
+    with conn:
+        conn.execute(
+            "INSERT INTO leads (id, phone, name, company, source, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)",
+            (lead_id, phone.strip(), name.strip(), company.strip(), source.strip(), now_str),
+        )
+    return {
+        "id": lead_id,
+        "phone": phone.strip(),
+        "name": name.strip(),
+        "company": company.strip(),
+        "source": source.strip(),
+        "status": "pending",
+        "created_at": now_str,
+    }
+
+
+def db_list_leads() -> list[dict]:
+    """获取所有意向咨询列表。"""
+    conn = _get_conn()
+    rows = conn.execute("SELECT id, phone, name, company, source, status, created_at FROM leads ORDER BY created_at DESC;").fetchall()
+    return [dict(r) for r in rows]
+
+
 # 初始化
 init_db()
+

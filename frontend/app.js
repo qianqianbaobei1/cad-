@@ -96,6 +96,40 @@ const Auth = {
       btn.addEventListener('click', () => togglePassword(btn.dataset.eye, btn));
     });
     $('registerForm')?.addEventListener('submit', (e) => this.register(e));
+
+    // 全景介绍页交互与身份闸门
+    $('btnCloseAuthModal')?.addEventListener('click', () => {
+      $('authModal')?.classList.add('hidden');
+    });
+    const requireAuthOrGo = (mode = 'login') => {
+      if (this.user) {
+        this.hide();
+        route();
+      } else {
+        this.show(mode);
+      }
+    };
+    $('btnIntroLogin')?.addEventListener('click', () => this.show('login'));
+    $('btnIntroExperience')?.addEventListener('click', () => requireAuthOrGo('login'));
+    $('btnHeroStart')?.addEventListener('click', () => requireAuthOrGo('login'));
+    $('btnPlanFree')?.addEventListener('click', () => requireAuthOrGo('register'));
+    $('btnTakeoffToQuote')?.addEventListener('click', () => {
+      const el = $('pricing-preview');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    });
+    $('btnIntroEnterWorkspace')?.addEventListener('click', () => {
+      this.hide();
+      route();
+    });
+    const showIntro = () => {
+      $('authModal')?.classList.add('hidden');
+      document.body.classList.add('auth-locked');
+      const authScreen = $('authScreen');
+      if (authScreen) authScreen.scrollTop = 0;
+      this.updateIntroControls();
+    };
+    $('btnOpenIntro')?.addEventListener('click', showIntro);
+    $('btnDropdownIntro')?.addEventListener('click', showIntro);
   },
 
   setMode(mode) {
@@ -167,13 +201,31 @@ const Auth = {
   show(mode = 'login', message = '') {
     this.user = null;
     document.body.classList.add('auth-locked');
+    $('authModal')?.classList.remove('hidden');
     this.setMode(mode);
     if (message) this.setError(mode === 'register' ? 'registerError' : 'loginError', message);
     setTimeout(() => (mode === 'register' ? $('regTenant') : $('loginUsername'))?.focus(), 60);
+    this.updateIntroControls();
   },
 
   hide() {
+    $('authModal')?.classList.add('hidden');
     document.body.classList.remove('auth-locked');
+    this.updateIntroControls();
+  },
+
+  updateIntroControls() {
+    const authCtrls = $('introAuthControls');
+    const userCtrls = $('introUserControls');
+    const nameLabel = $('introUserName');
+    if (this.user) {
+      if (authCtrls) authCtrls.classList.add('hidden');
+      if (userCtrls) userCtrls.classList.remove('hidden');
+      if (nameLabel) nameLabel.textContent = `${this.user.display_name || this.user.username}（${this.user.tenant_name || ''}）`;
+    } else {
+      if (authCtrls) authCtrls.classList.remove('hidden');
+      if (userCtrls) userCtrls.classList.add('hidden');
+    }
   },
 
   onUnauthorized() {
@@ -266,6 +318,109 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { t.hidden = true; }, ms);
 }
+
+/* ---------------- 全景介绍页交互 ---------------- */
+
+window.setBilling = function(cycle) {
+  const btnMonthly = $('billing-monthly');
+  const btnAnnual = $('billing-annual');
+  const pricePro = $('price-pro');
+  const cyclePro = $('cycle-pro');
+  const subPro = $('sub-pro');
+  const priceEnt = $('price-ent');
+  const cycleEnt = $('cycle-ent');
+  const subEnt = $('sub-ent');
+
+  if (cycle === 'annual') {
+    if (btnAnnual) btnAnnual.className = 'px-4 py-1.5 rounded-full text-xs font-semibold bg-white text-on-surface shadow-xs transition-all flex items-center gap-1 cursor-pointer';
+    if (btnMonthly) btnMonthly.className = 'px-4 py-1.5 rounded-full text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all cursor-pointer';
+    if (pricePro) pricePro.innerText = '¥1,069';
+    if (cyclePro) cyclePro.innerText = '/ 年';
+    if (subPro) subPro.innerText = '折合 ¥89/月 (9折已享)';
+    if (priceEnt) priceEnt.innerText = '¥2,149';
+    if (cycleEnt) cycleEnt.innerText = '/ 年';
+    if (subEnt) subEnt.innerText = '折合 ¥179/月 (9折已享)';
+  } else {
+    if (btnMonthly) btnMonthly.className = 'px-4 py-1.5 rounded-full text-xs font-semibold bg-white text-on-surface shadow-xs transition-all cursor-pointer';
+    if (btnAnnual) btnAnnual.className = 'px-4 py-1.5 rounded-full text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all flex items-center gap-1 cursor-pointer';
+    if (pricePro) pricePro.innerText = '¥99';
+    if (cyclePro) cyclePro.innerText = '/ 月';
+    if (subPro) subPro.innerText = '免自填 Key · 包含官方全托管算力';
+    if (priceEnt) priceEnt.innerText = '¥199';
+    if (cycleEnt) cycleEnt.innerText = '/ 月';
+    if (subEnt) subEnt.innerText = '盘厂级私有模板定制 · 团队协作';
+  }
+};
+
+window.setQuotationBrand = function(brand) {
+  const btnChint = $('brandBtnChint');
+  const btnDelixi = $('brandBtnDelixi');
+  const btnSchneider = $('brandBtnSchneider');
+  const btns = { chint: btnChint, delixi: btnDelixi, schneider: btnSchneider };
+  Object.keys(btns).forEach(k => {
+    if (btns[k]) {
+      if (k === brand) {
+        btns[k].className = 'px-2.5 py-1 rounded bg-white text-primary font-semibold shadow-xs cursor-pointer';
+      } else {
+        btns[k].className = 'px-2.5 py-1 rounded text-on-surface-variant hover:text-on-surface cursor-pointer';
+      }
+    }
+  });
+
+  const bNames = {
+    chint: { tag: 'CHINT 正泰', cls: 'bg-blue-50 text-blue-700', m01: '¥126.00', m02: '¥18.50', t02: '¥37.00', m03: '¥64.20', t03: '¥128.40', m04: '¥142.00', t04: '¥284.00' },
+    delixi: { tag: 'DELIXI 德力西', cls: 'bg-amber-50 text-amber-800', m01: '¥118.00', m02: '¥16.80', t02: '¥33.60', m03: '¥59.00', t03: '¥118.00', m04: '¥135.00', t04: '¥270.00' },
+    schneider: { tag: '施耐德 Acti9', cls: 'bg-emerald-50 text-emerald-800', m01: '¥210.00', m02: '¥36.00', t02: '¥72.00', m03: '¥115.00', t03: '¥230.00', m04: '¥248.00', t04: '¥496.00' },
+  };
+  const conf = bNames[brand] || bNames.chint;
+  for (let i = 1; i <= 4; i++) {
+    const pad = String(i).padStart(2, '0');
+    const bEl = $(`quoteBrand${pad}`);
+    if (bEl) {
+      bEl.textContent = conf.tag;
+      bEl.className = `px-2 py-0.5 rounded font-label-sm text-[11px] ${conf.cls}`;
+    }
+  }
+  if ($('quotePrice01')) $('quotePrice01').textContent = conf.m01;
+  if ($('quoteTotal01')) $('quoteTotal01').textContent = conf.m01;
+  if ($('quotePrice02')) $('quotePrice02').textContent = conf.m02;
+  if ($('quoteTotal02')) $('quoteTotal02').textContent = conf.t02;
+  if ($('quotePrice03')) $('quotePrice03').textContent = conf.m03;
+  if ($('quoteTotal03')) $('quoteTotal03').textContent = conf.t03;
+  if ($('quotePrice04')) $('quotePrice04').textContent = conf.m04;
+  if ($('quoteTotal04')) $('quoteTotal04').textContent = conf.t04;
+};
+
+window.handleLeadSubmit = async function(e) {
+  e.preventDefault();
+  const phone = ($('user-phone')?.value || '').trim();
+  const name = ($('user-name')?.value || '').trim();
+  const company = ($('user-company')?.value || '').trim();
+  const feedback = $('form-feedback');
+  const btn = $('btnSubmitLead');
+  if (!phone || !name) return;
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/leads', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, name, company, source: 'landing_priority_access' })
+    });
+    const data = await res.json();
+    if (feedback) {
+      feedback.textContent = data.message || '预约已登记！专属工程顾问将在 15 分钟内致电联系您。';
+      feedback.classList.remove('hidden');
+    }
+    e.target.reset();
+  } catch (err) {
+    if (feedback) {
+      feedback.textContent = '预约已提交登记，工程顾问稍后与您联络！';
+      feedback.classList.remove('hidden');
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+};
 
 const STATUS = {
   queued: '排队中',
@@ -3751,7 +3906,13 @@ function openJob(id) {
   Auth.init();
   const hadToken = !!TOKEN;
   const ok = await Auth.restore();
-  if (!ok) { Auth.show('login', hadToken ? '登录状态已失效，请重新登录' : ''); return; }
+  if (!ok) {
+    Auth.show('login', hadToken ? '登录状态已失效，请重新登录' : '');
+    if (!hadToken) {
+      $('authModal')?.classList.add('hidden');
+    }
+    return;
+  }
   Auth.hide();
   await loadModelSettingsSummary();
   route();

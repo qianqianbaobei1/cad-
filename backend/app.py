@@ -42,7 +42,8 @@ from db import (
     set_current_tenant, get_current_tenant, get_current_user,
     db_list_registrations,
     db_authenticate_user, db_register_user, db_get_user_by_token, db_logout_user,
-    db_clean_all_test_data, db_get_job_tenant_by_id
+    db_clean_all_test_data, db_get_job_tenant_by_id,
+    db_create_lead, db_list_leads
 )
 import store
 
@@ -3411,6 +3412,50 @@ def auth_logout(request: Request):
     if token:
         db_logout_user(token)
     return {"ok": True}
+
+
+class LeadRequest(BaseModel):
+    phone: str
+    name: str
+    company: str = ""
+    source: str = "landing_priority_access"
+
+
+@app.post("/api/leads")
+def create_lead_entry(req: LeadRequest):
+    """产品前置介绍页：提交预约开通与工程方案咨询。"""
+    phone = (req.phone or "").strip()
+    name = (req.name or "").strip()
+    if not phone or len(phone) < 7:
+        raise HTTPException(400, "请提供有效的联系电话")
+    if not name:
+        raise HTTPException(400, "请提供姓名")
+    lead = db_create_lead(phone=phone, name=name, company=req.company, source=req.source)
+    return {
+        "ok": True,
+        "lead": lead,
+        "message": "预约已登记！专属工程顾问将在 15 分钟内致电联系您。"
+    }
+
+
+@app.get("/api/leads")
+def list_lead_entries(request: Request):
+    """获取所有预约咨询客户列表（需要登录权限）。"""
+    if getattr(request.state, "invalid_token", False):
+        raise HTTPException(401, "无效或过期的登录凭证")
+    token = ""
+    auth_header = request.headers.get("authorization") or ""
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    elif request.headers.get("x-token"):
+        token = request.headers.get("x-token").strip()
+    elif request.query_params.get("token"):
+        token = request.query_params.get("token").strip()
+    user = db_get_user_by_token(token) if token else None
+    if not user:
+        raise HTTPException(401, "请登录后查看预约咨询信息")
+    return {"ok": True, "leads": db_list_leads()}
+
 
 
 @app.post("/api/system/clean_test_data")
