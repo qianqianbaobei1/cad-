@@ -34,7 +34,7 @@ import subprocess
 import tempfile
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
-from typing import Any
+from typing import Any, Iterable
 
 from .cad import clean_mtext, load_dxf_document, resolve_dwg_dxf, sanitize_surrogates
 from .tangent import safe_decode_tangent_if_cipher

@@ -29,7 +29,6 @@
     "mm_per_inch": 25.4,
     "min_line_width_px": 1.5,
     "coverage_tolerance": 0.001,
-    "unit_page_target_mm": 297.0,
     "tile_target_long_mm_dense": 220.0
   },
   "cad": {

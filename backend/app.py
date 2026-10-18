@@ -427,7 +427,7 @@ def _sync_result_issues(result: ExtractionResult, existing_uncertainties: list =
             result.uncertainties.append(parsed)
 
 
-from extractor.project_info import infer_from_texts, inferred_project_name, merge_info
+from extractor.project_info import clean_project_name, infer_from_texts, inferred_project_name, merge_info
 
 
 def _resolve_project_info(job: dict, raw: RawExtraction, cad_texts: list | None,
@@ -453,12 +453,13 @@ def _resolve_project_info(job: dict, raw: RawExtraction, cad_texts: list | None,
 
     merged = merge_info(vision_info, native_info)
 
-    explicit = (job.get("project") or "").strip()
+    explicit = clean_project_name((job.get("project") or "").strip())
     if explicit:
         return {"project": explicit, "name_source": "manual", "info": merged,
                 "note": "上传时指定"}
 
     name, name_source = inferred_project_name(merged, filename)
+    name = clean_project_name(name)
     if not name:
         return {"project": "", "name_source": "none", "info": merged,
                 "note": "图签与文件名都没给出可用项目名，已停在未分组，请人工归类"}

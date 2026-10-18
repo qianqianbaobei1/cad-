@@ -48,10 +48,25 @@ _LABEL_RE = re.compile(
 )
 
 
+def clean_project_name(name: str) -> str:
+    """清洗项目名：去掉空括号（半角/全角 ()、（）、[]、【】）、收拾多余连接符与空格。"""
+    if not name:
+        return ""
+    text = str(name).strip()
+    empty_brackets = re.compile(r"\(\s*\)|（\s*）|\[\s*\]|【\s*】")
+    while empty_brackets.search(text):
+        text = empty_brackets.sub("", text)
+    text = re.sub(r"[-_]{2,}", "-", text)
+    text = re.sub(r"\s*([-_])\s*", r"\1", text)
+    text = re.sub(r"[\s\u3000]+", " ", text).strip()
+    text = text.strip("：:、,，。;；-—_ /|")
+    return text
+
+
 def _clean(value: str) -> str:
     value = re.sub(r"[\s\u3000]+", "", str(value or ""))
     value = value.strip("：:、,，。;；-—|/")
-    return value
+    return clean_project_name(value)
 
 
 def _usable(value: str) -> bool:
@@ -136,7 +151,9 @@ def inferred_project_name(info: dict, filename: str) -> tuple[str, str]:
     drawing = 来自图纸图签；filename = 来自文件名；none = 两者都没有。
     """
     if info and info.get("name"):
-        return str(info["name"]), "drawing"
+        cleaned = clean_project_name(str(info["name"]))
+        if cleaned:
+            return cleaned, "drawing"
     candidate = infer_from_filename(filename)
     if candidate:
         return candidate, "filename"

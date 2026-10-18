@@ -10,7 +10,13 @@ import test_support  # noqa: F401  必须最先导入：把数据目录隔离到
 from fastapi.testclient import TestClient
 
 from app import app, _resolve_project_info
-from extractor.project_info import infer_from_filename, infer_from_texts, inferred_project_name, merge_info
+from extractor.project_info import (
+    clean_project_name,
+    infer_from_filename,
+    infer_from_texts,
+    inferred_project_name,
+    merge_info,
+)
 from extractor.schema import RawExtraction
 
 
@@ -66,16 +72,36 @@ class ProjectInfoInferenceTests(unittest.TestCase):
         self.assertEqual(merge_info(vision, drawing)["name"], "模型读的名字")
         self.assertEqual(merge_info(vision, drawing)["source"], "vision")
 
+    def test_clean_project_name_removes_empty_brackets_and_excess_connectors(self):
+        self.assertEqual(clean_project_name("锅炉房-电气921()"), "锅炉房-电气921")
+        self.assertEqual(clean_project_name("锅炉房-电气921（）"), "锅炉房-电气921")
+        self.assertEqual(clean_project_name("锅炉房-电气921[]"), "锅炉房-电气921")
+        self.assertEqual(clean_project_name("锅炉房-电气921【】"), "锅炉房-电气921")
+        self.assertEqual(clean_project_name("锅炉房-电气921（  ）"), "锅炉房-电气921")
+        self.assertEqual(clean_project_name("1#楼（东区）"), "1#楼（东区）")
+        self.assertEqual(clean_project_name("1#楼(东区)"), "1#楼(东区)")
+        self.assertEqual(clean_project_name("综合楼[A区]"), "综合楼[A区]")
+        self.assertEqual(clean_project_name("研发中心【二期】"), "研发中心【二期】")
+        self.assertEqual(clean_project_name("锅炉房--电气921__"), "锅炉房-电气921")
+        self.assertEqual(clean_project_name(""), "")
+
     def test_filename_inference_strips_drawing_noise(self):
         self.assertEqual(infer_from_filename("01-制丝工房-动力配电0923.dwg"), "制丝工房-动力配电0923")
         self.assertEqual(infer_from_filename("02-锅炉房-8台柜子.pdf"), "锅炉房-8台柜子")
         self.assertEqual(infer_from_filename("电气照明921(出图)_t3.dwg"), "电气照明921")
+        self.assertEqual(infer_from_filename("02-锅炉房-电气921(电子签名版)_t3_t3.dwg"), "锅炉房-电气921")
+        self.assertEqual(infer_from_filename("02-锅炉房-电气921（出图）_t3.dwg"), "锅炉房-电气921")
+        self.assertEqual(infer_from_filename("02-锅炉房-电气921_t3_t3.dwg"), "锅炉房-电气921")
+        self.assertEqual(infer_from_filename("1#楼（东区）施工图.dwg"), "1#楼（东区）施工图")
+        self.assertEqual(infer_from_filename("1#楼(东区)(电子签名版).dwg"), "1#楼(东区)")
+        self.assertEqual(infer_from_filename("项目名称【】()--.dwg"), "项目名称")
         self.assertEqual(infer_from_filename("2SAL2.pdf"), "2SAL2")
 
     def test_project_name_priority(self):
         info = {"name": "图上工程名", "found": True}
         self.assertEqual(inferred_project_name(info, "随便.pdf"), ("图上工程名", "drawing"))
         self.assertEqual(inferred_project_name({}, "锅炉房-8台柜子.pdf"), ("锅炉房-8台柜子", "filename"))
+        self.assertEqual(inferred_project_name({}, "02-锅炉房-电气921(电子签名版)_t3_t3.dwg"), ("锅炉房-电气921", "filename"))
         self.assertEqual(inferred_project_name({}, ""), ("", "none"))
 
 

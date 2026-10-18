@@ -23,7 +23,6 @@ drawing-extractor/
 │   ├── app.py                 # FastAPI 主程序：上传→渲染→提取→组装→核对→Excel→问答
 │   ├── store.py               # 项目 / 导出历史 / 设置的 JSON 落盘
 │   ├── OUTPUT_CONTRACT.md     # 事实输出、定位坐标与组装规则
-│   ├── stability_test.py      # 同图多次调用结果比较
 │   ├── config/                # 运行口径（出厂默认，可覆盖）
 │   │   ├── pipeline.json      #   切片阈值 / CAD 几何判据 / 准入门禁 / 证据来源
 │   │   ├── domain.json        #   图层与箱号词典 / 断路器分类 / 电缆词法 / 核验判据
@@ -230,8 +229,6 @@ cd backend && ../.venv/bin/python -c "from extractor.config import config_health
 - 调整问答行为：改 `backend/prompts/assistant.txt`。
 - 修改数量规则前先读 `backend/OUTPUT_CONTRACT.md`，并运行
   `cd backend && ../.venv/bin/python -m unittest discover -s tests -v`。
-- 同图稳定性实测：`cd backend && ../.venv/bin/python stability_test.py 图纸.pdf --runs 3`
-  （每次都会调用模型并计费）。
 - 调整 Excel 版式的**样式与表名**走 `delivery.json`；只有需要新增计算列时才改 `excel.py`。
 - 前端样式基准在 `frontend/app.css`，改 `:root` 变量即可整站换色。
 
