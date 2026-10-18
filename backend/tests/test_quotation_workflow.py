@@ -135,6 +135,15 @@ class TestQuotationWorkflow(unittest.TestCase):
         self.assertIsNotNone(cands.get("ai_suggested"))
         self.assertEqual(cands["ai_suggested"]["price"], 165.0)
 
+    def test_candidates_source_labels_are_real(self):
+        # 两张候选卡片都来自同一个内置价库，来源必须写“价库·品牌”，不得声称是信息价/市场价
+        cands = get_component_price_candidates("NXB-63 C16A/1P", comp_name="微型断路器")
+        for key in ("info", "market"):
+            cand = cands.get(key)
+            self.assertIsNotNone(cand, key)
+            self.assertEqual(cand["source"], f"价库·{cand['brand']}")
+        self.assertIn("定额估算", cands["ai_suggested"]["source"])
+
     def test_box_components_isolation(self):
         # 01AP1 中只能包含属于 01AP1 的元器件，严禁混入 01AL1 的器件或外壳
         resp = client.get(f"/api/jobs/{self.job_id}/quotation?brand=正泰")
