@@ -3415,4 +3415,32 @@ def health():
     return {"ok": True, "vision_configured": VisionProvider().configured}
 
 
+@app.get("/api/cad/engines")
+def cad_engines():
+    """返回 CAD 转换解析引擎的可用状态与运行诊断信息。"""
+    from extractor.cad import find_dwg2dxf_tool, find_dwg2svg_tool
+    from extractor.cad_fallback import find_acadrust_tool
+    dwg2dxf = find_dwg2dxf_tool()
+    dwg2svg = find_dwg2svg_tool()
+    acadrust = find_acadrust_tool()
+    return {
+        "ok": bool(dwg2dxf or acadrust),
+        "primary": dwg2dxf,
+        "fallback": acadrust,
+        "svg": dwg2svg,
+        "env": {
+            "EXTRACTOR_DWG2DXF_BIN": os.environ.get("EXTRACTOR_DWG2DXF_BIN"),
+            "EXTRACTOR_ACADRUST_BIN": os.environ.get("EXTRACTOR_ACADRUST_BIN"),
+            "EXTRACTOR_DWG2SVG_BIN": os.environ.get("EXTRACTOR_DWG2SVG_BIN"),
+        },
+        "system": {
+            "cargo": shutil.which("cargo"),
+            "gcc": shutil.which("gcc"),
+            "clang": shutil.which("clang"),
+            "make": shutil.which("make"),
+            "curl": shutil.which("curl"),
+        },
+    }
+
+
 app.mount("/", StaticFiles(directory=os.path.join(BASE, "..", "frontend"), html=True), name="frontend")

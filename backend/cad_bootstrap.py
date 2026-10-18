@@ -4,17 +4,16 @@
 本模块负责在容器/宿主环境冷启动时：
 1. 自动探针检测 dwg2dxf / dwg2SVG / extractor-dwg 可用性；
 2. 若缺少 Rust acadrust 工具且存在 cargo，自动执行轻量编译 (约 20 秒)；
-3. 若缺少 LibreDWG 且存在构建环境 (gcc/make/curl)，自动后台编译静态 dwg2dxf/dwg2SVG；
+3. 若缺少 LibreDWG 且存在构建环境 (gcc/make/curl)，自动编译静态 dwg2dxf/dwg2SVG (约 35 秒)；
 4. 动态注入环境变量并打通 cad.py 与 cad_fallback.py，实现双引擎无感兜底。
 """
 from __future__ import annotations
 
+import multiprocessing
 import os
+from pathlib import Path
 import shutil
 import subprocess
-import sys
-import threading
-from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TMP_BIN_DIR = Path("/tmp/libredwg/bin")
@@ -82,6 +81,7 @@ def probe_acadrust() -> str | None:
         os.environ.get("EXTRACTOR_ACADRUST_BIN"),
         str(REPO_ROOT / "integrations/acadrust/target/release/extractor-dwg"),
         "/tmp/bin/extractor-dwg",
+        "/tmp/extractor-dwg",
         str(REPO_ROOT / "bin/extractor-dwg"),
         shutil.which("extractor-dwg"),
     ]
@@ -125,22 +125,23 @@ def build_acadrust_if_needed() -> str | None:
     return None
 
 
-def _build_libredwg_worker() -> None:
-    """后台编译 GNU LibreDWG 并安装到 /tmp/libredwg/bin。"""
-    if probe_dwg2dxf():
-        return
+def build_libredwg_if_needed() -> str | None:
+    """编译 GNU LibreDWG 并安装到 /tmp/libredwg/bin。"""
+    existing = probe_dwg2dxf()
+    if existing:
+        return existing
 
     gcc_bin = shutil.which("gcc") or shutil.which("clang")
     make_bin = shutil.which("make")
     curl_bin = shutil.which("curl")
     if not (gcc_bin and make_bin and curl_bin):
-        return
+        return None
 
     src_dir = Path("/tmp/libredwg_build")
     tar_path = Path("/tmp/libredwg-0.14.tar.gz")
     TMP_BIN_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("[CAD Bootstrap] 开始在后台准备 GNU LibreDWG 运行时环境...")
+    print("[CAD Bootstrap] 开始准备 GNU LibreDWG 运行时环境...")
     mirrors = [
         "https://mirror.twds.com.tw/gnu/libredwg/libredwg-0.14.tar.gz",
         "https://ftpmirror.gnu.org/libredwg/libredwg-0.14.tar.gz",
@@ -161,8 +162,8 @@ def _build_libredwg_worker() -> None:
                 continue
 
     if not downloaded:
-        print("[CAD Bootstrap] 下载 LibreDWG 源码归档超时或失败，保持 acadrust 单引擎运行")
-        return
+        print("[CAD Bootstrap] 下载 LibreDWG 源码归档超时或失败")
+        return None
 
     try:
         src_dir.mkdir(parents=True, exist_ok=True)
@@ -171,7 +172,7 @@ def _build_libredwg_worker() -> None:
         # 配置 (关闭繁重 bindings 与 docs，极速构建)
         conf_cmd = [
             str(src_dir / "configure"),
-            f"--prefix=/tmp/libredwg",
+            "--prefix=/tmp/libredwg",
             "--disable-bindings",
             "--disable-docs",
             "--disable-dependency-tracking",
@@ -182,10 +183,9 @@ def _build_libredwg_worker() -> None:
         res_conf = subprocess.run(conf_cmd, cwd=str(src_dir), stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
         if res_conf.returncode != 0:
             print(f"[CAD Bootstrap] LibreDWG configure 失败: {res_conf.stderr.decode(errors='replace')[:300]}")
-            return
+            return None
 
         # 编译 src 库与 dwg2dxf / dwg2SVG
-        import multiprocessing
         nproc = str(max(1, multiprocessing.cpu_count()))
         subprocess.run([make_bin, "-C", "src", f"-j{nproc}"], cwd=str(src_dir), check=True, timeout=300)
         subprocess.run([make_bin, "-C", "programs", "dwg2dxf", "dwg2SVG"], cwd=str(src_dir), check=True, timeout=120)
@@ -202,8 +202,10 @@ def _build_libredwg_worker() -> None:
             shutil.copy2(str(built_dwg2svg), str(TMP_BIN_DIR / "dwg2SVG"))
             os.chmod(str(TMP_BIN_DIR / "dwg2SVG"), 0o755)
             os.environ["EXTRACTOR_DWG2SVG_BIN"] = str(TMP_BIN_DIR / "dwg2SVG")
+        return probe_dwg2dxf()
     except Exception as exc:
-        print(f"[CAD Bootstrap] 后台编译 LibreDWG 过程捕获异常: {exc}")
+        print(f"[CAD Bootstrap] 编译 LibreDWG 过程捕获异常: {exc}")
+        return None
 
 
 def bootstrap_cad_converters() -> dict[str, str | None]:
@@ -220,18 +222,19 @@ def bootstrap_cad_converters() -> dict[str, str | None]:
     if acadrust_tool:
         os.environ["EXTRACTOR_ACADRUST_BIN"] = acadrust_tool
 
-    # 3. 探测 dwg2svg
+    # 3. 探测或构建 dwg2dxf (LibreDWG)
+    if not dwg2dxf_tool:
+        dwg2dxf_tool = build_libredwg_if_needed()
+    if dwg2dxf_tool:
+        os.environ["EXTRACTOR_DWG2DXF_BIN"] = dwg2dxf_tool
+
+    # 4. 探测 dwg2svg
     dwg2svg_tool = probe_dwg2svg()
     if dwg2svg_tool:
         os.environ["EXTRACTOR_DWG2SVG_BIN"] = dwg2svg_tool
 
-    # 4. 若尚未就绪 dwg2dxf，启动后台构建线程
-    if not dwg2dxf_tool:
-        t = threading.Thread(target=_build_libredwg_worker, name="cad-bootstrap-libredwg", daemon=True)
-        t.start()
-
     status = {
-        "dwg2dxf": dwg2dxf_tool or ("building_in_background" if shutil.which("gcc") else None),
+        "dwg2dxf": dwg2dxf_tool,
         "acadrust": acadrust_tool,
         "dwg2svg": dwg2svg_tool,
     }
