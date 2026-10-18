@@ -59,7 +59,7 @@ with gr.Blocks(title="电柜智核 · 配电箱智能工作台 (CabinetCore AI)"
 
     gr.HTML("""
     <div style="width: 100%; height: 98vh; margin: 0; padding: 0; display: flex; flex-direction: column;">
-        <iframe src="/workbench/index.html?v=20261018_11" style="width: 100%; height: 100%; border: none; flex-grow: 1;"></iframe>
+        <iframe src="/workbench/index.html?v=20261018_12" style="width: 100%; height: 100%; border: none; flex-grow: 1;"></iframe>
     </div>
     """)
 

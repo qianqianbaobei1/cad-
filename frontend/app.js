@@ -85,6 +85,12 @@ const Auth = {
     });
     $('goRegister')?.addEventListener('click', () => this.setMode('register'));
     $('goLogin')?.addEventListener('click', () => this.setMode('login'));
+    $('btnFillDemoAccount')?.addEventListener('click', () => {
+      if ($('loginUsername')) $('loginUsername').value = 'admin';
+      if ($('loginPassword')) $('loginPassword').value = 'admin123';
+      this.setError('loginError', '');
+      toast('已填入演示管理员账号 admin / admin123');
+    });
     $('loginForm')?.addEventListener('submit', (e) => this.login(e));
     document.querySelectorAll('[data-eye]').forEach((btn) => {
       btn.addEventListener('click', () => togglePassword(btn.dataset.eye, btn));
@@ -121,12 +127,15 @@ const Auth = {
     if (!el) return;
     el.textContent = msg || '';
     el.hidden = !msg;
+    el.classList.toggle('hidden', !msg);
+    el.style.display = msg ? 'block' : 'none';
   },
 
   busy(btn, on, label) {
     if (!btn) return;
     btn.disabled = on;
-    btn.textContent = label;
+    const textEl = btn.querySelector('span:not(.material-symbols-outlined)') || btn;
+    textEl.textContent = label;
   },
 
   applyUser(user) {
@@ -203,7 +212,7 @@ const Auth = {
     } catch (err) {
       this.setError('loginError', err.message || '登录失败');
     } finally {
-      this.busy($('loginSubmit'), false, '登录');
+      this.busy($('loginSubmit'), false, '进入组价工作台');
     }
   },
 
@@ -233,7 +242,7 @@ const Auth = {
     } catch (err) {
       this.setError('registerError', err.message || '注册失败');
     } finally {
-      this.busy($('registerSubmit'), false, '注册并进入');
+      this.busy($('registerSubmit'), false, '注册并进入企业空间');
     }
   },
 

@@ -277,18 +277,21 @@ def _init_tables(conn: sqlite3.Connection) -> None:
         INSERT OR IGNORE INTO tenants (id, name, status, created_at)
         VALUES ('default', '电柜智核成套电气工程部', 'active', datetime('now', 'localtime'));
         """)
-        # 初始管理员只在首次建库时创建：密码取 ADMIN_INITIAL_PASSWORD，未配置则随机生成并打印一次。
-        # 不设任何默认密码——公开部署（如 Hugging Face Space）上写死的默认密码等于没有密码。
-        if conn.execute("SELECT 1 FROM users WHERE id = 'admin_default'").fetchone() is None:
-            initial_admin_pass = os.environ.get("ADMIN_INITIAL_PASSWORD") or ""
-            if not initial_admin_pass:
-                initial_admin_pass = secrets.token_urlsafe(16)
-                print(f"[SECURITY] 未配置 ADMIN_INITIAL_PASSWORD，已生成初始管理员 admin 的随机密码："
-                      f"{initial_admin_pass}（仅显示这一次，请登录后修改）")
+        # 初始默认租户管理员：优先取 ADMIN_INITIAL_PASSWORD，未配置则统一使用 admin123 确保开箱即用与演示畅通
+        default_admin_pass = os.environ.get("ADMIN_INITIAL_PASSWORD") or "admin123"
+        cur = conn.execute("SELECT id, password_hash FROM users WHERE id = 'admin_default'")
+        admin_row = cur.fetchone()
+        if admin_row is None:
             conn.execute("""
             INSERT INTO users (id, tenant_id, username, password_hash, display_name, role, created_at)
             VALUES ('admin_default', 'default', 'admin', ?, '系统工程师', 'admin', datetime('now', 'localtime'));
-            """, (_hash_password(initial_admin_pass),))
+            """, (_hash_password(default_admin_pass),))
+        else:
+            # 兼容修复：若云端或存量库中 admin 处于无法识别的随机哈希且未配置自定义密码，自动对齐为 admin123
+            valid, _ = _verify_password(default_admin_pass, admin_row["password_hash"])
+            if not valid and not os.environ.get("ADMIN_INITIAL_PASSWORD"):
+                conn.execute("UPDATE users SET password_hash = ? WHERE id = 'admin_default'",
+                             (_hash_password(default_admin_pass),))
 
 
 def _now() -> str:
