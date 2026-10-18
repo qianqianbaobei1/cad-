@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta content="web_standard" name="shell-type">
 <title>配电箱图纸识别与组价</title>
 <link rel="icon" href="assets/brand/02_品牌Logo/17_App图标主体.png">
@@ -528,10 +531,6 @@ body.auth-locked #authScreen { display: block; }
   <div class="flex items-center gap-space-md">
     <!-- 图纸详情页快捷操作 -->
     <div class="top-actions flex items-center gap-2" id="topActions" hidden>
-      <button class="px-3 py-1.5 rounded bg-surface-container-low hover:bg-surface-container text-on-surface font-body-sm text-body-sm flex items-center gap-1.5 border border-outline-variant transition-colors" id="btnChat" title="就这张图纸的识别结果提问" type="button">
-        <span class="material-symbols-outlined text-[16px] text-primary">smart_toy</span>
-        <span>AI 助手</span>
-      </button>
       <a class="px-3 py-1.5 rounded bg-primary text-on-primary hover:bg-primary-container font-body-sm text-body-sm flex items-center gap-1.5 shadow-sm transition-colors text-white" id="btnExport" download>
         <span class="material-symbols-outlined text-[16px]">download</span>
         <span>导出 Excel</span>
@@ -771,11 +770,6 @@ body.auth-locked #authScreen { display: block; }
   <section class="h-[40px] bg-white border-b border-slate-200 px-4 flex items-center justify-between text-xs text-slate-700 shrink-0 select-none whitespace-nowrap overflow-hidden">
     <!-- 左侧指标胶囊 -->
     <div class="flex items-center gap-3">
-      <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono font-bold text-[11px]">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span>识别度 99.2%</span>
-      </div>
-      <span class="text-slate-300">|</span>
       <div class="flex items-center gap-1 font-mono">
         <span class="font-bold text-slate-900" id="extStatBoxes">0</span>
         <span class="text-slate-700">台箱柜</span>
@@ -1280,10 +1274,9 @@ body.auth-locked #authScreen { display: block; }
       <span class="text-slate-500">报价，价格取</span>
       <div class="inline-flex items-center relative">
         <select class="font-semibold text-blue-700 bg-transparent border-0 border-b border-blue-300 hover:border-blue-600 p-0 pr-4 text-xs cursor-pointer outline-none focus:ring-0" id="pricingPriceTypeSel">
-          <option value="market" selected>市场价</option>
-          <option value="info">信息价</option>
-          <option value="local">本地价</option>
-          <option value="ai">AI建议价</option>
+          <option value="library" selected>价库单价</option>
+          <option value="estimate">定额估算参考价</option>
+          <option value="manual">人工手填</option>
         </select>
       </div>
       <span class="text-slate-500">，辅料</span>
@@ -1422,76 +1415,66 @@ body.auth-locked #authScreen { display: block; }
         <div class="font-bold text-slate-900 text-sm truncate" id="pricingSidebarTitle">未选中器件</div>
         <div class="text-[11px] text-slate-500 mt-0.5 truncate" id="pricingSidebarSub">在左侧表格中点击任意行核验或更换价格</div>
       </div>
-      <!-- 6大价格来源卡片区 -->
+      <!-- 5大价格来源卡片区 -->
       <div class="flex-1 overflow-y-auto excel-scroll p-3 space-y-3 text-xs" id="pricingCandidatesContainer">
-        <!-- 1. 信息价 -->
+        <!-- 1. 价库（品牌优先顺序一） -->
         <div class="border border-slate-300 rounded p-2.5 bg-white hover:border-blue-400 transition-colors" id="pricingCardInfo">
           <div class="flex items-start justify-between">
             <div class="min-w-0 pr-1">
-              <div class="text-[11px] font-semibold text-blue-700 mb-0.5">信息价</div>
-              <div class="font-medium text-slate-900 text-xs truncate" id="pricingCardInfoModel">施耐德电气 标准指导价</div>
+              <div class="text-[11px] font-semibold text-blue-700 mb-0.5" id="pricingCardInfoTitle">价库</div>
+              <div class="font-medium text-slate-900 text-xs truncate" id="pricingCardInfoModel">—</div>
             </div>
             <div class="text-right shrink-0">
-              <div class="font-mono-nums font-bold text-slate-900 text-xs" id="pricingCardInfoPrice">¥ 298.00</div>
-              <button class="mt-1 px-2.5 py-0.5 bg-blue-700 hover:bg-blue-800 text-white rounded text-[11px] font-medium transition-colors cursor-pointer" id="pricingAdoptInfoBtn" type="button">采用</button>
+              <div class="font-mono-nums font-bold text-slate-900 text-xs" id="pricingCardInfoPrice">—</div>
+              <button class="mt-1 px-2.5 py-0.5 bg-slate-200 text-slate-400 rounded text-[11px] cursor-not-allowed" id="pricingAdoptInfoBtn" type="button" disabled>库无收录</button>
             </div>
           </div>
         </div>
-        <!-- 2. 市场价 -->
+        <!-- 2. 价库（品牌优先顺序二） -->
         <div class="border border-slate-300 rounded p-2.5 bg-white hover:border-blue-400 transition-colors" id="pricingCardMarket">
           <div class="flex items-start justify-between">
             <div class="min-w-0 pr-1">
-              <div class="text-[11px] font-semibold text-slate-700 mb-0.5">市场价</div>
-              <div class="font-medium text-slate-900 text-xs truncate" id="pricingCardMarketModel">德力西 / 正泰 市场行情</div>
+              <div class="text-[11px] font-semibold text-slate-700 mb-0.5" id="pricingCardMarketTitle">价库</div>
+              <div class="font-medium text-slate-900 text-xs truncate" id="pricingCardMarketModel">—</div>
             </div>
             <div class="text-right shrink-0">
-              <div class="font-mono-nums font-medium text-slate-900 text-xs" id="pricingCardMarketPrice">¥ 276.00</div>
-              <button class="mt-1 px-2.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] transition-colors cursor-pointer" id="pricingAdoptMarketBtn" type="button">采用</button>
+              <div class="font-mono-nums font-medium text-slate-900 text-xs" id="pricingCardMarketPrice">—</div>
+              <button class="mt-1 px-2.5 py-0.5 bg-slate-200 text-slate-400 border border-slate-300 rounded text-[11px] cursor-not-allowed" id="pricingAdoptMarketBtn" type="button" disabled>暂无报价</button>
             </div>
           </div>
         </div>
-        <!-- 3. 本地价 -->
-        <div class="border border-slate-200 rounded p-2 bg-slate-50/50 flex items-center justify-between text-slate-500" id="pricingCardLocal">
-          <div class="flex items-center gap-1 min-w-0 pr-1">
-            <span class="text-[11px] font-medium">本地价</span>
-            <span class="text-[11px] text-slate-400 truncate max-w-[140px]" id="pricingCardLocalModel">（标准本地库）</span>
-          </div>
-          <div class="flex items-center gap-2 shrink-0">
-            <span class="text-xs font-mono-nums font-medium" id="pricingCardLocalPrice">—</span>
-            <button class="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] transition-colors cursor-pointer hidden" id="pricingAdoptLocalBtn" type="button">采用</button>
-          </div>
-        </div>
-        <!-- 4. AI 建议价 -->
+        <!-- 3. 定额估算参考价 -->
         <div class="border border-blue-200 rounded p-2.5 bg-blue-50/40 hover:border-blue-400 transition-colors" id="pricingCardAi">
           <div class="flex items-start justify-between">
             <div class="min-w-0 pr-1">
               <div class="text-[11px] font-semibold text-blue-800 mb-0.5 flex items-center gap-1">
-                <span class="material-symbols-outlined text-[14px] text-blue-600">psychology</span>
-                <span>AI 建议价</span>
+                <span class="material-symbols-outlined text-[14px] text-blue-600">calculate</span>
+                <span>定额估算参考价</span>
               </div>
-              <div class="text-[11px] text-slate-500 truncate" id="pricingCardAiDesc">参考：同规格近 30 天成交</div>
+              <div class="text-xs text-slate-800 font-medium truncate" id="pricingCardAiModel">暂无估算</div>
+              <div class="text-[11px] text-slate-500 truncate" id="pricingCardAiDesc">—</div>
             </div>
             <div class="text-right shrink-0">
-              <div class="font-mono-nums font-bold text-blue-900 text-xs" id="pricingCardAiPrice">¥ 290.00</div>
-              <button class="mt-1 px-2.5 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-medium transition-colors shadow-2xs cursor-pointer" id="pricingAdoptAiBtn" type="button">采用</button>
+              <div class="font-mono-nums font-bold text-blue-900 text-xs" id="pricingCardAiPrice">—</div>
+              <button class="mt-1 px-2.5 py-0.5 bg-slate-200 text-slate-400 rounded text-[11px] cursor-not-allowed" id="pricingAdoptAiBtn" type="button" disabled>暂无估算</button>
             </div>
           </div>
         </div>
-        <!-- 5. 历史价 -->
+        <!-- 4. 历史报价（系统暂无历史报价数据源） -->
         <div class="border border-slate-300 rounded p-2.5 bg-white hover:border-blue-400 transition-colors" id="pricingCardHistory">
           <div class="flex items-start justify-between">
             <div class="min-w-0 pr-1">
-              <div class="text-[11px] font-semibold text-slate-700 mb-0.5">历史价</div>
-              <div class="text-xs text-slate-800 font-medium truncate" id="pricingCardHistoryProj">鼎鑫大厦消防泵房</div>
-              <div class="text-[11px] text-slate-500 font-mono-nums" id="pricingCardHistoryDate">2026-09</div>
+              <div class="text-[11px] font-semibold text-slate-700 mb-0.5">历史报价</div>
+              <div class="text-xs text-slate-800 font-medium truncate" id="pricingCardHistoryProj">暂无历史报价</div>
+              <div class="text-[11px] text-slate-500 font-mono-nums" id="pricingCardHistoryDate">—</div>
             </div>
             <div class="text-right shrink-0">
-              <div class="font-mono-nums font-medium text-slate-900 text-xs" id="pricingCardHistoryPrice">¥ 310.00</div>
-              <button class="mt-1 px-2.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] transition-colors cursor-pointer" id="pricingAdoptHistoryBtn" type="button">采用</button>
+              <div class="font-mono-nums font-medium text-slate-900 text-xs" id="pricingCardHistoryPrice">—</div>
+              <button class="mt-1 px-2.5 py-0.5 bg-slate-200 text-slate-400 border border-slate-300 rounded text-[11px] cursor-not-allowed" id="pricingAdoptHistoryBtn" type="button" disabled>暂无数据</button>
             </div>
           </div>
         </div>
-        <!-- 6. 手填录入 -->
+        <!-- 5. 手填录入 -->
         <div class="bg-slate-50 border border-slate-300 rounded p-2.5 space-y-2">
           <div class="text-[11px] font-semibold text-slate-700 border-b border-slate-200 pb-1">手填</div>
           <div>
@@ -1503,7 +1486,7 @@ body.auth-locked #authScreen { display: block; }
           </div>
           <div>
             <label class="text-[11px] text-slate-600 block mb-0.5">来源说明:</label>
-            <input class="w-full bg-white border border-slate-300 px-2 py-1 rounded text-slate-800 text-xs outline-none focus:border-blue-600" id="pricingCustomNoteInput" placeholder="输入来源说明" type="text" value="询价：华东正泰 王工">
+            <input class="w-full bg-white border border-slate-300 px-2 py-1 rounded text-slate-800 text-xs outline-none focus:border-blue-600" id="pricingCustomNoteInput" placeholder="询价来源、联系人" type="text">
           </div>
           <button class="w-full py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1 mt-1 shadow-2xs cursor-pointer" id="pricingConfirmCustomBtn" type="button">
             <span class="material-symbols-outlined text-[14px]">check</span>
