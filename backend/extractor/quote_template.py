@@ -2,7 +2,7 @@
 """成套设备组价两表模板：组价汇总 + 组价明细。
 
 版面口径来自客户提供的成套设备报价单（后两张表），不是复制其中的数据：
-本模块只接收结构化组价模型（箱体、器件行、四项费用），负责排版与公式。
+本模块只接收结构化组价模型（箱体、器件行、四项费用），负责排版与金额落位。
 
 口径要点（按客户要求定）：
 - **没有封面、没有 1~6 行抬头**：不写报价日期、文件编号、报价单位、联系人电话；
@@ -21,10 +21,10 @@
           "quantity": 1,
           "items": [{"name": "", "spec": "", "unit": "只", "qty": 1,
                      "unit_price": 0.0, "brand": "", "note": ""}],
-          "subtotal": 0.0, "auxiliary": 0.0, "labor": 0.0, "tax_total": 0.0,
+          "subtotal": 0.0, "auxiliary": 0.0, "manufacture": 0.0, "tax_total": 0.0,
           "unit_price": 0.0, "total_price": 0.0,
       }],
-      "total_qty": 0, "total_price": 0.0,
+      "total_qty": 0, "total_price": 0.0, "grand_total": 0, "total_upper": "",
       "unresolved_count": 0,
     }
 """
@@ -34,6 +34,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from .config import delivery as _delivery
+from .quote_calc import rmb_upper
 
 _CFG = _delivery().get("quote_template") or {}
 _PALETTE = _delivery()["palette"]
@@ -62,72 +63,6 @@ DETAIL_WIDTHS = _CFG.get("detail_widths") or [5.0, 22.5, 26.2, 5.1, 5.1, 12.5, 1
 # 表头占 6 行：表名 / 项目单位 / 项目名称 / 金额单位 / 分类条 / 列头
 HEADER_ROWS = 6
 FIRST_DATA_ROW = HEADER_ROWS + 1
-
-_DIGITS = "零壹贰叁肆伍陆柒捌玖"
-_UNITS = ("仟", "佰", "拾", "")
-_GROUPS = ("", "万", "亿", "兆")
-
-
-def _section(num: int) -> str:
-    """0 < num < 10000 的四位读数，组内为零的位合并成一个“零”。"""
-    out = ""
-    pending_zero = False
-    for val, unit in zip((1000, 100, 10, 1), _UNITS):
-        d = num // val % 10
-        if d == 0:
-            pending_zero = bool(out)
-        else:
-            if pending_zero:
-                out += "零"
-                pending_zero = False
-            out += _DIGITS[d] + unit
-    return out
-
-
-def rmb_upper(amount: float) -> str:
-    """人民币大写金额。
-
-    走代码算，不用 Excel 的 [DBNum2] 格式串：后者在 LibreOffice / 非中文区域
-    设置里会直接显示成“/通用格式元”，报价单上出现这种字样等于没写。
-    """
-    fen_total = int(round(float(amount or 0) * 100))
-    if fen_total == 0:
-        return "零元整"
-    sign = "负" if fen_total < 0 else ""
-    fen_total = abs(fen_total)
-    yuan, jiao, fen = fen_total // 100, fen_total // 10 % 10, fen_total % 10
-
-    groups: list[int] = []
-    left = yuan
-    while left:
-        groups.append(left % 10000)
-        left //= 10000
-
-    parts: list[str] = []
-    for idx in range(len(groups) - 1, -1, -1):
-        g = groups[idx]
-        if g == 0:
-            if parts and any(groups[:idx]) and not parts[-1].endswith("零"):
-                parts.append("零")
-            continue
-        seg = _section(g)
-        if idx < len(groups) - 1 and g < 1000 and parts and not parts[-1].endswith("零"):
-            seg = "零" + seg
-        parts.append(seg + _GROUPS[idx])
-
-    text = ("".join(parts) if yuan else "零").rstrip("零") or "零"
-    text += "元"
-
-    if jiao == 0 and fen == 0:
-        return sign + text + "整"
-    if jiao:
-        text += _DIGITS[jiao] + "角"
-        if fen:
-            text += _DIGITS[fen] + "分"
-    elif fen:
-        text += "零" + _DIGITS[fen] + "分"
-    return sign + text
-
 
 def _money(cell, value: Any = None):
     if value is not None:
@@ -224,33 +159,35 @@ def _summary_sheet(ws, model: dict, detail_title: str) -> None:
 
     last = r - 1
 
-    # 合计行
+    # 合计行（2 位小数）
     ws.cell(row=r, column=2, value="合计").font = Font(name=FONT, size=11, bold=True)
     ws.cell(row=r, column=2).alignment = LEFT
     ws.cell(row=r, column=5, value="台").font = Font(name=FONT, size=11)
     ws.cell(row=r, column=5).alignment = CENTER
-    c = ws.cell(row=r, column=6, value=f"=SUM(F{start}:F{last})")
+    c = ws.cell(row=r, column=6, value=model.get("total_qty", 0))
     c.font = Font(name=FONT, size=11)
     c.alignment = CENTER
-    c = ws.cell(row=r, column=8, value=f"=SUM(H{start}:H{last})")
+    c = ws.cell(row=r, column=8, value=model.get("total_price", 0.0))
     c.font = Font(name=FONT, size=11)
     _money(c)
     for col in range(1, 10):
         ws.cell(row=r, column=col).border = BORDER
     r += 1
 
-    # 总计行（金额 + 大写）
+    # 总计行（取整到元 + 大写金额）
+    grand_total = model.get("grand_total")
+    if grand_total is None:
+        grand_total = int(round(float(model.get("total_price") or 0)))
     ws.cell(row=r, column=2, value="总计").font = Font(name=FONT, size=14, bold=True)
-    c = ws.cell(row=r, column=3, value=f"=SUM(H{start}:H{last})")
-    _money(c)
+    c = ws.cell(row=r, column=3, value=int(grand_total))
     c.font = Font(name=FONT, size=14, bold=True)
-    c.number_format = "0.00;[Red]0.00"
+    c.number_format = "0"
     c.alignment = CENTER
     ws.cell(row=r, column=5, value="台").font = Font(name=FONT, size=14, bold=True)
     ws.cell(row=r, column=5).alignment = CENTER
-    ws.cell(row=r, column=6, value=f"=SUM(F{start}:F{last})").font = Font(name=FONT, size=14, bold=True)
+    ws.cell(row=r, column=6, value=model.get("total_qty", 0)).font = Font(name=FONT, size=14, bold=True)
     ws.cell(row=r, column=6).alignment = CENTER
-    c = ws.cell(row=r, column=7, value=rmb_upper(model.get("total_price", 0.0)))
+    c = ws.cell(row=r, column=7, value=model.get("total_upper") or rmb_upper(grand_total))
     c.font = Font(name=FONT, size=11, bold=True)
     c.alignment = CENTER
     for col in range(1, 10):
@@ -327,7 +264,6 @@ def _detail_sheet(ws, model: dict) -> None:
         _header_row(ws, r, HEADERS)
         r += 1
 
-        item_start = r
         for seq, item in enumerate(box.get("items", []), start=1):
             ws.cell(row=r, column=1, value=seq).alignment = CENTER
             ws.cell(row=r, column=2, value=item.get("name", "")).alignment = LEFT
@@ -348,7 +284,6 @@ def _detail_sheet(ws, model: dict) -> None:
                     cell.number_format = "@"
             ws.row_dimensions[r].height = 18
             r += 1
-        item_end = r - 1
 
         def cost_row(label: str, value) -> None:
             nonlocal r
@@ -366,18 +301,16 @@ def _detail_sheet(ws, model: dict) -> None:
             r += 1
 
         seq_no = [len(box.get("items", [])) + 1]
-        r_sub = r
-        cost_row("小计", f"=SUM(G{item_start}:G{item_end})" if item_end >= item_start else 0.0)
+        cost_row("小计", box.get("subtotal", 0.0))
         cost_row("辅料", box.get("auxiliary", 0.0))
-        cost_row("成套制作费", box.get("labor", 0.0))
+        cost_row("成套制作费", box.get("manufacture", 0.0))
         cost_row("税费", box.get("tax_total", 0.0))
-        r_unit = r
-        cost_row("单台合计", f"=G{r_sub}+G{r_sub + 1}+G{r_sub + 2}+G{r_sub + 3}")
+        cost_row("单台合计", box.get("unit_price", 0.0))
 
         ws.cell(row=r, column=2, value="总计").alignment = LEFT
         ws.cell(row=r, column=4, value="台").alignment = CENTER
         ws.cell(row=r, column=5, value=box.get("quantity", 1)).alignment = CENTER
-        c = ws.cell(row=r, column=7, value=f"=E{r}*G{r_unit}")
+        c = ws.cell(row=r, column=7, value=box.get("total_price", 0.0))
         _money(c)
         for col in range(1, 10):
             cell = ws.cell(row=r, column=col)

@@ -9,6 +9,7 @@ from openpyxl.utils import get_column_letter
 
 from .schema import ExtractionResult
 from .config import delivery as _delivery
+from .quote_calc import quote_box, quote_project
 
 # 交付样式全部来自 config/delivery.json：换配色、换表名、换默认平替品牌都只改配置。
 _DELIVERY = _delivery()
@@ -565,7 +566,7 @@ def _clean_proj_title(raw_title: str) -> str:
     return cleaned
 
 
-def _result_box_items(box, b_circuits: list[Any], b_comps: list[Any], target_brand: str) -> tuple[list[dict], float]:
+def _result_box_items(box, b_circuits: list[Any], b_comps: list[Any], target_brand: str) -> list[dict]:
     """图纸结果 → 报价明细行。缺型号时如实写“待确认”、单价计 0，不编造型号与价格。"""
     from .pricing import calculate_component_unit_price, estimate_box_enclosure_price
     from .catalog import identify_brand
@@ -628,19 +629,7 @@ def _result_box_items(box, b_circuits: list[Any], b_comps: list[Any], target_bra
                   "unit": "台", "qty": 1, "unit_price": round(enclosure_price, 2),
                   "brand": "成套定制", "note": enc_basis or ""})
 
-    subtotal = round(sum(float(i["unit_price"]) * int(i["qty"]) for i in items), 2)
-    return items, subtotal
-
-
-def _quote_cost_split(subtotal: float, circuit_count: int) -> dict:
-    """小计 → 辅料 / 成套制作费 / 税费（费率来自 config/delivery.json 的 quote_template）。"""
-    qt = _DELIVERY.get("quote_template") or {}
-    aux = round(subtotal * float(qt.get("auxiliary_rate", 0.05)), 2)
-    labor = round(_ESTIMATION["labor_incoming_fixed"]
-                  + max(0, circuit_count - 1) * _ESTIMATION["labor_per_extra_circuit"], 2)
-    tax_total = round((subtotal + aux + labor) * float(qt.get("tax_rate", 0.06)), 2)
-    return {"subtotal": subtotal, "auxiliary": aux, "labor": labor, "tax_total": tax_total,
-            "unit_price": round(subtotal + aux + labor + tax_total, 2)}
+    return items
 
 
 def _quote_model_base(project: str, owner: str = "") -> dict:
@@ -673,9 +662,9 @@ def quote_model_from_result(result: ExtractionResult, target_brand: str = "",
     for b in result.boxes or []:
         code = _val(b, "code", "未命名")
         b_circuits = circuits_by_box.get(code, [])
-        items, subtotal = _result_box_items(b, b_circuits, comps_by_box.get(code, []), target_brand)
-        cost = _quote_cost_split(subtotal, len(b_circuits))
+        items = _result_box_items(b, b_circuits, comps_by_box.get(code, []), target_brand)
         qty = _val(b, "quantity", 1) or 1
+        cost = quote_box(items, qty)
         model["boxes"].append({
             "code": code,
             "name": _val(b, "name", "配电箱"),
@@ -684,8 +673,12 @@ def quote_model_from_result(result: ExtractionResult, target_brand: str = "",
             "unit": "台",
             "quantity": qty,
             "items": items,
-            "total_price": round(cost["unit_price"] * float(qty), 2),
-            **cost,
+            "subtotal": cost["subtotal"],
+            "auxiliary": cost["auxiliary"],
+            "manufacture": cost["manufacture"],
+            "tax_total": cost["tax"],
+            "unit_price": cost["unit_total"],
+            "total_price": cost["total"],
         })
     _finalize_model(model)
     return model
@@ -705,21 +698,13 @@ def quote_model_from_quote_res(quote_res: dict, job_info: dict, target_brand: st
         if row.get("type") == "box_header":
             current = {"header": row, "items": []}
             groups.append(current)
-        elif row.get("type") == "component" and current is not None:
+        elif row.get("type") in ("component", "material") and current is not None:
             current["items"].append(row)
 
     for group in groups:
         header = group["header"]
         code = header.get("box_code") or ""
         b_info = boxes.get(code) or {}
-        breakdown = b_info.get("cost_breakdown") or {}
-        has_shell_row = any(r.get("name") in ("壳体", "箱体结构") for r in group["items"])
-        components_cost = round(float(breakdown.get("components") or 0.0)
-                                + (0.0 if has_shell_row else float(breakdown.get("enclosure") or 0.0)), 2)
-        # 汇总表的四项费用与分项表逐行相加必须相等：母排并进辅料，利润并进税费
-        auxiliary = round(float(breakdown.get("copper") or 0.0) + float(breakdown.get("auxiliary") or 0.0), 2)
-        labor = round(float(breakdown.get("labor") or 0.0), 2)
-        tax_total = round(float(breakdown.get("profit") or 0.0) + float(breakdown.get("tax") or 0.0), 2)
         items = [{
             "name": row.get("name", ""),
             "spec": row.get("replacement_model") or row.get("design_spec") or "",
@@ -730,14 +715,8 @@ def quote_model_from_quote_res(quote_res: dict, job_info: dict, target_brand: st
             "note": row.get("source") if row.get("source") not in (None, "平替") else "",
         } for row in group["items"]]
 
-        # 壳体在组价里是单独一项成本，分项表里必须也是一行；
-        # 否则"小计"和逐行相加对不上，客户一算就露馅。
-        enclosure = round(float(breakdown.get("enclosure") or 0.0), 2)
-        if not any(i["name"] in ("壳体", "箱体结构") for i in items):
-            items.append({"name": "壳体", "spec": b_info.get("size") or "标准配电箱外壳",
-                          "unit": "台", "qty": 1, "unit_price": enclosure,
-                          "brand": "成套定制", "note": "钣金定额"})
         qty = header.get("quantity") or b_info.get("quantity") or 1
+        breakdown = b_info.get("breakdown") or quote_box(items, qty)
         model["boxes"].append({
             "code": code,
             "name": header.get("name") or b_info.get("name") or "配电箱",
@@ -746,12 +725,12 @@ def quote_model_from_quote_res(quote_res: dict, job_info: dict, target_brand: st
             "unit": "台",
             "quantity": qty,
             "items": items,
-            "subtotal": components_cost,
-            "auxiliary": auxiliary,
-            "labor": labor,
-            "tax_total": tax_total,
-            "unit_price": float(b_info.get("unit_price") or header.get("unit_price") or 0.0),
-            "total_price": float(b_info.get("total_price") or 0.0),
+            "subtotal": float(breakdown.get("subtotal") or 0.0),
+            "auxiliary": float(breakdown.get("auxiliary") or 0.0),
+            "manufacture": float(breakdown.get("manufacture") or 0.0),
+            "tax_total": float(breakdown.get("tax") or 0.0),
+            "unit_price": float(breakdown.get("unit_total") or 0.0),
+            "total_price": float(breakdown.get("total") or 0.0),
         })
     _finalize_model(model)
     return model
@@ -760,6 +739,9 @@ def quote_model_from_quote_res(quote_res: dict, job_info: dict, target_brand: st
 def _finalize_model(model: dict) -> None:
     model["total_qty"] = sum(int(b.get("quantity") or 1) for b in model["boxes"])
     model["total_price"] = round(sum(float(b.get("total_price") or 0.0) for b in model["boxes"]), 2)
+    project = quote_project(model["boxes"])
+    model["grand_total"] = project["grand_total"]
+    model["total_upper"] = project["upper"]
 
 
 def _fill_quote_template(wb, model: dict):

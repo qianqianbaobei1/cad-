@@ -283,7 +283,7 @@ def process_excel_list_file(job_id: str, raw_path: str, filename: str):
     try:
         from extractor.excel_extractor import parse_equipment_bom_file
         from extractor.assemble import assemble
-        from extractor.pricing import calculate_box_quotation
+        from extractor.excel import quote_model_from_result
 
         raw = parse_equipment_bom_file(raw_path)
         job.update(progress=60)
@@ -293,16 +293,8 @@ def process_excel_list_file(job_id: str, raw_path: str, filename: str):
         job.update(progress=80)
         save_job(job_id)
 
-        # 智能组价核算
-        total_price = 0.0
-        for b in result.boxes:
-            b_dict = b.model_dump()
-            cir_dicts = [c.model_dump() for c in result.circuits if c.box == b.code]
-            comp_dicts = [c.model_dump() for c in result.components]
-            quote = calculate_box_quotation(b_dict, cir_dicts, comp_dicts)
-            price = float(quote.get("final_tax_included") or 0.0)
-            total_price += price * max(1, int(b.quantity or 1))
-        total_price = round(total_price, 2)
+        # 与导出 Excel 同一套客户口径计费链，任务摘要里的总价不再另算一套
+        total_price = quote_model_from_result(result)["total_price"]
 
         # 导出生成标准 2-sheet Excel 报价清单
         xlsx_path = os.path.join(WORKDIR, f"{job_id}.xlsx")
@@ -2158,6 +2150,9 @@ def job_excel(
     force: bool = False,
     layout: str = "2_sheets",
     stage: str = "pricing",
+    aux_rate: float | None = None,
+    mfg_rate: float | None = None,
+    tax_rate: float | None = None,
 ):
     target_brand = (target_brand or DEFAULT_TARGET_BRAND).strip() or DEFAULT_TARGET_BRAND
     _validate_job_id(job_id)
@@ -2213,7 +2208,10 @@ def job_excel(
     else:
         # 2. 组价阶段导出（完整商业报价单：联动用户实际调价、平替品牌与包含关系，双 Sheet 标准）
         xlsx = os.path.join(WORKDIR, f"{job_id}_{target_brand}_pricing.xlsx")
-        quote_res = _calculate_job_quotation(job_id=job_id, brand=target_brand)
+        quote_res = _calculate_job_quotation(
+            job_id=job_id, brand=target_brand,
+            aux_rate=aux_rate, mfg_rate=mfg_rate, tax_rate=tax_rate,
+        )
         settings = store.settings()
         quote_info = dict(job)
         quote_info["bidder"] = settings.get("company") or ""
@@ -2315,38 +2313,6 @@ def revert_change(job_id: str, req: RevertRequest):
     result["reverted"] = entry
     return result
 
-
-
-def _calculate_job_total_price(job: dict) -> float:
-    summary = job.get("summary") or {}
-    if summary.get("total_price"):
-        try:
-            return float(summary["total_price"])
-        except (ValueError, TypeError):
-            pass
-    data = job.get("data") or {}
-    boxes = data.get("boxes") or []
-    circuits = data.get("circuits") or []
-    components = data.get("components") or []
-    if not boxes:
-        return 0.0
-    try:
-        from extractor.pricing import calculate_box_quotation
-        tot = 0.0
-        for b in boxes:
-            box_code = b.get("code") or b.get("box_code") or ""
-            box_cir = [c for c in circuits if c.get("box") == box_code]
-            q = calculate_box_quotation(b, box_cir, components)
-            price = float(q.get("final_tax_included") or 0.0)
-            qty = 1.0
-            try:
-                qty = float(b.get("quantity") or 1.0)
-            except (ValueError, TypeError):
-                pass
-            tot += price * max(1.0, qty)
-        return round(tot, 2)
-    except Exception:
-        return 0.0
 
 
 def _format_job_item(j: dict) -> dict:
@@ -3007,9 +2973,9 @@ def get_project_replacements(name: str, target_brand: str = ""):
 class QuotationRequest(BaseModel):
     brand: str = "正泰"
     copper_price: float = 72000.0
-    labor_rate: float = 380.0
-    profit_rate: float = 0.08
-    tax_rate: float = 0.13
+    aux_rate: float | None = None
+    mfg_rate: float | None = None
+    tax_rate: float | None = None
     overrides: dict[str, Any] = {}
 
 
@@ -3017,9 +2983,9 @@ def _calculate_job_quotation(
     job_id: str,
     brand: str = "正泰",
     copper_price: float = 72000.0,
-    labor_rate: float = 380.0,
-    profit_rate: float = 0.08,
-    tax_rate: float = 0.13,
+    aux_rate: float | None = None,
+    mfg_rate: float | None = None,
+    tax_rate: float | None = None,
     overrides_patch: dict[str, Any] | None = None
 ):
     """计算成套配电箱柜完整 Excel 组价数据及多候选品牌平替明细。"""
@@ -3054,6 +3020,9 @@ def _calculate_job_quotation(
         norm_brand = "正泰"
 
     from extractor.pricing import calculate_box_quotation, get_component_price_candidates
+    from extractor.quote_calc import quote_box, quote_project, resolve_rates
+
+    rates = resolve_rates(aux_rate, mfg_rate, tax_rate)
 
     data = job.get("data") or {}
     boxes = data.get("boxes") or []
@@ -3063,8 +3032,10 @@ def _calculate_job_quotation(
     total_components_cost = 0.0
     total_enclosure_cost = 0.0
     total_copper_cost = 0.0
-    total_labor_cost = 0.0
+    total_subtotal = 0.0
     total_auxiliary_cost = 0.0
+    total_manufacture_cost = 0.0
+    total_tax_cost = 0.0
 
     missing_count = 0
     manual_count = 0
@@ -3075,7 +3046,6 @@ def _calculate_job_quotation(
     seq_num = 1
 
     copper_ratio = float(copper_price) / 72000.0 if copper_price > 0 else 1.0
-    labor_ratio = float(labor_rate) / 380.0 if labor_rate > 0 else 1.0
 
     boxes_output = []
 
@@ -3108,15 +3078,11 @@ def _calculate_job_quotation(
         q = calculate_box_quotation(
             box, box_cir, box_comps,
             brand=norm_brand,
-            profit_rate=profit_rate,
-            tax_rate=tax_rate
         )
 
         c_break = q.get("cost_breakdown") or {}
         enclosure_c = round(float(c_break.get("enclosure_cost") or 0.0), 2)
         copper_c = round(float(c_break.get("copper_busbar_cost") or 0.0) * copper_ratio, 2)
-        labor_c = round(float(c_break.get("labor_cost") or 0.0) * labor_ratio, 2)
-        aux_c = round(float(c_break.get("auxiliary_cost") or 0.0), 2)
 
         box_comp_cost = 0.0
         priced_comps = q.get("components") or []
@@ -3193,16 +3159,36 @@ def _calculate_job_quotation(
             comp_rows_for_box.append(comp_row)
             row_num += 1
 
-        box_subtotal_cost = box_comp_cost + enclosure_c + copper_c + labor_c + aux_c
-        box_profit = round(box_subtotal_cost * profit_rate, 2)
-        box_tax = round((box_subtotal_cost + box_profit) * tax_rate, 2)
-        box_final_price = round(box_subtotal_cost + box_profit + box_tax, 2)
+        shell_row = {
+            "row_num": row_num, "type": "material", "seq": "-",
+            "box_code": box_code, "name": "壳体", "location": "",
+            "design_spec": f"{box_type} {box_size}", "replacement_model": "",
+            "quantity": 1, "unit": "台",
+            "unit_price": enclosure_c, "total_price": enclosure_c,
+            "source": "定额", "brand": "成套定制"
+        }
+        row_num += 1
+
+        copper_row = {
+            "row_num": row_num, "type": "material", "seq": "-",
+            "box_code": box_code, "name": "铜材", "location": "",
+            "design_spec": f"母排 TMY 折算 · 铜价 {copper_price:,.0f} 元/吨", "replacement_model": "",
+            "quantity": 1, "unit": "套",
+            "unit_price": copper_c, "total_price": copper_c,
+            "source": "联动", "brand": ""
+        }
+        row_num += 1
+
+        # 壳体/铜材就是普通明细行，进入小计后再按客户口径计辅料、成套制作费、税费
+        box_quote = quote_box(comp_rows_for_box + [shell_row, copper_row], box_qty, rates)
 
         total_components_cost += box_comp_cost * box_qty
         total_enclosure_cost += enclosure_c * box_qty
         total_copper_cost += copper_c * box_qty
-        total_labor_cost += labor_c * box_qty
-        total_auxiliary_cost += aux_c * box_qty
+        total_subtotal += box_quote["subtotal"] * box_qty
+        total_auxiliary_cost += box_quote["auxiliary"] * box_qty
+        total_manufacture_cost += box_quote["manufacture"] * box_qty
+        total_tax_cost += box_quote["tax"] * box_qty
 
         box_header_row = {
             "row_num": row_num,
@@ -3215,8 +3201,8 @@ def _calculate_job_quotation(
             "replacement_model": f"{len(priced_comps)}种元器件明细",
             "quantity": box_qty,
             "unit": "台",
-            "unit_price": box_final_price,
-            "total_price": round(box_final_price * box_qty, 2),
+            "unit_price": box_quote["unit_total"],
+            "total_price": box_quote["total"],
             "source": "汇总",
             "expanded": True
         }
@@ -3224,80 +3210,32 @@ def _calculate_job_quotation(
         row_num += 1
 
         excel_rows.extend(comp_rows_for_box)
-
-        excel_rows.append({
-            "row_num": row_num, "type": "subtotal_comp", "seq": "-",
-            "box_code": box_code, "name": "元器件小计", "location": "",
-            "design_spec": "", "replacement_model": "",
-            "quantity": len(priced_comps), "unit": "种",
-            "unit_price": None, "total_price": round(box_comp_cost, 2),
-            "source": "系统累计"
-        })
-        row_num += 1
-
-        excel_rows.append({
-            "row_num": row_num, "type": "enclosure", "seq": "-",
-            "box_code": box_code, "name": f"箱体结构 ({box_type} {box_size})", "location": "",
-            "design_spec": "标准定额折算", "replacement_model": "",
-            "quantity": 1, "unit": "台",
-            "unit_price": enclosure_c, "total_price": enclosure_c,
-            "source": "定额"
-        })
-        row_num += 1
-
-        excel_rows.append({
-            "row_num": row_num, "type": "copper", "seq": "-",
-            "box_code": box_code, "name": "母排辅材 (TMY 折算)", "location": "",
-            "design_spec": f"铜价 {copper_price:,.0f} 元/吨联动测算", "replacement_model": "",
-            "quantity": 1, "unit": "批",
-            "unit_price": copper_c, "total_price": copper_c,
-            "source": "联动"
-        })
-        row_num += 1
-
-        excel_rows.append({
-            "row_num": row_num, "type": "labor", "seq": "-",
-            "box_code": box_code, "name": "装配调试人工工时", "location": "",
-            "design_spec": f"{'A' if labor_rate<=400 else ('B' if labor_rate<=500 else 'C')}级工日标准 (¥{labor_rate}/工日)", "replacement_model": "",
-            "quantity": 1, "unit": "批",
-            "unit_price": labor_c, "total_price": labor_c,
-            "source": "费率"
-        })
-        row_num += 1
+        excel_rows.append(shell_row)
+        excel_rows.append(copper_row)
         seq_num += 1
 
         boxes_output.append({
             "box_code": box_code, "name": box_name, "type": box_type,
             "size": box_size, "location": box_location, "quantity": box_qty,
-            "unit_price": box_final_price, "total_price": round(box_final_price * box_qty, 2),
+            "unit_price": box_quote["unit_total"], "total_price": box_quote["total"],
             "components_count": len(priced_comps),
-            "cost_breakdown": {
-                "components": round(box_comp_cost, 2),
-                "enclosure": enclosure_c,
-                "copper": copper_c,
-                "labor": labor_c,
-                "auxiliary": aux_c,
-                "subtotal": round(box_subtotal_cost, 2),
-                "profit": box_profit,
-                "tax": box_tax
-            }
+            "breakdown": box_quote
         })
 
-    grand_cost = round(total_components_cost + total_enclosure_cost + total_copper_cost + total_labor_cost + total_auxiliary_cost, 2)
-    grand_profit = round(grand_cost * profit_rate, 2)
-    grand_tax = round((grand_cost + grand_profit) * tax_rate, 2)
-    grand_total = round(grand_cost + grand_profit + grand_tax, 2)
+    project_quote = quote_project([b["breakdown"] for b in boxes_output])
 
     summary = {
-        "cost": grand_cost,
+        "cost": round(total_subtotal, 2),
+        "subtotal": round(total_subtotal, 2),
         "components_cost": round(total_components_cost, 2),
         "enclosure_cost": round(total_enclosure_cost, 2),
         "copper_cost": round(total_copper_cost, 2),
-        "labor_cost": round(total_labor_cost, 2),
         "auxiliary_cost": round(total_auxiliary_cost, 2),
-        "profit": grand_profit,
-        "tax": grand_tax,
-        "total_price": grand_total,
+        "manufacture_cost": round(total_manufacture_cost, 2),
+        "tax": round(total_tax_cost, 2),
+        "total_price": project_quote["total"],
+        "grand_total": project_quote["grand_total"],
+        "total_upper": project_quote["upper"],
         "missing_count": missing_count,
         "manual_count": manual_count,
         "boxes_count": len(boxes),
@@ -3305,9 +3243,9 @@ def _calculate_job_quotation(
         "rows_count": len(excel_rows),
         "brand": brand,
         "copper_price": copper_price,
-        "labor_rate": labor_rate,
-        "profit_rate": profit_rate,
-        "tax_rate": tax_rate
+        "aux_rate": rates["aux"],
+        "mfg_rate": rates["mfg"],
+        "tax_rate": rates["tax"]
     }
 
     return {
@@ -3324,16 +3262,16 @@ def get_job_quotation(
     job_id: str,
     brand: str = "正泰",
     copper_price: float = 72000.0,
-    labor_rate: float = 380.0,
-    profit_rate: float = 0.08,
-    tax_rate: float = 0.13,
+    aux_rate: float | None = None,
+    mfg_rate: float | None = None,
+    tax_rate: float | None = None,
 ):
     return _calculate_job_quotation(
         job_id=job_id,
         brand=brand,
         copper_price=copper_price,
-        labor_rate=labor_rate,
-        profit_rate=profit_rate,
+        aux_rate=aux_rate,
+        mfg_rate=mfg_rate,
         tax_rate=tax_rate,
     )
 
@@ -3347,8 +3285,8 @@ def update_job_quotation(
         job_id=job_id,
         brand=req.brand,
         copper_price=req.copper_price,
-        labor_rate=req.labor_rate,
-        profit_rate=req.profit_rate,
+        aux_rate=req.aux_rate,
+        mfg_rate=req.mfg_rate,
         tax_rate=req.tax_rate,
         overrides_patch=req.overrides,
     )

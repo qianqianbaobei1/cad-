@@ -11,6 +11,7 @@ import unittest
 import openpyxl
 
 from extractor.excel import build_workbook, build_pricing_quotation_workbook, quote_model_from_quote_res
+from extractor.quote_calc import quote_box
 from extractor.schema import Box, Circuit, Component, ExtractionResult, Uncertainty
 
 
@@ -84,38 +85,51 @@ class QuoteTemplateTest(unittest.TestCase):
         ws = self._export()["组价明细"]
         rows = {ws.cell(row=r, column=2).value: r for r in range(9, ws.max_row + 1)}
         unit_row, total_row = rows["单台合计"], rows["总计"]
-        self.assertEqual(ws.cell(row=total_row, column=7).value, f"=E{total_row}*G{unit_row}")
+        qty = float(ws.cell(row=total_row, column=5).value)
+        self.assertAlmostEqual(float(ws.cell(row=total_row, column=7).value),
+                               float(ws.cell(row=unit_row, column=7).value) * qty, places=2)
 
     def test_组价结果的价格直接落进模板(self):
         """组价工作台手改过的单价必须原样出现在明细表，而不是被重新估价覆盖。"""
+        lines = [
+            {"name": "微型断路器", "unit": "只", "qty": 3, "unit_price": 12.34},
+            {"name": "壳体", "unit": "台", "qty": 1, "unit_price": 100.0},
+            {"name": "铜材", "unit": "套", "qty": 1, "unit_price": 10.0},
+        ]
+        breakdown = quote_box(lines, 2)
         quote_res = {
             "summary": {"brand": "正泰"},
             "rows": [
                 {"type": "box_header", "box_code": "AP1", "name": "动力配电箱",
-                 "quantity": 2, "unit_price": 322.02},
+                 "quantity": 2, "unit_price": breakdown["unit_total"]},
                 {"type": "component", "name": "微型断路器", "design_spec": "C16/1P",
                  "replacement_model": "正泰 NXB-63 C16", "unit": "只", "quantity": 3,
-                 "unit_price": 12.34, "brand": "正泰", "source": "手填"},
+                 "unit_price": 12.34, "total_price": 37.02, "brand": "正泰", "source": "手填"},
+                {"type": "material", "name": "壳体", "design_spec": "500*400*200",
+                 "unit": "台", "quantity": 1, "unit_price": 100.0,
+                 "source": "定额", "brand": "成套定制"},
+                {"type": "material", "name": "铜材", "design_spec": "母排 TMY 折算",
+                 "unit": "套", "quantity": 1, "unit_price": 10.0,
+                 "source": "联动", "brand": ""},
             ],
             "boxes": [{
                 "box_code": "AP1", "name": "动力配电箱", "size": "500*400*200", "location": "车间",
-                "quantity": 2, "unit_price": 322.02, "total_price": 644.04,
-                "cost_breakdown": {"components": 37.02, "enclosure": 100.0, "copper": 10.0,
-                                   "auxiliary": 5.0, "labor": 120.0, "profit": 20.0, "tax": 30.0},
+                "quantity": 2, "breakdown": breakdown,
             }],
         }
         model = quote_model_from_quote_res(quote_res, {"project": "某项目"}, "正泰")
         box = model["boxes"][0]
         self.assertAlmostEqual(box["items"][0]["unit_price"], 12.34)
-        # 壳体在组价里是独立成本项，明细表必须也是一行，否则小计和逐行相加对不上
-        self.assertEqual(box["items"][-1]["name"], "壳体")
-        self.assertAlmostEqual(box["items"][-1]["unit_price"], 100.0)
+        # 壳体/铜材也是普通明细行，小计必须等于逐行相加
+        self.assertEqual([i["name"] for i in box["items"]], ["微型断路器", "壳体", "铜材"])
         self.assertAlmostEqual(sum(i["qty"] * i["unit_price"] for i in box["items"]), box["subtotal"])
-        self.assertAlmostEqual(box["auxiliary"], 15.0)   # 母排并进辅料
-        self.assertAlmostEqual(box["tax_total"], 50.0)   # 利润并进税费
+        self.assertAlmostEqual(box["auxiliary"], 7.35)
+        self.assertAlmostEqual(box["manufacture"], breakdown["manufacture"])
+        self.assertAlmostEqual(box["tax_total"], breakdown["tax"])
         # 四项费用相加必须等于单台合计，否则报价单自己就自相矛盾
-        self.assertAlmostEqual(box["subtotal"] + box["auxiliary"] + box["labor"] + box["tax_total"],
+        self.assertAlmostEqual(box["subtotal"] + box["auxiliary"] + box["manufacture"] + box["tax_total"],
                                box["unit_price"], places=2)
+        self.assertAlmostEqual(model["total_price"], breakdown["total"], places=2)
 
         with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tf:
             path = tf.name
@@ -126,7 +140,11 @@ class QuoteTemplateTest(unittest.TestCase):
             ws = wb["组价明细"]
             self.assertAlmostEqual(float(ws["F9"].value), 12.34)
             self.assertEqual(ws["E9"].value, 3)
-            self.assertAlmostEqual(float(wb["组价汇总"]["G7"].value), 322.02)
+            self.assertAlmostEqual(float(wb["组价汇总"]["G7"].value), breakdown["unit_total"])
+            summary = wb["组价汇总"]
+            self.assertAlmostEqual(float(summary["H8"].value), breakdown["total"], places=2)
+            self.assertEqual(summary["C9"].value, int(round(breakdown["total"])))
+            self.assertEqual(summary["G9"].value, model["total_upper"])
         finally:
             if os.path.exists(path):
                 os.remove(path)

@@ -2722,60 +2722,6 @@ const ExtractWorkbench = {
 
 /* ================= ④ 组价核算工作台 (Cost Pricing & Quotation) ================= */
 
-function toChineseCurrency(money) {
-  const cnNums = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖'];
-  const cnIntRadice = ['', '拾', '佰', '仟'];
-  const cnIntUnits = ['', '万', '亿', '兆'];
-  const cnDecUnits = ['角', '分'];
-  const integer = '整';
-  const intHead = '元';
-
-  let num = Math.round(Number(money || 0) * 100) / 100;
-  if (isNaN(num) || num <= 0) return '零元整';
-  if (num > 999999999999999.99) return '超出最大金额范围';
-
-  let parts = num.toFixed(2).split('.');
-  let intPart = parts[0];
-  let decPart = parts[1];
-
-  let chineseStr = '';
-  if (parseInt(intPart, 10) > 0) {
-    let zeroCount = 0;
-    let intLen = intPart.length;
-    for (let i = 0; i < intLen; i++) {
-      let n = intPart.charAt(i);
-      let p = intLen - i - 1;
-      let q = Math.floor(p / 4);
-      let m = p % 4;
-      if (n === '0') {
-        zeroCount++;
-      } else {
-        if (zeroCount > 0) chineseStr += cnNums[0];
-        zeroCount = 0;
-        chineseStr += cnNums[parseInt(n, 10)] + cnIntRadice[m];
-      }
-      if (m === 0 && zeroCount < 4) {
-        chineseStr += cnIntUnits[q];
-      }
-    }
-    chineseStr += intHead;
-  }
-
-  if (decPart && decPart !== '00') {
-    let d1 = parseInt(decPart.charAt(0), 10);
-    let d2 = parseInt(decPart.charAt(1), 10);
-    if (d1 > 0) chineseStr += cnNums[d1] + cnDecUnits[0];
-    if (d2 > 0) chineseStr += cnNums[d2] + cnDecUnits[1];
-  }
-
-  if (!chineseStr) {
-    chineseStr = cnNums[0] + intHead + integer;
-  } else if (!decPart || decPart === '00' || (!chineseStr.includes('角') && !chineseStr.includes('分'))) {
-    chineseStr += integer;
-  }
-  return chineseStr;
-}
-
 const PricingWorkbench = {
   id: '',
   job: null,
@@ -2786,7 +2732,7 @@ const PricingWorkbench = {
   filterManual: false,
   filterUnpriced: false,
   searchKeyword: '',
-  rates: { aux: 0.05, labor: 0.09, tax: 0.06 },
+  rates: { aux: 0.05, mfg: 0.09, tax: 0.06 },
   brand: '正泰',
   lastSavedTime: '—',
   timer: 0,
@@ -2816,7 +2762,7 @@ const PricingWorkbench = {
     if ($('pricingGoExtractBtn')) $('pricingGoExtractBtn').onclick = () => { location.hash = `#/job/${id}/extract`; };
     if ($('pricingExportBtn')) $('pricingExportBtn').onclick = () => {
       const activeBrand = this.brand || '正泰';
-      window.location.href = withToken(`/api/jobs/${id}/excel?stage=pricing&target_brand=${encodeURIComponent(activeBrand)}`);
+      window.location.href = withToken(`/api/jobs/${id}/excel?stage=pricing&target_brand=${encodeURIComponent(activeBrand)}&aux_rate=${this.rates.aux}&mfg_rate=${this.rates.mfg}&tax_rate=${this.rates.tax}`);
     };
     if ($('pricingSyncBtn')) $('pricingSyncBtn').onclick = () => {
       this.fetchQuotation();
@@ -2827,30 +2773,44 @@ const PricingWorkbench = {
     this.bindEvents();
   },
 
+  setRecalcBusy(busy) {
+    let hint = $('pricingRecalcHint');
+    if (!hint && $('pricingRecalcBtn')) {
+      hint = document.createElement('span');
+      hint.id = 'pricingRecalcHint';
+      hint.className = 'ml-2 hidden text-blue-600 text-[11px] font-medium animate-pulse';
+      hint.textContent = '正在重新核算…';
+      $('pricingRecalcBtn').insertAdjacentElement('afterend', hint);
+    }
+    if (hint) hint.classList.toggle('hidden', !busy);
+  },
+
   async fetchQuotation(customParams = {}) {
     if (customParams.brand) this.brand = customParams.brand;
     const brand = this.brand || '正泰';
-    const copper = 72000;
-    const labor = 380;
-    const profit = 0.08;
-    const tax = this.rates.tax || 0.06;
-
     const query = new URLSearchParams({
       brand,
-      copper_price: String(copper),
-      labor_rate: String(labor),
-      profit_rate: String(profit),
-      tax_rate: String(tax),
+      copper_price: '72000',
+      aux_rate: String(this.rates.aux),
+      mfg_rate: String(this.rates.mfg),
+      tax_rate: String(this.rates.tax),
     });
 
+    this.setRecalcBusy(true);
     try {
       const res = await api(`/api/jobs/${this.id}/quotation?${query.toString()}`);
       this.quotation = res;
+      const s = res.summary || {};
+      if (s.aux_rate != null) this.rates.aux = Number(s.aux_rate);
+      if (s.mfg_rate != null) this.rates.mfg = Number(s.mfg_rate);
+      if (s.tax_rate != null) this.rates.tax = Number(s.tax_rate);
       const now = new Date();
       this.lastSavedTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       this.render();
     } catch (e) {
       toast(`组价数据加载失败：${e.message}`);
+    } finally {
+      this.setRecalcBusy(false);
     }
   },
 
@@ -2867,19 +2827,19 @@ const PricingWorkbench = {
 
     // 费率显示
     if ($('pricingAuxRateText')) $('pricingAuxRateText').textContent = `${Math.round(this.rates.aux * 100)}%`;
-    if ($('pricingLaborRateText')) $('pricingLaborRateText').textContent = `${Math.round(this.rates.labor * 100)}%`;
+    if ($('pricingLaborRateText')) $('pricingLaborRateText').textContent = `${Math.round(this.rates.mfg * 100)}%`;
     if ($('pricingTaxRateText')) $('pricingTaxRateText').textContent = `${Math.round(this.rates.tax * 100)}%`;
 
-    // 数量与总计
+    // 合计（2 位小数）与报价总计（取整到元）
     const boxesCount = s.boxes_count || boxes.length || 0;
     const unitsCount = boxes.reduce((acc, b) => acc + (Number(b.quantity) || 1), 0) || boxesCount;
-    const costTotal = Number(s.cost || s.components_cost || 0);
-    const quoteTotal = Number(s.total_price || 0);
+    const projectTotal = Number(s.total_price || 0);
+    const grandTotal = Number(s.grand_total != null ? s.grand_total : Math.round(projectTotal));
 
     if ($('pricingBoxesSummaryText')) $('pricingBoxesSummaryText').textContent = `共 ${boxesCount} 个箱柜（${unitsCount} 台）`;
-    if ($('pricingCostTotalText')) $('pricingCostTotalText').textContent = `¥${costTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`;
-    if ($('pricingQuoteTotalText')) $('pricingQuoteTotalText').textContent = `¥${Math.round(quoteTotal).toLocaleString('zh-CN')}`;
-    if ($('pricingChineseCurrencyText')) $('pricingChineseCurrencyText').textContent = `（${toChineseCurrency(quoteTotal)}）`;
+    if ($('pricingCostTotalText')) $('pricingCostTotalText').textContent = `¥${projectTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`;
+    if ($('pricingQuoteTotalText')) $('pricingQuoteTotalText').textContent = `¥${grandTotal.toLocaleString('zh-CN')}`;
+    if ($('pricingChineseCurrencyText')) $('pricingChineseCurrencyText').textContent = `（${s.total_upper || '零元整'}）`;
 
     // 状态过滤标签
     const missingCount = s.missing_count || 0;
@@ -2897,7 +2857,7 @@ const PricingWorkbench = {
 
     // 底部状态栏
     if ($('pricingFooterCount')) $('pricingFooterCount').textContent = `${boxesCount} 箱 / ${rows.length} 行`;
-    if ($('pricingFooterSum')) $('pricingFooterSum').textContent = `¥${quoteTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`;
+    if ($('pricingFooterSum')) $('pricingFooterSum').textContent = `¥${Number(s.grand_total != null ? s.grand_total : s.total_price || 0).toLocaleString('zh-CN')}`;
     if ($('pricingFooterSavedTime')) $('pricingFooterSavedTime').textContent = `已保存 ${this.lastSavedTime}`;
     if ($('pricingGridRowSummary')) $('pricingGridRowSummary').textContent = `共 ${boxesCount} 箱 / ${rows.length} 行`;
   },
@@ -2912,25 +2872,23 @@ const PricingWorkbench = {
     const boxesCount = s.boxes_count || boxes.length || 0;
     const unitsCount = boxes.reduce((acc, b) => acc + (Number(b.quantity) || 1), 0) || boxesCount;
     const quoteTotal = Number(s.total_price || 0);
+    const grandTotal = Number(s.grand_total != null ? s.grand_total : Math.round(quoteTotal));
+    const totalUpper = s.total_upper || '零元整';
 
     const html = [];
 
-    // 1. 分类行：一、配电箱（N 个箱柜 / M 台） 小计 ¥...
+    // 1. 分类行：一、配电箱（N 个箱柜 / M 台） 合计 ¥...
     html.push(`
       <tr class="h-8 bg-slate-200/80 font-bold text-slate-900 border-b border-slate-300">
         <td class="excel-cell px-2 text-center font-mono" colspan="2">一</td>
         <td class="excel-cell px-2" colspan="2">配电箱（${boxesCount} 个箱柜 / ${unitsCount} 台）</td>
         <td class="excel-cell px-2" colspan="4"></td>
-        <td class="excel-cell px-2 text-right font-mono-nums text-slate-900 font-bold">小计 ¥${quoteTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+        <td class="excel-cell px-2 text-right font-mono-nums text-slate-900 font-bold">合计 ¥${quoteTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
         <td class="excel-cell px-2" colspan="3"></td>
       </tr>
     `);
 
     // 2. 按箱柜渲染
-    let currentBoxCode = '';
-    let currentBoxRows = [];
-    let boxIndex = 0;
-
     // 先把行数据按箱柜分组
     const boxGroups = [];
     let currentGroup = null;
@@ -2938,11 +2896,9 @@ const PricingWorkbench = {
     rows.forEach((r) => {
       if (r.type === 'box_header') {
         if (currentGroup) boxGroups.push(currentGroup);
-        currentGroup = { header: r, items: [], breakdown: [] };
-      } else if (r.type === 'component') {
+        currentGroup = { header: r, items: [] };
+      } else if (r.type === 'component' || r.type === 'material') {
         if (currentGroup) currentGroup.items.push(r);
-      } else {
-        if (currentGroup) currentGroup.breakdown.push(r);
       }
     });
     if (currentGroup) boxGroups.push(currentGroup);
@@ -2950,7 +2906,7 @@ const PricingWorkbench = {
     boxGroups.forEach((group, bIdx) => {
       const bh = group.header;
       const isCollapsed = this.collapsedBoxes.has(bh.box_code);
-      const compCount = group.items.length;
+      const compCount = group.items.filter(it => it.type === 'component').length;
 
       // 箱柜行
       html.push(`
@@ -2972,9 +2928,28 @@ const PricingWorkbench = {
 
       // 如果未折叠，渲染元器件和构成行
       if (!isCollapsed) {
-        let compSubtotal = 0;
-
         group.items.forEach((r) => {
+          // 壳体/铜材是普通明细行，不参与缺价筛选与手改价
+          if (r.type === 'material') {
+            html.push(`
+              <tr class="h-8 bg-slate-50/70 text-slate-700">
+                <td class="excel-cell text-center font-mono text-slate-400 text-[11px]">${r.seq || '-'}</td>
+                <td class="excel-cell px-2 font-mono text-slate-300 text-center"></td>
+                <td class="excel-cell px-2 pl-4 flex items-center gap-1.5 h-8">${esc(r.name)}</td>
+                <td class="excel-cell px-2 font-mono-nums text-slate-600 text-[12px]">${esc(r.design_spec || '—')}</td>
+                <td class="excel-cell px-2 font-mono-nums text-slate-800"></td>
+                <td class="excel-cell px-1 text-center text-slate-500">${esc(r.unit || '台')}</td>
+                <td class="excel-cell px-2 text-right font-mono-nums">${r.quantity || 1}</td>
+                <td class="excel-cell px-2 text-right font-mono-nums text-slate-800">${Number(r.unit_price || 0).toFixed(2)}</td>
+                <td class="excel-cell px-2 text-right font-mono-nums text-slate-800">${Number(r.total_price || 0).toFixed(2)}</td>
+                <td class="excel-cell px-2 text-slate-700">${esc(r.brand || '—')}</td>
+                <td class="excel-cell text-center text-slate-500 text-[11px]">${esc(r.source || '')}</td>
+                <td class="excel-cell px-2 text-slate-500 text-[11px]"></td>
+              </tr>
+            `);
+            return;
+          }
+
           // 过滤条件
           const isMissing = (r.source === '缺价' || Number(r.unit_price) <= 0);
           const isManual = (r.source === '手填');
@@ -2994,8 +2969,6 @@ const PricingWorkbench = {
             );
             if (!textMatch) return;
           }
-
-          compSubtotal += Number(r.total_price || 0);
 
           const isSelected = (this.activeCompRow && (this.activeCompRow.key === r.key || (this.activeCompRow.box_code === r.box_code && this.activeCompRow.seq === r.seq)));
 
@@ -3071,24 +3044,27 @@ const PricingWorkbench = {
           `);
         });
 
-        // 辅料、成套制作费、税费构成行
-        const auxCost = compSubtotal * this.rates.aux;
-        const laborCost = (compSubtotal + auxCost) * this.rates.labor;
-        const taxCost = (compSubtotal + auxCost + laborCost) * this.rates.tax;
-        const singleBoxTotal = compSubtotal + auxCost + laborCost + taxCost;
+        // 构成行：直接取后端同一套计费链结果，屏幕与导出 Excel 同口径
+        const bd = (boxes.find(b => b.box_code === bh.box_code) || {}).breakdown || {};
+        const rates = bd.rates || this.rates;
+        const subtotal = Number(bd.subtotal || 0);
+        const auxCost = Number(bd.auxiliary || 0);
+        const mfgCost = Number(bd.manufacture || 0);
+        const taxCost = Number(bd.tax || 0);
+        const singleBoxTotal = Number(bd.unit_total || 0);
 
         html.push(`
           <!-- 构成行：小计 -->
           <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
             <td class="excel-cell text-center font-mono">-</td>
             <td class="excel-cell" colspan="7"><span class="pl-6">小计</span></td>
-            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${compSubtotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${subtotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
             <td class="excel-cell" colspan="3"></td>
           </tr>
           <!-- 辅料 -->
           <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
             <td class="excel-cell text-center font-mono">-</td>
-            <td class="excel-cell" colspan="7"><span class="pl-6">辅料（小计 × ${Math.round(this.rates.aux * 100)}%）</span></td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">辅料（小计 × ${Math.round(Number(rates.aux) * 100)}%）</span></td>
             <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${auxCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
             <td class="excel-cell px-2 text-slate-400"></td>
             <td class="excel-cell text-center text-slate-500">费率</td>
@@ -3097,8 +3073,8 @@ const PricingWorkbench = {
           <!-- 成套制作费 -->
           <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
             <td class="excel-cell text-center font-mono">-</td>
-            <td class="excel-cell" colspan="7"><span class="pl-6">成套制作费（(小计+辅料) × ${Math.round(this.rates.labor * 100)}%）</span></td>
-            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${laborCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">成套制作费（(小计+辅料) × ${Math.round(Number(rates.mfg) * 100)}%）</span></td>
+            <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${mfgCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
             <td class="excel-cell px-2 text-slate-400"></td>
             <td class="excel-cell text-center text-slate-500">费率</td>
             <td class="excel-cell"></td>
@@ -3106,7 +3082,7 @@ const PricingWorkbench = {
           <!-- 税费 -->
           <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
             <td class="excel-cell text-center font-mono">-</td>
-            <td class="excel-cell" colspan="7"><span class="pl-6">税费（前三项 × ${Math.round(this.rates.tax * 100)}%）</span></td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">税费（前三项 × ${Math.round(Number(rates.tax) * 100)}%）</span></td>
             <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${taxCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
             <td class="excel-cell px-2 text-slate-400"></td>
             <td class="excel-cell text-center text-slate-500">费率</td>
@@ -3123,15 +3099,14 @@ const PricingWorkbench = {
       }
     });
 
-    // 3. 底部冻结合计行
+    // 3. 底部冻结合计行：合计（2 位小数）与报价总计（取整到元）+ 大写
     html.push(`
       <tr class="h-8 bg-slate-200 text-slate-900 font-bold border-t-2 border-slate-400 sticky bottom-0 z-10 shadow-xs">
         <td class="excel-cell text-center font-mono">合计</td>
         <td class="excel-cell px-2" colspan="5">${boxesCount} 个箱柜 / ${unitsCount} 台</td>
         <td class="excel-cell px-2 text-right font-mono-nums">数量 ${unitsCount}</td>
-        <td class="excel-cell px-2 text-right font-mono-nums"></td>
-        <td class="excel-cell px-2 text-right font-mono-nums text-blue-900">总价 ${quoteTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
-        <td class="excel-cell px-2" colspan="3"></td>
+        <td class="excel-cell px-2 text-right font-mono-nums" colspan="2">合计 ¥${quoteTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
+        <td class="excel-cell px-2 text-right font-mono-nums text-blue-900" colspan="3">报价总计 ¥${grandTotal.toLocaleString('zh-CN')}（${esc(totalUpper)}）</td>
       </tr>
     `);
 
@@ -3186,31 +3161,6 @@ const PricingWorkbench = {
 
     if ($('pricingFooterSel')) $('pricingFooterSel').textContent = `${row.box_code} / ${row.seq} ${row.name}`;
     this.renderSidebar(row);
-  },
-
-  recalcLocalSummary() {
-    if (!this.quotation) return;
-    const rows = this.quotation.rows || [];
-    let compCost = 0;
-    let missing = 0;
-    let manual = 0;
-    rows.forEach(r => {
-      if (r.type === 'component') {
-        const p = Number(r.unit_price) || 0;
-        compCost += Number(r.total_price) || (p * (Number(r.quantity) || 1));
-        if (p <= 0 || r.source === '缺价') missing++;
-        if (r.source === '手填') manual++;
-      }
-    });
-    const s = this.quotation.summary || {};
-    s.components_cost = Math.round(compCost * 100) / 100;
-    s.cost = Math.round((compCost + Number(s.enclosure_cost || 0) + Number(s.copper_cost || 0) + Number(s.labor_cost || 0) + Number(s.auxiliary_cost || 0)) * 100) / 100;
-    const profit = Math.round(s.cost * (s.profit_rate || 0.08) * 100) / 100;
-    s.profit = profit;
-    s.tax = Math.round((s.cost + profit) * (s.tax_rate || 0.13) * 100) / 100;
-    s.total_price = Math.round((s.cost + s.profit + s.tax) * 100) / 100;
-    s.missing_count = missing;
-    s.manual_count = manual;
   },
 
   renderSidebar(row) {
@@ -3337,58 +3287,42 @@ const PricingWorkbench = {
     const model = candidateData.model || this.activeCompRow.replacement_model || '';
     const source = candidateData.source || '未标注';
     const brand = candidateData.brand || '';
+    const boxCode = this.activeCompRow.box_code;
+    const seq = this.activeCompRow.seq;
+    const designSpec = this.activeCompRow.design_spec;
+    const key = this.activeCompRow.key || `${boxCode}_${seq}`;
+    const quoteKey = `${boxCode}_${seq}`;
 
-    // 1. 立即前端本地回填 (0ms 极致交互反馈，杜绝用户看到[缺价]不更新)
-    this.activeCompRow.unit_price = price;
-    this.activeCompRow.total_price = Math.round(price * (Number(this.activeCompRow.quantity) || 1) * 100) / 100;
-    this.activeCompRow.replacement_model = model;
-    this.activeCompRow.source = source;
-    this.activeCompRow.brand = brand;
-    this.activeCompRow.is_unpriced = false;
-
-    // 2. 同步更新行数据中的匹配项
-    const allRows = this.quotation.rows || [];
-    const targetRow = allRows.find(r => r.key === this.activeCompRow.key || (r.box_code === this.activeCompRow.box_code && r.seq === this.activeCompRow.seq));
-    if (targetRow) {
-      targetRow.unit_price = price;
-      targetRow.total_price = this.activeCompRow.total_price;
-      targetRow.replacement_model = model;
-      targetRow.source = source;
-      targetRow.brand = brand;
-      targetRow.is_unpriced = false;
-    }
-
-    // 3. 重新核算当前组价总额并刷新渲染
-    this.recalcLocalSummary();
-    this.renderBasisHeader();
-    this.renderTable();
-    this.selectRow(this.activeCompRow);
-
-    toast(`已成功采用【${source}】：¥${price.toFixed(2)} (${model})`);
-
-    // 4. 发送多重候选键至后端持久化到 SQLite WAL
-    const key = this.activeCompRow.key || `${this.activeCompRow.box_code}_${this.activeCompRow.seq}`;
+    // 价格落盘后直接以后端返回的核算结果重绘，屏幕与导出保持同一套计费链
     const payload = {
       brand: this.brand || '正泰',
       copper_price: 72000,
-      labor_rate: 380,
-      profit_rate: 0.08,
-      tax_rate: this.rates.tax || 0.13,
+      aux_rate: this.rates.aux,
+      mfg_rate: this.rates.mfg,
+      tax_rate: this.rates.tax,
       overrides: {
         [key]: { unit_price: price, price, model, quote_spec: model, brand, source },
-        [`${this.activeCompRow.box_code}_${this.activeCompRow.seq}`]: { unit_price: price, price, model, quote_spec: model, brand, source },
-        [this.activeCompRow.design_spec]: { unit_price: price, price, model, quote_spec: model, brand, source }
+        [quoteKey]: { unit_price: price, price, model, quote_spec: model, brand, source },
+        [designSpec]: { unit_price: price, price, model, quote_spec: model, brand, source }
       }
     };
 
+    this.setRecalcBusy(true);
     try {
-      await api(`/api/jobs/${this.id}/quotation`, {
+      const res = await api(`/api/jobs/${this.id}/quotation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      this.quotation = res;
+      this.render();
+      const refreshed = (res.rows || []).find(r => r.key === key || (r.box_code === boxCode && r.seq === seq));
+      if (refreshed) this.selectRow(refreshed);
+      toast(`已成功采用【${source}】：¥${price.toFixed(2)} (${model})`);
     } catch (e) {
-      console.warn('后端同步失败:', e);
+      toast(`后端同步失败：${e.message}`);
+    } finally {
+      this.setRecalcBusy(false);
     }
   },
 
@@ -3401,49 +3335,41 @@ const PricingWorkbench = {
       return;
     }
     const note = ($('pricingCustomNoteInput') && $('pricingCustomNoteInput').value.trim()) || '询价人工填报';
+    const boxCode = this.activeCompRow.box_code;
+    const seq = this.activeCompRow.seq;
+    const designSpec = this.activeCompRow.design_spec;
+    const key = this.activeCompRow.key || `${boxCode}_${seq}`;
+    const quoteKey = `${boxCode}_${seq}`;
 
-    // 1. 立即前端本地回填
-    this.activeCompRow.unit_price = price;
-    this.activeCompRow.total_price = Math.round(price * (Number(this.activeCompRow.quantity) || 1) * 100) / 100;
-    this.activeCompRow.replacement_model = note;
-    this.activeCompRow.source = '手填';
-    this.activeCompRow.is_unpriced = false;
-
-    const allRows = this.quotation.rows || [];
-    const targetRow = allRows.find(r => r.key === this.activeCompRow.key || (r.box_code === this.activeCompRow.box_code && r.seq === this.activeCompRow.seq));
-    if (targetRow) {
-      targetRow.unit_price = price;
-      targetRow.total_price = this.activeCompRow.total_price;
-      targetRow.replacement_model = note;
-      targetRow.source = '手填';
-      targetRow.is_unpriced = false;
-    }
-
-    this.recalcLocalSummary();
-    this.renderBasisHeader();
-    this.renderTable();
-    this.selectRow(this.activeCompRow);
-
-    toast(`已成功保存手填单价：¥${price.toFixed(2)} (${note})`);
-
-    const key = this.activeCompRow.key || `${this.activeCompRow.box_code}_${this.activeCompRow.seq}`;
     const payload = {
       brand: this.brand || '正泰',
+      copper_price: 72000,
+      aux_rate: this.rates.aux,
+      mfg_rate: this.rates.mfg,
+      tax_rate: this.rates.tax,
       overrides: {
         [key]: { unit_price: price, price, model: note, quote_spec: note, source: '手填' },
-        [`${this.activeCompRow.box_code}_${this.activeCompRow.seq}`]: { unit_price: price, price, model: note, quote_spec: note, source: '手填' },
-        [this.activeCompRow.design_spec]: { unit_price: price, price, model: note, quote_spec: note, source: '手填' }
+        [quoteKey]: { unit_price: price, price, model: note, quote_spec: note, source: '手填' },
+        [designSpec]: { unit_price: price, price, model: note, quote_spec: note, source: '手填' }
       }
     };
 
+    this.setRecalcBusy(true);
     try {
-      await api(`/api/jobs/${this.id}/quotation`, {
+      const res = await api(`/api/jobs/${this.id}/quotation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      this.quotation = res;
+      this.render();
+      const refreshed = (res.rows || []).find(r => r.key === key || (r.box_code === boxCode && r.seq === seq));
+      if (refreshed) this.selectRow(refreshed);
+      toast(`已成功保存手填单价：¥${price.toFixed(2)} (${note})`);
     } catch (e) {
-      console.warn('后端同步失败:', e);
+      toast(`后端同步失败：${e.message}`);
+    } finally {
+      this.setRecalcBusy(false);
     }
   },
 
@@ -3465,9 +3391,8 @@ const PricingWorkbench = {
           const num = parseFloat(val);
           if (!isNaN(num) && num >= 0 && num <= 100) {
             this.rates.aux = num / 100;
-            this.renderBasisHeader();
-            this.renderTable();
-            toast(`辅料费率已更新为 ${num}%`);
+            this.fetchQuotation();
+            toast(`辅料费率已更新为 ${num}% 并已重新核算`);
           }
         }
       };
@@ -3475,14 +3400,13 @@ const PricingWorkbench = {
 
     if ($('pricingLaborBtn')) {
       $('pricingLaborBtn').onclick = () => {
-        const val = prompt('请输入成套制作费率百分比 (例：9 代表 9%):', String(Math.round(this.rates.labor * 100)));
+        const val = prompt('请输入成套制作费率百分比 (例：9 代表 9%):', String(Math.round(this.rates.mfg * 100)));
         if (val != null) {
           const num = parseFloat(val);
           if (!isNaN(num) && num >= 0 && num <= 100) {
-            this.rates.labor = num / 100;
-            this.renderBasisHeader();
-            this.renderTable();
-            toast(`成套制作费率已更新为 ${num}%`);
+            this.rates.mfg = num / 100;
+            this.fetchQuotation();
+            toast(`成套制作费率已更新为 ${num}% 并已重新核算`);
           }
         }
       };

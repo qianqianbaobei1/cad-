@@ -241,8 +241,6 @@
     "accessory_per_circuit": 35.0,
     "labor_per_circuit": 25.0,
     "labor_fixed": 80.0,
-    "labor_incoming_fixed": 120.0,
-    "labor_per_extra_circuit": 35.0,
     "default_device_unit": "只",
     "default_box_unit": "台",
     "default_assembly_unit": "套",
@@ -265,6 +263,7 @@
     "header_fill": "F2F2F2",
     "total_fill": "75923C",
     "auxiliary_rate": 0.05,
+    "manufacture_rate": 0.09,
     "tax_rate": 0.06,
     "summary_widths": [
       5.5,
