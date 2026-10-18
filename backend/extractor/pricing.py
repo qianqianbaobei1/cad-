@@ -1177,10 +1177,11 @@ def get_component_price_candidates(raw_spec: str, category: str = "", comp_name:
         if brand is None:
             return None
         m = results[brand]
-        return {"brand": brand, "model": m["model"], "price": m["price_tax"], "source": source}
+        # 两张候选卡片都来自同一个内置价格库，只是品牌优先顺序不同，来源必须写真实出处
+        return {"brand": brand, "model": m["model"], "price": m["price_tax"], "source": f"{source}·{brand}"}
 
-    info_cand = first(INFO_PRICE_ORDER, "信息价")
-    market_cand = first(MARKET_PRICE_ORDER, "市场价")
+    info_cand = first(INFO_PRICE_ORDER, "价库")
+    market_cand = first(MARKET_PRICE_ORDER, "价库")
     ai_sugg = estimate_reference_price(comp_name, raw_spec, category)
 
     return {

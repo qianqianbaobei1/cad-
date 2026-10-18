@@ -91,19 +91,25 @@ class ExportGateTests(unittest.TestCase):
         self.assertIn("1 处图面存疑未确认", text)
 
     def test_前端导出不得只依赖程序化blob下载(self):
-        """回归：导出主路径必须是真实 <a href> 导航式下载。
+        """回归：导出主路径必须是导航式下载（真实 href / location.href）。
 
         曾经用 fetch+blob+程序化 click，在内嵌浏览器里会被静默吞掉——用户看到的就是
         「点了导出没有任何反应」，既不报错也没有文件。导航式下载走浏览器自己的下载管理器，
         兼容性最好；这里用静态断言锁住，别被改回去。
+
+        注：从不显示的全局顶栏 <a id="btnExport"> 已随死按钮清理删除，
+        导出收敛到识别页「导出清单」与组价页「导出报价 Excel」两个真实入口。
         """
         import pathlib as _p
         root = _p.Path(__file__).resolve().parent.parent.parent / "frontend"
         js = (root / "app.js").read_text(encoding="utf-8")
         html = (root / "index.html").read_text(encoding="utf-8")
-        # 导出按钮必须是 <a download>，由脚本填上真实的 /excel 地址
-        self.assertRegex(html, r'<a[^>]*id="btnExport"[^>]*download')
-        self.assertIn("$('btnExport').href = withToken(`/api/jobs/${id}/excel`)", js)
+        # 工程量清单导出、报价 Excel 导出都必须是 location.href 导航
+        self.assertIn("$('extExportBomBtn').onclick = () => { window.location.href = withToken(`/api/jobs/${id}/excel?stage=takeoff`)", js)
+        self.assertIn("window.location.href = withToken(`/api/jobs/${id}/excel?stage=pricing", js)
+        # 标准清单模板下载必须是真实 <a download>，由脚本补上令牌
+        self.assertRegex(html, r'<a[^>]*id="btnDownloadTemplate"[^>]*download')
+        self.assertIn("withToken('/api/template/bom')", js)
         # 不得自己造 blob 下载
         self.assertNotIn("createObjectURL", js, "导出不应再用 blob 下载")
 

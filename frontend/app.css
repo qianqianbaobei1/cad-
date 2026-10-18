@@ -235,7 +235,6 @@ button, input, select { font: inherit; color: inherit; }
 .detail-empty { padding: 40px 16px; text-align: center; color: var(--mut); }
 
 /* AI 助手 */
-.top-actions { display: flex; gap: 8px; }
 .btn.on { border-color: var(--acc); color: var(--acc); background: var(--acc-t); }
 .pane-chat { flex: 0 0 340px; margin-left: 10px; }
 @media (max-width: 1280px) { .pane-chat { flex-basis: 300px; } }

@@ -144,6 +144,36 @@ class TestQuotationWorkflow(unittest.TestCase):
             self.assertEqual(cand["source"], f"价库·{cand['brand']}")
         self.assertIn("定额估算", cands["ai_suggested"]["source"])
 
+    def test_brand_options_are_honored(self):
+        # 组价页品牌下拉里的每个值都必须真的落到该品牌，不能静默退回默认品牌 正泰
+        expected = {
+            "正泰": "正泰",
+            "施耐德": "施耐德",
+            "德力西": "德力西",
+            "ABB": "ABB",
+            "按图原选型": "",  # 按图＝不指定平替品牌
+        }
+        first_prices = {}
+        for brand, norm in expected.items():
+            resp = client.get(f"/api/jobs/{self.job_id}/quotation", params={"brand": brand})
+            self.assertEqual(resp.status_code, 200, brand)
+            data = resp.json()
+            self.assertEqual(data["summary"]["brand"], brand)
+            comps = [r for r in data["rows"] if r.get("type") == "component"]
+            self.assertTrue(comps, brand)
+            self.assertEqual({(r.get("brand") or "") for r in comps}, {norm}, brand)
+            priced = [float(r["unit_price"]) for r in comps if float(r.get("unit_price") or 0) > 0]
+            first_prices[brand] = priced[0] if priced else None
+
+        # 不同品牌的价格不能全部一样（全部一样＝静态退回了同一个默认品牌）
+        real_brands = {b: first_prices[b] for b in ("正泰", "施耐德", "德力西", "ABB")}
+        self.assertNotIn(None, real_brands.values(), real_brands)
+        self.assertGreaterEqual(len(set(real_brands.values())), 2, real_brands)
+
+        # 不传 brand 时必须与后端默认值（正泰）一致，也与下拉默认选中项一致
+        default_resp = client.get(f"/api/jobs/{self.job_id}/quotation")
+        self.assertEqual(default_resp.json()["summary"]["brand"], "正泰")
+
     def test_box_components_isolation(self):
         # 01AP1 中只能包含属于 01AP1 的元器件，严禁混入 01AL1 的器件或外壳
         resp = client.get(f"/api/jobs/{self.job_id}/quotation?brand=正泰")
@@ -163,7 +193,7 @@ class TestQuotationWorkflow(unittest.TestCase):
             self.assertNotIn("01AL1", c["design_spec"])
 
     def test_quotation_override_persistence(self):
-        # 模拟前端点击 [采用] AI 建议价并落盘
+        # 模拟前端点击 [采用] 定额估算参考价并落盘
         override_payload = {
             "brand": "正泰",
             "overrides": {
@@ -171,7 +201,7 @@ class TestQuotationWorkflow(unittest.TestCase):
                     "unit_price": 26.0,
                     "price": 26.0,
                     "model": "BH-0.66 50/5A 0.5级 穿心式互感器",
-                    "source": "AI建议价",
+                    "source": "定额估算（非实时行情）",
                     "brand": "正泰"
                 }
             }
@@ -185,7 +215,7 @@ class TestQuotationWorkflow(unittest.TestCase):
         data = get_resp.json()
         ct_row = next(r for r in data["rows"] if r.get("box_code") == "01AP1" and r.get("design_spec") == "50/5")
         self.assertEqual(ct_row["unit_price"], 26.0)
-        self.assertEqual(ct_row["source"], "AI建议价")
+        self.assertEqual(ct_row["source"], "定额估算（非实时行情）")
         self.assertEqual(ct_row["replacement_model"], "BH-0.66 50/5A 0.5级 穿心式互感器")
 
         # 再次直接从 SQLite WAL 加载验证

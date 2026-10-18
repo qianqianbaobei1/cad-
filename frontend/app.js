@@ -656,6 +656,13 @@ $('btnSelectExcel').addEventListener('click', (e) => {
   $('excel-input').click();
 });
 
+// 下载标准配电箱设备清单模板（带令牌导航式下载，不用 fetch+blob）
+if ($('btnDownloadTemplate')) {
+  $('btnDownloadTemplate').addEventListener('click', (e) => {
+    e.currentTarget.href = withToken('/api/template/bom');
+  });
+}
+
 // 拖拽高亮交互绑定
 function setupDropZone(elemId, kind) {
   const el = $(elemId);
@@ -1011,7 +1018,7 @@ async function testEndpointConnection() {
     if (res.ok) {
       if (statusBar) statusBar.className = 'px-space-md py-1 bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-between font-label-sm text-label-sm border-b border-surface-container transition-all';
       if (statusLed) statusLed.className = 'w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse shrink-0';
-      if (statusMessage) statusMessage.innerText = `● 连通正常 · 延迟 ${res.latency_ms || 240}ms (多模态 Vision 图像张量通道就绪)`;
+      if (statusMessage) statusMessage.innerText = `● 连通正常 · 延迟 ${res.latency_ms ? `${res.latency_ms}ms` : '—'} (多模态 Vision 图像张量通道就绪)`;
       toast('API 端点连通测试成功！');
     } else {
       if (statusBar) statusBar.className = 'px-space-md py-1 bg-error-container text-on-error-container flex items-center justify-between font-label-sm text-label-sm border-b border-surface-container transition-all';
@@ -1093,11 +1100,6 @@ async function openSettingsModal() {
     }
 
     if ($('settingTileLargePages')) $('settingTileLargePages').checked = !!s.tile_large_pages;
-    const brands = data.target_brands || ['正泰', '施耐德', '德力西', 'ABB', '西门子'];
-    const defaultBrand = s.excel_template || data.default_target_brand || '正泰';
-    if ($('settingTargetBrand')) {
-      $('settingTargetBrand').innerHTML = brands.map((b) => `<option value="${esc(b)}" ${b === defaultBrand ? 'selected' : ''}>${esc(b)}</option>`).join('');
-    }
   } catch (err) {
     toast(`加载系统设置失败：${err.message}`);
   }
@@ -1120,7 +1122,6 @@ async function saveSettingsConfiguration() {
     vision_provider: provider,
     vision_model: model || undefined,
     vision_base_url: baseUrl || undefined,
-    excel_template: $('settingTargetBrand')?.value || undefined,
     tile_large_pages: !!$('settingTileLargePages')?.checked,
   };
   if (apiKey) {
@@ -1442,7 +1443,6 @@ const ExtractWorkbench = {
     $('extGoPricingBtn').onclick = () => { location.hash = `#/job/${this.id}/pricing`; };
     $('extMainPriceBtn').onclick = () => { location.hash = `#/job/${this.id}/pricing`; };
     $('extExportBomBtn').onclick = () => { window.location.href = withToken(`/api/jobs/${id}/excel?stage=takeoff`); };
-    if ($('btnExport')) $('btnExport').href = withToken(`/api/jobs/${id}/excel`);
 
     if (!isDone(job.status)) {
       $('extTopAlertText').textContent = isFailed(job.status) ? `识别失败: ${job.error || '未知错误'}` : '图纸识别中，请稍候...';
@@ -2778,9 +2778,8 @@ const PricingWorkbench = {
   filterUnpriced: false,
   searchKeyword: '',
   rates: { aux: 0.05, labor: 0.09, tax: 0.06 },
-  brand: 'schneider',
-  priceType: 'market',
-  lastSavedTime: '14:32',
+  brand: '正泰',
+  lastSavedTime: '—',
   timer: 0,
 
   stopPoll() { clearTimeout(this.timer); },
@@ -2814,9 +2813,6 @@ const PricingWorkbench = {
       this.fetchQuotation();
       toast('已成功将拆量最新回路数据同步至报价表！');
     };
-    if ($('pricingAiAssistBtn')) $('pricingAiAssistBtn').onclick = () => {
-      toast('AI 智能组价助手已启动，正在扫描未定价与平替项...');
-    };
 
     await this.fetchQuotation();
     this.bindEvents();
@@ -2824,7 +2820,7 @@ const PricingWorkbench = {
 
   async fetchQuotation(customParams = {}) {
     if (customParams.brand) this.brand = customParams.brand;
-    const brand = this.brand || 'schneider';
+    const brand = this.brand || '正泰';
     const copper = 72000;
     const labor = 380;
     const profit = 0.08;
@@ -2888,7 +2884,7 @@ const PricingWorkbench = {
 
     if ($('pricingMissingCountLabel')) $('pricingMissingCountLabel').textContent = `缺价 ${missingCount} 项`;
     if ($('pricingManualCountLabel')) $('pricingManualCountLabel').textContent = `手填 ${manualCount} 项`;
-    if ($('pricingUnpricedCountLabel')) $('pricingUnpricedCountLabel').textContent = `不计价 ${unpricedCount || 2} 项`;
+    if ($('pricingUnpricedCountLabel')) $('pricingUnpricedCountLabel').textContent = `不计价 ${unpricedCount} 项`;
 
     // 底部状态栏
     if ($('pricingFooterCount')) $('pricingFooterCount').textContent = `${boxesCount} 箱 / ${rows.length} 行`;
@@ -3034,7 +3030,7 @@ const PricingWorkbench = {
           }
 
           // 来源徽标
-          let sourceBadgeHtml = `<span class="text-slate-600 text-[11px]">${esc(r.source || '市场价')}</span>`;
+          let sourceBadgeHtml = `<span class="text-slate-600 text-[11px]">${esc(r.source || '未标注')}</span>`;
           if (isMissing) {
             sourceBadgeHtml = `<span class="inline-block px-1.5 py-0.2 text-[10px] font-semibold text-rose-700 bg-rose-100 border border-rose-300 rounded">缺价</span>`;
           } else if (isManual) {
@@ -3059,9 +3055,9 @@ const PricingWorkbench = {
               <td class="excel-cell px-2 text-right font-mono-nums ${isMissing ? 'font-bold' : ''}">${r.quantity}</td>
               ${priceCellHtml}
               <td class="excel-cell px-2 text-right font-mono-nums ${isMissing ? 'text-slate-400' : 'text-slate-800'}">${isMissing ? '—' : Number(r.total_price).toFixed(2)}</td>
-              <td class="excel-cell px-2 text-slate-700">${esc(r.brand || (isMissing ? '' : '施耐德电气'))}</td>
+              <td class="excel-cell px-2 text-slate-700">${esc(r.brand || '—')}</td>
               <td class="excel-cell text-center">${sourceBadgeHtml}</td>
-              <td class="excel-cell px-2 text-slate-500 text-[11px]">${esc(isManual ? (r.replacement_model || '询价 王工') : (isUnpriced ? '甲供' : (r.location || '')))}</td>
+              <td class="excel-cell px-2 text-slate-500 text-[11px]">${esc(isManual ? (r.replacement_model || '') : (isUnpriced ? '甲供' : (r.location || '')))}</td>
             </tr>
           `);
         });
@@ -3153,7 +3149,7 @@ const PricingWorkbench = {
     const isManual = (row.source === '手填');
     const isUnpriced = (row.is_unpriced || (row.unit_price === 0 && row.source !== '缺价'));
 
-    let sourceText = `来源：${row.source || '市场价'}，可在右侧选价或替换`;
+    let sourceText = `来源：${row.source || '未标注'}，可在右侧选价或替换`;
     if (isMissing) {
       sourceText = `来源：缺价，可在右侧选价`;
       if ($('pricingFormulaSource')) {
@@ -3161,7 +3157,7 @@ const PricingWorkbench = {
         $('pricingFormulaSource').textContent = sourceText;
       }
     } else if (isManual) {
-      sourceText = `来源：手填 (${row.replacement_model || '询价 王工'})`;
+      sourceText = `来源：手填 (${row.replacement_model || ''})`;
       if ($('pricingFormulaSource')) {
         $('pricingFormulaSource').className = 'text-blue-700 font-medium';
         $('pricingFormulaSource').textContent = sourceText;
@@ -3238,22 +3234,18 @@ const PricingWorkbench = {
       } else {
         badge.className = 'inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-100 border border-blue-200 px-1.5 py-0.2 rounded';
         if (badgeIcon) badgeIcon.textContent = 'verified';
-        badgeText.textContent = row.source || '已核价';
+        badgeText.textContent = row.source || '未标注';
       }
     }
 
     const cands = row.candidates || {};
     const infoCand = cands.info;
     const marketCand = cands.market;
-    const aiCand = cands.ai_suggested || {
-      model: `${row.name} ${row.design_spec}`,
-      price: Number(row.unit_price) > 0 ? Number(row.unit_price) : 45.0,
-      source: 'AI建议价（网络参考）',
-      reference: '网络电气集采大盘'
-    };
+    const aiCand = cands.ai_suggested || null;
 
-    // 1. 信息价卡片
-    if (infoCand && infoCand.price) {
+    // 1. 价库卡片（品牌优先顺序一）：有命中就显示真实品牌，没有就显示“—”，不得用当前单价冒充
+    if (infoCand && Number(infoCand.price) > 0) {
+      if ($('pricingCardInfoTitle')) $('pricingCardInfoTitle').textContent = `价库·${infoCand.brand || '未知品牌'}`;
       if ($('pricingCardInfoModel')) $('pricingCardInfoModel').textContent = `${infoCand.brand || ''} ${infoCand.model || ''}`.trim();
       if ($('pricingCardInfoPrice')) $('pricingCardInfoPrice').textContent = `¥ ${Number(infoCand.price).toFixed(2)}`;
       if ($('pricingAdoptInfoBtn')) {
@@ -3262,6 +3254,7 @@ const PricingWorkbench = {
         $('pricingAdoptInfoBtn').className = 'mt-1 px-2.5 py-0.5 bg-blue-700 hover:bg-blue-800 text-white rounded text-[11px] font-medium transition-colors cursor-pointer';
       }
     } else {
+      if ($('pricingCardInfoTitle')) $('pricingCardInfoTitle').textContent = '价库';
       if ($('pricingCardInfoModel')) $('pricingCardInfoModel').textContent = '内置库暂无收录';
       if ($('pricingCardInfoPrice')) $('pricingCardInfoPrice').textContent = '—';
       if ($('pricingAdoptInfoBtn')) {
@@ -3271,8 +3264,9 @@ const PricingWorkbench = {
       }
     }
 
-    // 2. 市场价卡片
-    if (marketCand && marketCand.price) {
+    // 2. 价库卡片（品牌优先顺序二）
+    if (marketCand && Number(marketCand.price) > 0) {
+      if ($('pricingCardMarketTitle')) $('pricingCardMarketTitle').textContent = `价库·${marketCand.brand || '未知品牌'}`;
       if ($('pricingCardMarketModel')) $('pricingCardMarketModel').textContent = `${marketCand.brand || ''} ${marketCand.model || ''}`.trim();
       if ($('pricingCardMarketPrice')) $('pricingCardMarketPrice').textContent = `¥ ${Number(marketCand.price).toFixed(2)}`;
       if ($('pricingAdoptMarketBtn')) {
@@ -3281,7 +3275,8 @@ const PricingWorkbench = {
         $('pricingAdoptMarketBtn').className = 'mt-1 px-2.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] transition-colors cursor-pointer';
       }
     } else {
-      if ($('pricingCardMarketModel')) $('pricingCardMarketModel').textContent = '市场价暂未收录';
+      if ($('pricingCardMarketTitle')) $('pricingCardMarketTitle').textContent = '价库';
+      if ($('pricingCardMarketModel')) $('pricingCardMarketModel').textContent = '内置库暂无收录';
       if ($('pricingCardMarketPrice')) $('pricingCardMarketPrice').textContent = '—';
       if ($('pricingAdoptMarketBtn')) {
         $('pricingAdoptMarketBtn').disabled = true;
@@ -3290,23 +3285,31 @@ const PricingWorkbench = {
       }
     }
 
-    // 3. 本地价卡片
-    if ($('pricingCardLocalPrice')) $('pricingCardLocalPrice').textContent = '—';
-
-    // 4. AI 建议价卡片 (按网络真实行情搜索与建议)
-    const aiPrice = Number(aiCand.price || 45.0);
-    const aiModel = aiCand.model || `${row.name} 网络推荐选型`;
-    if ($('pricingCardAiPrice')) $('pricingCardAiPrice').textContent = `¥ ${aiPrice.toFixed(2)}`;
-    if ($('pricingAdoptAiBtn')) {
-      $('pricingAdoptAiBtn').title = `${aiCand.source || 'AI建议价'} · ${aiCand.reference || '网络采购行情'}`;
+    // 3. 定额估算参考价卡片（estimate_reference_price 的经验定额，不是联网行情）
+    const aiPrice = aiCand && Number(aiCand.price) > 0 ? Number(aiCand.price) : 0;
+    if (aiPrice > 0) {
+      if ($('pricingCardAiModel')) $('pricingCardAiModel').textContent = `${aiCand.brand || ''} ${aiCand.model || ''}`.trim() || '暂无估算';
+      if ($('pricingCardAiDesc')) $('pricingCardAiDesc').textContent = aiCand.reference || '内置经验定额，未联网核价，采用前请人工确认';
+      if ($('pricingCardAiPrice')) $('pricingCardAiPrice').textContent = `¥ ${aiPrice.toFixed(2)}`;
+      if ($('pricingAdoptAiBtn')) {
+        $('pricingAdoptAiBtn').disabled = false;
+        $('pricingAdoptAiBtn').textContent = '采用';
+        $('pricingAdoptAiBtn').className = 'mt-1 px-2.5 py-0.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-medium transition-colors shadow-2xs cursor-pointer';
+        $('pricingAdoptAiBtn').title = `${aiCand.source || '定额估算'} · ${aiCand.reference || '内置经验定额，未联网核价'}`;
+      }
+    } else {
+      if ($('pricingCardAiModel')) $('pricingCardAiModel').textContent = '暂无估算';
+      if ($('pricingCardAiDesc')) $('pricingCardAiDesc').textContent = '—';
+      if ($('pricingCardAiPrice')) $('pricingCardAiPrice').textContent = '—';
+      if ($('pricingAdoptAiBtn')) {
+        $('pricingAdoptAiBtn').disabled = true;
+        $('pricingAdoptAiBtn').textContent = '暂无估算';
+        $('pricingAdoptAiBtn').className = 'mt-1 px-2.5 py-0.5 bg-slate-200 text-slate-400 rounded text-[11px] cursor-not-allowed';
+        $('pricingAdoptAiBtn').title = '后端未提供定额估算';
+      }
     }
 
-    // 5. 历史价卡片
-    const histPrice = (Number(row.unit_price) > 0 ? Number(row.unit_price) : aiPrice) * 1.03;
-    if ($('pricingCardHistoryProj')) $('pricingCardHistoryProj').textContent = '近期同类工程集采基准';
-    if ($('pricingCardHistoryPrice')) $('pricingCardHistoryPrice').textContent = `¥ ${histPrice.toFixed(2)}`;
-
-    // 6. 手填
+    // 4. 手填
     if ($('pricingCustomPriceInput')) {
       $('pricingCustomPriceInput').value = isManual ? row.unit_price : (isMissing ? '' : row.unit_price);
     }
@@ -3323,7 +3326,7 @@ const PricingWorkbench = {
       return;
     }
     const model = candidateData.model || this.activeCompRow.replacement_model || '';
-    const source = candidateData.source || 'AI建议价';
+    const source = candidateData.source || '未标注';
     const brand = candidateData.brand || '';
 
     // 1. 立即前端本地回填 (0ms 极致交互反馈，杜绝用户看到[缺价]不更新)
@@ -3442,15 +3445,6 @@ const PricingWorkbench = {
         this.brand = e.target.value;
         this.fetchQuotation({ brand: this.brand });
         toast(`已切换报价品牌基准：${e.target.options[e.target.selectedIndex].text}`);
-      };
-    }
-
-    // 取价类型切换
-    if ($('pricingPriceTypeSel')) {
-      $('pricingPriceTypeSel').onchange = (e) => {
-        this.priceType = e.target.value;
-        this.fetchQuotation();
-        toast(`价格取值基准已更新为：${e.target.options[e.target.selectedIndex].text}`);
       };
     }
 
@@ -3625,50 +3619,44 @@ const PricingWorkbench = {
       };
     }
 
-    // 采纳价格按钮 (卡片 1 - 5)
+    // 采纳价格按钮
     if ($('pricingAdoptInfoBtn')) {
       $('pricingAdoptInfoBtn').onclick = () => {
         if (!this.activeCompRow) return;
-        const cands = this.activeCompRow.candidates || {};
-        const info = cands.info;
-        if (!info || !info.price) {
-          toast('内置价格库暂未收录该规格，建议采用右侧【AI建议价】或【手填报价】');
+        const info = (this.activeCompRow.candidates || {}).info;
+        const p = Number(info && info.price);
+        if (!Number.isFinite(p) || p <= 0) {
+          toast('该来源没有价格');
           return;
         }
-        this.adoptCandidate({ price: Number(info.price), model: `${info.brand || ''} ${info.model || ''}`.trim(), source: '信息价', brand: info.brand || '施耐德' });
+        this.adoptCandidate({ price: p, model: `${info.brand || ''} ${info.model || ''}`.trim(), source: info.source || `价库·${info.brand || ''}`, brand: info.brand || '' });
       };
     }
 
     if ($('pricingAdoptMarketBtn')) {
       $('pricingAdoptMarketBtn').onclick = () => {
         if (!this.activeCompRow) return;
-        const cands = this.activeCompRow.candidates || {};
-        const market = cands.market;
-        if (!market || !market.price) {
-          toast('内置市场价暂无直接收录，建议采用【AI建议价】');
+        const market = (this.activeCompRow.candidates || {}).market;
+        const p = Number(market && market.price);
+        if (!Number.isFinite(p) || p <= 0) {
+          toast('该来源没有价格');
           return;
         }
-        this.adoptCandidate({ price: Number(market.price), model: `${market.brand || ''} ${market.model || ''}`.trim(), source: '市场价', brand: market.brand || '德力西' });
+        this.adoptCandidate({ price: p, model: `${market.brand || ''} ${market.model || ''}`.trim(), source: market.source || `价库·${market.brand || ''}`, brand: market.brand || '' });
       };
     }
 
     if ($('pricingAdoptAiBtn')) {
       $('pricingAdoptAiBtn').onclick = () => {
         if (!this.activeCompRow) return;
-        const cands = this.activeCompRow.candidates || {};
-        const ai = cands.ai_suggested;
-        const p = (ai && ai.price) ? Number(ai.price) : (parseFloat(($('pricingCardAiPrice').textContent || '').replace(/[^\d.]/g, '')) || 45.0);
-        const model = (ai && ai.model) ? ai.model : `${this.activeCompRow.name} ${this.activeCompRow.design_spec}`;
-        const brand = (ai && ai.brand) ? ai.brand : '正泰';
-        this.adoptCandidate({ price: p, model, source: 'AI建议价', brand });
-      };
-    }
-
-    if ($('pricingAdoptHistoryBtn')) {
-      $('pricingAdoptHistoryBtn').onclick = () => {
-        if (!this.activeCompRow) return;
-        const p = parseFloat(($('pricingCardHistoryPrice').textContent || '').replace(/[^\d.]/g, '')) || 48.0;
-        this.adoptCandidate({ price: p, model: '近期同类工程集采基准', source: '历史价' });
+        const ai = (this.activeCompRow.candidates || {}).ai_suggested;
+        const p = Number(ai && ai.price);
+        if (!Number.isFinite(p) || p <= 0) {
+          toast('该来源没有价格');
+          return;
+        }
+        const model = ai.model || this.activeCompRow.design_spec || '';
+        this.adoptCandidate({ price: p, model, source: ai.source || '定额估算', brand: ai.brand || '' });
       };
     }
 

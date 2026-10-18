@@ -529,14 +529,6 @@ body.auth-locked #authScreen { display: block; }
   </div>
 
   <div class="flex items-center gap-space-md">
-    <!-- 图纸详情页快捷操作 -->
-    <div class="top-actions flex items-center gap-2" id="topActions" hidden>
-      <a class="px-3 py-1.5 rounded bg-primary text-on-primary hover:bg-primary-container font-body-sm text-body-sm flex items-center gap-1.5 shadow-sm transition-colors text-white" id="btnExport" download>
-        <span class="material-symbols-outlined text-[16px]">download</span>
-        <span>导出 Excel</span>
-      </a>
-    </div>
-
     <!-- AI 识图模型与端点快捷指示胶囊 (BYOK) -->
     <button class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container border border-surface-container transition-colors cursor-pointer text-left" id="btnOpenModelSettings" type="button" title="点击配置识图模型与 API 密钥">
       <span class="w-2 h-2 rounded-full bg-slate-400" id="headerModelStatusDot"></span>
@@ -1229,11 +1221,6 @@ body.auth-locked #authScreen { display: block; }
         <span id="pricingVersionLabel">v1 智能平替</span>
         <span class="material-symbols-outlined text-[16px] text-slate-400 ml-1.5">arrow_drop_down</span>
       </div>
-      <!-- AI助手按钮 -->
-      <button class="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded border border-slate-700 text-xs transition-colors cursor-pointer" id="pricingAiAssistBtn" type="button">
-        <span class="material-symbols-outlined text-[16px] text-slate-400">psychology</span>
-        <span>AI 助手</span>
-      </button>
       <!-- 主按钮：导出报价 Excel -->
       <button class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs font-semibold shadow-sm transition-colors cursor-pointer" id="pricingExportBtn" type="button">
         <span class="material-symbols-outlined text-[16px]">file_download</span>
@@ -1264,22 +1251,14 @@ body.auth-locked #authScreen { display: block; }
       <span class="text-slate-500">本报价按</span>
       <div class="inline-flex items-center relative">
         <select class="font-semibold text-blue-700 bg-transparent border-0 border-b border-blue-300 hover:border-blue-600 p-0 pr-4 text-xs cursor-pointer outline-none focus:ring-0" id="pricingBrandSel">
-          <option value="schneider" selected>施耐德电气</option>
-          <option value="chint">正泰电气</option>
-          <option value="delixi">德力西电气</option>
-          <option value="abb">ABB工业级</option>
-          <option value="original">按图原选型</option>
+          <option value="正泰" selected>正泰电气</option>
+          <option value="施耐德">施耐德电气</option>
+          <option value="德力西">德力西电气</option>
+          <option value="ABB">ABB工业级</option>
+          <option value="按图原选型">按图原选型</option>
         </select>
       </div>
-      <span class="text-slate-500">报价，价格取</span>
-      <div class="inline-flex items-center relative">
-        <select class="font-semibold text-blue-700 bg-transparent border-0 border-b border-blue-300 hover:border-blue-600 p-0 pr-4 text-xs cursor-pointer outline-none focus:ring-0" id="pricingPriceTypeSel">
-          <option value="library" selected>价库单价</option>
-          <option value="estimate">定额估算参考价</option>
-          <option value="manual">人工手填</option>
-        </select>
-      </div>
-      <span class="text-slate-500">，辅料</span>
+      <span class="text-slate-500">报价，辅料</span>
       <button class="font-semibold text-blue-700 hover:underline decoration-blue-500 decoration-1 underline-offset-2 cursor-pointer" id="pricingAuxBtn" type="button" title="点击调整辅料费率">[<span id="pricingAuxRateText">5%</span>]</button>
       <span class="text-slate-500">，成套制作费</span>
       <button class="font-semibold text-blue-700 hover:underline decoration-blue-500 decoration-1 underline-offset-2 cursor-pointer" id="pricingLaborBtn" type="button" title="点击调整成套制作费率">[<span id="pricingLaborRateText">9%</span>]</button>
@@ -1415,7 +1394,7 @@ body.auth-locked #authScreen { display: block; }
         <div class="font-bold text-slate-900 text-sm truncate" id="pricingSidebarTitle">未选中器件</div>
         <div class="text-[11px] text-slate-500 mt-0.5 truncate" id="pricingSidebarSub">在左侧表格中点击任意行核验或更换价格</div>
       </div>
-      <!-- 5大价格来源卡片区 -->
+      <!-- 4大价格来源卡片区 -->
       <div class="flex-1 overflow-y-auto excel-scroll p-3 space-y-3 text-xs" id="pricingCandidatesContainer">
         <!-- 1. 价库（品牌优先顺序一） -->
         <div class="border border-slate-300 rounded p-2.5 bg-white hover:border-blue-400 transition-colors" id="pricingCardInfo">
@@ -1460,21 +1439,7 @@ body.auth-locked #authScreen { display: block; }
             </div>
           </div>
         </div>
-        <!-- 4. 历史报价（系统暂无历史报价数据源） -->
-        <div class="border border-slate-300 rounded p-2.5 bg-white hover:border-blue-400 transition-colors" id="pricingCardHistory">
-          <div class="flex items-start justify-between">
-            <div class="min-w-0 pr-1">
-              <div class="text-[11px] font-semibold text-slate-700 mb-0.5">历史报价</div>
-              <div class="text-xs text-slate-800 font-medium truncate" id="pricingCardHistoryProj">暂无历史报价</div>
-              <div class="text-[11px] text-slate-500 font-mono-nums" id="pricingCardHistoryDate">—</div>
-            </div>
-            <div class="text-right shrink-0">
-              <div class="font-mono-nums font-medium text-slate-900 text-xs" id="pricingCardHistoryPrice">—</div>
-              <button class="mt-1 px-2.5 py-0.5 bg-slate-200 text-slate-400 border border-slate-300 rounded text-[11px] cursor-not-allowed" id="pricingAdoptHistoryBtn" type="button" disabled>暂无数据</button>
-            </div>
-          </div>
-        </div>
-        <!-- 5. 手填录入 -->
+        <!-- 4. 手填录入 -->
         <div class="bg-slate-50 border border-slate-300 rounded p-2.5 space-y-2">
           <div class="text-[11px] font-semibold text-slate-700 border-b border-slate-200 pb-1">手填</div>
           <div>
@@ -1630,18 +1595,9 @@ body.auth-locked #authScreen { display: block; }
         </div>
       </div>
 
-      <!-- 4. 业务工程配置 (平替品牌 + 超大切片) -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-sm pt-1 border-t border-surface-container/60">
-        <div class="space-y-1">
-          <label class="block font-label-md text-label-md text-on-surface font-medium">默认目标平替品牌</label>
-          <div class="relative">
-            <select class="w-full h-9 px-2.5 pr-7 rounded bg-surface-container-low text-on-surface font-body-sm text-body-sm focus:bg-surface-container-lowest focus:outline-none focus:ring-1 focus:ring-primary border border-surface-container appearance-none cursor-pointer" id="settingTargetBrand">
-              <!-- 动态加载品牌 -->
-            </select>
-            <span class="material-symbols-outlined absolute right-2 top-2 text-on-surface-variant pointer-events-none text-[18px]">expand_more</span>
-          </div>
-        </div>
-        <div class="flex items-center gap-2 pt-6">
+      <!-- 4. 业务工程配置 (超大切片识别) -->
+      <div class="grid grid-cols-1 gap-space-sm pt-1 border-t border-surface-container/60">
+        <div class="flex items-center gap-2">
           <input type="checkbox" id="settingTileLargePages" class="rounded border-outline-variant text-primary focus:ring-primary w-4 h-4 cursor-pointer">
           <label for="settingTileLargePages" class="text-body-sm text-on-surface cursor-pointer select-none">
             超大图纸自动切片分块识别
