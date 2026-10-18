@@ -229,12 +229,12 @@ def _parse_candidate_features(model: str, category: str = "") -> dict:
     m_p = re.search(r"\b([1-4]P(?:\+N|[1-4]D)?)\b", txt)
     if m_p:
         poles = m_p.group(1)
-    elif re.search(r"\b([1-4])极\b", txt):
-        poles = f"{re.search(r'\b([1-4])极\b', txt).group(1)}P"
-    elif re.search(r"/(3\d{3}|4\d{3})\b", txt):
-        poles = f"{re.search(r'/(3\d{3}|4\d{3})\b', txt).group(1)[0]}P"
-    elif re.search(r"/([1-4])(?:[A-Z]|\b)", txt):
-        poles = f"{re.search(r'/([1-4])(?:[A-Z]|\b)', txt).group(1)}P"
+    elif (m_pole := re.search(r"\b([1-4])极\b", txt)):
+        poles = f"{m_pole.group(1)}P"
+    elif (m_pole := re.search(r"/(3\d{3}|4\d{3})\b", txt)):
+        poles = f"{m_pole.group(1)[0]}P"
+    elif (m_pole := re.search(r"/([1-4])(?:[A-Z]|\b)", txt)):
+        poles = f"{m_pole.group(1)}P"
 
     # 2. 壳架电流 frame
     frame = None
@@ -559,10 +559,10 @@ def parse_component_features(raw_spec: str, category: str = "") -> dict:
     poles_m = re.search(r"\b([1-4])P(?:\+N|[1-4]D)?\b", raw_upper)
     if poles_m:
         poles = f"{poles_m.group(1)}P"
-    elif re.search(r"\b([1-4])极\b", raw_upper):
-        poles = f"{re.search(r'\b([1-4])极\b', raw_upper).group(1)}P"
-    elif re.search(r"/(3\d{3}|4\d{3})\b", raw_upper):
-        poles = f"{re.search(r'/(3\d{3}|4\d{3})\b', raw_upper).group(1)[0]}P"
+    elif (m_pole := re.search(r"\b([1-4])极\b", raw_upper)):
+        poles = f"{m_pole.group(1)}P"
+    elif (m_pole := re.search(r"/(3\d{3}|4\d{3})\b", raw_upper)):
+        poles = f"{m_pole.group(1)[0]}P"
     elif cat_code in ("MCCB", "ISOLATOR", "KM"):
         poles = "3P"
     elif cat_code in ("ATS", "SPD"):
