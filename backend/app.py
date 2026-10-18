@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import (FastAPI, UploadFile, File, Form, BackgroundTasks,
-                     HTTPException, Request)
+                     HTTPException, Request, Response)
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -42,10 +42,11 @@ from extractor.catalog_reconciler import DrawingCatalogReconciler, CatalogItem
 from db import (
     db_save_job, db_get_job, db_list_jobs, db_recover_interrupted_jobs,
     set_current_tenant, get_current_tenant, get_current_user,
-    db_list_registrations,
+    db_list_registrations, db_list_users,
+    db_update_user_status, db_reset_user_password,
     db_authenticate_user, db_register_user, db_get_user_by_token, db_logout_user,
     db_clean_all_test_data, db_get_job_tenant_by_id,
-    db_create_lead, db_list_leads,
+    db_create_lead, db_list_leads, db_update_lead,
     db_get_meta, db_set_meta, db_clear_all_tokens
 )
 import store
@@ -3412,6 +3413,8 @@ def auth_login(req: LoginRequest, request: Request):
         fails.append(now)
         _LOGIN_FAILS[ip] = fails
         raise HTTPException(401, "账号或密码错误，请检查输入")
+    if user.get("frozen") or user.get("status") == "frozen":
+        raise HTTPException(403, "该账号已被管理员冻结，禁止登录。如需解冻请联系系统管理员。")
     _LOGIN_FAILS.pop(ip, None)
     return {"ok": True, "token": user["token"], "user": user}
 
@@ -3462,22 +3465,44 @@ def auth_me(request: Request):
     }
 
 
-@app.get("/api/admin/accounts")
-def admin_accounts(request: Request):
-    """管理端：查看谁注册了、属于哪家企业、联系方式与最近登录。
-
-    注册信息本来就落在 tenants / users 两张表里，这里只是把它读出来给管理员看。
-    仅 admin 角色可读；非管理员一律 403，避免普通用户看到别家企业。
-    """
+def _require_admin(request: Request) -> dict:
+    """严格校验管理员身份，非管理员或令牌失效直接拒绝。"""
     if getattr(request.state, "invalid_token", False):
         raise HTTPException(401, "无效或过期的登录凭证")
     user = getattr(request.state, "user", None)
     if not user or user.get("role") != "admin":
-        raise HTTPException(403, "权限不足：仅系统管理员可查看注册账号")
+        raise HTTPException(403, "权限不足：仅系统管理员角色可执行此管理操作")
+    return user
 
+
+class UpdateUserStatusRequest(BaseModel):
+    status: str
+
+
+class ResetUserPasswordRequest(BaseModel):
+    password: str
+
+
+class UpdateLeadRequest(BaseModel):
+    status: str | None = None
+    notes: str | None = None
+
+
+class ModelPingRequest(BaseModel):
+    provider: str = "qwen"
+    model: str = ""
+    base_url: str = ""
+    api_key: str = ""
+    tenant_id: str = "default"
+
+
+@app.get("/api/admin/accounts")
+@app.get("/api/admin/users")
+def admin_accounts(request: Request):
+    """管理端：查看已注册账号、企业归属、联系方式、登录时间与状态。"""
+    user = _require_admin(request)
     accounts = db_list_registrations()
-    # 平台管理员（默认租户的管理员）看全部注册企业；其它企业的管理员只看自己家的人，
-    # 否则谁都能自己注册一个号，然后读到别家企业的账号。
+    # 平台管理员（默认租户管理员）看全部注册企业；其它企业管理员只看自己家的人
     if user.get("tenant_id") != "default":
         accounts = [a for a in accounts if a["tenant_id"] == user.get("tenant_id")]
     tenants = {}
@@ -3492,9 +3517,112 @@ def admin_accounts(request: Request):
     return {
         "ok": True,
         "accounts": accounts,
+        "users": accounts,
         "total": len(accounts),
         "tenants": list(tenants.values()),
     }
+
+
+@app.post("/api/admin/users/{user_id}/status")
+def admin_set_user_status(user_id: str, req: UpdateUserStatusRequest, request: Request):
+    """管理端：对指定用户进行冻结（强制踢下线并禁止登录）或解冻。"""
+    admin_user = _require_admin(request)
+    if admin_user.get("tenant_id") != "default":
+        raise HTTPException(403, "权限不足：仅平台超级管理员可冻结/解冻账号")
+    if user_id == admin_user.get("id"):
+        raise HTTPException(400, "安全保护：禁止冻结当前登录的管理账号自身")
+    try:
+        res = db_update_user_status(user_id, req.status)
+        return {"ok": True, "result": res}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/admin/users/{user_id}/reset_password")
+def admin_reset_password(user_id: str, req: ResetUserPasswordRequest, request: Request):
+    """管理端：重置指定用户密码并强制下线。"""
+    admin_user = _require_admin(request)
+    if admin_user.get("tenant_id") != "default":
+        raise HTTPException(403, "权限不足：仅平台超级管理员可重置账号密码")
+    try:
+        db_reset_user_password(user_id, req.password)
+        return {"ok": True, "message": "密码重置成功，已强制该账号下线"}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/admin/keys")
+def admin_list_keys(request: Request):
+    """管理端：汇总所有企业租户与全局的视觉模型与 BYOK 密钥状态。"""
+    admin_user = _require_admin(request)
+    if admin_user.get("tenant_id") != "default":
+        raise HTTPException(403, "权限不足：仅平台管理员可查看全量模型密钥")
+    configs = store.list_all_tenant_model_configs(mask=True)
+    return {"ok": True, "configs": configs, "total": len(configs)}
+
+
+@app.post("/api/admin/keys/ping")
+def admin_ping_model(req: ModelPingRequest, request: Request):
+    """管理端：连通性测试指定服务商与模型的接口。"""
+    _require_admin(request)
+    target_tenant = req.tenant_id or "default"
+    cfg = store.settings(target_tenant)
+    base_url = (req.base_url or "").strip() or cfg.get("vision_base_url") or os.environ.get("VISION_BASE_URL", "")
+    api_key = (req.api_key or "").strip() or cfg.get("vision_api_key") or (os.environ.get("VISION_API_KEY", "") if target_tenant == "default" else "")
+    provider = req.provider or cfg.get("vision_provider") or "qwen"
+    model = (req.model or "").strip() or cfg.get("vision_model") or os.environ.get("VISION_MODEL", "")
+
+    from extractor.vision import DEFAULT_BASE_URLS, DEFAULT_MODELS, post_chat
+    if not base_url:
+        base_url = DEFAULT_BASE_URLS.get(provider, "")
+    if not model:
+        model = DEFAULT_MODELS.get(provider, "")
+    if not api_key:
+        raise HTTPException(400, "尚未配置 API Key，无法发起连通测试")
+    if not is_safe_model_url(base_url):
+        raise HTTPException(400, "Base URL 地址未通过内网安全校验")
+
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": "ping"}],
+        "max_tokens": 5,
+        "temperature": 0,
+    }
+    t0 = time.time()
+    try:
+        post_chat(base_url, api_key, payload, timeout=12, max_retries=1)
+        latency_ms = int((time.time() - t0) * 1000)
+        return {
+            "ok": True,
+            "latency_ms": latency_ms,
+            "provider": provider,
+            "model": model,
+            "message": f"连通成功！模型响应耗时 {latency_ms}ms"
+        }
+    except Exception as exc:
+        latency_ms = int((time.time() - t0) * 1000)
+        return {
+            "ok": False,
+            "latency_ms": latency_ms,
+            "error": str(exc),
+            "message": f"连接失败: {exc}"
+        }
+
+
+@app.get("/api/admin/export")
+def admin_export_excel(request: Request):
+    """管理端：一键全量导出客户预约台账、企业账号权益、BYOK密钥多Sheet Excel。"""
+    admin_user = _require_admin(request)
+    if admin_user.get("tenant_id") != "default":
+        raise HTTPException(403, "权限不足：仅平台超级管理员可导出全量数据台账")
+    import admin_export
+    excel_bytes = admin_export.generate_admin_export_bytes()
+    filename = f"dian_gui_zhi_he_admin_records_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
 
 
 @app.post("/api/auth/logout")
@@ -3516,6 +3644,8 @@ class LeadRequest(BaseModel):
     name: str
     company: str = ""
     source: str = "landing_priority_access"
+    content: str = ""
+    notes: str = ""
 
 
 _LEAD_RATE: dict[str, list[float]] = {}
@@ -3547,7 +3677,13 @@ def create_lead_entry(req: LeadRequest, request: Request):
         raise HTTPException(400, "请提供有效的 11 位手机号码")
     if not name:
         raise HTTPException(400, "请提供姓名")
-    lead = db_create_lead(phone=phone, name=name, company=req.company, source=req.source)
+    lead = db_create_lead(
+        phone=phone,
+        name=name,
+        company=req.company,
+        source=req.source,
+        content=req.content
+    )
     return {
         "ok": True,
         "lead": lead,
@@ -3556,6 +3692,7 @@ def create_lead_entry(req: LeadRequest, request: Request):
 
 
 @app.get("/api/leads")
+@app.get("/api/admin/leads")
 def list_lead_entries(request: Request):
     """获取预约咨询客户列表（仅系统管理员，含手机号，禁止普通用户读取）。"""
     if getattr(request.state, "invalid_token", False):
@@ -3565,7 +3702,21 @@ def list_lead_entries(request: Request):
         raise HTTPException(401, "请登录后查看预约咨询信息")
     if user.get("role") != "admin" or user.get("tenant_id") != "default":
         raise HTTPException(403, "权限不足：仅平台管理员可查看预约咨询")
-    return {"ok": True, "leads": db_list_leads()}
+    leads = db_list_leads()
+    return {"ok": True, "leads": leads, "total": len(leads)}
+
+
+@app.post("/api/admin/leads/{lead_id}/update")
+def admin_update_lead_entry(lead_id: str, req: UpdateLeadRequest, request: Request):
+    """管理端：更新预约咨询客户的跟进状态与备注信息。"""
+    admin_user = _require_admin(request)
+    if admin_user.get("tenant_id") != "default":
+        raise HTTPException(403, "权限不足：仅平台管理员可更新线索")
+    try:
+        updated = db_update_lead(lead_id, status=req.status, notes=req.notes)
+        return {"ok": True, "lead": updated}
+    except ValueError as e:
+        raise HTTPException(404, str(e))
 
 
 
@@ -3634,6 +3785,23 @@ def index_page():
             html = f.read()
     except OSError:
         raise HTTPException(500, "index.html 不存在")
+    return HTMLResponse(
+        html.replace("__BUILD_ID__", BUILD_ID),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
+
+
+@app.get("/admin", include_in_schema=False)
+@app.get("/admin/console", include_in_schema=False)
+@app.get("/admin/console.html", include_in_schema=False)
+def admin_page():
+    """管理控制台首页：把构建号注入静态页，确保最新脚本和样式生效。"""
+    admin_path = os.path.join(BASE, "..", "frontend", "admin.html")
+    try:
+        with open(admin_path, encoding="utf-8") as f:
+            html = f.read()
+    except OSError:
+        raise HTTPException(404, "admin.html 页面文件不存在")
     return HTMLResponse(
         html.replace("__BUILD_ID__", BUILD_ID),
         headers={"Cache-Control": "no-cache, no-store, must-revalidate"},

@@ -780,6 +780,15 @@ body.auth-locked #authScreen { display: block; }
             </div>
             <input class="w-full h-11 px-4 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 text-on-surface placeholder:text-outline text-body-sm focus:border-primary focus:bg-white focus:outline-none transition-colors" id="user-company" placeholder="例如：华东电气成套设备有限公司" type="text">
           </div>
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block font-label-sm text-xs font-medium text-on-surface" for="user-content">
+                需求说明 / 留言备注
+              </label>
+              <span class="text-[11px] text-outline font-label-sm">选填</span>
+            </div>
+            <textarea class="w-full h-20 px-4 py-2 rounded-xl border border-outline-variant/60 bg-surface-container-low/40 text-on-surface placeholder:text-outline text-body-sm focus:border-primary focus:bg-white focus:outline-none transition-colors resize-none" id="user-content" placeholder="例如：主营低压配电柜，希望支持日均 100 张系统图自动算料与正泰元件匹配"></textarea>
+          </div>
           <div class="pt-2">
             <button class="w-full h-11 rounded-xl bg-inverse-surface hover:bg-on-surface text-inverse-on-surface font-body-md text-sm font-semibold flex items-center justify-center transition-all shadow-md hover:shadow-lg gap-1.5 cursor-pointer" id="btnSubmitLead" type="submit">
               <span>提交预约与咨询</span>
@@ -1150,6 +1159,10 @@ body.auth-locked #authScreen { display: block; }
             <span class="material-symbols-outlined text-[18px]">group</span>
             <span>账号与注册</span>
           </button>
+          <a class="w-full flex items-center gap-space-sm px-space-md py-space-sm font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors text-left no-underline" id="btnOpenAdminConsole" href="/admin" target="_blank" hidden>
+            <span class="material-symbols-outlined text-[18px] text-blue-600">admin_panel_settings</span>
+            <span>运维与商务中枢</span>
+          </a>
           <button class="w-full flex items-center gap-space-sm px-space-md py-space-sm font-body-md text-body-md text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors text-left" id="btnOpenAiCosts" type="button">
             <span class="material-symbols-outlined text-[18px]">analytics</span>
             <span>AI 消耗与费用</span>

@@ -149,6 +149,7 @@ def _init_tables(conn: sqlite3.Connection) -> None:
             display_name TEXT DEFAULT '',
             role TEXT DEFAULT 'admin',
             token TEXT DEFAULT '',
+            status TEXT DEFAULT 'active',
             created_at TEXT NOT NULL,
             FOREIGN KEY (tenant_id) REFERENCES tenants(id)
         );
@@ -159,6 +160,7 @@ def _init_tables(conn: sqlite3.Connection) -> None:
             ("token", "TEXT DEFAULT ''"),
             ("contact", "TEXT DEFAULT ''"),
             ("last_login_at", "TEXT DEFAULT ''"),
+            ("status", "TEXT DEFAULT 'active'"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE users ADD COLUMN {col} {col_def};")
@@ -289,9 +291,21 @@ def _init_tables(conn: sqlite3.Connection) -> None:
             company TEXT DEFAULT '',
             source TEXT DEFAULT 'landing_priority_access',
             status TEXT DEFAULT 'pending',
-            created_at TEXT NOT NULL
+            content TEXT DEFAULT '',
+            notes TEXT DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
         );
         """)
+        for col, col_def in [
+            ("content", "TEXT DEFAULT ''"),
+            ("notes", "TEXT DEFAULT ''"),
+            ("updated_at", "TEXT DEFAULT ''"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE leads ADD COLUMN {col} {col_def};")
+            except sqlite3.OperationalError:
+                pass
         conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(phone);")
 
         # 8. 应用级元数据（构建号等启动状态）
@@ -826,13 +840,14 @@ def db_get_history(limit: int = 100, tenant_id: str | None = None) -> list[dict]
 # ---------- 账号登录、企业租户注册与用户鉴权 ----------
 
 def db_authenticate_user(username: str, password: str) -> dict | None:
-    """账号密码登录认证，成功返回用户信息与新 Token。"""
+    """账号密码登录认证，成功返回用户信息与新 Token。若账号被冻结则拦截并返回 frozen 标识。"""
     username = (username or "").strip()
     if not username:
         return None
     conn = _get_conn()
     cur = conn.execute("""
     SELECT u.id, u.tenant_id, u.username, u.display_name, u.role, u.password_hash,
+           COALESCE(u.status, 'active') as status,
            t.name as tenant_name, t.status as tenant_status
     FROM users u
     JOIN tenants t ON u.tenant_id = t.id
@@ -846,6 +861,21 @@ def db_authenticate_user(username: str, password: str) -> dict | None:
     valid, needs_rehash = _verify_password(password or "", stored_hash)
     if not valid:
         return None
+
+    user_status = row["status"] or "active"
+    tenant_status = row["tenant_status"] or "active"
+    if user_status == "frozen" or tenant_status == "frozen":
+        return {
+            "id": row["id"],
+            "username": row["username"],
+            "display_name": row["display_name"] or row["username"],
+            "role": row["role"],
+            "status": "frozen",
+            "frozen": True,
+            "tenant_id": row["tenant_id"],
+            "tenant_name": row["tenant_name"],
+            "token": "",
+        }
     
     new_token = f"tk_{secrets.token_hex(24)}"
     login_at = _now()
@@ -863,6 +893,7 @@ def db_authenticate_user(username: str, password: str) -> dict | None:
         "username": row["username"],
         "display_name": row["display_name"] or row["username"],
         "role": row["role"],
+        "status": user_status,
         "tenant_id": row["tenant_id"],
         "tenant_name": row["tenant_name"],
         "token": new_token,
@@ -921,11 +952,12 @@ def db_register_user(username: str, password: str, display_name: str = "",
 def db_list_registrations() -> list[dict]:
     """按企业列出已注册账号：谁注册的、哪家企业、联系方式、注册/最近登录、名下任务数。
 
-    管理端要能看清"谁在用"，所以这里连企业状态与用量一起给出，不做任何过滤。
+    管理端要能看清"谁在用"，所以这里连企业状态、账号冻结状态与用量一起给出，不做任何过滤。
     """
     conn = _get_conn()
     rows = conn.execute("""
     SELECT u.id, u.username, u.display_name, u.role, u.created_at, u.contact, u.last_login_at,
+           COALESCE(u.status, 'active') AS status,
            t.id AS tenant_id, t.name AS tenant_name, t.status AS tenant_status, t.created_at AS tenant_created_at,
            (SELECT COUNT(*) FROM jobs j WHERE j.tenant_id = t.id) AS jobs_count,
            (SELECT COUNT(*) FROM projects p WHERE p.tenant_id = t.id) AS projects_count
@@ -938,6 +970,7 @@ def db_list_registrations() -> list[dict]:
         "username": r["username"],
         "display_name": r["display_name"] or r["username"],
         "role": r["role"],
+        "status": r["status"] or "active",
         "contact": r["contact"] or "",
         "created_at": r["created_at"],
         "last_login_at": r["last_login_at"] or "",
@@ -949,8 +982,49 @@ def db_list_registrations() -> list[dict]:
     } for r in rows]
 
 
+db_list_users = db_list_registrations
+
+
+def db_update_user_status(user_id: str, status: str) -> dict:
+    """更新用户账号状态 (active / frozen)。冻结时立即清空 token 强制下线。"""
+    status = (status or "").strip().lower()
+    if status not in ("active", "frozen"):
+        raise ValueError("非法的账号状态，仅支持 active 或 frozen")
+    
+    conn = _get_conn()
+    cur = conn.execute("SELECT id, username, role FROM users WHERE id = ?", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        raise ValueError("目标用户不存在")
+    if (row["id"] == "admin_default" or row["username"] == "admin") and status == "frozen":
+        raise ValueError("严禁冻结系统根管理员账号")
+        
+    with conn:
+        if status == "frozen":
+            conn.execute("UPDATE users SET status = 'frozen', token = '' WHERE id = ?", (user_id,))
+        else:
+            conn.execute("UPDATE users SET status = 'active' WHERE id = ?", (user_id,))
+            
+    return {"id": user_id, "username": row["username"], "status": status}
+
+
+def db_reset_user_password(user_id: str, new_password: str) -> bool:
+    """管理员重置用户密码，并清除 token 强制重新登录。"""
+    new_password = (new_password or "").strip()
+    if not new_password or len(new_password) < 6:
+        raise ValueError("重置密码长度至少需为 6 位")
+    conn = _get_conn()
+    cur = conn.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+    if not cur.fetchone():
+        raise ValueError("目标用户不存在")
+    pwd_hash = _hash_password(new_password)
+    with conn:
+        conn.execute("UPDATE users SET password_hash = ?, token = '' WHERE id = ?", (pwd_hash, user_id))
+    return True
+
+
 def db_get_user_by_token(token: str) -> dict | None:
-    """根据 Token 查询用户及所在租户信息。"""
+    """根据 Token 查询用户及所在租户信息。被冻结的用户或租户 Token 立即失效。"""
     if not token or not isinstance(token, str):
         return None
     token = token.strip()
@@ -959,6 +1033,7 @@ def db_get_user_by_token(token: str) -> dict | None:
     conn = _get_conn()
     cur = conn.execute("""
     SELECT u.id, u.tenant_id, u.username, u.display_name, u.role,
+           COALESCE(u.status, 'active') as status,
            t.name as tenant_name, t.status as tenant_status
     FROM users u
     JOIN tenants t ON u.tenant_id = t.id
@@ -967,11 +1042,21 @@ def db_get_user_by_token(token: str) -> dict | None:
     row = cur.fetchone()
     if not row:
         return None
+    user_status = row["status"] or "active"
+    tenant_status = row["tenant_status"] or "active"
+    if user_status == "frozen" or tenant_status == "frozen":
+        try:
+            with conn:
+                conn.execute("UPDATE users SET token = '' WHERE id = ?", (row["id"],))
+        except Exception:
+            pass
+        return None
     return {
         "id": row["id"],
         "username": row["username"],
         "display_name": row["display_name"] or row["username"],
         "role": row["role"],
+        "status": user_status,
         "tenant_id": row["tenant_id"],
         "tenant_name": row["tenant_name"],
     }
@@ -1043,15 +1128,16 @@ def db_clean_all_test_data(work_dir: str | None = None) -> dict:
     }
 
 
-def db_create_lead(phone: str, name: str, company: str = "", source: str = "landing_priority_access") -> dict:
-    """保存产品介绍页的优先体验/咨询意向登记。"""
+def db_create_lead(phone: str, name: str, company: str = "", source: str = "landing_priority_access", content: str = "") -> dict:
+    """保存产品介绍页的优先体验/咨询意向登记。支持保存客户需求与留言。"""
     lead_id = f"lead_{secrets.token_hex(8)}"
     now_str = _now()
     conn = _get_conn()
     with conn:
         conn.execute(
-            "INSERT INTO leads (id, phone, name, company, source, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?)",
-            (lead_id, phone.strip(), name.strip(), company.strip(), source.strip(), now_str),
+            "INSERT INTO leads (id, phone, name, company, source, status, content, notes, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, 'pending', ?, '', ?, ?)",
+            (lead_id, phone.strip(), name.strip(), company.strip(), source.strip(), content.strip(), now_str, now_str),
         )
     return {
         "id": lead_id,
@@ -1060,15 +1146,53 @@ def db_create_lead(phone: str, name: str, company: str = "", source: str = "land
         "company": company.strip(),
         "source": source.strip(),
         "status": "pending",
+        "content": content.strip(),
+        "notes": "",
         "created_at": now_str,
+        "updated_at": now_str,
     }
 
 
 def db_list_leads() -> list[dict]:
-    """获取所有意向咨询列表。"""
+    """获取所有意向咨询列表，包含需求内容与跟进备注。"""
     conn = _get_conn()
-    rows = conn.execute("SELECT id, phone, name, company, source, status, created_at FROM leads ORDER BY created_at DESC;").fetchall()
+    rows = conn.execute("""
+    SELECT id, phone, name, company, source, status,
+           COALESCE(content, '') as content,
+           COALESCE(notes, '') as notes,
+           created_at,
+           COALESCE(updated_at, created_at) as updated_at
+    FROM leads ORDER BY created_at DESC;
+    """).fetchall()
     return [dict(r) for r in rows]
+
+
+def db_update_lead(lead_id: str, status: str | None = None, notes: str | None = None) -> dict:
+    """管理端：更新意向客户的跟进状态与备注记录。"""
+    conn = _get_conn()
+    cur = conn.execute("SELECT * FROM leads WHERE id = ?", (lead_id,))
+    row = cur.fetchone()
+    if not row:
+        raise ValueError("目标意向记录不存在")
+    
+    new_status = (status if status is not None else row["status"]).strip()
+    existing_notes = row["notes"] if "notes" in row.keys() else ""
+    new_notes = (notes if notes is not None else existing_notes).strip()
+    now_str = _now()
+    with conn:
+        conn.execute(
+            "UPDATE leads SET status = ?, notes = ?, updated_at = ? WHERE id = ?",
+            (new_status, new_notes, now_str, lead_id)
+        )
+    return {
+        "id": lead_id,
+        "phone": row["phone"],
+        "name": row["name"],
+        "company": row["company"],
+        "status": new_status,
+        "notes": new_notes,
+        "updated_at": now_str,
+    }
 
 
 def db_get_meta(key: str, default: str | None = None) -> str | None:

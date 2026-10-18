@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>电柜智核 · 全域运维与商务管理中枢</title>
+<link rel="icon" href="/assets/brand/02_品牌Logo/17_App图标主体.png">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col antialiased">
+
+  <!-- 顶部商务导航条 (McKinsey Deep Slate Theme) -->
+  <header class="bg-slate-950 text-white border-b border-slate-800 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-inner">
+          <span class="material-symbols-outlined text-white text-[22px]">admin_panel_settings</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-base tracking-tight text-white">电柜智核 · 运维与商务管理中枢</span>
+            <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-blue-900/80 text-blue-300 border border-blue-700/50">Admin Console</span>
+          </div>
+          <p class="text-xs text-slate-400">客户全量台账 · 账号权益管控 · BYOK密钥库 · 商业数据导出</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="exportAllData()" class="h-9 px-3.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm hover:shadow transition-all cursor-pointer">
+          <span class="material-symbols-outlined text-[17px]">download</span>
+          <span>导出全量 Excel 台账</span>
+        </button>
+        <div class="h-4 w-px bg-slate-800"></div>
+        <a href="/" class="h-9 px-3 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1 transition-all">
+          <span class="material-symbols-outlined text-[16px]">home</span>
+          <span>产品首页</span>
+        </a>
+        <a href="/workbench/index.html" class="h-9 px-3 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1 transition-all">
+          <span class="material-symbols-outlined text-[16px]">grid_view</span>
+          <span>算料工作台</span>
+        </a>
+        <button onclick="handleLogout()" class="h-9 px-3 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/40 text-rose-300 text-xs font-medium flex items-center gap-1 transition-all cursor-pointer">
+          <span class="material-symbols-outlined text-[16px]">logout</span>
+          <span>登出</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主体内容容器 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- 顶部核心运营大指标胶囊 (Consulting Metric Capsules) -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+      <div class="bg-white rounded-xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <span>意向预约客户总数</span>
+          <span class="material-symbols-outlined text-blue-600 text-[18px]">group</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl font-bold tracking-tight text-slate-900" id="statLeadsTotal">-</span>
+          <span class="text-[11px] text-slate-400">位登记</span>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <span>待跟进客户</span>
+          <span class="material-symbols-outlined text-amber-500 text-[18px]">pending_actions</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl font-bold tracking-tight text-amber-600" id="statLeadsPending">-</span>
+          <span class="text-[11px] text-slate-400">待跟进</span>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <span>注册企业租户</span>
+          <span class="material-symbols-outlined text-indigo-600 text-[18px]">corporate_fare</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl font-bold tracking-tight text-slate-900" id="statTenantsTotal">-</span>
+          <span class="text-[11px] text-slate-400">家企业</span>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <span>冻结账号权益</span>
+          <span class="material-symbols-outlined text-rose-500 text-[18px]">block</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl font-bold tracking-tight text-rose-600" id="statFrozenUsers">-</span>
+          <span class="text-[11px] text-slate-400">个已停权</span>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl p-4 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+        <div class="flex items-center justify-between text-slate-500 text-xs font-medium">
+          <span>BYOK / 系统模型生效</span>
+          <span class="material-symbols-outlined text-emerald-600 text-[18px]">key</span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span class="text-2xl font-bold tracking-tight text-emerald-600" id="statKeysConfigured">-</span>
+          <span class="text-[11px] text-slate-400">套密钥已配置</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 标签页卡切换栏 -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-xs p-1.5 flex items-center justify-between gap-2 overflow-x-auto">
+      <div class="flex items-center gap-1.5">
+        <button onclick="switchTab('leads')" id="tabBtn-leads" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all bg-slate-900 text-white shadow-xs cursor-pointer">
+          <span class="material-symbols-outlined text-[16px]">contact_phone</span>
+          <span>客户预约与需求台账</span>
+          <span id="badgeLeadsCount" class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-700 text-slate-200">0</span>
+        </button>
+        <button onclick="switchTab('users')" id="tabBtn-users" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer">
+          <span class="material-symbols-outlined text-[16px]">manage_accounts</span>
+          <span>企业租户与账号权益</span>
+          <span id="badgeUsersCount" class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 text-slate-600">0</span>
+        </button>
+        <button onclick="switchTab('keys')" id="tabBtn-keys" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer">
+          <span class="material-symbols-outlined text-[16px]">vpn_key</span>
+          <span>AI模型与BYOK密钥库</span>
+          <span id="badgeKeysCount" class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-100 text-slate-600">0</span>
+        </button>
+        <button onclick="switchTab('export')" id="tabBtn-export" class="tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer">
+          <span class="material-symbols-outlined text-[16px]">table_chart</span>
+          <span>数据全量导出中心</span>
+        </button>
+      </div>
+      <div class="flex items-center gap-2 px-2">
+        <button onclick="refreshCurrentTab()" title="刷新数据" class="h-8 w-8 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 flex items-center justify-center transition-all cursor-pointer">
+          <span class="material-symbols-outlined text-[17px]">sync</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 1: 客户预约与商务咨询台账 -->
+    <div id="tabContent-leads" class="tab-content space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2 flex-1 max-w-md">
+          <div class="relative w-full">
+            <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span>
+            <input type="text" id="leadsSearchInput" oninput="renderLeadsTable()" placeholder="搜索客户姓名、手机号、公司名称、留言备注..." class="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 text-xs placeholder:text-slate-400 focus:outline-none focus:border-blue-600">
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-500">状态筛选：</label>
+          <select id="leadsStatusFilter" onchange="renderLeadsTable()" class="h-9 px-3 rounded-lg border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-600">
+            <option value="all">全量状态 (全部)</option>
+            <option value="pending">待跟进 (Pending)</option>
+            <option value="contacted">已联系 (Contacted)</option>
+            <option value="converted">已签约转化 (Converted)</option>
+            <option value="rejected">暂无意向 (Rejected)</option>
+            <option value="invalid">无效信息 (Invalid)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-semibold">
+              <tr>
+                <th class="py-3 px-4 w-12 text-center">#</th>
+                <th class="py-3 px-4">客户姓名</th>
+                <th class="py-3 px-4">手机号码</th>
+                <th class="py-3 px-4">企业/机构名称</th>
+                <th class="py-3 px-4 max-w-xs">需求内容与留言</th>
+                <th class="py-3 px-4">来源渠道</th>
+                <th class="py-3 px-4">跟进状态</th>
+                <th class="py-3 px-4 min-w-[200px]">商务跟进备注</th>
+                <th class="py-3 px-4">登记时间</th>
+                <th class="py-3 px-4 text-center">操作</th>
+              </tr>
+            </thead>
+            <tbody id="leadsTableBody" class="divide-y divide-slate-100 text-slate-800">
+              <tr>
+                <td colspan="10" class="py-12 text-center text-slate-400">正在加载客户预约台账...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: 企业租户与账号权益管理 -->
+    <div id="tabContent-users" class="tab-content space-y-4 hidden">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2 flex-1 max-w-md">
+          <div class="relative w-full">
+            <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">search</span>
+            <input type="text" id="usersSearchInput" oninput="renderUsersTable()" placeholder="搜索登录账号、姓名、企业租户、手机号..." class="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 text-xs placeholder:text-slate-400 focus:outline-none focus:border-blue-600">
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-500">账号状态：</label>
+          <select id="usersStatusFilter" onchange="renderUsersTable()" class="h-9 px-3 rounded-lg border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-blue-600">
+            <option value="all">全量状态 (全部)</option>
+            <option value="active">正常生效 (Active)</option>
+            <option value="frozen">已冻结 (Frozen)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-semibold">
+              <tr>
+                <th class="py-3 px-4 w-12 text-center">#</th>
+                <th class="py-3 px-4">登录账号</th>
+                <th class="py-3 px-4">姓名/昵称</th>
+                <th class="py-3 px-4">角色权限</th>
+                <th class="py-3 px-4">所属企业租户</th>
+                <th class="py-3 px-4">联系方式</th>
+                <th class="py-3 px-4 text-center">图纸/项目数</th>
+                <th class="py-3 px-4">注册 / 最近登录</th>
+                <th class="py-3 px-4">账号状态</th>
+                <th class="py-3 px-4 text-center">权益管控操作</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody" class="divide-y divide-slate-100 text-slate-800">
+              <tr>
+                <td colspan="10" class="py-12 text-center text-slate-400">正在加载账号权限数据...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: AI模型与BYOK密钥库 -->
+    <div id="tabContent-keys" class="tab-content space-y-4 hidden">
+      <div class="bg-blue-50/70 border border-blue-200/60 rounded-xl p-4 flex items-start gap-3">
+        <span class="material-symbols-outlined text-blue-600 text-[20px] mt-0.5">info</span>
+        <div class="text-xs text-blue-900 leading-relaxed">
+          <span class="font-bold">BYOK (Bring Your Own Key) 与系统密钥安全隔离规范：</span>
+          各租户配置的视觉模型密钥独立存储落盘，API Key 默认仅以脱敏掩码（如 <code class="font-mono bg-blue-100 px-1 rounded">sk-***89ab</code>）呈现，绝不对非管理员开放明文。可通过右侧【连通测试 (Ping)】实时探测该模型接口的可用性与网络延迟。
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase font-semibold">
+              <tr>
+                <th class="py-3 px-4 w-12 text-center">#</th>
+                <th class="py-3 px-4">企业名称 / 归属</th>
+                <th class="py-3 px-4">租户代号 (Tenant ID)</th>
+                <th class="py-3 px-4">服务商 (Provider)</th>
+                <th class="py-3 px-4">模型代号 (Model)</th>
+                <th class="py-3 px-4 max-w-xs truncate">Base URL 接口地址</th>
+                <th class="py-3 px-4">配置状态</th>
+                <th class="py-3 px-4 font-mono">脱敏 Key (Masked)</th>
+                <th class="py-3 px-4 text-center">连通性测试 (Ping)</th>
+              </tr>
+            </thead>
+            <tbody id="keysTableBody" class="divide-y divide-slate-100 text-slate-800">
+              <tr>
+                <td colspan="9" class="py-12 text-center text-slate-400">正在加载模型密钥配置...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: 数据全量导出中心 -->
+    <div id="tabContent-export" class="tab-content space-y-6 hidden">
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-xs p-8 max-w-3xl mx-auto space-y-6">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[28px]">description</span>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">企业全量数据结构化台账一键导出</h3>
+            <p class="text-xs text-slate-500 mt-1">生成标准咨询公司（麦肯锡/BCG）风格的多 Sheet 专业 Excel 文件 (.xlsx)</p>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-100 pt-4 space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700">本次导出包含的工作表清单：</h4>
+          <ul class="space-y-2.5 text-xs text-slate-600">
+            <li class="flex items-start gap-2">
+              <span class="material-symbols-outlined text-emerald-600 text-[16px] mt-0.5">check_circle</span>
+              <div>
+                <span class="font-bold text-slate-800">Sheet 1: 客户预约与商务咨询台账</span> — 包含客户姓名、电话、所属企业、详细需求与留言、业务来源渠道、跟进状态、商务备注、登记与跟进时间戳。
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="material-symbols-outlined text-emerald-600 text-[16px] mt-0.5">check_circle</span>
+              <div>
+                <span class="font-bold text-slate-800">Sheet 2: 租户企业与账号权益台账</span> — 包含所有注册企业、账号登录名、姓名、角色、联系方式、账号正常/冻结状态、名下工程与任务统计数、最后登录时间。
+              </div>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="material-symbols-outlined text-emerald-600 text-[16px] mt-0.5">check_circle</span>
+              <div>
+                <span class="font-bold text-slate-800">Sheet 3: AI视觉模型与BYOK密钥配置</span> — 汇总系统全局及各租户独立 BYOK 的视觉服务商、模型代号、接口地址、配置状态与安全脱敏 Key。
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-slate-50 rounded-xl p-4 border border-slate-200/80 flex items-center justify-between">
+          <div>
+            <div class="text-xs font-semibold text-slate-800">格式标准：微软 Office OpenXML (.xlsx)</div>
+            <div class="text-[11px] text-slate-500 mt-0.5">内置深海军蓝咨询表头、斑马纹、网格边框、自动列宽与首行冻结</div>
+          </div>
+          <button onclick="exportAllData()" class="h-10 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-2 shadow hover:shadow-md transition-all cursor-pointer">
+            <span class="material-symbols-outlined text-[18px]">cloud_download</span>
+            <span>立即导出并下载全套台账</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- 底部页脚 -->
+  <footer class="border-t border-slate-200 bg-white py-4 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-400">
+      <div>电柜智核 · 工业级配电箱图纸识别与智能组价管理后台</div>
+      <div>© 2026 Precision Blueprint Studio. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <!-- 弹窗：密码重置 Modal -->
+  <div id="resetPwdModal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-sm w-full p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-amber-500 text-[18px]">lock_reset</span>
+          <span>重置用户密码</span>
+        </h3>
+        <button onclick="closeResetPwdModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+      <p class="text-xs text-slate-500">重置用户 <span id="resetModalUsername" class="font-bold text-slate-800"></span> 的密码。重置后将立即作废该账号当前的所有登录令牌，强制重新登录。</p>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">新密码 (至少 6 位)</label>
+        <input type="password" id="newPasswordInput" class="w-full h-10 px-3 rounded-lg border border-slate-200 text-xs focus:outline-none focus:border-blue-600" placeholder="请输入新密码">
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="closeResetPwdModal()" class="px-3 py-2 rounded-lg text-xs text-slate-600 hover:bg-slate-100 cursor-pointer">取消</button>
+        <button onclick="submitResetPassword()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white cursor-pointer">确认重置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 弹窗：编辑跟进备注 Modal -->
+  <div id="notesModal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-blue-600 text-[18px]">edit_note</span>
+          <span>更新商务跟进备注</span>
+        </h3>
+        <button onclick="closeNotesModal()" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+      <p class="text-xs text-slate-500">客户：<span id="notesCustomerName" class="font-bold text-slate-800"></span> (<span id="notesCustomerPhone" class="font-mono"></span>)</p>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">跟进状态</label>
+        <select id="modalLeadStatus" class="w-full h-9 px-3 rounded-lg border border-slate-200 text-xs text-slate-800 bg-white focus:outline-none focus:border-blue-600">
+          <option value="pending">待跟进 (Pending)</option>
+          <option value="contacted">已联系 (Contacted)</option>
+          <option value="converted">已签约转化 (Converted)</option>
+          <option value="rejected">暂无意向 (Rejected)</option>
+          <option value="invalid">无效信息 (Invalid)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-700 mb-1">商务跟进备注记录</label>
+        <textarea id="modalLeadNotes" rows="4" class="w-full p-3 rounded-lg border border-slate-200 text-xs focus:outline-none focus:border-blue-600" placeholder="记录沟通情况、客户报价预算、预计开通时间等..."></textarea>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button onclick="closeNotesModal()" class="px-3 py-2 rounded-lg text-xs text-slate-600 hover:bg-slate-100 cursor-pointer">取消</button>
+        <button onclick="submitLeadNotes()" class="px-4 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white cursor-pointer">保存跟进记录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 浮动 Toast 消息 -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-slate-900 text-white text-xs font-medium shadow-lg border border-slate-800 flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <span class="material-symbols-outlined text-[18px]" id="toastIcon">info</span>
+    <span id="toastMessage">操作成功</span>
+  </div>
+
+<script>
+// ---------- 全局状态与接口通信 ----------
+let currentTab = 'leads';
+let leadsData = [];
+let usersData = [];
+let keysData = [];
+let activeUserIdForReset = null;
+let activeLeadIdForNotes = null;
+
+function showToast(message, type = 'success') {
+  const toast = document.getElementById('toast');
+  const msgEl = document.getElementById('toastMessage');
+  const iconEl = document.getElementById('toastIcon');
+  msgEl.textContent = message;
+  if (type === 'error') {
+    toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-rose-900 text-white text-xs font-medium shadow-lg border border-rose-700 flex items-center gap-2 transform translate-y-0 opacity-100 transition-all duration-300';
+    iconEl.textContent = 'error';
+  } else {
+    toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-slate-900 text-white text-xs font-medium shadow-lg border border-slate-800 flex items-center gap-2 transform translate-y-0 opacity-100 transition-all duration-300';
+    iconEl.textContent = 'check_circle';
+  }
+  setTimeout(() => {
+    toast.className = 'fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl bg-slate-900 text-white text-xs font-medium shadow-lg border border-slate-800 flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none';
+  }, 3000);
+}
+
+function getAuthHeader() {
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+// 检查当前用户鉴权与角色权限
+async function checkAuth() {
+  try {
+    const res = await fetch('/api/auth/me', { headers: getAuthHeader() });
+    const data = await res.json();
+    if (!data.authenticated || data.user.role !== 'admin') {
+      alert('您尚未登录管理员账号或权限不足，正在跳转至首页登录...');
+      window.location.href = '/?require_login=admin';
+      return false;
+    }
+    return true;
+  } catch (err) {
+    return true;
+  }
+}
+
+// 切换 Tab 栏
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.className = 'tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all text-slate-600 hover:text-slate-900 hover:bg-slate-100 cursor-pointer';
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+
+  const activeBtn = document.getElementById(`tabBtn-${tab}`);
+  if (activeBtn) {
+    activeBtn.className = 'tab-btn px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all bg-slate-900 text-white shadow-xs cursor-pointer';
+  }
+  const activeContent = document.getElementById(`tabContent-${tab}`);
+  if (activeContent) {
+    activeContent.classList.remove('hidden');
+  }
+
+  if (tab === 'leads' && leadsData.length === 0) fetchLeads();
+  if (tab === 'users' && usersData.length === 0) fetchUsers();
+  if (tab === 'keys' && keysData.length === 0) fetchKeys();
+}
+
+function refreshCurrentTab() {
+  if (currentTab === 'leads') fetchLeads();
+  if (currentTab === 'users') fetchUsers();
+  if (currentTab === 'keys') fetchKeys();
+  if (currentTab === 'export') {
+    fetchLeads();
+    fetchUsers();
+    fetchKeys();
+  }
+}
+
+// ---------- 1. 客户预约与商务咨询台账 ----------
+async function fetchLeads() {
+  try {
+    const res = await fetch('/api/admin/leads', { headers: getAuthHeader() });
+    if (res.status === 401 || res.status === 403) {
+      alert('权限校验失败，仅系统管理员可查看');
+      return;
+    }
+    const data = await res.json();
+    leadsData = data.leads || [];
+    document.getElementById('statLeadsTotal').textContent = leadsData.length;
+    const pendingCount = leadsData.filter(l => l.status === 'pending').length;
+    document.getElementById('statLeadsPending').textContent = pendingCount;
+    document.getElementById('badgeLeadsCount').textContent = leadsData.length;
+    renderLeadsTable();
+  } catch (err) {
+    console.error('fetchLeads error', err);
+    showToast('加载客户预约失败', 'error');
+  }
+}
+
+function renderLeadsTable() {
+  const tbody = document.getElementById('leadsTableBody');
+  const search = (document.getElementById('leadsSearchInput')?.value || '').toLowerCase();
+  const filter = document.getElementById('leadsStatusFilter')?.value || 'all';
+
+  const filtered = leadsData.filter(item => {
+    if (filter !== 'all' && item.status !== filter) return false;
+    if (search) {
+      const match = (item.name || '').toLowerCase().includes(search) ||
+                    (item.phone || '').includes(search) ||
+                    (item.company || '').toLowerCase().includes(search) ||
+                    (item.content || '').toLowerCase().includes(search) ||
+                    (item.notes || '').toLowerCase().includes(search);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" class="py-12 text-center text-slate-400">暂无匹配的客户意向数据</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((l, idx) => {
+    const statusBadges = {
+      pending: '<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">待跟进</span>',
+      contacted: '<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">已联系</span>',
+      converted: '<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">已签约转化</span>',
+      rejected: '<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">暂无意向</span>',
+      invalid: '<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200">无效信息</span>',
+    };
+    const badge = statusBadges[l.status] || `<span class="px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-700">${l.status}</span>`;
+    const safeContent = (l.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') || '<span class="text-slate-400 italic">未填</span>';
+    const safeNotes = (l.notes || '').replace(/</g, '&lt;').replace(/>/g, '&gt;') || '<span class="text-slate-400 italic">暂无备注 (点击编辑)</span>';
+
+    return `
+      <tr class="hover:bg-slate-50/80 transition-colors">
+        <td class="py-3 px-4 text-center text-slate-400 font-mono">${idx + 1}</td>
+        <td class="py-3 px-4 font-semibold text-slate-900">${l.name}</td>
+        <td class="py-3 px-4 font-mono text-slate-700">
+          <div class="flex items-center gap-1.5">
+            <span>${l.phone}</span>
+            <button onclick="navigator.clipboard.writeText('${l.phone}'); showToast('手机号码已复制');" title="复制手机号" class="text-slate-400 hover:text-slate-600 cursor-pointer">
+              <span class="material-symbols-outlined text-[14px]">content_copy</span>
+            </button>
+          </div>
+        </td>
+        <td class="py-3 px-4 text-slate-700">${l.company || '<span class="text-slate-400 italic">个人/未填</span>'}</td>
+        <td class="py-3 px-4 text-slate-600 max-w-xs text-xs truncate" title="${l.content || ''}">${safeContent}</td>
+        <td class="py-3 px-4 text-slate-500 text-[11px]">${l.source || '官网'}</td>
+        <td class="py-3 px-4">${badge}</td>
+        <td class="py-3 px-4 text-slate-700 cursor-pointer hover:bg-blue-50/40 rounded transition-colors" onclick="openNotesModal('${l.id}')">
+          <div class="flex items-center justify-between gap-1">
+            <span class="line-clamp-2">${safeNotes}</span>
+            <span class="material-symbols-outlined text-slate-400 text-[14px]">edit</span>
+          </div>
+        </td>
+        <td class="py-3 px-4 text-slate-400 text-[11px] font-mono whitespace-nowrap">${(l.created_at || '').substring(0, 16)}</td>
+        <td class="py-3 px-4 text-center whitespace-nowrap">
+          <button onclick="openNotesModal('${l.id}')" class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium cursor-pointer transition-all">
+            跟进记录
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openNotesModal(leadId) {
+  activeLeadIdForNotes = leadId;
+  const lead = leadsData.find(l => l.id === leadId);
+  if (!lead) return;
+  document.getElementById('notesCustomerName').textContent = lead.name;
+  document.getElementById('notesCustomerPhone').textContent = lead.phone;
+  document.getElementById('modalLeadStatus').value = lead.status || 'pending';
+  document.getElementById('modalLeadNotes').value = lead.notes || '';
+  document.getElementById('notesModal').classList.remove('hidden');
+}
+
+function closeNotesModal() {
+  document.getElementById('notesModal').classList.add('hidden');
+  activeLeadIdForNotes = null;
+}
+
+async function submitLeadNotes() {
+  if (!activeLeadIdForNotes) return;
+  const status = document.getElementById('modalLeadStatus').value;
+  const notes = document.getElementById('modalLeadNotes').value;
+  try {
+    const res = await fetch(`/api/admin/leads/${activeLeadIdForNotes}/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ status, notes })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('客户跟进记录保存成功');
+      closeNotesModal();
+      fetchLeads();
+    } else {
+      showToast(data.message || '更新失败', 'error');
+    }
+  } catch (err) {
+    showToast('网络错误，保存失败', 'error');
+  }
+}
+
+// ---------- 2. 企业租户与账号权益管理 ----------
+async function fetchUsers() {
+  try {
+    const res = await fetch('/api/admin/users', { headers: getAuthHeader() });
+    const data = await res.json();
+    usersData = data.users || data.accounts || [];
+    document.getElementById('statTenantsTotal').textContent = data.tenants ? data.tenants.length : new Set(usersData.map(u => u.tenant_id)).size;
+    const frozenCount = usersData.filter(u => u.status === 'frozen').length;
+    document.getElementById('statFrozenUsers').textContent = frozenCount;
+    document.getElementById('badgeUsersCount').textContent = usersData.length;
+    renderUsersTable();
+  } catch (err) {
+    console.error('fetchUsers error', err);
+    showToast('加载用户列表失败', 'error');
+  }
+}
+
+function renderUsersTable() {
+  const tbody = document.getElementById('usersTableBody');
+  const search = (document.getElementById('usersSearchInput')?.value || '').toLowerCase();
+  const filter = document.getElementById('usersStatusFilter')?.value || 'all';
+
+  const filtered = usersData.filter(item => {
+    const st = item.status || 'active';
+    if (filter !== 'all' && st !== filter) return false;
+    if (search) {
+      const match = (item.username || '').toLowerCase().includes(search) ||
+                    (item.display_name || '').toLowerCase().includes(search) ||
+                    (item.tenant_name || '').toLowerCase().includes(search) ||
+                    (item.contact || '').includes(search);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="10" class="py-12 text-center text-slate-400">暂无匹配的账号记录</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((u, idx) => {
+    const isFrozen = (u.status === 'frozen');
+    const isRootAdmin = (u.user_id === 'admin_default' || u.username === 'admin');
+    const statusBadge = isFrozen
+      ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200">已冻结 (停权)</span>'
+      : '<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">正常生效</span>';
+
+    const roleName = u.role === 'admin' ? (u.tenant_id === 'default' ? '平台超级管理员' : '企业管理员') : '成员';
+
+    return `
+      <tr class="hover:bg-slate-50/80 transition-colors ${isFrozen ? 'bg-rose-50/20' : ''}">
+        <td class="py-3 px-4 text-center text-slate-400 font-mono">${idx + 1}</td>
+        <td class="py-3 px-4 font-mono font-bold text-slate-900">${u.username}</td>
+        <td class="py-3 px-4 text-slate-800">${u.display_name || '-'}</td>
+        <td class="py-3 px-4 text-slate-600 text-[11px]">${roleName}</td>
+        <td class="py-3 px-4">
+          <div class="font-medium text-slate-900">${u.tenant_name || '默认企业'}</div>
+          <div class="text-[10px] text-slate-400 font-mono">${u.tenant_id}</div>
+        </td>
+        <td class="py-3 px-4 font-mono text-slate-600">${u.contact || '<span class="text-slate-400 italic">未留</span>'}</td>
+        <td class="py-3 px-4 text-center font-mono text-slate-700">${u.jobs_count || 0} / ${u.projects_count || 0}</td>
+        <td class="py-3 px-4 text-[11px] font-mono text-slate-500">
+          <div>注: ${(u.created_at || '').substring(0, 10)}</div>
+          <div class="text-slate-400">登: ${(u.last_login_at || '-').substring(0, 16)}</div>
+        </td>
+        <td class="py-3 px-4">${statusBadge}</td>
+        <td class="py-3 px-4 text-center whitespace-nowrap">
+          <div class="flex items-center justify-center gap-2">
+            ${isRootAdmin ? '<span class="text-[11px] text-slate-400">根管理保护</span>' : `
+              ${isFrozen ? `
+                <button onclick="toggleUserStatus('${u.user_id}', 'active')" class="px-2.5 py-1 rounded bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-medium cursor-pointer transition-all">
+                  解冻
+                </button>
+              ` : `
+                <button onclick="toggleUserStatus('${u.user_id}', 'frozen')" class="px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-800 text-xs font-medium cursor-pointer transition-all">
+                  冻结停权
+                </button>
+              `}
+              <button onclick="openResetPwdModal('${u.user_id}', '${u.username}')" class="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium cursor-pointer transition-all">
+                改密
+              </button>
+            `}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function toggleUserStatus(userId, targetStatus) {
+  const actionText = targetStatus === 'frozen' ? '冻结该账号并强制踢下线' : '恢复解冻该账号';
+  if (!confirm(`确定要${actionText}吗？`)) return;
+
+  try {
+    const res = await fetch(`/api/admin/users/${userId}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ status: targetStatus })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(targetStatus === 'frozen' ? '账号已冻结并强制登出' : '账号已解冻生效');
+      fetchUsers();
+    } else {
+      showToast(data.message || '操作失败', 'error');
+    }
+  } catch (err) {
+    showToast('网络错误，操作失败', 'error');
+  }
+}
+
+function openResetPwdModal(userId, username) {
+  activeUserIdForReset = userId;
+  document.getElementById('resetModalUsername').textContent = username;
+  document.getElementById('newPasswordInput').value = '';
+  document.getElementById('resetPwdModal').classList.remove('hidden');
+}
+
+function closeResetPwdModal() {
+  document.getElementById('resetPwdModal').classList.add('hidden');
+  activeUserIdForReset = null;
+}
+
+async function submitResetPassword() {
+  if (!activeUserIdForReset) return;
+  const pwd = document.getElementById('newPasswordInput').value.trim();
+  if (!pwd || pwd.length < 6) {
+    alert('密码长度至少需要 6 位');
+    return;
+  }
+  try {
+    const res = await fetch(`/api/admin/users/${activeUserIdForReset}/reset_password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ password: pwd })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('密码重置成功，已强制该账号下线');
+      closeResetPwdModal();
+    } else {
+      showToast(data.message || '重置失败', 'error');
+    }
+  } catch (err) {
+    showToast('网络错误，重置失败', 'error');
+  }
+}
+
+// ---------- 3. AI模型与BYOK密钥库 ----------
+async function fetchKeys() {
+  try {
+    const res = await fetch('/api/admin/keys', { headers: getAuthHeader() });
+    const data = await res.json();
+    keysData = data.configs || [];
+    const configuredCount = keysData.filter(k => k.vision_configured).length;
+    document.getElementById('statKeysConfigured').textContent = configuredCount;
+    document.getElementById('badgeKeysCount').textContent = keysData.length;
+    renderKeysTable();
+  } catch (err) {
+    console.error('fetchKeys error', err);
+    showToast('加载模型密钥库失败', 'error');
+  }
+}
+
+function renderKeysTable() {
+  const tbody = document.getElementById('keysTableBody');
+  if (keysData.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9" class="py-12 text-center text-slate-400">暂无模型配置数据</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = keysData.map((k, idx) => {
+    const isConfigured = k.vision_configured;
+    const statusBadge = isConfigured
+      ? '<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">已配置</span>'
+      : '<span class="px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200">未配置</span>';
+
+    return `
+      <tr class="hover:bg-slate-50/80 transition-colors">
+        <td class="py-3 px-4 text-center text-slate-400 font-mono">${idx + 1}</td>
+        <td class="py-3 px-4">
+          <div class="font-bold text-slate-900">${k.tenant_name}</div>
+          <div class="text-[10px] text-slate-400">${k.is_system_default ? '系统默认配置' : '租户独立BYOK'}</div>
+        </td>
+        <td class="py-3 px-4 font-mono text-slate-500 text-xs">${k.tenant_id}</td>
+        <td class="py-3 px-4 uppercase font-semibold text-slate-700">${k.vision_provider || 'qwen'}</td>
+        <td class="py-3 px-4 font-mono text-slate-700">${k.vision_model || '-'}</td>
+        <td class="py-3 px-4 font-mono text-slate-500 text-xs max-w-xs truncate" title="${k.vision_base_url || ''}">${k.vision_base_url || '-'}</td>
+        <td class="py-3 px-4">${statusBadge}</td>
+        <td class="py-3 px-4 font-mono text-slate-600 text-xs">${k.api_key_masked || '<span class="text-slate-400 italic">未配置</span>'}</td>
+        <td class="py-3 px-4 text-center whitespace-nowrap">
+          <button onclick="pingModelKey('${k.tenant_id}', '${k.vision_provider}', '${k.vision_model}', this)" class="px-3 py-1 rounded bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-semibold flex items-center justify-center gap-1 mx-auto cursor-pointer transition-all">
+            <span class="material-symbols-outlined text-[14px]">bolt</span>
+            <span>测通 Ping</span>
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function pingModelKey(tenantId, provider, model, btn) {
+  const origText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="material-symbols-outlined text-[14px] animate-spin">refresh</span> 探测中...`;
+  try {
+    const res = await fetch('/api/admin/keys/ping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ tenant_id: tenantId, provider, model })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`模型接口连通正常！耗时 ${data.latency_ms}ms`);
+      btn.className = 'px-3 py-1 rounded bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold flex items-center justify-center gap-1 mx-auto';
+      btn.innerHTML = `<span class="material-symbols-outlined text-[14px]">check_circle</span> ${data.latency_ms}ms 连通`;
+    } else {
+      showToast(data.message || '测通失败', 'error');
+      btn.className = 'px-3 py-1 rounded bg-rose-50 border border-rose-300 text-rose-800 text-xs font-semibold flex items-center justify-center gap-1 mx-auto';
+      btn.innerHTML = `<span class="material-symbols-outlined text-[14px]">cancel</span> 失败`;
+    }
+  } catch (err) {
+    showToast('网络超时或请求异常', 'error');
+    btn.innerHTML = origText;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------- 4. 全量数据导出 ----------
+function exportAllData() {
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+  const url = token ? `/api/admin/export?token=${encodeURIComponent(token)}` : `/api/admin/export`;
+  window.open(url, '_blank');
+  showToast('全量 Excel 台账导出中，请稍候...');
+}
+
+function handleLogout() {
+  if (confirm('确认退出当前管理会话吗？')) {
+    fetch('/api/auth/logout', { method: 'POST', headers: getAuthHeader() });
+    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
+    window.location.href = '/';
+  }
+}
+
+// 页面初始化
+window.addEventListener('DOMContentLoaded', async () => {
+  const ok = await checkAuth();
+  if (ok) {
+    fetchLeads();
+    fetchUsers();
+    fetchKeys();
+  }
+});
+</script>
+
+</body>
+</html>

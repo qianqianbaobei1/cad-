@@ -196,3 +196,67 @@ def _migrate_json_to_db_once():
 
 
 _migrate_json_to_db_once()
+
+
+def mask_api_key(key: str) -> str:
+    """脱敏展示 API Key，只保留前4后4位。"""
+    if not key:
+        return ""
+    key = str(key).strip()
+    if len(key) <= 8:
+        return "***"
+    return f"{key[:4]}***{key[-4:]}"
+
+
+def list_all_tenant_model_configs(mask: bool = True) -> list[dict]:
+    """管理端：汇总系统级以及所有租户的视觉模型与 BYOK 密钥配置。"""
+    try:
+        from db import _get_conn
+        conn = _get_conn()
+        rows = conn.execute("SELECT id, name, status FROM tenants ORDER BY created_at ASC;").fetchall()
+    except Exception:
+        rows = []
+
+    results = []
+    seen_tenants = set()
+    for r in rows:
+        t_id = r["id"]
+        t_name = r["name"]
+        t_status = r["status"]
+        seen_tenants.add(t_id)
+        cfg = settings(t_id)
+        raw_key = cfg.get("vision_api_key") or (os.environ.get("VISION_API_KEY", "") if t_id == "default" else "")
+        provider = cfg.get("vision_provider") or "qwen"
+        model = cfg.get("vision_model") or (os.environ.get("VISION_MODEL", "") if t_id == "default" else "")
+        base_url = cfg.get("vision_base_url") or (os.environ.get("VISION_BASE_URL", "") if t_id == "default" else "")
+        is_configured = bool(raw_key)
+        
+        results.append({
+            "tenant_id": t_id,
+            "tenant_name": t_name,
+            "tenant_status": t_status,
+            "vision_provider": provider,
+            "vision_model": model or ("(系统默认)" if t_id != "default" else ""),
+            "vision_base_url": base_url or ("(系统默认)" if t_id != "default" else ""),
+            "vision_configured": is_configured,
+            "api_key_masked": mask_api_key(raw_key) if mask else raw_key,
+            "is_system_default": (t_id == "default"),
+        })
+
+    # 兜底确保 default 租户在列表中
+    if "default" not in seen_tenants:
+        cfg = settings("default")
+        raw_key = cfg.get("vision_api_key") or os.environ.get("VISION_API_KEY", "")
+        results.insert(0, {
+            "tenant_id": "default",
+            "tenant_name": "系统默认与公共工作台",
+            "tenant_status": "active",
+            "vision_provider": cfg.get("vision_provider") or "qwen",
+            "vision_model": cfg.get("vision_model") or os.environ.get("VISION_MODEL", ""),
+            "vision_base_url": cfg.get("vision_base_url") or os.environ.get("VISION_BASE_URL", ""),
+            "vision_configured": bool(raw_key),
+            "api_key_masked": mask_api_key(raw_key) if mask else raw_key,
+            "is_system_default": True,
+        })
+    return results
+

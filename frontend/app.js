@@ -179,6 +179,8 @@ const Auth = {
     // 账号管理只给管理员看；普通成员连入口都不显示（后端同样会 403）
     const accountsBtn = $('btnOpenAccounts');
     if (accountsBtn) accountsBtn.hidden = user.role !== 'admin';
+    const adminConsoleBtn = $('btnOpenAdminConsole');
+    if (adminConsoleBtn) adminConsoleBtn.hidden = user.role !== 'admin';
   },
 
   async restore() {
@@ -397,6 +399,7 @@ window.handleLeadSubmit = async function(e) {
   const phone = ($('user-phone')?.value || '').trim();
   const name = ($('user-name')?.value || '').trim();
   const company = ($('user-company')?.value || '').trim();
+  const content = ($('user-content')?.value || '').trim();
   const feedback = $('form-feedback');
   const btn = $('btnSubmitLead');
   if (!phone || !name) return;
@@ -405,7 +408,7 @@ window.handleLeadSubmit = async function(e) {
     const res = await fetch('/api/leads', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, name, company, source: 'landing_priority_access' })
+      body: JSON.stringify({ phone, name, company, content, source: 'landing_priority_access' })
     });
     const data = await res.json();
     if (feedback) {
