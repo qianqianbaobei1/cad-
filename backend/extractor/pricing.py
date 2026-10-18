@@ -864,26 +864,16 @@ def calculate_box_quotation(
     for c in circuits:
         (control_circuits if is_control_cable_circuit(c) else switch_circuits).append(c)
 
-    effective_components = list(components)
-    has_breakers = any(
-        "断路器" in comp.get("name", "") or "开关" in comp.get("name", "") or "微断" in comp.get("name", "")
-        for comp in effective_components
-    )
-    if not has_breakers and switch_circuits:
-        for c in switch_circuits:
-            brk = (c.get("breaker_spec") or c.get("breaker") or "").strip()
-            if not brk or brk in ("-", "待确认"):
-                continue
-            is_inc = c.get("circuit_type") == "incoming" or "进线" in str(c.get("load_name") or "") or "进线" in str(c.get("circuit_no") or "")
-            effective_components.append({
-                "name": "进线断路器" if is_inc else "分支断路器",
-                "spec": brk,
-                "quantity": 1,
-            })
-
-    for comp in effective_components:
+    # 断路器不在组价里自己合成：没有断路器元器件的柜，由 box_components 拆分时
+    # 按回路补出行（标“由回路图提取”），拆量页与组价永远同一份清单。
+    for comp in components or []:
         spec = comp.get("spec") or ""
-        qty = int(comp.get("quantity") or 1)
+        # 数量缺失按 1 件（外部直接传元器件的旧契约）；显式 0 就是 0，不凭空记一件
+        raw_qty = comp.get("quantity")
+        try:
+            qty = 1 if raw_qty in (None, "") else int(float(raw_qty))
+        except (TypeError, ValueError):
+            qty = 1
         unit_price, list_price, basis = calculate_component_unit_price(spec, brand=brand, category=comp.get("category", ""))
         item_total = round(unit_price * qty, 2)
         comp_total += item_total

@@ -1375,7 +1375,8 @@ const ExtractWorkbench = {
             name: p.name,
             spec: p.spec,
             unit: p.unit || '只',
-            quantity: Number(p.quantity) || 1,
+            // 0 件就是 0 件（数量未标注行），不因为空值/0 就改写成 1 件
+            quantity: Number.isFinite(Number(p.quantity)) && p.quantity !== '' ? Number(p.quantity) : 0,
             used_in: p.used_in || b.code,
             where: p.where || '主回路',
             note: p.note || ''
@@ -1388,7 +1389,7 @@ const ExtractWorkbench = {
           name: p.name,
           spec: p.spec,
           unit: p.unit || '只',
-          quantity: Number(p.quantity) || 1,
+          quantity: Number.isFinite(Number(p.quantity)) && p.quantity !== '' ? Number(p.quantity) : 0,
           used_in: p.used_in || '',
           note: p.note || ''
         });
@@ -1507,7 +1508,8 @@ const ExtractWorkbench = {
     $('extStatComps').textContent = String(comps.length);
     $('extStatCompQty').textContent = String(Math.round(totalPieces));
     $('extStatCircuits').textContent = String(circuits.length);
-    $('extPendingCount').textContent = String(doubts.length);
+    // 待核计数 = 未确认的不确定项 + 后端派生的待核对清单（存疑行/未归属行）
+    $('extPendingCount').textContent = String(doubts.length + this.pendingChecks().length);
     $('extChangesCount').textContent = String(this.changeLogs.length);
 
     this.updateVerifiedBar();
@@ -2073,6 +2075,16 @@ const ExtractWorkbench = {
     this.setTopAlert('正在加载图纸数据…', 'info');
   },
 
+  /** 后端派生的待核对清单（存疑行 + 未归属行）：只随接口返回，不回写任务数据。 */
+  pendingChecks() {
+    return ((this.job && this.job.data && this.job.data.pending_checks) || []);
+  },
+
+  /** 当前柜要看得到的待核对项：本柜自己的 + 项目级“未归属”（归不到任何柜的行不能悄悄消失）。 */
+  boxPendingChecks(code) {
+    return this.pendingChecks().filter((p) => p.kind === 'unassigned' || p.box_code === code);
+  },
+
   renderCabinetInspector(b) {
     const isVerified = this.verifiedBoxes.has(b.code);
     const size = splitBoxSize(b.raw.size);
@@ -2109,7 +2121,9 @@ const ExtractWorkbench = {
     if ($('extTabBadgeComps')) $('extTabBadgeComps').textContent = String(b.parts.length);
     if ($('extTabBadgeCircuits')) $('extTabBadgeCircuits').textContent = String(b.circuits.length);
     const doubtCount = b.parts.filter(p => p.note && p.note.includes('存疑')).length;
-    if ($('extTabBadgePending')) $('extTabBadgePending').textContent = `⚠ ${doubtCount}`;
+    const checks = this.boxPendingChecks(b.code);
+    const pendingCount = checks.length || doubtCount;
+    if ($('extTabBadgePending')) $('extTabBadgePending').textContent = `⚠ ${pendingCount}`;
     if ($('extTabBadgeChanges')) $('extTabBadgeChanges').textContent = String(this.changeLogs.filter(c => c.box === b.code).length);
 
     this.renderSheet();
@@ -2229,14 +2243,23 @@ const ExtractWorkbench = {
 
   renderPendingTable(b) {
     const tbody = $('extComponentsTbody');
-    const doubts = b.parts.filter(p => p.note && p.note.includes('存疑'));
+    // 存疑行以拆量明细为准；另加后端派生的未归属行（项目级，每个柜都要看得到）
+    const own = b.parts.filter(p => p.note && p.note.includes('存疑'));
+    const derived = this.boxPendingChecks(b.code);
+    const hasDerived = derived.length > 0;
+    const items = own.map(p => ({
+      name: p.name, spec: p.spec, quantity: p.quantity, unit: p.unit, where: p.where, note: p.note, tag: '⚠ 待核对',
+    })).concat(hasDerived ? derived.filter(p => p.kind === 'unassigned').map(p => ({
+      name: p.name, spec: p.spec, quantity: p.quantity, unit: p.unit,
+      where: '未归属', note: p.note, tag: '⚠ 未归属',
+    })) : []);
 
-    if (!doubts.length) {
+    if (!items.length) {
       tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-400 font-medium">当前箱柜没有待核对项</td></tr>';
       return;
     }
 
-    const rows = doubts.map((p, idx) => `
+    const rows = items.map((p, idx) => `
       <tr class="bg-amber-50/70 hover:bg-amber-100/70 transition-colors divide-x divide-amber-200 h-[32px]" data-idx="${idx}">
         <td class="text-center font-mono text-[11px] bg-amber-100/80 text-amber-800 font-bold select-none">${idx + 1}</td>
         <td class="px-1 text-center font-mono font-bold text-amber-800">${idx + 1}</td>
@@ -2246,7 +2269,7 @@ const ExtractWorkbench = {
         <td class="px-1 text-center text-slate-700">${esc(p.unit || '只')}</td>
         <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>
         <td class="px-1 text-center font-mono text-amber-700">${esc(p.where || '—')}</td>
-        <td class="px-2 text-center"><span class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[10px] whitespace-nowrap">⚠ 待核对</span></td>
+        <td class="px-2 text-center"><span class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[10px] whitespace-nowrap">${p.tag}</span></td>
       </tr>
     `);
     tbody.innerHTML = rows.join('');

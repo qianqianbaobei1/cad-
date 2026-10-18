@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from app import app, jobs, WORKDIR
 import db
 from extractor.schema import Box, Circuit, ExtractionResult
-from extractor.excel import build_workbook, _estimate_box_costs
+from extractor.excel import build_workbook, _estimate_box_costs, _split_components
 
 
 class TestAuditFixes(unittest.TestCase):
@@ -111,8 +111,9 @@ class TestAuditFixes(unittest.TestCase):
         cir_out1 = Circuit(box="1AP1", circuit_no="1WL1", breaker="C32/3P", cable="YJV-5x6", load_name="设备动力1")
         cir_out2 = Circuit(box="1AP1", circuit_no="1WL2", breaker="C20/1P", cable="BV-3x2.5", load_name="照明1")
 
-        # 1. 验证成套估价函数内部正确提取断路器
-        costs = _estimate_box_costs(box, [cir_inc, cir_out1, cir_out2], [])
+        # 1. 验证成套估价函数内部正确提取断路器（断路器行由 box_components 按回路补出）
+        components = _split_components([box], [cir_inc, cir_out1, cir_out2], [])["1AP1"]
+        costs = _estimate_box_costs(box, [cir_inc, cir_out1, cir_out2], components)
         # 断路器元器件合计必须大于 0，且整体成套总单价必须大于 1800 元 (外壳+断路器+母排+工时)
         self.assertGreater(costs["comp_total"], 100.0)
         self.assertGreater(costs["unit_price"], 1800.0)

@@ -1368,9 +1368,12 @@ def job_status(job_id: str):
     # 只挂在响应上（浅拷贝），不回写任务数据，避免派生字段写进 job.json。
     data = dict(job.get("data") or {})
     if data:
-        from extractor.box_components import split_components_by_box
+        from extractor.box_components import pending_checks, split_components_by_box
 
-        data["box_components"] = split_components_by_box(data)
+        split = split_components_by_box(data)
+        data["box_components"] = split
+        # 待核对清单（存疑行 + 未归属行）只派生在响应上，不落盘：job.json 不因此变脏
+        data["pending_checks"] = pending_checks(split)
         payload["data"] = data
     return JSONResponse(payload)
 

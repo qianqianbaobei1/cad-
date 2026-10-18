@@ -169,6 +169,27 @@ CONTROL_CABLE_RES = tuple(re.compile(pattern, re.I) for pattern in _SIGNAL_CABLE
 CONTROL_LOAD_MARKS = ("操作柱", "操作箱", "PLC", "控制箱", "控制柜", "信号", "报警", "联锁", "反馈", "通讯")
 EMPTY_BREAKERS = ("", "-", "待确认", "无")
 
+# ---- 表头/字段名不是元器件：GTable 列遍历会把行首标签当成器材类别 ----
+# 真实漏行形如 “回路名称 | 机械应急启动柜”“低压配电柜型号 GGD | GGD”“A 计算电流 | 371”。
+TABLE_HEADER_MARKS = re.compile(
+    r"^(?:[A-Za-z]{0,3}\s*)?(?:回路名称|回路编号|二次图编号|图编号|(?:低压|高压|动力|照明)?(?:配电柜型号|柜型号)|设备名称|设备型号|"
+    r"规格型号|型号规格|计算电流|额定电流|导线规格|安装方式|安装部位|防护等级|负荷名称|启动方式|"
+    r"备注|序号|数量|单位|用途)"
+    r"(?:\s+[^\s]{0,8})?$"
+)
+DEVICE_NAME_MARKS = ("断路器", "开关", "接触器", "继电器", "互感器", "熔断", "浪涌", "SPD",
+                     "电表", "仪表", "保护器", "指示", "按钮", "变频", "软起", "补偿", "避雷")
+
+
+def is_table_header_row(name: str) -> bool:
+    """表头/字段名被当成元器件类别时要掉：名里只有表头词、且没有任何真实器件词。"""
+    text = re.sub(r"\s+", " ", str(name or "")).strip()
+    if not text:
+        return False
+    if any(mark.upper() in text.upper() for mark in DEVICE_NAME_MARKS):
+        return False
+    return bool(TABLE_HEADER_MARKS.match(text))
+
 
 def is_control_cable_circuit(circuit: object) -> bool:
     """控制/信号电缆回路：没有断路器，且电缆是控制电缆或负载写的是操作柱/PLC/控制箱/信号。
@@ -801,6 +822,13 @@ def assemble(raw: RawExtraction, meta: dict | None = None) -> ExtractionResult:
         dedup_devices.append(device)
 
     for device in dedup_devices:
+        if is_table_header_row(device.name):
+            # 不静默丢弃：哪一行被当成元器件、又为何排除，都写回待核对
+            warnings.append(
+                f"【提示】非回路设备 {device.name.strip()}/{device.spec}（{device.used_in or '未标注箱柜'}）："
+                f"疑似表头文字，已从元器件中排除"
+            )
+            continue
         if not device.spec.strip():
             # 同上：看不清规格也要留一行，让人工去补，而不是静默丢掉
             add(device.name, NO_SPEC, device.unit or "项", device.quantity,

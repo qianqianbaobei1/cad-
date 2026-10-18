@@ -9,6 +9,7 @@ from openpyxl.utils import get_column_letter
 
 from .schema import ExtractionResult
 from .config import delivery as _delivery
+from .box_components import UNASSIGNED
 from .quote_calc import default_rates, quote_box, quote_project
 
 # 交付样式全部来自 config/delivery.json：换配色、换表名、换默认平替品牌都只改配置。
@@ -92,19 +93,25 @@ def sanitize_excel_value(val: Any) -> Any:
     return val
 
 
-def _build_comps_by_box(components: list[Any]) -> dict[str, list[Any]]:
-    """将元器件按所属箱体分组，支持 '1AP1、1AP2' 跨箱多箱映射。"""
-    comps_by_box: dict[str, list[Any]] = {}
-    for comp in components:
-        used = getattr(comp, "used_in", "") if hasattr(comp, "used_in") else str(comp.get("used_in", ""))
-        parts = [p.strip() for p in re.split(r"[、,，\s]+", used) if p.strip()]
-        if not parts and used:
-            parts = [used.strip()]
-        for p in parts:
-            comps_by_box.setdefault(p, []).append(comp)
-        if used and used not in comps_by_box:
-            comps_by_box.setdefault(used, []).append(comp)
-    return comps_by_box
+def _as_dict(obj: Any) -> dict:
+    """pydantic 模型或 dict 统一成 dict，拆分函数只吃 dict。"""
+    if isinstance(obj, dict):
+        return obj
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump()
+    return vars(obj)
+
+
+def _split_components(boxes: list[Any], circuits: list[Any], components: list[Any]) -> dict[str, list[dict]]:
+    """按柜拆分元器件（backend/extractor/box_components.py）：
+    屏幕组价、组价导出、拆量导出共用这一份，不再各自按 used_in 猜数量。"""
+    from .box_components import split_components_by_box
+
+    return split_components_by_box({
+        "boxes": [_as_dict(b) for b in boxes or []],
+        "circuits": [_as_dict(c) for c in circuits or []],
+        "components": [_as_dict(c) for c in components or []],
+    })
 
 
 def _estimate_box_costs(box: Any, box_circuits: list[Any], box_components: list[Any], brand: str = "") -> dict[str, float]:
@@ -131,25 +138,11 @@ def _estimate_box_costs(box: Any, box_circuits: list[Any], box_components: list[
             "breaker_spec": str(_val(c, "breaker", "")),
             "load_name": str(_val(c, "load_name", "")),
             "circuit_no": str(_val(c, "circuit_no", "")),
+            # 组价靠 cable 区分控制/信号电缆回路：不带这字段会把二次回路当成断路器出线
+            "cable": str(_val(c, "cable", "")),
         })
+    # 元器件只认按柜拆分结果：断路器已在拆分时按回路补出，这里不再重复合成
     comp_dicts = []
-    # 1. 显式提取回路中的开关断路器（进线及各分支回路出线）并计入元件清单
-    for c in box_circuits:
-        brk_spec = str(_val(c, "breaker", "")).strip()
-        if not brk_spec or brk_spec in ("-", "待确认"):
-            continue
-        c_type = str(_val(c, "circuit_type", "")).strip()
-        load_name = str(_val(c, "load_name", "")).strip()
-        c_no = str(_val(c, "circuit_no", "")).strip()
-        is_inc = c_type == "incoming" or "进线" in load_name or "进线" in c_no
-        dev_name = "进线断路器" if is_inc else "分支断路器"
-        comp_dicts.append({
-            "name": dev_name,
-            "spec": brk_spec,
-            "quantity": 1,
-        })
-
-    # 2. 计入箱体关联的非回路或独立元器件 (如电涌保护器 SPD、电表、信号灯等)
     for comp in box_components:
         c_spec = str(_val(comp, "spec", "")).strip()
         if not c_spec or c_spec == "-":
@@ -157,7 +150,8 @@ def _estimate_box_costs(box: Any, box_circuits: list[Any], box_components: list[
         comp_dicts.append({
             "name": str(_val(comp, "name", "")),
             "spec": c_spec,
-            "quantity": _val(comp, "quantity", 1),
+            "unit": str(_val(comp, "unit", "") or "只"),
+            "quantity": _val(comp, "quantity", 0) or 0,
         })
 
     # 宁可标疑、不许编造：不再自动补入虚构的双电源切换开关。
@@ -258,7 +252,7 @@ def _fill_box_cards_detail_sheet(ws, title: str, subtitle: str, boxes: list[Any]
         b_code = getattr(c, "box", "") if hasattr(c, "box") else str(c.get("box", ""))
         circuits_by_box.setdefault(b_code, []).append(c)
 
-    comps_by_box = _build_comps_by_box(components)
+    comps_by_box = _split_components(boxes, circuits, components)
 
     r = 4
     for b_idx, b in enumerate(boxes, start=1):
@@ -430,7 +424,7 @@ def _fill_quotation_summary_sheet(ws, project_title: str, boxes: list[Any], circ
         b_code = getattr(c, "box", "") if hasattr(c, "box") else str(c.get("box", ""))
         circuits_by_box.setdefault(b_code, []).append(c)
 
-    comps_by_box = _build_comps_by_box(components)
+    comps_by_box = _split_components(boxes, circuits, components)
 
     start_data_row = 8
     curr_row = start_data_row
@@ -650,7 +644,7 @@ def quote_model_from_result(result: ExtractionResult, target_brand: str = "") ->
     circuits_by_box: dict[str, list[Any]] = {}
     for c in result.circuits or []:
         circuits_by_box.setdefault(_val(c, "box", ""), []).append(c)
-    comps_by_box = _build_comps_by_box(result.components or [])
+    comps_by_box = _split_components(result.boxes or [], result.circuits or [], result.components or [])
 
     for seq, b in enumerate(result.boxes or [], start=1):
         code = _val(b, "code", "未命名")
@@ -1447,9 +1441,10 @@ def build_takeoff_bom_workbook(
     job_info: dict,
     out_path: str
 ) -> str:
-    """生成工程量拆量清单（双 Sheet 纯工程量标准，去除所有价格）：
+    """生成工程量拆量清单（纯工程量标准，去除所有价格）：
     Sheet 1: 配电箱柜清单汇总 —— 汇总每个箱体的型号、防护等级、安装方式、数量、回路数、安装位置等纯工程量信息，序号带超链接直达明细卡片；
-    Sheet 2: 箱柜及元器件明细 —— 保持与组价明细完全一致的包含关系，展开每个箱体及箱内回路/元器件明细，不含单价、合价与纯价格费率行。
+    Sheet 2: 箱柜及元器件明细 —— 元器件数量只认按柜拆分结果（box_components），与拆量页/组价同源；
+    Sheet 3: 箱内回路明细 —— 回路清单只作图纸依据，不计入元器件数量（控制电缆出线只在这里出现）。
     """
     from datetime import datetime
 
@@ -1466,21 +1461,15 @@ def build_takeoff_bom_workbook(
     ws_summary = wb.active
     ws_summary.title = "配电箱柜清单汇总"
     ws_detail = wb.create_sheet("箱柜及元器件明细")
+    ws_circuit = wb.create_sheet("箱内回路明细")
 
-    # 将回路与元器件按箱体归类
+    # 将回路按箱体归类；元器件走按柜拆分结果（项目级汇总行不能整行算给每个柜）
     circuits_by_box: dict[str, list] = {}
     for c in circuits:
         b_code = c.get("box") or c.get("box_code") or ""
         circuits_by_box.setdefault(b_code, []).append(c)
 
-    comps_by_box: dict[str, list] = {}
-    for comp in components:
-        used = str(comp.get("used_in") or comp.get("box") or comp.get("box_code") or "").strip()
-        parts = [p.strip() for p in re.split(r"[、,，\s]+", used) if p.strip()]
-        if not parts and used:
-            parts = [used.strip()]
-        for p in parts:
-            comps_by_box.setdefault(p, []).append(comp)
+    comps_by_box = _split_components(boxes, circuits, components)
 
     # ==========================================================
     # Sheet 2: 箱柜及元器件明细（纯工程量，去掉价格）
@@ -1572,56 +1561,26 @@ def build_takeoff_bom_workbook(
         ws_detail.row_dimensions[curr_d].height = 24
         curr_d += 1
 
-        # 3. 组织该箱体的明细行：回路器件 + 独立器件
+        # 3. 组织该箱体的明细行：只列元器件（数量与拆量页/组价同一份）；回路另行在 Sheet 3 列
         c_seq_idx = 1
 
-        # A. 回路列表（进线与分支断路器）
-        for cir in b_circuits:
-            c_no = cir.get("circuit_no") or ""
-            load = cir.get("load_name") or ""
-            brk = cir.get("breaker") or ""
-            cable = cir.get("cable") or ""
-            contactor = cir.get("contactor") or ""
-            power = cir.get("power_kw") or ""
-            phase = cir.get("phase") or ""
-            note = cir.get("note") or ""
-
-            is_inc = "进线" in c_no or "进线" in load
-            dev_name = "进线断路器" if is_inc else "分支断路器"
-            if contactor and contactor != "-":
-                dev_name += f" / 接触器({contactor})"
-
-            extra_info = f"相序:{phase} 容量:{power}kW" if (power or phase) else note
-
-            row_vals = [
-                f"{b_idx}.{c_seq_idx}",
-                box_code,
-                dev_name,
-                brk or "(规格未标注)",
-                "只",
-                1,
-                c_no or "回路",
-                load or "负荷出线",
-                cable or "-",
-                extra_info
-            ]
-            for j, val in enumerate(row_vals, start=1):
-                cell = ws_detail.cell(row=curr_d, column=j, value=sanitize_excel_value(val))
-                cell.font = CELL_FONT
-                cell.border = DARK_BORDER
-                cell.alignment = CENTER if j in (1, 5, 6) else LEFT
+        if not [cp for cp in b_comps if cp.get("name") != "配电箱体"]:
+            ws_detail.merge_cells(start_row=curr_d, start_column=1, end_row=curr_d, end_column=10)
+            empty_cell = ws_detail.cell(row=curr_d, column=1,
+                                        value="（本箱柜未提取到元器件，回路情况见“箱内回路明细”）")
+            empty_cell.font = SUB_FONT
+            empty_cell.alignment = CENTER
+            empty_cell.border = DARK_BORDER
             ws_detail.row_dimensions[curr_d].height = 22
             curr_d += 1
-            c_seq_idx += 1
-            total_items_count += 1
 
-        # B. 附属/独立元器件（如 SPD、电表、互感器、接触器等）
+        # A. 附属/独立元器件（断路器、SPD、电表、互感器等）
         for cp in b_comps:
             cp_name = cp.get("name") or "元器件"
             if cp_name == "配电箱体":
                 continue
             cp_spec = cp.get("spec") or ""
-            cp_qty = int(cp.get("quantity") or 1)
+            cp_qty = int(cp.get("quantity") or 0)
             cp_unit = cp.get("unit") or "只"
             cp_note = cp.get("note") or ""
 
@@ -1632,8 +1591,8 @@ def build_takeoff_bom_workbook(
                 cp_spec or "-",
                 cp_unit,
                 cp_qty,
-                "箱内装置",
-                "保护与测量附件",
+                cp.get("where") or "箱内装置",
+                cp.get("used_in") or "-",
                 "-",
                 cp_note
             ]
@@ -1650,7 +1609,39 @@ def build_takeoff_bom_workbook(
         # 间隔两行空白
         curr_d += 2
 
+    # 拆不了柜的元器件不许静默丢掉：单列一段“未归属”，数量和存疑备注原样交出
+    orphan_rows = comps_by_box.get(UNASSIGNED) or []
+    if orphan_rows:
+        ws_detail.merge_cells(start_row=curr_d, start_column=1, end_row=curr_d, end_column=10)
+        bnr = ws_detail.cell(row=curr_d, column=1,
+                             value="未归属：下列元器件 used_in 归不到任何箱柜，数量未分摊，请人工指定箱柜")
+        bnr.font = BOX_HEADER_FONT
+        bnr.fill = BOX_HEADER_FILL
+        bnr.alignment = LEFT
+        for col in range(1, 11):
+            ws_detail.cell(row=curr_d, column=col).border = DARK_BORDER
+            ws_detail.cell(row=curr_d, column=col).fill = BOX_HEADER_FILL
+        ws_detail.row_dimensions[curr_d].height = 26
+        curr_d += 1
+        for o_idx, cp in enumerate(orphan_rows, start=1):
+            o_qty = int(cp.get("quantity") or 0)
+            row_vals = [f"未.{o_idx}", UNASSIGNED, cp.get("name") or "元器件",
+                        cp.get("spec") or "-", cp.get("unit") or "只", o_qty,
+                        cp.get("where") or UNASSIGNED, cp.get("used_in") or "-", "-",
+                        cp.get("note") or ""]
+            for j, val in enumerate(row_vals, start=1):
+                cell = ws_detail.cell(row=curr_d, column=j, value=sanitize_excel_value(val))
+                cell.font = CELL_FONT
+                cell.border = DARK_BORDER
+                cell.alignment = CENTER if j in (1, 5, 6) else LEFT
+            ws_detail.row_dimensions[curr_d].height = 22
+            curr_d += 1
+            total_items_count += o_qty
+        curr_d += 2
+
+    # ==========================================================
     # 底部全项目工程量总计行
+    # ==========================================================
     ws_detail.merge_cells(start_row=curr_d, start_column=1, end_row=curr_d, end_column=5)
     t_takeoff_lbl = ws_detail.cell(row=curr_d, column=1, value="全项目工程量总计 (全部箱柜设备与元器件总件数)")
     t_takeoff_lbl.font = TOTAL_FONT
@@ -1667,6 +1658,57 @@ def build_takeoff_bom_workbook(
         ws_detail.cell(row=curr_d, column=col).fill = TOTAL_FILL
         ws_detail.cell(row=curr_d, column=col).border = DOUBLE_BOTTOM_BORDER
     ws_detail.row_dimensions[curr_d].height = 28
+
+    # ==========================================================
+    # Sheet 3: 箱内回路明细（回路只是图纸依据，不重复计入元器件数量）
+    # ==========================================================
+    circ_headers = ["序号", "柜号", "回路编号", "回路用途/负荷名称", "断路器/开关规格",
+                    "接触器/附件", "导线型号及敷设", "相序", "设备容量(kW)", "工程备注"]
+    circ_widths = [8, 14, 18, 26, 28, 20, 30, 10, 12, 26]
+    for j, w in enumerate(circ_widths, start=1):
+        ws_circuit.column_dimensions[get_column_letter(j)].width = w
+    ws_circuit.merge_cells("A1:J1")
+    c_title = ws_circuit.cell(row=1, column=1, value="箱内回路明细表 (图纸依据，不计入元器件数量)")
+    c_title.font = TITLE_FONT
+    c_title.alignment = CENTER
+    ws_circuit.row_dimensions[1].height = 32
+    ws_circuit.merge_cells("A2:J2")
+    c_sub = ws_circuit.cell(row=2, column=1, value=sub_text)
+    c_sub.font = SUB_FONT
+    c_sub.alignment = CENTER
+    ws_circuit.row_dimensions[2].height = 20
+    for j, h in enumerate(circ_headers, start=1):
+        hc = ws_circuit.cell(row=3, column=j, value=h)
+        hc.font = HDR_FONT
+        hc.fill = HDR_FILL
+        hc.alignment = CENTER
+        hc.border = BORDER
+    ws_circuit.row_dimensions[3].height = 28
+
+    from .assemble import is_control_cable_circuit
+
+    curr_c = 4
+    for c_idx, box in enumerate(boxes, start=1):
+        box_code = box.get("code") or box.get("box_code") or f"BOX{c_idx}"
+        for n_idx, cir in enumerate(circuits_by_box.get(box_code, []), start=1):
+            c_no = cir.get("circuit_no") or ""
+            load = cir.get("load_name") or ""
+            brk = str(cir.get("breaker") or "").strip()
+            control = is_control_cable_circuit(cir)
+            row_vals = [
+                f"{c_idx}.{n_idx}", box_code, c_no or "回路", load or "-",
+                "控制电缆出线" if control else (brk or "未标注断路器"),
+                cir.get("contactor") or "-", cir.get("cable") or "-",
+                cir.get("phase") or "-", cir.get("power_kw") or "-",
+                ("控制/信号电缆回路，无断路器，不计入元器件数量" if control else "") or cir.get("note") or "",
+            ]
+            for j, val in enumerate(row_vals, start=1):
+                cell = ws_circuit.cell(row=curr_c, column=j, value=sanitize_excel_value(val))
+                cell.font = CELL_FONT
+                cell.border = BORDER
+                cell.alignment = CENTER if j in (1, 3, 8, 9) else LEFT
+            ws_circuit.row_dimensions[curr_c].height = 22
+            curr_c += 1
 
     # ==========================================================
     # Sheet 1: 配电箱柜清单汇总（纯工程量）

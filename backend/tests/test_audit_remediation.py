@@ -240,10 +240,11 @@ class TestAuditRemediation(unittest.TestCase):
 
     def test_excel_estimate_box_costs_dynamic_brand(self):
         """8. Excel 成本测算：_estimate_box_costs 动态透传品牌，施耐德与正泰成套造价差异分明，不再写死正泰。"""
-        from extractor.excel import _estimate_box_costs
+        from extractor.excel import _estimate_box_costs, _split_components
         box = {"code": "AP1", "name": "动力箱", "size": "800x600x200", "install": "明装", "ip_rating": "IP44"}
-        circuits = [{"circuit_no": "WL1", "circuit_type": "outgoing", "breaker": "C65N-C32/3P", "load_name": "风机"}]
-        comps = []
+        circuits = [{"box": "AP1", "circuit_no": "WL1", "circuit_type": "outgoing", "breaker": "C65N-C32/3P", "load_name": "风机"}]
+        # 断路器行由 box_components 按回路补出（组价不再自己合成）
+        comps = _split_components([box], circuits, []).get("AP1", [])
 
         cost_chint = _estimate_box_costs(box, circuits, comps, brand="正泰")
         cost_schneider = _estimate_box_costs(box, circuits, comps, brand="施耐德")

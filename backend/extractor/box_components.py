@@ -13,6 +13,9 @@ used_in 列出这一规格用在哪些柜/回路（"02AP1 D01、02AP1 D02"）。
    分摊用最大余数取整，Σ各柜 == 该行 quantity，不出现小数件。
 4. 一段都归不到任何柜的行整行进"未归属"，数量绝不摊到别的柜，并在 note 里
    标存疑（拆量页待核对页签按 note 含"存疑"收集）。
+5. 数量为空或 0 的行不计件，留一行 0 件并标"数量未标注"，不凭空记 1 件。
+6. 箱内一个断路器元器件都没有、回路里却有断路器规格的柜，在这里按回路补出
+   断路器行（标"由回路图提取"）。组价不再自己合成，拆量页与组价永远同一份。
 """
 from __future__ import annotations
 
@@ -21,6 +24,11 @@ from collections import defaultdict
 
 BOX_COMPONENT_NAME = "配电箱体"
 UNASSIGNED = "未归属"
+DOUBT_MARK = "存疑"
+# 名里有这些词就算该柜已有断路器元器件，不再按回路补行
+BREAKER_NAME_MARKS = ("断路器", "开关", "微断")
+EMPTY_SPECS = ("", "-", "待确认")
+SYNTHESIZED_NOTE = "由回路图提取（元器件汇总里没有该柜断路器，按回路逐条补出）"
 
 _FRAGMENT_SPLIT = re.compile(r"[、,，;；\n]+")
 
@@ -48,13 +56,17 @@ def match_box(fragment: str, codes: tuple[str, ...]) -> str | None:
 
 
 def _as_count(value) -> int:
-    """件数只取整数：图纸/汇总里本来就是整件，浮点写法是聚合留下的尾巴。"""
+    """件数只取整数：图纸/汇总里本来就是整件，浮点写法是聚合留下的尾巴。
+
+    数量缺失或为 0 时返回 0（不计件），由调用方记一条“数量未标注”待核对；
+    绝不把没写数量的行当成 1 件凭空计入。
+    """
     try:
         q = float(value or 0)
     except (TypeError, ValueError):
-        return 1
+        return 0
     if q <= 0:
-        return 1
+        return 0
     return int(q) if q == int(q) else int(round(q))
 
 
@@ -128,6 +140,39 @@ def _allocate_for_row(quantity: int, counts: list[tuple[str, int]], spec: str,
     return alloc, note
 
 
+def _has_breaker_row(rows: list[dict]) -> bool:
+    return any(any(mark in str(row.get("name") or "") for mark in BREAKER_NAME_MARKS)
+               for row in rows)
+
+
+def _breaker_rows_from_circuits(data: dict, box_code: str) -> list[dict]:
+    """柜里没有断路器元器件时，按回路逐条补出断路器行（控制/信号电缆回路不出）。"""
+    from .assemble import is_control_cable_circuit
+
+    rows: list[dict] = []
+    for circuit in data.get("circuits") or []:
+        box = str(circuit.get("box") or circuit.get("box_code") or "").strip()
+        if box != box_code:
+            continue
+        spec = str(circuit.get("breaker") or circuit.get("breaker_spec") or "").strip()
+        if spec in EMPTY_SPECS or is_control_cable_circuit(circuit):
+            continue
+        no = str(circuit.get("circuit_no") or "").strip()
+        load = str(circuit.get("load_name") or "").strip()
+        is_incoming = circuit.get("circuit_type") == "incoming" or "进线" in no or "进线" in load
+        rows.append({
+            "name": "进线断路器" if is_incoming else "分支断路器",
+            "spec": spec,
+            "unit": "只",
+            "category": "",
+            "quantity": 1,
+            "used_in": f"{box_code} {no}".strip(),
+            "where": no or "回路",
+            "note": SYNTHESIZED_NOTE,
+        })
+    return rows
+
+
 def split_components_by_box(data: dict | None) -> dict[str, list[dict]]:
     """返回 {柜号: [该柜元器件行]}；"未归属"键装一段都归不到柜的行。
 
@@ -161,6 +206,17 @@ def split_components_by_box(data: dict | None) -> dict[str, list[dict]]:
             ))
             continue
 
+        if not quantity:
+            # 数量没写就不许凭空记 1 件：留一行 0 件等人补数量，别让它悄悄消失
+            box = next(iter(grouped))
+            frags = grouped[box]
+            refs = [frag[len(box):].strip(" -—") or frag for frag in frags]
+            result.setdefault(box, []).append(_row(
+                original, name, 0, frags, "、".join(refs),
+                "数量未标注（原表为空或 0），未计件，请补数量后再核对（存疑）",
+            ))
+            continue
+
         counts = [(box, len(frags)) for box, frags in grouped.items()]
         alloc, note = _allocate_for_row(quantity, counts, str(original.get("spec") or ""), device_counts)
         for box, number in alloc.items():
@@ -171,12 +227,45 @@ def split_components_by_box(data: dict | None) -> dict[str, list[dict]]:
             result.setdefault(box, []).append(
                 _row(original, name, number, frags, "、".join(refs), note)
             )
+    # 箱里一个断路器元器件都没有、回路却有断路器规格：在这里补行，组价不再自己合成。
+    for code in codes:
+        rows = result.get(code) or []
+        if _has_breaker_row(rows):
+            continue
+        synthesized = _breaker_rows_from_circuits(data, code)
+        if synthesized:
+            result[code] = rows + synthesized
     return result
 
 
 def component_total(rows_by_box: dict[str, list[dict]]) -> int:
     """各柜件数合计（含未归属），用来核对 Σ各柜 == Σ components.quantity。"""
     return sum(int(row.get("quantity") or 0) for rows in rows_by_box.values() for row in rows)
+
+
+def pending_checks(rows_by_box: dict[str, list[dict]]) -> list[dict]:
+    """拆分结果 → 派生待核对清单（只随接口返回，不写回 job.json）。
+
+    两类：note 带“存疑”的行，和一段都归不到柜的“未归属”行。
+    """
+    checks: list[dict] = []
+    for code, rows in (rows_by_box or {}).items():
+        unassigned = code == UNASSIGNED
+        for row in rows:
+            doubt = DOUBT_MARK in str(row.get("note") or "")
+            if not (unassigned or doubt):
+                continue
+            checks.append({
+                "box_code": "" if unassigned else code,
+                "name": str(row.get("name") or "元器件"),
+                "spec": str(row.get("spec") or ""),
+                "unit": str(row.get("unit") or "只"),
+                "quantity": int(row.get("quantity") or 0),
+                "kind": "unassigned" if unassigned else "doubt",
+                "where": str(row.get("where") or ""),
+                "note": str(row.get("note") or ""),
+            })
+    return checks
 
 
 def _self_check() -> None:
@@ -201,6 +290,32 @@ def _self_check() -> None:
     assert split[UNASSIGNED][0]["quantity"] == 2
     # 配电箱体不进元器件明细；其余 Σ各柜（含未归属）== 6 + 3 + 2
     assert component_total(split) == 11, component_total(split)
+
+    # 数量未标注：不计件、留 0 件并标存疑
+    missing = {
+        "boxes": [{"code": "1AP1"}],
+        "circuits": [],
+        "components": [{"name": "电压表", "spec": "电压表", "unit": "只", "quantity": 0,
+                        "used_in": "1AP1"}],
+    }
+    rows = split_components_by_box(missing)["1AP1"]
+    assert [r["quantity"] for r in rows] == [0], rows
+    assert DOUBT_MARK in rows[0]["note"]
+
+    # 没有断路器元器件的柜：按回路补出断路器行，控制电缆回路不补
+    synth = {
+        "boxes": [{"code": "02AP1"}],
+        "circuits": [
+            {"box": "02AP1", "circuit_no": "D01", "breaker": "MCCB-160MA/50A/3P"},
+            {"box": "02AP1", "circuit_no": "D01-C1", "cable": "ZR-KYJVP-0.6/1KV-10x1.5-SC32-CT",
+             "load_name": "至现场操作柱"},
+        ],
+        "components": [],
+    }
+    rows = split_components_by_box(synth)["02AP1"]
+    assert [(r["name"], r["spec"], r["quantity"]) for r in rows] == [
+        ("分支断路器", "MCCB-160MA/50A/3P", 1)], rows
+    assert component_total(split_components_by_box(synth)) == 1
 
 
 if __name__ == "__main__":
