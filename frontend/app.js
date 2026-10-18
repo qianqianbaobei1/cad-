@@ -274,6 +274,63 @@ const STATUS = {
   extracting: '识别中',
   building_excel: '生成清单',
 };
+
+/**
+ * 页面内小表单，替代浏览器原生 prompt()。
+ * 输入框一律不预填业务值，必填项留空就不提交，不往数据里写任何兜底值。
+ */
+function openFieldForm({ title, fields, submitText = '确定', onOk }) {
+  const host = $('inlineFormHost');
+  if (!host) return;
+  const inputsHtml = fields.map((f, i) => `
+    <label class="flex flex-col gap-0.5 text-[11px] text-slate-600">
+      <span>${esc(f.label)}${f.required ? ' <span class="text-rose-500">*</span>' : ''}</span>
+      <input data-idx="${i}" type="${f.type || 'text'}" ${f.type === 'number' ? 'min="1" step="1"' : ''}
+        value="${esc(f.value || '')}" placeholder="${esc(f.placeholder || '')}"
+        class="h-7 px-2 rounded border border-slate-300 text-xs text-slate-800 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 bg-white">
+    </label>`).join('');
+  host.hidden = false;
+  host.innerHTML = `
+    <div class="fixed inset-0 z-[45] bg-slate-900/30 flex items-center justify-center" id="inlineFormBackdrop">
+      <form class="w-[300px] bg-white rounded-lg shadow-xl border border-slate-200 p-3 flex flex-col gap-2" id="inlineForm">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-800">${esc(title)}</span>
+          <button type="button" class="text-slate-400 hover:text-slate-700 cursor-pointer" data-cancel title="取消">
+            <span class="material-symbols-outlined text-[16px]">close</span>
+          </button>
+        </div>
+        ${inputsHtml}
+        <div class="flex items-center justify-end gap-2 pt-1">
+          <button type="button" class="h-7 px-2.5 rounded border border-slate-300 text-slate-600 text-xs bg-white hover:bg-slate-50 cursor-pointer" data-cancel>取消</button>
+          <button type="submit" class="h-7 px-2.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium cursor-pointer">${esc(submitText)}</button>
+        </div>
+      </form>
+    </div>`;
+
+  const form = host.querySelector('#inlineForm');
+  const close = () => { host.hidden = true; host.innerHTML = ''; };
+  host.querySelectorAll('[data-cancel]').forEach((btn) => { btn.onclick = close; });
+  host.querySelector('#inlineFormBackdrop').addEventListener('click', (e) => {
+    if (e.target.id === 'inlineFormBackdrop') close();
+  });
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const values = {};
+    let missing = '';
+    fields.forEach((f, i) => {
+      const el = form.querySelector(`input[data-idx="${i}"]`);
+      const raw = String((el && el.value) || '').trim();
+      if (f.required && !raw) missing = missing || f.label;
+      values[f.key] = f.type === 'number' ? (raw === '' ? '' : Number(raw)) : raw;
+    });
+    if (missing) { toast(`请填写${missing}`); return; }
+    if (onOk(values) === false) return;
+    close();
+  });
+  const first = form.querySelector('input');
+  if (first) first.focus();
+}
+
 const isDone = (s) => s === 'done';
 const isFailed = (s) => s === 'failed' || s === 'error';
 function statusPill(job) {
@@ -395,10 +452,19 @@ function getSourceBadge(filename, fileType) {
   return `<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant font-semibold tracking-wider uppercase">${esc(ext.toUpperCase() || '图纸')}</span>`;
 }
 
+function isQuoted(j) {
+  const price = Number(j.total_price);
+  return Number.isFinite(price) && price > 0;
+}
+
 function renderStatusCell(j) {
   const s = j.status || 'queued';
   if (isDone(s)) {
-    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-sm text-label-sm bg-surface-container text-tertiary-container font-medium"><span class="material-symbols-outlined text-[14px]">check_circle</span><span>已组价</span></span>`;
+    // 只有真的算出了报价合计才叫“已组价”，只识别完的图纸只是待组价
+    if (isQuoted(j)) {
+      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-sm text-label-sm bg-surface-container text-tertiary-container font-medium" title="已生成报价，可直接导出报价 Excel"><span class="material-symbols-outlined text-[14px]">check_circle</span><span>已组价</span></span>`;
+    }
+    return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-sm text-label-sm bg-primary-fixed text-on-primary-fixed font-medium" title="图纸已识别完成，尚未生成报价"><span class="material-symbols-outlined text-[14px]">fact_check</span><span>已识别 · 待组价</span></span>`;
   }
   if (isFailed(s)) {
     return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-sm text-label-sm bg-error-container text-on-error-container font-medium"><span class="material-symbols-outlined text-[14px]">error</span><span>识别失败</span></span>`;
@@ -502,24 +568,24 @@ function renderJobs() {
         opsHtml = `
           <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
             <a class="px-2.5 py-1 rounded bg-tertiary text-on-tertiary font-body-sm text-body-sm hover:opacity-90 transition-opacity shadow-sm" href="#/job/${esc(j.job_id)}/pricing">直接组价</a>
-            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="导出 Excel" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
-            <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="下载 Excel 报价清单（设备清单直接组价结果）" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
+            <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务（含识别结果与已导出文件）" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
           </div>`;
       } else {
         opsHtml = `
           <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
             <a class="px-2.5 py-1 rounded bg-primary text-on-primary font-body-sm text-body-sm hover:bg-primary-container transition-colors shadow-sm text-white" href="#/job/${esc(j.job_id)}/extract">核对拆量</a>
             <a class="px-2 py-1 rounded border border-outline-variant text-primary font-body-sm text-body-sm hover:bg-surface-container transition-colors" href="#/job/${esc(j.job_id)}/pricing" title="进入组价核算">组价</a>
-            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="导出 Excel" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
-            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-reparse="${esc(j.job_id)}" title="重新识别" type="button"><span class="material-symbols-outlined text-[18px]">replay</span></button>
-            <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="下载 Excel 报价清单（含拆量明细与报价构成）" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-reparse="${esc(j.job_id)}" title="重新识别图纸（覆盖当前识别结果）" type="button"><span class="material-symbols-outlined text-[18px]">replay</span></button>
+            <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务（含识别结果与已导出文件）" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
           </div>`;
       }
     } else if (failed) {
       opsHtml = `
         <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
-          <button class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface font-body-sm text-body-sm flex items-center gap-1 transition-colors" data-reparse="${esc(j.job_id)}" type="button"><span class="material-symbols-outlined text-[15px]">replay</span><span>重试</span></button>
-          <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
+          <button class="px-2.5 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface font-body-sm text-body-sm flex items-center gap-1 transition-colors" data-reparse="${esc(j.job_id)}" title="重新识别这张图纸" type="button"><span class="material-symbols-outlined text-[15px]">replay</span><span>重试</span></button>
+          <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务（含识别结果与已导出文件）" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
         </div>`;
     } else {
       opsHtml = `
@@ -1222,7 +1288,7 @@ const splitUsed = (s) => String(s || '').split(/[、,，;；\n]+/).map((t) => t.
 /**
  * 从汇总表 components 里拆出某个箱柜的元器件。
  */
-function partsForBox(code, components) {
+function partsForBox(code, components, boxCodes = new Set()) {
   const out = [];
   for (const c of components) {
     if (c.name === BOX_COMPONENT) continue;
@@ -1231,7 +1297,8 @@ function partsForBox(code, components) {
     // 严格过滤接线端子代号、跨图线号、柜号与纯工程数值，杜绝垃圾条目
     if (sp.includes(':D') || sp.includes('~') || sp.includes('-C1') || sp.includes('-C2') || sp.includes('-C3')) continue;
     if (['5.5kW', '回路名称', '回路名称\n二次图编号', '低压配电柜型号 GGD', 'A\n计算电流'].includes(nm)) continue;
-    if (['02AP02', '02AP1', '02AP2', '02YJ01', 'C01', 'C05', 'DF', 'XKP', '371', 'GGD'].includes(sp)) continue;
+    // 柜号/符号代号不是元器件型号：柜号由调用方按当前图纸的真实箱柜清单传入，其余是纯代号垃圾条目
+    if (boxCodes.has(sp) || ['DF', 'XKP', '371', 'GGD'].includes(sp)) continue;
     if (sp.startsWith('ET1') || sp.includes('引上至') || sp.includes('机械应急')) continue;
 
     const toks = splitUsed(c.used_in);
@@ -1334,20 +1401,21 @@ function buildBoxes(data) {
   const comps = data.components || [];
   const circuits = data.circuits || [];
   const counted = {};
+  const boxCodes = new Set((data.boxes || []).map((b) => String(b.code || '').trim()).filter(Boolean));
   return (data.boxes || []).map((b, i) => {
     const code = b.code || `箱柜${i + 1}`;
     const first = !counted[code];
     counted[code] = true;
     const cir = first ? circuits.filter((c) => c.box === code) : [];
     const bbox = b.bbox || (cir.find((c) => c.bbox) || {}).bbox || null;
-    let parts = first ? partsForBox(code, comps) : [];
+    let parts = first ? partsForBox(code, comps, boxCodes) : [];
     if (first && parts.length === 0 && cir.length > 0) {
       parts = partsFromCircuits(code, cir);
     }
     return {
       key: `${i}`,
       code,
-      name: b.name || '配电柜',
+      name: b.name || '',   // 名称缺失就留空，不编造箱柜名
       raw: b,
       bbox,
       circuits: cir,
@@ -1355,6 +1423,25 @@ function buildBoxes(data) {
     };
   });
 }
+
+/* box.size 在数据里同时承担柜型代号（GGD/JXF/XXM）与外形尺寸（800×600×2200）两种写法：
+ * 带 × 的按尺寸展示，纯代号按柜型展示，两者都不猜、不补默认值。 */
+function splitBoxSize(value) {
+  const s = String(value || '').trim();
+  if (!s) return { cabinetType: '', dims: '' };
+  return /\d\s*[×xX*]\s*\d/.test(s) ? { cabinetType: '', dims: s } : { cabinetType: s, dims: '' };
+}
+
+/** 缺失的业务值统一显示为破折号，不显示编造内容。 */
+const dashIfEmpty = (v) => (v === 0 || v ? String(v) : '—');
+
+/** 费率小数→百分比字符串（保留小数，不四舍五入成整数，6.5% 不能显示成 7%） */
+const fmtPct = (rate) => {
+  if (rate == null || rate === '') return '';
+  const n = Number(rate);
+  if (!Number.isFinite(n)) return '';
+  return String(Math.round(n * 10000) / 100);
+};
 
 /* ================= ③ 扒图工作台 (Blueprint Extraction & Inspection) ================= */
 
@@ -1434,12 +1521,21 @@ const ExtractWorkbench = {
     $('viewList').hidden = true;
     $('viewPricing').hidden = true;
     $('viewExtract').hidden = false;
+    const isFreshOpen = this.id !== id;
     this.id = id;
+    // 数据到位前先摆真加载态，避免 HTML 静态内容闪现成假清单
+    if (isFreshOpen) this.showLoadingState();
 
     let job;
     try {
       job = await api(`/api/jobs/${id}`);
     } catch (e) {
+      this.setTopAlert(`加载图纸数据失败：${e.message}`, 'error');
+      const cabTbody = $('extCabinetTbody');
+      if (cabTbody) cabTbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-rose-500">加载图纸数据失败</td></tr>';
+      const compTbody = $('extComponentsTbody');
+      if (compTbody) compTbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-rose-500">加载图纸数据失败</td></tr>';
+      if ($('extCurBoxNameTitle')) $('extCurBoxNameTitle').textContent = '—';
       toast(`加载图纸失败：${e.message}`);
       return;
     }
@@ -1454,14 +1550,19 @@ const ExtractWorkbench = {
     $('extExportBomBtn').onclick = () => { window.location.href = withToken(`/api/jobs/${id}/excel?stage=takeoff`); };
 
     if (!isDone(job.status)) {
-      $('extTopAlertText').textContent = isFailed(job.status) ? `识别失败: ${job.error || '未知错误'}` : '图纸识别中，请稍候...';
-      if (!isFailed(job.status)) this.timer = setTimeout(() => this.open(id), 2500);
+      if (isFailed(job.status)) {
+        this.setTopAlert(`识别失败：${job.error || '未知错误'}`, 'error');
+      } else {
+        this.setTopAlert('图纸识别中，请稍候…', 'info');
+        this.timer = setTimeout(() => this.open(id), 2500);
+      }
       return;
     }
 
     this.boxes = buildBoxes(job.data || {});
-    this.initStats();
     await this.initCadViewer();
+    // CAD 就绪后再统一切出加载态，避免各区域先后不一的半成品画面
+    this.initStats();
     this.renderCabinetList();
     if (this.boxes.length > 0) {
       this.selectCabinet(this.boxes[0].key);
@@ -1513,10 +1614,60 @@ const ExtractWorkbench = {
     $('extChangesCount').textContent = String(this.changeLogs.length);
 
     this.updateVerifiedBar();
+    this.renderTopAlert();
+  },
 
-    if (this.boxes.length >= 8) {
-      $('extTopAlertText').textContent = `图纸目录列出 ${this.boxes.length} 台箱柜 · 电气元器件已提取完成 · 支持双击单元格校准`;
+  /** 顶栏提醒条的样式与文案：info=中性信息，warn=真有不一致，error=任务失败 */
+  setTopAlert(text, level = 'info') {
+    const el = $('extTopAlert');
+    const icon = $('extTopAlertIcon');
+    const styles = {
+      info: 'bg-sky-50 border-sky-300 text-sky-800',
+      warn: 'bg-amber-50 border-amber-300 text-amber-800',
+      error: 'bg-rose-50 border-rose-300 text-rose-800',
+    };
+    if (el) el.className = `flex items-center gap-1.5 border px-2.5 py-1 rounded text-xs font-medium ${styles[level] || styles.info}`;
+    if (icon) {
+      icon.textContent = level === 'warn' ? 'warning' : (level === 'error' ? 'error' : 'info');
+      icon.className = `material-symbols-outlined text-[15px] ${level === 'warn' ? 'text-amber-600' : (level === 'error' ? 'text-rose-600' : 'text-sky-600')}`;
     }
+    if ($('extTopAlertText')) $('extTopAlertText').textContent = text;
+  },
+
+  /**
+   * 目录对账结论只来自后端真实结果：data.reconciliation（CatalogReconciliation）
+   * 与 data.uncertainties 中 location=“图纸目录对账”的条目；没有就不编一句对账话。
+   */
+  renderTopAlert() {
+    const d = (this.job && this.job.data) || {};
+    const uncs = (d.uncertainties || []).filter((u) => !u.resolved);
+    const errs = uncs.filter((u) => String(u.severity || '').toUpperCase() === 'ERROR');
+    const reconUncs = uncs.filter((u) => String(u.location || '') === '图纸目录对账');
+    const recon = d.reconciliation || (this.job.summary || {}).reconciliation || {};
+    const circuits = (d.circuits || []).length;
+    const base = `识别完成：${this.boxes.length} 台箱柜${circuits ? ` · ${circuits} 条回路` : ''}`;
+
+    if (recon && recon.has_catalog) {
+      const declared = Number(recon.total_declared_panels) || 0;
+      const covered = Number(recon.covered_count) || 0;
+      const missing = Number(recon.missing_count) || 0;
+      const issues = Math.max(reconUncs.length, missing);
+      if (issues > 0) {
+        this.setTopAlert(`图纸目录对账：${issues} 处不一致（目录列出 ${declared} 台，图中找到 ${covered} 台），见“待核对”`, 'warn');
+      } else {
+        this.setTopAlert(`图纸目录对账：目录列出的 ${declared} 台在图中均已找到`, 'info');
+      }
+      return;
+    }
+    if (reconUncs.length > 0) {
+      this.setTopAlert(`${base} · 图纸目录对账 ${reconUncs.length} 处不一致，见“待核对”`, 'warn');
+      return;
+    }
+    if (errs.length > 0) {
+      this.setTopAlert(`${base} · ${errs.length} 条阻断级待核对需处理`, 'warn');
+      return;
+    }
+    this.setTopAlert(base, 'info');
   },
 
   updateVerifiedBar() {
@@ -1602,7 +1753,7 @@ const ExtractWorkbench = {
       if (vCanvas) vCanvas.classList.add('hidden');
       if (vHud) vHud.classList.add('hidden');
       if (rCanvas) rCanvas.classList.remove('hidden');
-      if (focusBox) focusBox.classList.remove('hidden');
+      if (focusBox && this.selKey) focusBox.classList.remove('hidden');
 
       if (btnVector) {
         btnVector.className = 'px-2 py-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer transition-colors';
@@ -1762,12 +1913,23 @@ const ExtractWorkbench = {
       ctx.moveTo(x, y - cr); ctx.lineTo(x, y + cr);
       ctx.stroke();
 
-      // 悬浮文字胶囊
-      ctx.scale(1, -1);
-      ctx.fillStyle = '#2563eb';
-      const tagH = Math.max(12, 16 / this.vectorState.zoom);
-      ctx.font = `bold ${tagH}px -apple-system, sans-serif`;
-      ctx.fillText(`${label} · CAD X:${Math.round(x)} Y:${Math.round(y)}`, x - bw * 0.15, -(y + 10 / this.vectorState.zoom));
+      // 标牌：在屏幕坐标系里画，字号恒为 11px（缩放不模糊也不拉大）、只显示箱柜号
+      const z = this.vectorState.zoom;
+      const tag = (String(label || '').match(/[^\s·\[\]]+/) || [''])[0];
+      const sx = this.vectorState.panX + (x - bw * 0.15) * z;
+      const sy = this.vectorState.panY - (y + bh * 0.15) * z;   // 聚焦框上沿（屏幕 Y）
+      if (tag) {
+        ctx.save();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.font = 'bold 11px "PingFang SC", "Microsoft YaHei", sans-serif';
+        ctx.textBaseline = 'middle';
+        const tw = ctx.measureText(tag).width + 8;
+        ctx.fillStyle = 'rgba(37,99,235,0.92)';
+        ctx.fillRect(sx, sy - 15, tw, 15);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillText(tag, sx + 4, sy - 7);
+        ctx.restore();
+      }
       ctx.restore();
     }
 
@@ -1806,9 +1968,9 @@ const ExtractWorkbench = {
     };
     img.src = url;
 
-    // 更新 SVG 标题栏
-    $('extSvgProj').textContent = this.job.project || '配电技改工程';
-    $('extSvgDrawing').textContent = this.job.filename || '系统电气原理图';
+    // 更新 SVG 标题栏（没有就不编）
+    $('extSvgProj').textContent = this.job.project || '—';
+    $('extSvgDrawing').textContent = this.job.filename || '—';
   },
 
   applyCadTransform() {
@@ -1880,6 +2042,7 @@ const ExtractWorkbench = {
     const focusBox = $('extCadFocusBox');
     const focusLabel = $('extCadFocusLabel');
     if (!focusBox) return;
+    focusBox.classList.toggle('hidden', this.viewMode === 'vector');   // 矢量模式由 canvas 自绘标框
 
     let x = 0.26, y = 0.22, w = 0.28, h = 0.58;
     if (box && box.bbox && box.bbox.w) {
@@ -1940,28 +2103,29 @@ const ExtractWorkbench = {
         ? 'active-cabinet bg-blue-50/90 border-l-2 border-l-blue-600 outline outline-1 outline-blue-600 cursor-pointer divide-x divide-blue-200 group'
         : 'hover:bg-slate-50 cursor-pointer transition-colors divide-x divide-slate-200 group';
 
+      // 状态徽标：紧凑不折行（待核 / ✓ / ⚠N）
       let statusBadge = '';
       if (isVerified) {
-        statusBadge = '<span class="text-emerald-600 font-bold text-sm leading-none whitespace-nowrap">✓</span>';
+        statusBadge = '<span class="inline-flex items-center justify-center min-w-[18px] px-1 rounded bg-emerald-100 text-emerald-700 font-bold text-[10px] leading-4 whitespace-nowrap" title="已核对">✓</span>';
       } else if (doubtNum > 0) {
-        statusBadge = `<span class="text-amber-600 font-bold font-mono text-[11px] whitespace-nowrap">⚠${doubtNum}</span>`;
+        statusBadge = `<span class="inline-flex items-center justify-center min-w-[18px] px-1 rounded bg-amber-100 text-amber-800 font-bold font-mono text-[10px] leading-4 whitespace-nowrap" title="${doubtNum} 项存疑">⚠${doubtNum}</span>`;
       } else {
-        statusBadge = '<span class="text-slate-400 font-mono text-[11px]">待核</span>';
+        statusBadge = '<span class="inline-flex items-center justify-center min-w-[18px] px-1 rounded bg-slate-100 text-slate-500 font-medium text-[10px] leading-4 whitespace-nowrap" title="待核对">待核</span>';
       }
 
       const seq = `1-${idx + 1}`;
+      const size = splitBoxSize(b.raw.size);
+      const subLine = [size.cabinetType, b.raw.install].filter(Boolean).join(' · ');
       rows.push(`
         <tr class="cabinet-row ${activeCls} h-8 select-none" data-key="${b.key}">
-          <td class="h-8 text-center font-mono ${active ? 'text-blue-700 font-semibold' : 'text-slate-500'}">${seq}</td>
-          <td class="h-8 text-center font-mono font-bold ${active ? 'text-blue-800' : 'text-slate-700'}">${esc(b.code)}</td>
-          <td class="h-8 px-2">
-            <div class="flex items-center justify-between">
-              <div class="truncate ${active ? 'font-bold text-blue-950' : 'font-medium text-slate-900'}">${esc(b.name)}</div>
-            </div>
-            <div class="text-[10px] ${active ? 'text-blue-700' : 'text-slate-500'} font-mono leading-tight">${esc(b.raw.type || '动力柜')}·${esc(b.raw.install || '落地')}</div>
+          <td class="h-8 px-0.5 text-center font-mono text-[10px] whitespace-nowrap ${active ? 'text-blue-700 font-semibold' : 'text-slate-500'}">${seq}</td>
+          <td class="h-8 px-1 text-center overflow-hidden"><span class="block truncate font-mono font-bold text-[11px] whitespace-nowrap ${active ? 'text-blue-800' : 'text-slate-700'}" title="${esc(b.code)}">${esc(b.code || '—')}</span></td>
+          <td class="h-8 px-1.5 overflow-hidden">
+            <div class="truncate ${active ? 'font-bold text-blue-950' : 'font-medium text-slate-900'}" title="${esc(b.name || '名称未标注')}">${esc(b.name || '（名称未标注）')}</div>
+            <div class="text-[10px] ${active ? 'text-blue-700' : 'text-slate-500'} font-mono leading-tight truncate" title="${esc(subLine || '柜型/安装未标注')}">${esc(subLine || '柜型/安装未标注')}</div>
           </td>
-          <td class="h-8 text-center font-mono ${active ? 'font-bold text-blue-800' : 'text-slate-600'}">×${b.raw.quantity || 1}</td>
-          <td class="h-8 text-center">${statusBadge}</td>
+          <td class="h-8 px-0.5 text-center font-mono text-[11px] whitespace-nowrap ${active ? 'font-bold text-blue-800' : 'text-slate-600'}" title="${b.raw.quantity_confirmed === false ? '图面未标明台数，按单箱候选计' : '图面明示台数'}">×${esc(String(b.raw.quantity || 1))}</td>
+          <td class="h-8 px-0.5 text-center whitespace-nowrap">${statusBadge}</td>
         </tr>
       `);
     });
@@ -1984,26 +2148,59 @@ const ExtractWorkbench = {
     this.updateCadFocus(b);
   },
 
+  /** 数据未到位前的真实加载态：不放任何演示/编造内容。 */
+  showLoadingState() {
+    this.boxes = [];
+    this.selKey = '';
+    this.activeVectorTarget = null;
+    const cabTbody = $('extCabinetTbody');
+    if (cabTbody) cabTbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">正在加载图纸数据…</td></tr>';
+    const compTbody = $('extComponentsTbody');
+    if (compTbody) compTbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-400">正在加载图纸数据…</td></tr>';
+    if ($('extCurBoxCodeBadge')) $('extCurBoxCodeBadge').textContent = '—';
+    if ($('extCurBoxNameTitle')) $('extCurBoxNameTitle').textContent = '正在加载图纸数据…';
+    if ($('extCurBoxSummarySub')) $('extCurBoxSummarySub').textContent = '—';
+    ['extCurBoxTypePill', 'extCurBoxSizePill', 'extCurBoxInstallPill', 'extCurBoxLocationPill', 'extCurBoxQtyPill', 'extCurBoxIpPill']
+      .forEach((id) => { if ($(id)) $(id).textContent = '—'; });
+    ['extTabBadgeComps', 'extTabBadgeCircuits', 'extTabBadgePending', 'extTabBadgeChanges']
+      .forEach((id) => { if ($(id)) $(id).textContent = '—'; });
+    ['extFilterAllBtn', 'extFilterUnverifiedBtn', 'extFilterDoubtBtn'].forEach((id, i) => {
+      if ($(id)) $(id).textContent = ['全部 (0)', '未核 (0)', '存疑 (0)'][i];
+    });
+    if ($('extFooterCountText')) $('extFooterCountText').textContent = '共 0 种元器件明细';
+    if ($('extFooterSumQty')) $('extFooterSumQty').textContent = '0 件';
+    if ($('extFooterSelection')) $('extFooterSelection').textContent = '—';
+    const focusBox = $('extCadFocusBox');
+    if (focusBox) focusBox.classList.add('hidden');
+    if ($('extCadFocusLabel')) $('extCadFocusLabel').textContent = '';
+    this.setTopAlert('正在加载图纸数据…', 'info');
+  },
+
   renderCabinetInspector(b) {
     const isVerified = this.verifiedBoxes.has(b.code);
+    const size = splitBoxSize(b.raw.size);
+    const qty = Number(b.raw.quantity) || 1;
+    const qtyConfirmed = b.raw.quantity_confirmed !== false;
+
+    // 输入框（表单兼容用）：没有值就留空，绝不写编造默认值进去
     if ($('extCurBoxCode')) $('extCurBoxCode').value = b.code || '';
     if ($('extCurBoxName')) $('extCurBoxName').value = b.name || '';
-    if ($('extCurBoxType')) $('extCurBoxType').value = b.raw.type || '动力箱';
-    if ($('extCurBoxSize')) $('extCurBoxSize').value = b.raw.size || '800×1200×250';
-    if ($('extCurBoxInstall')) $('extCurBoxInstall').value = b.raw.install || '挂墙';
-    if ($('extCurBoxLocation')) $('extCurBoxLocation').value = b.raw.location || '配电间';
-    if ($('extCurBoxQty')) $('extCurBoxQty').value = b.raw.quantity || 1;
+    if ($('extCurBoxType')) $('extCurBoxType').value = size.cabinetType;
+    if ($('extCurBoxSize')) $('extCurBoxSize').value = size.dims;
+    if ($('extCurBoxInstall')) $('extCurBoxInstall').value = b.raw.install || '';
+    if ($('extCurBoxLocation')) $('extCurBoxLocation').value = b.raw.location || '';
+    if ($('extCurBoxQty')) $('extCurBoxQty').value = qty;
 
-    // 清爽两行概览头部
-    if ($('extCurBoxCodeBadge')) $('extCurBoxCodeBadge').textContent = b.code || '配电箱';
-    if ($('extCurBoxNameTitle')) $('extCurBoxNameTitle').textContent = b.name || '动力配电箱';
-    if ($('extCurBoxSummarySub')) $('extCurBoxSummarySub').textContent = `（共 ${b.raw.quantity || 1} 台 · ${b.parts.length} 项元器件）`;
-    if ($('extCurBoxTypePill')) $('extCurBoxTypePill').textContent = b.raw.type || '动力配电箱';
-    if ($('extCurBoxSizePill')) $('extCurBoxSizePill').textContent = b.raw.size || '800×1200×250';
-    if ($('extCurBoxInstallPill')) $('extCurBoxInstallPill').textContent = b.raw.install || '挂墙明装';
-    if ($('extCurBoxLocationPill')) $('extCurBoxLocationPill').textContent = b.raw.location || '配电间';
-    if ($('extCurBoxQtyPill')) $('extCurBoxQtyPill').textContent = `${b.raw.quantity || 1} 台`;
-    if ($('extCurBoxIpPill')) $('extCurBoxIpPill').textContent = b.raw.ip || 'IP30';
+    // 清爽两行概览头部，字段缺失一律显示“—”（对应后端 Box 字段）
+    if ($('extCurBoxCodeBadge')) $('extCurBoxCodeBadge').textContent = dashIfEmpty(b.code);
+    if ($('extCurBoxNameTitle')) $('extCurBoxNameTitle').textContent = b.name || '（名称未标注）';
+    if ($('extCurBoxSummarySub')) $('extCurBoxSummarySub').textContent = `（共 ${qty} 台${qtyConfirmed ? '' : ' · 图面未标明台数'} · ${b.parts.length} 项元器件）`;
+    if ($('extCurBoxTypePill')) $('extCurBoxTypePill').textContent = dashIfEmpty(size.cabinetType);
+    if ($('extCurBoxSizePill')) $('extCurBoxSizePill').textContent = dashIfEmpty(size.dims);
+    if ($('extCurBoxInstallPill')) $('extCurBoxInstallPill').textContent = dashIfEmpty(b.raw.install);
+    if ($('extCurBoxLocationPill')) $('extCurBoxLocationPill').textContent = dashIfEmpty(b.raw.location);
+    if ($('extCurBoxQtyPill')) $('extCurBoxQtyPill').textContent = qtyConfirmed ? `${qty} 台` : `${qty} 台 · 未明示`;
+    if ($('extCurBoxIpPill')) $('extCurBoxIpPill').textContent = dashIfEmpty(b.raw.ip_rating);
 
     if ($('extMarkVerifiedText')) $('extMarkVerifiedText').textContent = isVerified ? '已完成核对 ✓' : '标记已核对';
     if ($('extMarkVerifiedBtn')) {
@@ -2119,7 +2316,7 @@ const ExtractWorkbench = {
       <tr class="hover:bg-slate-50 transition-colors divide-x divide-slate-300 h-[32px]" data-idx="${idx}">
         <td class="text-center font-mono text-[11px] bg-[#f8fafc] text-slate-400">${idx + 1}</td>
         <td class="px-1 text-center font-mono font-bold text-blue-700">${esc(c.circuit_no || `WL${idx + 1}`)}</td>
-        <td class="px-2.5 font-medium truncate">${esc(c.load_name || '照明/动力')}</td>
+        <td class="px-2.5 font-medium truncate">${esc(c.load_name || '—')}</td>
         <td class="px-2.5 font-mono text-slate-700 truncate">${esc([c.breaker, c.cable].filter(Boolean).join(' · '))}</td>
         <td class="px-2 text-right font-mono font-bold text-slate-900 tabular-nums">${c.power_kw ? `${c.power_kw} kW` : '—'}</td>
         <td class="px-1 text-center text-slate-600">回路</td>
@@ -2138,7 +2335,7 @@ const ExtractWorkbench = {
     const doubts = b.parts.filter(p => p.note && p.note.includes('存疑'));
 
     if (!doubts.length) {
-      tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-emerald-600 font-medium">✓ 当前箱柜暂无存疑项，拆量对账已闭环</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-slate-400 font-medium">当前箱柜没有待核对项</td></tr>';
       return;
     }
 
@@ -2151,7 +2348,7 @@ const ExtractWorkbench = {
         <td class="px-2 text-right font-mono font-bold text-amber-900 tabular-nums">${p.quantity}</td>
         <td class="px-1 text-center text-slate-700">${esc(p.unit || '只')}</td>
         <td class="px-1 text-center text-emerald-600 font-semibold">✔</td>
-        <td class="px-1 text-center font-mono text-amber-700">${esc(p.where || '图纸')}</td>
+        <td class="px-1 text-center font-mono text-amber-700">${esc(p.where || '—')}</td>
         <td class="px-2 text-center"><span class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-bold text-[10px] whitespace-nowrap">⚠ 待核对</span></td>
       </tr>
     `);
@@ -2205,26 +2402,32 @@ const ExtractWorkbench = {
     if (!b || !b.parts[this.selRowIdx]) return;
     const comp = b.parts[this.selRowIdx];
 
-    const newSpec = prompt(`人工校准【${comp.name}】设计型号规格：`, comp.spec);
-    if (newSpec == null || newSpec.trim() === comp.spec) return;
+    openFieldForm({
+      title: `人工校准 · ${comp.name}`,
+      submitText: '保存',
+      fields: [{ key: 'spec', label: '设计型号规格', required: true, value: comp.spec, placeholder: '按图面实际型号填' }],
+      onOk: ({ spec }) => {
+        if (!spec || spec === comp.spec) return false;
 
-    const oldSpec = comp.spec;
-    comp.oldSpec = oldSpec;
-    comp.spec = newSpec.trim();
-    comp.calibrated = true;
+        const oldSpec = comp.spec;
+        comp.oldSpec = oldSpec;
+        comp.spec = spec;
+        comp.calibrated = true;
 
-    this.changeLogs.push({
-      time: new Date().toLocaleTimeString(),
-      box: b.code,
-      comp: comp.name,
-      oldVal: oldSpec,
-      newVal: comp.spec,
-      note: '人工校准'
+        this.changeLogs.push({
+          time: new Date().toLocaleTimeString(),
+          box: b.code,
+          comp: comp.name,
+          oldVal: oldSpec,
+          newVal: comp.spec,
+          note: '人工校准'
+        });
+
+        toast(`已校准 ${comp.name} 型号规格为：${comp.spec}`);
+        this.initStats();
+        this.renderSheet();
+      }
     });
-
-    toast(`已校准 ${comp.name} 型号规格为：${comp.spec}`);
-    this.initStats();
-    this.renderSheet();
   },
 
   // 三栏宽度的统一约束：图纸栏 ≥ 360，箱柜栏 220~480，明细栏 ≥ 600（与 index.html 的 min-w 一致）
@@ -2473,37 +2676,54 @@ const ExtractWorkbench = {
     $('extAddComponentBtn').onclick = () => {
       const b = this.boxes.find((x) => x.key === this.selKey);
       if (!b) return;
-      const name = prompt('请输入新增元器件名称：', '微型断路器');
-      if (!name) return;
-      const spec = prompt('请输入型号规格：', 'MCB-16A/1P') || '标准选型';
-      const qty = Number(prompt('请输入数量：', '1')) || 1;
-      b.parts.push({ name, spec, unit: '只', quantity: qty, where: '主回路', note: '手动新增', calibrated: true });
-      this.changeLogs.push({ time: new Date().toLocaleTimeString(), box: b.code, comp: name, oldVal: '无', newVal: spec, note: '新增器件' });
-      toast(`已向 ${b.code} 添加元器件：${name} (${qty}只)`);
-      this.initStats();
-      this.renderSheet();
-      this.saveJobData(`向 ${b.code} 添加元器件 ${name} (${spec})`);
+      openFieldForm({
+        title: `新增元器件 · ${b.code}`,
+        submitText: '添加',
+        fields: [
+          { key: 'name', label: '元器件名称', required: true, placeholder: '如 微型断路器' },
+          { key: 'spec', label: '型号规格', placeholder: '如 MCB-16A/1P' },
+          { key: 'qty', label: '数量', type: 'number', required: true, placeholder: '如 2' },
+        ],
+        onOk: ({ name, spec, qty }) => {
+          if (!Number.isFinite(qty) || qty <= 0) { toast('数量需为大于 0 的整数'); return false; }
+          b.parts.push({ name, spec, unit: '只', quantity: Math.round(qty), where: '主回路', note: '手动新增', calibrated: true });
+          this.changeLogs.push({ time: new Date().toLocaleTimeString(), box: b.code, comp: name, oldVal: '无', newVal: spec, note: '新增器件' });
+          toast(`已向 ${b.code} 添加元器件：${name} (${Math.round(qty)}只)`);
+          this.initStats();
+          this.renderSheet();
+          this.saveJobData(`向 ${b.code} 添加元器件 ${name} (${spec})`);
+        }
+      });
     };
 
     $('extAddCabinetBtn').onclick = () => {
-      const code = prompt('请输入新增箱柜编号：', `C0${this.boxes.length + 1}`);
-      if (!code) return;
-      const name = prompt('请输入箱柜名称：', '照明配电箱') || '配电箱';
-      const newBox = {
-        key: String(this.boxes.length),
-        code,
-        name,
-        raw: { quantity: 1, type: 'PZ30', size: '600×400×180', install: '挂墙', location: '走廊' },
-        bbox: null,
-        circuits: [],
-        parts: []
-      };
-      this.boxes.push(newBox);
-      toast(`已成功添加箱柜：${code} ${name}`);
-      this.initStats();
-      this.renderCabinetList();
-      this.selectCabinet(newBox.key);
-      this.saveJobData(`新增箱柜 ${code} ${name}`);
+      openFieldForm({
+        title: '新增箱柜',
+        submitText: '添加',
+        fields: [
+          { key: 'code', label: '箱柜编号', required: true, placeholder: '如 02AP3' },
+          { key: 'name', label: '箱柜名称', placeholder: '如 照明配电箱' },
+        ],
+        onOk: ({ code, name }) => {
+          if (this.boxes.some((x) => x.code === code)) { toast(`箱柜编号 ${code} 已存在`); return false; }
+          const newBox = {
+            key: String(this.boxes.length),
+            code,
+            name,
+            // 只记用户明确填的编号/名称：柜型、尺寸、位置等图面未给就不填
+            raw: { code, name, quantity: 1, quantity_confirmed: false },
+            bbox: null,
+            circuits: [],
+            parts: []
+          };
+          this.boxes.push(newBox);
+          toast(`已添加箱柜：${code}${name ? ` ${name}` : ''}（柜型/尺寸/安装待核对时补全）`);
+          this.initStats();
+          this.renderCabinetList();
+          this.selectCabinet(newBox.key);
+          this.saveJobData(`新增箱柜 ${code} ${name}`);
+        }
+      });
     };
 
     // 缩放控制（适配矢量与位图）
@@ -2709,7 +2929,7 @@ const ExtractWorkbench = {
               <span class="material-symbols-outlined text-[13px]">smart_toy</span>
               <span>AI 诊断助手</span>
             </div>
-            ${esc(res.reply || '已为你核对图纸回路配置。')}
+            ${esc(res.reply || '（AI 未返回内容）')}
           </div>
         `;
         msgs.scrollTop = msgs.scrollHeight;
@@ -2732,7 +2952,7 @@ const PricingWorkbench = {
   filterManual: false,
   filterUnpriced: false,
   searchKeyword: '',
-  rates: { aux: 0.05, mfg: 0.09, tax: 0.06 },
+  rates: { aux: null, mfg: null, tax: null },   // 空 = 未加载，后端按配置默认费率算；不编 5%/9%/6%
   brand: '正泰',
   lastSavedTime: '—',
   timer: 0,
@@ -2762,7 +2982,10 @@ const PricingWorkbench = {
     if ($('pricingGoExtractBtn')) $('pricingGoExtractBtn').onclick = () => { location.hash = `#/job/${id}/extract`; };
     if ($('pricingExportBtn')) $('pricingExportBtn').onclick = () => {
       const activeBrand = this.brand || '正泰';
-      window.location.href = withToken(`/api/jobs/${id}/excel?stage=pricing&target_brand=${encodeURIComponent(activeBrand)}&aux_rate=${this.rates.aux}&mfg_rate=${this.rates.mfg}&tax_rate=${this.rates.tax}`);
+      const rates = ['aux_rate', 'mfg_rate', 'tax_rate']
+        .map((k, i) => { const v = this.rates[['aux', 'mfg', 'tax'][i]]; return v == null ? '' : `${k}=${v}`; })
+        .filter(Boolean).join('&');
+      window.location.href = withToken(`/api/jobs/${id}/excel?stage=pricing&target_brand=${encodeURIComponent(activeBrand)}${rates ? `&${rates}` : ''}`);
     };
     if ($('pricingSyncBtn')) $('pricingSyncBtn').onclick = () => {
       this.fetchQuotation();
@@ -2791,10 +3014,11 @@ const PricingWorkbench = {
     const query = new URLSearchParams({
       brand,
       copper_price: '72000',
-      aux_rate: String(this.rates.aux),
-      mfg_rate: String(this.rates.mfg),
-      tax_rate: String(this.rates.tax),
     });
+    // 费率只有在用户/后端明确给出时才传，否则让后端用配置默认值
+    if (this.rates.aux != null) query.set('aux_rate', String(this.rates.aux));
+    if (this.rates.mfg != null) query.set('mfg_rate', String(this.rates.mfg));
+    if (this.rates.tax != null) query.set('tax_rate', String(this.rates.tax));
 
     this.setRecalcBusy(true);
     try {
@@ -2825,10 +3049,11 @@ const PricingWorkbench = {
     const boxes = this.quotation.boxes || [];
     const rows = this.quotation.rows || [];
 
-    // 费率显示
-    if ($('pricingAuxRateText')) $('pricingAuxRateText').textContent = `${Math.round(this.rates.aux * 100)}%`;
-    if ($('pricingLaborRateText')) $('pricingLaborRateText').textContent = `${Math.round(this.rates.mfg * 100)}%`;
-    if ($('pricingTaxRateText')) $('pricingTaxRateText').textContent = `${Math.round(this.rates.tax * 100)}%`;
+    // 费率显示（未加载时留空，输入框的 placeholder 会提示默认）
+    const ratePct = fmtPct;
+    if ($('pricingAuxInput')) $('pricingAuxInput').value = ratePct(this.rates.aux);
+    if ($('pricingLaborInput')) $('pricingLaborInput').value = ratePct(this.rates.mfg);
+    if ($('pricingTaxInput')) $('pricingTaxInput').value = ratePct(this.rates.tax);
 
     // 合计（2 位小数）与报价总计（取整到元）
     const boxesCount = s.boxes_count || boxes.length || 0;
@@ -2914,7 +3139,7 @@ const PricingWorkbench = {
           <td class="excel-cell text-center font-mono text-blue-700 font-bold">${isCollapsed ? '▸' : '▾'} 1-${bIdx + 1}</td>
           <td class="excel-cell px-2 font-mono font-bold text-blue-800">${esc(bh.box_code)}</td>
           <td class="excel-cell px-2 text-slate-900 font-bold">${esc(bh.name)}（${compCount} 项）</td>
-          <td class="excel-cell px-2 text-slate-700">${esc(bh.design_spec || 'GGD·落地')}</td>
+          <td class="excel-cell px-2 text-slate-700">${esc(bh.design_spec || '—')}</td>
           <td class="excel-cell px-2 text-slate-400"></td>
           <td class="excel-cell px-1 text-center text-slate-600">${esc(bh.unit || '台')}</td>
           <td class="excel-cell px-2 text-right font-mono-nums">${bh.quantity || 1}</td>
@@ -2922,7 +3147,7 @@ const PricingWorkbench = {
           <td class="excel-cell px-2 text-right font-mono-nums font-bold text-blue-900">${Number(bh.total_price || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
           <td class="excel-cell px-2 text-slate-600">${esc(bh.brand || '')}</td>
           <td class="excel-cell text-center text-slate-400 text-[11px]"></td>
-          <td class="excel-cell px-2 text-slate-500 text-[11px]">${esc(bh.location || '配电房')}</td>
+          <td class="excel-cell px-2 text-slate-500 text-[11px]">${esc(bh.location || '—')}</td>
         </tr>
       `);
 
@@ -3064,7 +3289,7 @@ const PricingWorkbench = {
           <!-- 辅料 -->
           <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
             <td class="excel-cell text-center font-mono">-</td>
-            <td class="excel-cell" colspan="7"><span class="pl-6">辅料（小计 × ${Math.round(Number(rates.aux) * 100)}%）</span></td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">辅料（小计 × ${fmtPct(rates.aux)}%）</span></td>
             <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${auxCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
             <td class="excel-cell px-2 text-slate-400"></td>
             <td class="excel-cell text-center text-slate-500">费率</td>
@@ -3073,7 +3298,7 @@ const PricingWorkbench = {
           <!-- 成套制作费 -->
           <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
             <td class="excel-cell text-center font-mono">-</td>
-            <td class="excel-cell" colspan="7"><span class="pl-6">成套制作费（(小计+辅料) × ${Math.round(Number(rates.mfg) * 100)}%）</span></td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">成套制作费（(小计+辅料) × ${fmtPct(rates.mfg)}%）</span></td>
             <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${mfgCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
             <td class="excel-cell px-2 text-slate-400"></td>
             <td class="excel-cell text-center text-slate-500">费率</td>
@@ -3082,7 +3307,7 @@ const PricingWorkbench = {
           <!-- 税费 -->
           <tr class="h-7 bg-slate-50/60 text-slate-500 text-[11px]">
             <td class="excel-cell text-center font-mono">-</td>
-            <td class="excel-cell" colspan="7"><span class="pl-6">税费（前三项 × ${Math.round(Number(rates.tax) * 100)}%）</span></td>
+            <td class="excel-cell" colspan="7"><span class="pl-6">税费（前三项 × ${fmtPct(rates.tax)}%）</span></td>
             <td class="excel-cell px-2 text-right font-mono-nums text-slate-700 font-medium">${taxCost.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}</td>
             <td class="excel-cell px-2 text-slate-400"></td>
             <td class="excel-cell text-center text-slate-500">费率</td>
@@ -3164,9 +3389,9 @@ const PricingWorkbench = {
   },
 
   renderSidebar(row) {
-    if ($('pricingSidebarMeta')) $('pricingSidebarMeta').textContent = `${row.box_code} ${row.location || ''}`;
+    if ($('pricingSidebarMeta')) $('pricingSidebarMeta').textContent = `${row.box_code} ${row.location || ''}`.trim();
     if ($('pricingSidebarTitle')) $('pricingSidebarTitle').textContent = `${row.name} ${row.design_spec || ''} × ${row.quantity || 1} ${row.unit || '只'}`;
-    if ($('pricingSidebarSub')) $('pricingSidebarSub').textContent = `${row.location || '配电间'} · 设定整定及选型规格`;
+    if ($('pricingSidebarSub')) $('pricingSidebarSub').textContent = [row.location, '设定整定及选型规格'].filter(Boolean).join(' · ');
 
     const isMissing = (row.source === '缺价' || Number(row.unit_price) <= 0);
     const isManual = (row.source === '手填');
@@ -3383,48 +3608,32 @@ const PricingWorkbench = {
       };
     }
 
-    // 费率点击修改
-    if ($('pricingAuxBtn')) {
-      $('pricingAuxBtn').onclick = () => {
-        const val = prompt('请输入辅料费率百分比 (例：5 代表 5%):', String(Math.round(this.rates.aux * 100)));
-        if (val != null) {
-          const num = parseFloat(val);
-          if (!isNaN(num) && num >= 0 && num <= 100) {
-            this.rates.aux = num / 100;
-            this.fetchQuotation();
-            toast(`辅料费率已更新为 ${num}% 并已重新核算`);
-          }
-        }
+    // 费率：行内数字输入，回车或失焦生效，校验 0–100
+    const bindRateInput = (id, key, label) => {
+      const el = $(id);
+      if (!el) return;
+      const restore = () => {
+        el.value = fmtPct(this.rates[key]);
       };
-    }
-
-    if ($('pricingLaborBtn')) {
-      $('pricingLaborBtn').onclick = () => {
-        const val = prompt('请输入成套制作费率百分比 (例：9 代表 9%):', String(Math.round(this.rates.mfg * 100)));
-        if (val != null) {
-          const num = parseFloat(val);
-          if (!isNaN(num) && num >= 0 && num <= 100) {
-            this.rates.mfg = num / 100;
-            this.fetchQuotation();
-            toast(`成套制作费率已更新为 ${num}% 并已重新核算`);
-          }
-        }
+      // 用属性赋值而不是 addEventListener：bindEvents 可能被重复调用，避免监听器叠加导致重复核算
+      el.onkeydown = (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+        if (e.key === 'Escape') { restore(); el.blur(); }
       };
-    }
-
-    if ($('pricingTaxBtn')) {
-      $('pricingTaxBtn').onclick = () => {
-        const val = prompt('请输入综合税费率百分比 (例：6 代表 6%):', String(Math.round(this.rates.tax * 100)));
-        if (val != null) {
-          const num = parseFloat(val);
-          if (!isNaN(num) && num >= 0 && num <= 100) {
-            this.rates.tax = num / 100;
-            this.fetchQuotation();
-            toast(`税费率已更新为 ${num}% 并已重新核算`);
-          }
-        }
+      el.onchange = () => {
+        const raw = String(el.value || '').trim();
+        if (raw === '') { restore(); return; }
+        const num = parseFloat(raw);
+        if (isNaN(num) || num < 0 || num > 100) { toast(`${label}需为 0–100 的百分比`); restore(); return; }
+        if (this.rates[key] === num / 100) return;
+        this.rates[key] = num / 100;
+        this.fetchQuotation();
+        toast(`${label}已更新为 ${num}% 并已重新核算`);
       };
-    }
+    };
+    bindRateInput('pricingAuxInput', 'aux', '辅料费率');
+    bindRateInput('pricingLaborInput', 'mfg', '成套制作费率');
+    bindRateInput('pricingTaxInput', 'tax', '税费率');
 
     // 重算
     if ($('pricingRecalcBtn')) {

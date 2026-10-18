@@ -594,7 +594,7 @@ body.auth-locked #authScreen { display: block; }
               </div>
               <div class="flex flex-col items-center gap-1.5 mt-space-xs">
                 <h2 class="font-headline-md text-headline-md text-on-surface tracking-tight">上传图纸识别</h2>
-                <p class="font-body-sm text-body-sm text-on-surface-variant max-w-sm">支持 DWG / DXF / PDF，自动解析箱柜与元器件图纸，识别后进行智能组价</p>
+                <p class="font-body-sm text-body-sm text-on-surface-variant max-w-md" style="text-wrap: balance">支持 DWG / DXF / PDF，自动解析箱柜与元器件，识别后可直接智能组价</p>
               </div>
             </div>
             <div class="relative z-10 flex flex-col items-center gap-space-xs mt-space-md w-full">
@@ -696,12 +696,6 @@ body.auth-locked #authScreen { display: block; }
         </div>
         <!-- 卡片底部说明与计数 -->
         <div class="px-space-lg py-2.5 bg-surface-container-low flex flex-col sm:flex-row items-center justify-between text-on-surface-variant font-label-sm text-label-sm gap-2 border-t border-surface-container">
-          <div class="flex items-center gap-space-md text-on-surface-variant font-body-sm text-body-sm">
-            <span class="inline-flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-primary"></span>
-              <span>支持图纸与 Excel 清单多源并行处理</span>
-            </span>
-          </div>
           <div class="text-outline font-label-sm text-label-sm" id="table-count-summary">共 0 项</div>
         </div>
       </div>
@@ -722,8 +716,8 @@ body.auth-locked #authScreen { display: block; }
       <span class="text-slate-600">/</span>
       <div class="flex items-center gap-1.5 font-medium text-white">
         <span class="material-symbols-outlined text-[18px] text-sky-400">description</span>
-        <span class="font-mono text-[13px] font-semibold text-slate-100 truncate max-w-[320px]" id="extFilename">图纸载入中...</span>
-        <span class="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]" id="extBadge">DWG</span>
+        <span class="font-mono text-[13px] font-semibold text-slate-100 truncate max-w-[320px]" id="extFilename">图纸载入中…</span>
+        <span class="px-1.5 py-0.2 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]" id="extBadge">—</span>
       </div>
     </div>
     <!-- 中间：步骤条 ● 拆量 ─── ○ 组价 (文字和连接线清晰优雅) -->
@@ -805,10 +799,10 @@ body.auth-locked #authScreen { display: block; }
         <span>处</span>
       </button>
     </div>
-    <!-- 右侧（对账提示）：醒目橙黄色调 -->
-    <div class="flex items-center gap-1.5 text-amber-800 bg-amber-50 border border-amber-300 px-2.5 py-1 rounded text-xs font-medium" id="extTopAlert">
-      <span class="material-symbols-outlined text-[15px] text-amber-600">warning</span>
-      <span id="extTopAlertText">图纸目录对账就绪 · 选中元器件可反向寻迹图纸高亮</span>
+    <!-- 右侧（对账提示）：默认中性色，只有真有不一致/阻断项才转橙警色 -->
+    <div class="flex items-center gap-1.5 text-sky-800 bg-sky-50 border border-sky-300 px-2.5 py-1 rounded text-xs font-medium" id="extTopAlert">
+      <span class="material-symbols-outlined text-[15px] text-sky-600" id="extTopAlertIcon">info</span>
+      <span id="extTopAlertText">正在加载图纸数据…</span>
     </div>
   </section>
 
@@ -823,7 +817,7 @@ body.auth-locked #authScreen { display: block; }
           <div class="flex items-center bg-slate-800 border border-slate-700 rounded px-2 py-0.5 shadow-2xs">
             <span class="material-symbols-outlined text-[14px] text-sky-400 mr-1">map</span>
             <select class="bg-transparent text-slate-200 font-mono text-[11px] outline-none cursor-pointer pr-1" id="extCadSheetSelect">
-              <option value="1">1/1 系统电气原理图</option>
+              <option value="1">1/1</option>
             </select>
           </div>
           <!-- 翻页 -->
@@ -876,20 +870,20 @@ body.auth-locked #authScreen { display: block; }
               <line x1="0" x2="265" y1="70" y2="70"></line>
               <line x1="90" x2="90" y1="0" y2="105"></line>
               <text fill="#64748b" font-family="Geist" font-size="10" x="8" y="23">工程项目</text>
-              <text fill="#f8fafc" font-family="Geist" font-size="11" x="98" y="23" id="extSvgProj">配电技改工程</text>
+              <text fill="#f8fafc" font-family="Geist" font-size="11" x="98" y="23" id="extSvgProj">—</text>
               <text fill="#64748b" font-family="Geist" font-size="10" x="8" y="58">图纸名称</text>
-              <text fill="#f8fafc" font-family="Geist" font-size="11" x="98" y="58" id="extSvgDrawing">系统电气原理图</text>
+              <text fill="#f8fafc" font-family="Geist" font-size="11" x="98" y="58" id="extSvgDrawing">—</text>
               <text fill="#64748b" font-family="Geist" font-size="10" x="8" y="93">图号/版本</text>
-              <text fill="#38bdf8" font-family="JetBrains Mono" font-size="11" x="98" y="93">E-01-A / REV.1</text>
+              <text fill="#38bdf8" font-family="JetBrains Mono" font-size="11" x="98" y="93">—</text>
             </g>
           </svg>
         </div>
 
-        <!-- 动态聚焦高亮虚线框 -->
-        <div class="absolute pointer-events-none rounded border-2 border-dashed border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all duration-300" id="extCadFocusBox" style="left: 26%; top: 21%; width: 30%; height: 60%;">
+        <!-- 动态聚焦高亮虚线框（数据加载完成前隐藏） -->
+        <div class="absolute pointer-events-none rounded border-2 border-dashed border-[#3b82f6] bg-[#3b82f6]/10 shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all duration-300 hidden" id="extCadFocusBox" style="left: 26%; top: 21%; width: 30%; height: 60%;">
           <div class="absolute -top-5 left-0 bg-[#2563eb] text-white font-mono text-[10px] font-bold px-2 py-0.5 rounded-t flex items-center gap-1 shadow-xs whitespace-nowrap">
             <span class="material-symbols-outlined text-[12px]">crop_free</span>
-            <span id="extCadFocusLabel">[02AP02 配电箱]</span>
+            <span id="extCadFocusLabel"></span>
           </div>
           <span class="absolute -top-1 -left-1 w-2 h-2 border-t-2 border-l-2 border-blue-400"></span>
           <span class="absolute -top-1 -right-1 w-2 h-2 border-t-2 border-r-2 border-blue-400"></span>
@@ -933,20 +927,20 @@ body.auth-locked #authScreen { display: block; }
         </div>
       </div>
 
-      <!-- 箱柜纯正 Excel 紧凑网格列表 (标准网格边框) -->
+      <!-- 箱柜纯正 Excel 紧凑网格列表 (标准网格边框；固定列宽，220px 也不竖排不溢出) -->
       <div class="flex-1 overflow-y-auto excel-scroll bg-white">
-        <table class="w-full border-collapse text-left border-b border-slate-200">
+        <table class="w-full table-fixed border-collapse text-left border-b border-slate-200">
           <thead class="sticky top-0 bg-[#f1f3f5] text-slate-700 font-mono text-[11px] font-semibold border-b border-slate-300 z-10 select-none">
             <tr class="divide-x divide-slate-300 h-7">
-              <th class="px-1 text-center w-8">序号</th>
-              <th class="px-1.5 text-center w-10">柜号</th>
-              <th class="px-2">箱柜名称 / 柜型·安装</th>
-              <th class="px-1 text-center w-9">台数</th>
-              <th class="px-1.5 text-center w-10">状态</th>
+              <th class="px-0.5 text-center w-[34px] whitespace-nowrap">序号</th>
+              <th class="px-1 text-center w-[64px] whitespace-nowrap">柜号</th>
+              <th class="px-1.5 whitespace-nowrap">箱柜名称 / 柜型·安装</th>
+              <th class="px-0.5 text-center w-[28px] whitespace-nowrap">台数</th>
+              <th class="px-0.5 text-center w-[46px] whitespace-nowrap">状态</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200 text-slate-800 font-sans text-xs" id="extCabinetTbody">
-            <!-- 动态填充箱柜行 -->
+            <tr><td colspan="5" class="p-4 text-center text-slate-400">正在加载图纸数据…</td></tr>
           </tbody>
         </table>
       </div>
@@ -970,9 +964,9 @@ body.auth-locked #authScreen { display: block; }
         <!-- 第一行：序号   箱号   名称     [定位图纸]   [✓ 标记已核对] -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-mono font-bold text-xs border border-blue-200 shrink-0" id="extCurBoxCodeBadge">02AP02</span>
-            <h2 class="text-sm font-bold text-slate-900 truncate" id="extCurBoxNameTitle">配电总箱 02AP02</h2>
-            <span class="text-[11px] text-slate-500 font-normal hidden sm:inline" id="extCurBoxSummarySub">（共 1 台 · 17 项元器件）</span>
+            <span class="px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-mono font-bold text-xs border border-blue-200 shrink-0" id="extCurBoxCodeBadge">—</span>
+            <h2 class="text-sm font-bold text-slate-900 truncate" id="extCurBoxNameTitle">正在加载图纸数据…</h2>
+            <span class="text-[11px] text-slate-500 font-normal hidden sm:inline" id="extCurBoxSummarySub">—</span>
           </div>
           <div class="flex items-center gap-2">
             <button class="h-7 px-2.5 rounded bg-white hover:bg-slate-100 border border-slate-300 text-blue-700 font-medium flex items-center gap-1 transition-colors shadow-2xs cursor-pointer" id="extLocateInCadBtn" title="在图纸中重新对焦高亮" type="button">
@@ -985,19 +979,19 @@ body.auth-locked #authScreen { display: block; }
             </button>
           </div>
         </div>
-        <!-- 第二行（灰色字）：分类 配电柜 · 柜型 动力箱 · 安装 挂墙明装 · 尺寸 800×1200×250 · 位置 配电间 · 台数 1 台 -->
+        <!-- 第二行（灰色字）：柜型 · 安装 · 尺寸 · 位置 · 台数 · 防护（对应后端 Box 字段，缺失显示“—”） -->
         <div class="flex items-center gap-2 text-slate-500 text-[11px] overflow-x-auto whitespace-nowrap">
-          <span>柜型 <strong class="text-slate-800 font-mono font-medium" id="extCurBoxTypePill">动力配电箱</strong></span>
+          <span>柜型 <strong class="text-slate-800 font-mono font-medium" id="extCurBoxTypePill">—</strong></span>
           <span class="text-slate-300">·</span>
-          <span>安装 <strong class="text-slate-800 font-medium" id="extCurBoxInstallPill">挂墙明装</strong></span>
+          <span>安装 <strong class="text-slate-800 font-medium" id="extCurBoxInstallPill">—</strong></span>
           <span class="text-slate-300">·</span>
-          <span>尺寸 <strong class="text-slate-800 font-mono font-medium" id="extCurBoxSizePill">800×1200×250</strong></span>
+          <span>尺寸 <strong class="text-slate-800 font-mono font-medium" id="extCurBoxSizePill">—</strong></span>
           <span class="text-slate-300">·</span>
-          <span>位置 <strong class="text-slate-800 font-medium" id="extCurBoxLocationPill">配电间</strong></span>
+          <span>位置 <strong class="text-slate-800 font-medium" id="extCurBoxLocationPill">—</strong></span>
           <span class="text-slate-300">·</span>
-          <span>台数 <strong class="text-blue-700 font-mono font-bold" id="extCurBoxQtyPill">1 台</strong></span>
+          <span>台数 <strong class="text-blue-700 font-mono font-bold" id="extCurBoxQtyPill">—</strong></span>
           <span class="text-slate-300">·</span>
-          <span>防护 <strong class="text-slate-800 font-mono font-medium" id="extCurBoxIpPill">IP30</strong></span>
+          <span>防护 <strong class="text-slate-800 font-mono font-medium" id="extCurBoxIpPill">—</strong></span>
           <!-- 隐藏 input 保持表单兼容 -->
           <input type="hidden" id="extCurBoxCode">
           <input type="hidden" id="extCurBoxName">
@@ -1040,9 +1034,9 @@ body.auth-locked #authScreen { display: block; }
           </thead>
           <!-- 表体行：行高统一 32px，1px 网格线，整齐无缝 -->
           <tbody class="divide-y divide-slate-300 font-sans text-slate-900" id="extComponentsTbody">
-            <!-- 动态填充元器件行 -->
+            <tr><td colspan="9" class="p-8 text-center text-slate-400">正在加载图纸数据…</td></tr>
           </tbody>
-          <!-- 合计行：合计 | | 17 项 | | | 39 | | |（彻底删除假公式字符，工整数值统计） -->
+          <!-- 合计行：数值统计由数据填充，无假公式字符 -->
           <tfoot class="bg-[#f8fafc] border-t-2 border-slate-300 font-sans text-xs text-slate-700 font-semibold select-none sticky bottom-0 z-10">
             <tr class="divide-x divide-slate-300 h-[32px]">
               <td class="text-center font-mono text-[11px] bg-slate-200/80 text-slate-500 select-none">∑</td>
@@ -1262,11 +1256,17 @@ body.auth-locked #authScreen { display: block; }
         </select>
       </div>
       <span class="text-slate-500">报价，辅料</span>
-      <button class="font-semibold text-blue-700 hover:underline decoration-blue-500 decoration-1 underline-offset-2 cursor-pointer" id="pricingAuxBtn" type="button" title="点击调整辅料费率">[<span id="pricingAuxRateText">5%</span>]</button>
+      <span class="inline-flex items-center gap-0.5 text-blue-700 font-semibold">
+        <input class="w-8 text-center bg-transparent border-0 border-b border-blue-300 focus:border-blue-600 p-0 text-xs font-semibold text-blue-700 outline-none" id="pricingAuxInput" type="text" inputmode="decimal" autocomplete="off" placeholder="默认" title="辅料费率(%)，回车或失焦生效，0–100" aria-label="辅料费率百分比">%
+      </span>
       <span class="text-slate-500">，成套制作费</span>
-      <button class="font-semibold text-blue-700 hover:underline decoration-blue-500 decoration-1 underline-offset-2 cursor-pointer" id="pricingLaborBtn" type="button" title="点击调整成套制作费率">[<span id="pricingLaborRateText">9%</span>]</button>
+      <span class="inline-flex items-center gap-0.5 text-blue-700 font-semibold">
+        <input class="w-8 text-center bg-transparent border-0 border-b border-blue-300 focus:border-blue-600 p-0 text-xs font-semibold text-blue-700 outline-none" id="pricingLaborInput" type="text" inputmode="decimal" autocomplete="off" placeholder="默认" title="成套制作费率(%)，回车或失焦生效，0–100" aria-label="成套制作费率百分比">%
+      </span>
       <span class="text-slate-500">，税费</span>
-      <button class="font-semibold text-blue-700 hover:underline decoration-blue-500 decoration-1 underline-offset-2 cursor-pointer" id="pricingTaxBtn" type="button" title="点击调整税费率">[<span id="pricingTaxRateText">6%</span>]</button>
+      <span class="inline-flex items-center gap-0.5 text-blue-700 font-semibold">
+        <input class="w-8 text-center bg-transparent border-0 border-b border-blue-300 focus:border-blue-600 p-0 text-xs font-semibold text-blue-700 outline-none" id="pricingTaxInput" type="text" inputmode="decimal" autocomplete="off" placeholder="默认" title="综合税费率(%)，回车或失焦生效，0–100" aria-label="综合税费率百分比">%
+      </span>
       <span class="text-slate-500">。</span>
       <button class="ml-2 inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-[11px] font-medium transition-colors cursor-pointer" id="pricingRecalcBtn" type="button" title="重新核算 (快捷键 F9)">
         <span class="material-symbols-outlined text-[13px]">refresh</span>
@@ -1735,6 +1735,7 @@ body.auth-locked #authScreen { display: block; }
 </div>
 
 <div class="toast" id="toast" hidden></div>
-<script src="app.js?v=20261018_12"></script>
+<div id="inlineFormHost" hidden></div>
+<script src="app.js?v=20261018_13"></script>
 </body>
 </html>
