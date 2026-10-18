@@ -132,15 +132,18 @@ class ScreenExportConsistencyTest(unittest.TestCase):
         return data
 
     def _detail_blocks(self, ws):
+        """单表版式：1-1/1-2 箱柜行开块，小计/辅料/成套制作费/税费/单台合计 落在总价列。"""
         blocks = {}
         current = None
         for r in range(1, ws.max_row + 1):
+            seq = ws.cell(row=r, column=1).value
             label = ws.cell(row=r, column=2).value
-            if isinstance(label, str) and label.startswith("柜号："):
-                current = {"code": label.split("：", 1)[1], "costs": {}}
+            if isinstance(seq, str) and seq.startswith("1-"):
+                current = {"code": ws.cell(row=r, column=2).value, "costs": {}}
                 blocks[current["code"]] = current
-            elif current and label in ("小计", "辅料", "成套制作费", "税费", "单台合计", "总计"):
-                current["costs"][label] = float(ws.cell(row=r, column=7).value or 0)
+            elif current and isinstance(label, str) and label.split("（")[0] in (
+                    "小计", "辅料", "成套制作费", "税费", "单台合计"):
+                current["costs"][label.split("（")[0]] = float(ws.cell(row=r, column=9).value or 0)
         return blocks
 
     def test_屏幕与导出Excel总计一致(self):
@@ -161,16 +164,18 @@ class ScreenExportConsistencyTest(unittest.TestCase):
             if os.path.exists(path):
                 os.remove(path)
 
-        ws = wb["组价汇总"]
-        rows = {ws.cell(row=r, column=2).value: r for r in range(1, ws.max_row + 1)}
-        total_row = rows["总计"]
-        self.assertEqual(ws.cell(row=total_row, column=3).value, summary["grand_total"])
-        self.assertEqual(ws.cell(row=total_row, column=7).value, summary["total_upper"])
-        self.assertAlmostEqual(float(ws.cell(row=rows["合计"], column=8).value),
+        # 组价导出只有一张表，与屏幕大表一一对应
+        self.assertEqual(wb.sheetnames, ["组价明细"])
+        ws = wb["组价明细"]
+        rows = {ws.cell(row=r, column=1).value: r for r in range(1, ws.max_row + 1)}
+        total_row, grand_row = rows["合计"], rows["报价总计"]
+        self.assertAlmostEqual(float(ws.cell(row=total_row, column=9).value),
                                summary["total_price"], places=2)
+        self.assertEqual(int(ws.cell(row=grand_row, column=9).value), summary["grand_total"])
+        self.assertIn(summary["total_upper"], str(ws.cell(row=grand_row, column=3).value))
 
-        # 明细表每个柜的五项费用也必须与屏幕同一结果
-        blocks = self._detail_blocks(wb["组价明细"])
+        # 每个柜的五项费用也必须与屏幕同一结果
+        blocks = self._detail_blocks(ws)
         for box in screen["boxes"]:
             detail = blocks[box["box_code"]]["costs"]
             breakdown = box["breakdown"]
@@ -179,7 +184,6 @@ class ScreenExportConsistencyTest(unittest.TestCase):
             self.assertAlmostEqual(detail["成套制作费"], breakdown["manufacture"], places=2)
             self.assertAlmostEqual(detail["税费"], breakdown["tax"], places=2)
             self.assertAlmostEqual(detail["单台合计"], breakdown["unit_total"], places=2)
-            self.assertAlmostEqual(detail["总计"], breakdown["total"], places=2)
 
     def test_接口费率可覆盖并进入同一计费链(self):
         data = self._screen(aux_rate=0.05, mfg_rate=0.09, tax_rate=0.06)

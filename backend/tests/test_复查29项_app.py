@@ -77,7 +77,7 @@ class ExportGateTests(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
 
     def test_未确认存疑会写进Excel而不拦下载(self):
-        """产品口径：导出不被遮挡；待核对项不单独占页签，但必须在报价汇总里写明有几处没落定。"""
+        """产品口径：导出不被遮挡；导出只交出屏幕上那张组价明细，不写报价说明/待核对附加页。"""
         import io
         import openpyxl
         tid = _mk_job([{"location": "2SAL2", "detail": "RCBO 数量截断未能确认", "resolved": False}],
@@ -85,10 +85,12 @@ class ExportGateTests(unittest.TestCase):
         r = self.client.get(f"/api/jobs/{tid}/excel")
         self.assertEqual(r.status_code, 200)
         wb = openpyxl.load_workbook(io.BytesIO(r.content))
+        self.assertEqual(wb.sheetnames, ["组价明细"])
         text = "\n".join(str(v) for ws in wb.worksheets for row in ws.iter_rows(values_only=True)
                          for v in row if v)
-        self.assertIn("待核对", text)
-        self.assertIn("1 处图面存疑未确认", text)
+        self.assertIn("组价明细", text)
+        self.assertNotIn("报价说明", text)
+        self.assertNotIn("待核对项", wb.sheetnames)
 
     def test_前端导出不得只依赖程序化blob下载(self):
         """回归：导出主路径必须是导航式下载（真实 href / location.href）。
@@ -107,6 +109,9 @@ class ExportGateTests(unittest.TestCase):
         # 工程量清单导出、报价 Excel 导出都必须是 location.href 导航
         self.assertIn("$('extExportBomBtn').onclick = () => { window.location.href = withToken(`/api/jobs/${id}/excel?stage=takeoff`)", js)
         self.assertIn("window.location.href = withToken(`/api/jobs/${id}/excel?stage=pricing", js)
+        # 组价页导出按钮的字面是「导出组价明细」（导出的就是屏幕上那张表）
+        self.assertIn("导出组价明细", html)
+        self.assertNotIn("导出报价 Excel", html)
         # 标准清单模板下载必须是真实 <a download>，由脚本补上令牌
         self.assertRegex(html, r'<a[^>]*id="btnDownloadTemplate"[^>]*download')
         self.assertIn("withToken('/api/template/bom')", js)

@@ -108,7 +108,9 @@ class ConfigDrivenBehaviourTests(unittest.TestCase):
     def test_pricing_and_delivery_defaults_are_configured(self):
         self.assertIn("price_per_kg", appconfig.pricing_rules()["copper"])
         self.assertTrue(appconfig.delivery()["brand"]["default_target"])
-        self.assertIn("detail", appconfig.delivery()["sheets"])
+        # 组价导出的唯一工作表名与列宽都来自配置（正式报价单抬头已删，不再有 cover/summary/detail 页）
+        self.assertEqual(appconfig.delivery()["quote_template"]["detail_sheet"], "组价明细")
+        self.assertEqual(len(appconfig.delivery()["quote_template"]["detail_widths"]), 12)
 
     def test_takeoff_does_not_invent_incoming_phase(self):
         """进线相序不得凭空填：图上进线旁没写相序就留空，也不借出线回路的相序。"""

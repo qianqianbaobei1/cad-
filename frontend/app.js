@@ -462,7 +462,7 @@ function renderStatusCell(j) {
   if (isDone(s)) {
     // 只有真的算出了报价合计才叫“已组价”，只识别完的图纸只是待组价
     if (isQuoted(j)) {
-      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-sm text-label-sm bg-surface-container text-tertiary-container font-medium" title="已生成报价，可直接导出报价 Excel"><span class="material-symbols-outlined text-[14px]">check_circle</span><span>已组价</span></span>`;
+      return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-sm text-label-sm bg-surface-container text-tertiary-container font-medium" title="已组价，可直接导出组价明细"><span class="material-symbols-outlined text-[14px]">check_circle</span><span>已组价</span></span>`;
     }
     return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-label-sm text-label-sm bg-primary-fixed text-on-primary-fixed font-medium" title="图纸已识别完成，尚未生成报价"><span class="material-symbols-outlined text-[14px]">fact_check</span><span>已识别 · 待组价</span></span>`;
   }
@@ -568,7 +568,7 @@ function renderJobs() {
         opsHtml = `
           <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
             <a class="px-2.5 py-1 rounded bg-tertiary text-on-tertiary font-body-sm text-body-sm hover:opacity-90 transition-opacity shadow-sm" href="#/job/${esc(j.job_id)}/pricing">直接组价</a>
-            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="下载 Excel 报价清单（设备清单直接组价结果）" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="下载组价明细 Excel" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
             <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务（含识别结果与已导出文件）" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
           </div>`;
       } else {
@@ -576,7 +576,7 @@ function renderJobs() {
           <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
             <a class="px-2.5 py-1 rounded bg-primary text-on-primary font-body-sm text-body-sm hover:bg-primary-container transition-colors shadow-sm text-white" href="#/job/${esc(j.job_id)}/extract">核对拆量</a>
             <a class="px-2 py-1 rounded border border-outline-variant text-primary font-body-sm text-body-sm hover:bg-surface-container transition-colors" href="#/job/${esc(j.job_id)}/pricing" title="进入组价核算">组价</a>
-            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="下载 Excel 报价清单（含拆量明细与报价构成）" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="下载组价明细 Excel" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
             <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-reparse="${esc(j.job_id)}" title="重新识别图纸（覆盖当前识别结果）" type="button"><span class="material-symbols-outlined text-[18px]">replay</span></button>
             <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务（含识别结果与已导出文件）" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
           </div>`;

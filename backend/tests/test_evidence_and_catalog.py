@@ -613,15 +613,15 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
         try:
             build_workbook(result, "subtitle", path, layout="3_sheets")
             wb = openpyxl.load_workbook(path)
-            # 1. 检查组价汇总：无尺寸时绝不猜测为 GGD(落地)
-            # 汇总表版式：第 6 行表头，数据从第 7 行开始（上方 1-5 行是表名与项目信息）
-            ws_sum = wb["组价汇总"]
-            box_model_val = ws_sum.cell(row=7, column=4).value  # D列 箱柜型号
+            # 1. 检查组价明细单表：无尺寸时绝不猜测为 GGD(落地)
+            # 单表版式：第 3 行表头、第 4 行分类行、第 5 行箱柜行
+            ws_det = wb["组价明细"]
+            box_model_val = ws_det.cell(row=5, column=4).value  # D列 柜型/设计规格
             self.assertNotEqual(box_model_val, "GGD(落地)")
-            self.assertFalse(box_model_val)  # 应该为空字符串
+            self.assertEqual(box_model_val, "—")  # 图面没尺寸就留空，不编造型号
 
-            # 2. 检查组价汇总：无位置时备注写入 '待确认'，绝不能臆造为 '配电间/动力间'
-            loc_val = ws_sum.cell(row=7, column=9).value  # I列 使用部位/所属楼栋车间
+            # 2. 检查箱柜行备注：无位置时写 '待确认'，绝不能臆造为 '配电间/动力间'
+            loc_val = ws_det.cell(row=5, column=12).value  # L列 备注
             self.assertEqual(loc_val, "待确认")
             self.assertNotIn("配电间/动力间", str(loc_val))
         finally:
@@ -657,35 +657,42 @@ class TestEvidenceAndCatalogReconciler(unittest.TestCase):
             wb = openpyxl.load_workbook(path)
             ws_det = wb["组价明细"]
 
-            # 明细表版式：Row 7 箱头横幅、Row 8 表头、数据从 Row 9 开始
-            # 列位：E 数量 / F 单价 / G 总价 / H 生产厂家
-            inc_name = ws_det.cell(row=9, column=2).value
-            inc_price = float(ws_det.cell(row=9, column=6).value)
-            inc_brand = ws_det.cell(row=9, column=8).value
+            # 明细单表版式：Row 3 表头、Row 4 分类行、Row 5 箱柜行，明细从 Row 6 开始
+            # 列位：C 名称 / D 设计规格 / G 数量 / H 单价 / I 总价 / J 生产厂家 / K 价格来源
+            inc_name = ws_det.cell(row=6, column=3).value
+            inc_brand = ws_det.cell(row=6, column=10).value
             self.assertIn("隔离开关", inc_name)
             self.assertEqual(inc_brand, "正泰")
-            # 验证下限价 86.50 已解禁：2P 隔离开关在正泰价格库中远低于 86.50
-            self.assertLess(inc_price, 86.50)
+            # 验证下限价 86.50 已解禁：2P 隔离开关在正泰价格库中远低于 86.50；
+            # 价格库未收录时单价留空并标“缺价”，绝不编造价格。
+            inc_price = ws_det.cell(row=6, column=8).value
+            if inc_price is None:
+                self.assertEqual(ws_det.cell(row=6, column=11).value, "缺价")
+            else:
+                self.assertLess(float(inc_price), 86.50)
 
-            # Row 10: 分支出线断路器
-            brk_price = float(ws_det.cell(row=10, column=6).value)
-            brk_brand = ws_det.cell(row=10, column=8).value
+            # Row 7: 分支出线断路器
+            brk_brand = ws_det.cell(row=7, column=10).value
             self.assertEqual(brk_brand, "正泰")
             # 验证下限价 15.08 已解禁：正泰 1P C10 采购价远低于 15.08
-            self.assertLess(brk_price, 15.08)
+            brk_price = ws_det.cell(row=7, column=8).value
+            if brk_price is None:
+                self.assertEqual(ws_det.cell(row=7, column=11).value, "缺价")
+            else:
+                self.assertLess(float(brk_price), 15.08)
 
             # 验证 DZ47 没有被写成电涌保护器
-            all_dev_names = [ws_det.cell(row=r, column=2).value for r in range(9, 17) if ws_det.cell(row=r, column=2).value]
+            all_dev_names = [ws_det.cell(row=r, column=3).value for r in range(6, 15) if ws_det.cell(row=r, column=3).value]
             self.assertNotIn("电涌保护器", all_dev_names)
 
             # 查找壳体外壳行
             shell_row = None
-            for r in range(9, 17):
-                if ws_det.cell(row=r, column=2).value == "壳体":
+            for r in range(6, 15):
+                if ws_det.cell(row=r, column=3).value == "壳体":
                     shell_row = r
                     break
             self.assertIsNotNone(shell_row)
-            shell_price = float(ws_det.cell(row=shell_row, column=6).value)
+            shell_price = float(ws_det.cell(row=shell_row, column=8).value)
             # 验证壳体下限价 457.06 已解禁：400*500*160 小型箱体测算价格低于 457.06
             self.assertLess(shell_price, 457.06)
         finally:

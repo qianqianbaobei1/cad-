@@ -9,7 +9,7 @@ from openpyxl.utils import get_column_letter
 
 from .schema import ExtractionResult
 from .config import delivery as _delivery
-from .quote_calc import quote_box, quote_project
+from .quote_calc import default_rates, quote_box, quote_project
 
 # 交付样式全部来自 config/delivery.json：换配色、换表名、换默认平替品牌都只改配置。
 _DELIVERY = _delivery()
@@ -632,113 +632,103 @@ def _result_box_items(box, b_circuits: list[Any], b_comps: list[Any], target_bra
     return items
 
 
-def _quote_model_base(project: str, owner: str = "") -> dict:
-    """组价模型基座：只有项目与金额口径，没有报价单位/日期/联系人（AI 组价不是供应商报价）。"""
-    qt = _DELIVERY.get("quote_template") or {}
+def _quote_model_base(project: str, brand: str = "", rates: dict | None = None) -> dict:
+    """组价模型基座：只有项目、平替品牌与费率口径（AI 组价不是供应商正式报价单）。"""
     return {
         "project": _clean_proj_title(project),
-        "owner": owner,
-        "currency": "人民币元",
-        "category": _SHEETS.get("category", "配电箱"),
-        "footer_note": qt.get("footer_note", ""),
-        "quote_by": "",
-        "review_by": "",
+        "brand": brand or DEFAULT_TARGET_BRAND,
+        "rates": dict(rates or default_rates()),
+        "rows": [],
         "boxes": [],
-        "unresolved_count": 0,
     }
 
 
-def quote_model_from_result(result: ExtractionResult, target_brand: str = "",
-                            owner: str = "") -> dict:
-    """图纸提取结果 → 报价模型（自动出单用；费率走配置，不写死在代码里）。"""
+def quote_model_from_result(result: ExtractionResult, target_brand: str = "") -> dict:
+    """图纸提取结果 → 组价明细模型（自动出单用；费率走配置，不写死在代码里）。"""
+    model = _quote_model_base(result.title, target_brand or DEFAULT_TARGET_BRAND)
+
     circuits_by_box: dict[str, list[Any]] = {}
     for c in result.circuits or []:
         circuits_by_box.setdefault(_val(c, "box", ""), []).append(c)
     comps_by_box = _build_comps_by_box(result.components or [])
 
-    model = _quote_model_base(result.title, owner)
-    model["unresolved_count"] = len([u for u in (result.uncertainties or [])
-                                     if not getattr(u, "resolved", False)])
-    for b in result.boxes or []:
+    for seq, b in enumerate(result.boxes or [], start=1):
         code = _val(b, "code", "未命名")
         b_circuits = circuits_by_box.get(code, [])
         items = _result_box_items(b, b_circuits, comps_by_box.get(code, []), target_brand)
         qty = _val(b, "quantity", 1) or 1
         cost = quote_box(items, qty)
-        model["boxes"].append({
-            "code": code,
+        size = (_val(b, "size", "") or "").strip()
+        design_spec = size if size and size != "-" else "—"
+
+        model["rows"].append({
+            "type": "box_header", "seq": str(seq), "box_code": code,
             "name": _val(b, "name", "配电箱"),
-            "model": (_val(b, "size", "") or "").strip() if _val(b, "size", "") not in ("-", None) else "",
-            "location": _val(b, "location", "") or "待确认",
-            "unit": "台",
+            "design_spec": design_spec,
             "quantity": qty,
-            "items": items,
-            "subtotal": cost["subtotal"],
-            "auxiliary": cost["auxiliary"],
-            "manufacture": cost["manufacture"],
-            "tax_total": cost["tax"],
+            "unit": "台",
+            "location": _val(b, "location", "") or "待确认",
             "unit_price": cost["unit_total"],
             "total_price": cost["total"],
+        })
+        for item_seq, item in enumerate(items, start=1):
+            unit_price = float(item.get("unit_price") or 0.0)
+            # 宁可标疑：图面缺规格/缺价的行标“缺价”，不编造价格
+            source = "缺价" if unit_price <= 0 else ("定额" if item.get("brand") == "成套定制" else "平替")
+            model["rows"].append({
+                "type": "component", "seq": f"{seq}.{item_seq}", "box_code": code,
+                "name": item.get("name", ""),
+                "design_spec": item.get("spec", ""),
+                "replacement_model": "" if source == "缺价"
+                else " ".join(x for x in (item.get("brand"), item.get("spec")) if x),
+                "unit": item.get("unit", "只"),
+                "quantity": int(item.get("qty") or 1),
+                "unit_price": unit_price,
+                "total_price": round(unit_price * int(item.get("qty") or 1), 2),
+                "brand": item.get("brand", ""),
+                "source": source,
+                "note": item.get("note", ""),
+                "location": _val(b, "location", "") or "待确认",
+            })
+        model["boxes"].append({
+            "box_code": code,
+            "name": _val(b, "name", "配电箱"),
+            "design_spec": design_spec,
+            "location": _val(b, "location", "") or "待确认",
+            "quantity": qty,
+            "unit": "台",
+            "unit_price": cost["unit_total"],
+            "total_price": cost["total"],
+            "breakdown": cost,
         })
     _finalize_model(model)
     return model
 
 
 def quote_model_from_quote_res(quote_res: dict, job_info: dict, target_brand: str = "") -> dict:
-    """组价工作台的核算结果 → 报价模型（含用户手改价、平替品牌与费率联动）。"""
+    """组价工作台的核算结果 → 组价明细模型（含用户手改价、平替品牌与费率联动）。
+
+    屏幕上的行序、来源标记、缺价/不计价状态原样进模型，导出与屏幕一一对应。
+    """
     info = job_info or {}
-    project = info.get("project") or (info.get("summary") or {}).get("title") or ""
-    model = _quote_model_base(project)
-
-    rows = quote_res.get("rows") or []
-    boxes = {b.get("box_code"): b for b in quote_res.get("boxes") or []}
-    groups: list[dict] = []
-    current: dict | None = None
-    for row in rows:
-        if row.get("type") == "box_header":
-            current = {"header": row, "items": []}
-            groups.append(current)
-        elif row.get("type") in ("component", "material") and current is not None:
-            current["items"].append(row)
-
-    for group in groups:
-        header = group["header"]
-        code = header.get("box_code") or ""
-        b_info = boxes.get(code) or {}
-        items = [{
-            "name": row.get("name", ""),
-            "spec": row.get("replacement_model") or row.get("design_spec") or "",
-            "unit": row.get("unit") or "只",
-            "qty": int(row.get("quantity") or 1),
-            "unit_price": float(row.get("unit_price") or 0.0),
-            "brand": row.get("brand") or "",
-            "note": row.get("source") if row.get("source") not in (None, "平替") else "",
-        } for row in group["items"]]
-
-        qty = header.get("quantity") or b_info.get("quantity") or 1
-        breakdown = b_info.get("breakdown") or quote_box(items, qty)
-        model["boxes"].append({
-            "code": code,
-            "name": header.get("name") or b_info.get("name") or "配电箱",
-            "model": b_info.get("size") or "",
-            "location": b_info.get("location") or header.get("location") or "",
-            "unit": "台",
-            "quantity": qty,
-            "items": items,
-            "subtotal": float(breakdown.get("subtotal") or 0.0),
-            "auxiliary": float(breakdown.get("auxiliary") or 0.0),
-            "manufacture": float(breakdown.get("manufacture") or 0.0),
-            "tax_total": float(breakdown.get("tax") or 0.0),
-            "unit_price": float(breakdown.get("unit_total") or 0.0),
-            "total_price": float(breakdown.get("total") or 0.0),
-        })
+    summary = quote_res.get("summary") or {}
+    project = info.get("project") or (info.get("summary") or {}).get("title") or info.get("title") or ""
+    model = _quote_model_base(project, summary.get("brand") or target_brand or "")
+    model["rates"] = {
+        "aux": summary.get("aux_rate"),
+        "mfg": summary.get("mfg_rate"),
+        "tax": summary.get("tax_rate"),
+    }
+    model["rows"] = list(quote_res.get("rows") or [])
+    model["boxes"] = [dict(b) for b in (quote_res.get("boxes") or [])]
     _finalize_model(model)
     return model
 
 
 def _finalize_model(model: dict) -> None:
-    model["total_qty"] = sum(int(b.get("quantity") or 1) for b in model["boxes"])
-    model["total_price"] = round(sum(float(b.get("total_price") or 0.0) for b in model["boxes"]), 2)
+    model["total_qty"] = sum(int(_val(b, "quantity", 1) or 1) for b in model["boxes"])
+    model["total_price"] = round(sum(float(_val(b, "total_price", 0.0) or 0.0)
+                                     for b in model["boxes"]), 2)
     project = quote_project(model["boxes"])
     model["grand_total"] = project["grand_total"]
     model["total_upper"] = project["upper"]
@@ -747,7 +737,6 @@ def _finalize_model(model: dict) -> None:
 def _fill_quote_template(wb, model: dict):
     from . import quote_template
     return quote_template.fill(wb, model)
-
 
 
 def _fill_sheets(wb, result, subtitle, template: bool, target_brand: str = ""):
@@ -1072,7 +1061,7 @@ def _fill_dual_sheets(wb, result: ExtractionResult, subtitle: str, target_brand:
 def build_workbook(result: ExtractionResult, subtitle: str, out_path: str,
                    changes=None, include_changes: bool = True,
                    template_path: str = "", target_brand: str = "",
-                   layout: str = "all", bidder: str = "", owner: str = "",
+                   layout: str = "all",
                    quote_res: dict | None = None) -> str:
     template = bool(template_path) and os.path.exists(template_path)
     if template:
@@ -1090,11 +1079,8 @@ def build_workbook(result: ExtractionResult, subtitle: str, out_path: str,
         if quote_res:
             model = quote_model_from_quote_res(quote_res, {"project": result.title}, target_brand or DEFAULT_TARGET_BRAND)
             model["project"] = _clean_proj_title(result.title) or model["project"]
-            model["owner"] = owner
-            model["unresolved_count"] = len([u for u in (result.uncertainties or [])
-                                             if not getattr(u, "resolved", False)])
         else:
-            model = quote_model_from_result(result, target_brand or DEFAULT_TARGET_BRAND, owner=owner)
+            model = quote_model_from_result(result, target_brand or DEFAULT_TARGET_BRAND)
         _fill_quote_template(wb, model)
         _fill_appendix_sheets(wb, result, subtitle)
         if getattr(result, "topology", None):
@@ -1442,18 +1428,14 @@ def build_pricing_quotation_workbook(
     out_path: str,
     target_brand: str = ""
 ) -> str:
-    """组价阶段导出：屏柜汇总表 + 屏柜分项表（客户口径的两表模板）。
+    """组价阶段导出：屏幕上那张组价明细表的 Excel 版（单表，无任何正式报价单抬头）。
 
     数据来自组价工作台的核算结果（含用户手改价、平替品牌、费率联动），
-    版面由 quote_template 渲染器统一负责，不再各写一套。
+    版面由 quote_template 渲染器统一负责，屏幕与导出不再各写一套。
     """
     info = job_info or {}
     model = quote_model_from_quote_res(quote_res, info, target_brand or DEFAULT_TARGET_BRAND)
     model["project"] = model["project"] or _clean_proj_title(info.get("title") or "")
-    model["owner"] = info.get("owner") or ""
-    data = info.get("data") or {}
-    items = data.get("uncertainties") or (info.get("summary") or {}).get("uncertainties") or []
-    model["unresolved_count"] = len([u for u in items if isinstance(u, dict) and not u.get("resolved")])
 
     wb = _blank_workbook()
     _fill_quote_template(wb, model)

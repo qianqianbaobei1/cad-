@@ -46,9 +46,6 @@
     "cabinet_fill": "EBF1F5"
   },
   "sheets": {
-    "cover": "封面",
-    "summary": "屏柜汇总表",
-    "detail": "屏柜分项表",
     "box_cards": "箱体分项明细",
     "boxes": "箱体清单",
     "components": "元器件汇总",
@@ -76,17 +73,6 @@
       10,
       32,
       24
-    ],
-    "cover": [
-      8,
-      16,
-      26,
-      20,
-      16,
-      20,
-      16,
-      14,
-      16
     ],
     "cover_legacy": [
       10,
@@ -220,8 +206,6 @@
     "as_written": "图纸写法无法安全拆分，按原文计入，数量待人工确认",
     "no_spec": "(规格未标注)",
     "export_filename": "配电箱元器件清单(报价用)",
-    "quotation_title": "成套电气设备工程报价书",
-    "quotation_title_en": "COMPLETE LOW-VOLTAGE ELECTRICAL EQUIPMENT QUOTATION",
     "detail_card_suffix": "成套箱体分项卡片明细表"
   },
   "export_gate": {
@@ -248,44 +232,31 @@
     "unnamed_box_fallback": "配电箱"
   },
   "quote_template": {
-    "_comment": "成套设备组价两表模板（组价汇总 + 组价明细）。只定义版面、表头与费率口径，不存任何项目数据；没有封面与 1~6 行抬头（不写报价单位/日期/联系人），换表名、列宽、费率只改这里。",
-    "summary_sheet": "组价汇总",
+    "_comment": "组价明细单表（屏幕上那张组价大表）。只定义表名、列宽、费率与配色，不存任何项目数据；没有封面、没有公司抬头、没有报价人/审核人/报价说明。",
     "detail_sheet": "组价明细",
-    "summary_title": "成套设备组价汇总",
-    "detail_title": "成套设备组价明细",
-    "note_label": "报价说明：",
-    "footer_note": "1.报价含13%税和运费；2.报价不含设计图纸未标注的设备；3.未定价项已在明细表标注“待确认”，需人工询价后确认。",
     "font": "宋体",
-    "link_color": "FF0000FF",
     "category_fill": "CCFFCC",
-    "category_fill_detail": "C6EFCE",
     "box_fill": "CCFFFF",
     "header_fill": "F2F2F2",
     "total_fill": "75923C",
     "auxiliary_rate": 0.05,
     "manufacture_rate": 0.09,
     "tax_rate": 0.06,
-    "summary_widths": [
-      5.5,
-      15.6,
-      24.3,
-      15.6,
-      5.1,
-      5.1,
-      12.6,
-      14.0,
-      14.4
-    ],
     "detail_widths": [
-      5.0,
-      22.5,
-      26.2,
-      5.1,
-      5.1,
-      12.5,
-      13.5,
-      15.0,
-      13.1
-    ]
+      8.0,
+      14.0,
+      26.0,
+      22.0,
+      22.0,
+      6.0,
+      8.0,
+      14.0,
+      16.0,
+      14.0,
+      10.0,
+      16.0
+    ],
+    "detail_title_suffix": "组价明细",
+    "cost_fill": "F7F7F7"
   }
 }

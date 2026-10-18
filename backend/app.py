@@ -2206,18 +2206,14 @@ def job_excel(
         )
         export_fn = f"{DEFAULT_BASE_TITLE}-{job_id}-{target_brand}平替.xlsx"
     else:
-        # 2. 组价阶段导出（完整商业报价单：联动用户实际调价、平替品牌与包含关系，双 Sheet 标准）
+        # 2. 组价阶段导出：屏幕上那张完整的组价明细（单表，不是供应商正式报价单）
         xlsx = os.path.join(WORKDIR, f"{job_id}_{target_brand}_pricing.xlsx")
         quote_res = _calculate_job_quotation(
             job_id=job_id, brand=target_brand,
             aux_rate=aux_rate, mfg_rate=mfg_rate, tax_rate=tax_rate,
         )
-        settings = store.settings()
-        quote_info = dict(job)
-        quote_info["bidder"] = settings.get("company") or ""
-        quote_info["owner"] = settings.get("owner") or ""
-        build_pricing_quotation_workbook(quote_info, quote_res, xlsx, target_brand=target_brand)
-        export_fn = f"配电箱柜组价成套报价单-{job_id}.xlsx"
+        build_pricing_quotation_workbook(job, quote_res, xlsx, target_brand=target_brand)
+        export_fn = f"配电箱柜组价明细-{job_id}.xlsx"
 
     summary = job.get("summary", {})
     store.add_history({
@@ -3247,6 +3243,20 @@ def _calculate_job_quotation(
         "mfg_rate": rates["mfg"],
         "tax_rate": rates["tax"]
     }
+
+    # 组价只有在真正被请求过时才算“已组价”：把屏幕同款合计/总计写回任务摘要。
+    # 图纸任务的组价是实时算的，不回写的话首页列表永远显示不出金额与状态。
+    total, grand = project_quote["total"], project_quote["grand_total"]
+    job_summary = job.get("summary") if isinstance(job.get("summary"), dict) else {}
+    if job_summary.get("total_price") != total or job_summary.get("grand_total") != grand:
+        job_summary.update({
+            "total_price": total,
+            "grand_total": grand,
+            "priced_at": datetime.now().isoformat(timespec="seconds"),
+        })
+        job["summary"] = job_summary
+        jobs[job_id] = job
+        save_job(job_id)
 
     return {
         "ok": True,

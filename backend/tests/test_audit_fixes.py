@@ -134,12 +134,12 @@ class TestAuditFixes(unittest.TestCase):
             build_workbook(result, "subtitle", path, layout="3_sheets")
             wb = openpyxl.load_workbook(path, data_only=False)
             ws_detail = wb["组价明细"]
-            # 查找断路器型号行
+            # 查找断路器型号行（新单表版式：名称 C列 / 设计规格 D列 / 单价 H列）
             found_breakers = []
-            for r in range(7, 20):
-                dev_name = ws_detail.cell(row=r, column=2).value
-                dev_spec = ws_detail.cell(row=r, column=3).value
-                unit_p = ws_detail.cell(row=r, column=6).value
+            for r in range(4, 20):
+                dev_name = ws_detail.cell(row=r, column=3).value
+                dev_spec = ws_detail.cell(row=r, column=4).value
+                unit_p = ws_detail.cell(row=r, column=8).value
                 if dev_spec and any(k in str(dev_spec) for k in ["NM1", "C32", "C20"]):
                     found_breakers.append((dev_name, dev_spec, unit_p))
             self.assertEqual(len(found_breakers), 3)
