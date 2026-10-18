@@ -14,6 +14,7 @@ import unittest
 import test_support  # noqa: F401
 from fastapi.testclient import TestClient
 from app import app
+import app as app_module
 from db import init_db
 
 FRONTEND_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend"
@@ -22,6 +23,7 @@ FRONTEND_DIR = pathlib.Path(__file__).resolve().parent.parent.parent / "frontend
 class TestProductIntroAndGateway(unittest.TestCase):
     def setUp(self):
         init_db()
+        app_module._LEAD_RATE.clear()
         self.client = TestClient(app)
         self.html = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
         self.js = (FRONTEND_DIR / "app.js").read_text(encoding="utf-8")
@@ -45,13 +47,14 @@ class TestProductIntroAndGateway(unittest.TestCase):
         self.assertIn('id="authModal"', self.html)
         self.assertIn('id="btnCloseAuthModal"', self.html)
 
-    def test_02_拆量引擎与工程组价数字指标真实专业(self):
-        """验证介绍页中的专业展示指标（2SAL3图纸解析、回路拆量、铜价联动、正泰/德力西/施耐德品牌）。"""
+    def test_02_拆量引擎与工程组价演示数据有明确标注(self):
+        """演示数字可以展示，但必须明确标为演示数据，且不得出现编造的准确率/累计量。"""
         # 拆量引擎
         self.assertIn("智能图纸拆量", self.html)
         self.assertIn("2SAL3", self.html)
         self.assertIn("DS-50/3P", self.html)
         self.assertIn("stitch_blueprint_2sal3.png", self.html)
+        self.assertIn("演示数据 · 非真实项目", self.html)
 
         # 组价测算
         self.assertIn("智能工程组价", self.html)
@@ -60,6 +63,8 @@ class TestProductIntroAndGateway(unittest.TestCase):
         self.assertIn("30,400", self.html)
         self.assertIn("72,000", self.html)
         self.assertIn("269,830", self.html)
+        self.assertIn("演示数据 · 非真实报价", self.html)
+        self.assertIn("示例基准价 · 可在工作台调整", self.html)
         self.assertIn("CHINT 正泰", self.html)
         self.assertIn("德力西电气", self.html)
         self.assertIn("施耐德 Schneider", self.html)
@@ -69,6 +74,10 @@ class TestProductIntroAndGateway(unittest.TestCase):
         self.assertIn("专业版", self.html)
         self.assertIn("企业高级版", self.html)
         self.assertIn("BYOK", self.html)
+
+        # 不得编造累计识别量与准确率
+        for fake in ("1,200,000", "图纸解析准确率 100%", "长江有色现货今日联动"):
+            self.assertNotIn(fake, self.html, f"介绍页仍有编造指标 {fake}")
 
     def test_03_设计规范与离线资产完整(self):
         """验证所有引用的字体、样式规范及本地 CAD 蓝图资产。"""
@@ -119,14 +128,14 @@ class TestProductIntroAndGateway(unittest.TestCase):
         self.assertEqual(data["lead"]["company"], "华东成套电气集团")
         lead_id = data["lead"]["id"]
 
-        # 2. 校验异常手机号（少于7位）
+        # 2. 校验异常手机号
         err_res = self.client.post("/api/leads", json={
             "name": "李工",
             "phone": "123",
             "company": "测试公司"
         })
         self.assertEqual(err_res.status_code, 400)
-        self.assertIn("请提供有效的联系电话", err_res.json()["detail"])
+        self.assertIn("请提供有效的 11 位手机号码", err_res.json()["detail"])
 
         # 3. 校验姓名缺失
         err_res2 = self.client.post("/api/leads", json={
@@ -148,6 +157,17 @@ class TestProductIntroAndGateway(unittest.TestCase):
         leads = list_res.json().get("leads", [])
         self.assertTrue(any(l["id"] == lead_id for l in leads))
 
+        # 6. 普通企业账号（非平台管理员）不得读取全平台预约手机号
+        import secrets
+        uname = f"sales_{secrets.token_hex(4)}"
+        reg = self.client.post("/api/auth/register", json={
+            "username": uname, "password": "Password123!",
+            "display_name": "普通业务员", "tenant_name": "另一家成套厂"
+        })
+        user_token = reg.json()["token"]
+        forbidden = self.client.get("/api/leads", headers={"Authorization": f"Bearer {user_token}"})
+        self.assertEqual(forbidden.status_code, 403)
+
     def test_06_注册登录流程验证身份放行工作台(self):
         """验证新用户注册后获取合法 Token 并成功放行。"""
         import secrets
@@ -167,6 +187,15 @@ class TestProductIntroAndGateway(unittest.TestCase):
         self.assertEqual(me_res.status_code, 200)
         self.assertTrue(me_res.json()["authenticated"])
         self.assertEqual(me_res.json()["user"]["username"], uname)
+
+    def test_07_预约接口限流防刷(self):
+        """同一 IP 10 分钟最多 5 次，第 6 次必须 429。"""
+        payload = {"name": "刷单测试", "phone": "13900000000"}
+        for i in range(5):
+            res = self.client.post("/api/leads", json=payload)
+            self.assertEqual(res.status_code, 200, f"第 {i+1} 次应成功")
+        blocked = self.client.post("/api/leads", json=payload)
+        self.assertEqual(blocked.status_code, 429)
 
 
 if __name__ == "__main__":

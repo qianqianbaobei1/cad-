@@ -7,13 +7,14 @@ import json
 import uuid
 import shutil
 import glob
+import subprocess
 import time
 from datetime import datetime
 from typing import Any
 
 from fastapi import (FastAPI, UploadFile, File, Form, BackgroundTasks,
                      HTTPException, Request)
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from extractor.render import plan_tiles, render_pdf
@@ -43,13 +44,54 @@ from db import (
     db_list_registrations,
     db_authenticate_user, db_register_user, db_get_user_by_token, db_logout_user,
     db_clean_all_test_data, db_get_job_tenant_by_id,
-    db_create_lead, db_list_leads
+    db_create_lead, db_list_leads,
+    db_get_meta, db_set_meta, db_clear_all_tokens
 )
 import store
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 WORKDIR = os.path.join(BASE, "work")
 os.makedirs(WORKDIR, exist_ok=True)
+
+
+def _resolve_build_id() -> str:
+    """构建号：环境变量 → config/build_id.txt → git 提交号 → dev。"""
+    env = (os.environ.get("APP_BUILD_ID") or "").strip()
+    if env:
+        return env
+    version_file = os.path.join(BASE, "config", "build_id.txt")
+    try:
+        with open(version_file, encoding="utf-8") as f:
+            value = f.read().strip()
+            if value:
+                return value
+    except OSError:
+        pass
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=os.path.dirname(BASE), capture_output=True, text=True, timeout=3,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return "dev"
+
+
+BUILD_ID = _resolve_build_id()
+BUILD_ID_META_KEY = "app_build_id"
+
+
+def _apply_build_rotation() -> int:
+    """构建号变化时作废全平台登录令牌；同版本重启不动会话。返回清除的会话数。"""
+    previous = db_get_meta(BUILD_ID_META_KEY)
+    if previous == BUILD_ID:
+        return 0
+    cleared = db_clear_all_tokens()
+    db_set_meta(BUILD_ID_META_KEY, BUILD_ID)
+    print(f"[Build] {previous or '(首次启动)'} → {BUILD_ID}，已作废旧登录令牌 {cleared} 个")
+    return cleared
 
 # 运行口径全部来自 config/*.json；这里只做一次快照，便于在日志里看到实际生效的配置。
 _DELIVERY = delivery()
@@ -173,6 +215,7 @@ def on_startup():
     """服务冷启动时，扫描并自动将异常中断的任务恢复为可重试的 interrupted 状态。"""
     from db import init_db
     init_db()
+    _apply_build_rotation()
     recovered = db_recover_interrupted_jobs()
     if recovered:
         print(f"[Startup] 已自动将 {recovered} 个未决中断任务标记为 interrupted 状态")
@@ -1400,6 +1443,28 @@ def get_page_image(job_id: str, page_num: int = 1):
             return FileResponse(p1, media_type="image/png")
         raise HTTPException(404, "图纸页面尚未生成或不存在")
     return FileResponse(img_path, media_type="image/png")
+
+
+class PdfRegionRequest(BaseModel):
+    page: int = 1
+    rect: dict[str, float]
+    use_ocr: bool = True
+
+
+@app.post("/api/jobs/{job_id}/pdf_region")
+def job_pdf_region(job_id: str, req: PdfRegionRequest):
+    """PDF 框选区域提表：只读预览，不写入任务数据。"""
+    _validate_job_id(job_id)
+    job = load_job_cached(job_id)
+    check_job_tenant_access(job)
+    pdf_path = os.path.join(WORKDIR, f"{job_id}.pdf")
+    if not os.path.isfile(pdf_path):
+        raise HTTPException(400, "该任务没有可提取表格的 PDF 图纸")
+    try:
+        from extractor.pdf_region import extract_region, RegionError
+        return extract_region(pdf_path, req.page, req.rect, req.use_ocr)
+    except RegionError as exc:
+        raise HTTPException(400, str(exc))
 
 
 def _resolve_job_dxf(job_id: str) -> str | None:
@@ -3421,39 +3486,53 @@ class LeadRequest(BaseModel):
     source: str = "landing_priority_access"
 
 
+_LEAD_RATE: dict[str, list[float]] = {}
+_LEAD_RATE_MAX = 5
+_LEAD_RATE_WINDOW = 600  # 秒
+
+
+def _lead_rate_ok(ip: str) -> bool:
+    """最小限流：同一 IP 10 分钟最多 5 次，防恶意刷预约。"""
+    now = time.time()
+    hits = [t for t in _LEAD_RATE.get(ip, []) if now - t < _LEAD_RATE_WINDOW]
+    if len(hits) >= _LEAD_RATE_MAX:
+        _LEAD_RATE[ip] = hits
+        return False
+    hits.append(now)
+    _LEAD_RATE[ip] = hits
+    return True
+
+
 @app.post("/api/leads")
-def create_lead_entry(req: LeadRequest):
+def create_lead_entry(req: LeadRequest, request: Request):
     """产品前置介绍页：提交预约开通与工程方案咨询。"""
+    ip = (request.client.host if request.client else "unknown") or "unknown"
+    if not _lead_rate_ok(ip):
+        raise HTTPException(429, "提交过于频繁，请稍后再试")
     phone = (req.phone or "").strip()
     name = (req.name or "").strip()
-    if not phone or len(phone) < 7:
-        raise HTTPException(400, "请提供有效的联系电话")
+    if not re.fullmatch(r"1[3-9]\d{9}", phone):
+        raise HTTPException(400, "请提供有效的 11 位手机号码")
     if not name:
         raise HTTPException(400, "请提供姓名")
     lead = db_create_lead(phone=phone, name=name, company=req.company, source=req.source)
     return {
         "ok": True,
         "lead": lead,
-        "message": "预约已登记！专属工程顾问将在 15 分钟内致电联系您。"
+        "message": "预约已登记！工程顾问将在工作日尽快与您联系。"
     }
 
 
 @app.get("/api/leads")
 def list_lead_entries(request: Request):
-    """获取所有预约咨询客户列表（需要登录权限）。"""
+    """获取预约咨询客户列表（仅系统管理员，含手机号，禁止普通用户读取）。"""
     if getattr(request.state, "invalid_token", False):
         raise HTTPException(401, "无效或过期的登录凭证")
-    token = ""
-    auth_header = request.headers.get("authorization") or ""
-    if auth_header.startswith("Bearer "):
-        token = auth_header[7:].strip()
-    elif request.headers.get("x-token"):
-        token = request.headers.get("x-token").strip()
-    elif request.query_params.get("token"):
-        token = request.query_params.get("token").strip()
-    user = db_get_user_by_token(token) if token else None
+    user = getattr(request.state, "user", None)
     if not user:
         raise HTTPException(401, "请登录后查看预约咨询信息")
+    if user.get("role") != "admin" or user.get("tenant_id") != "default":
+        raise HTTPException(403, "权限不足：仅平台管理员可查看预约咨询")
     return {"ok": True, "leads": db_list_leads()}
 
 
@@ -3483,7 +3562,7 @@ def clean_test_data(request: Request = None):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "vision_configured": VisionProvider().configured}
+    return {"ok": True, "build_id": BUILD_ID, "vision_configured": VisionProvider().configured}
 
 
 @app.get("/api/cad/engines")
@@ -3512,6 +3591,21 @@ def cad_engines():
             "curl": shutil.which("curl"),
         },
     }
+
+
+@app.get("/", include_in_schema=False)
+def index_page():
+    """首页：把构建号注入静态页的 ?v=，确保发版后浏览器拿到新脚本。"""
+    index_path = os.path.join(BASE, "..", "frontend", "index.html")
+    try:
+        with open(index_path, encoding="utf-8") as f:
+            html = f.read()
+    except OSError:
+        raise HTTPException(500, "index.html 不存在")
+    return HTMLResponse(
+        html.replace("__BUILD_ID__", BUILD_ID),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 app.mount("/", StaticFiles(directory=os.path.join(BASE, "..", "frontend"), html=True), name="frontend")

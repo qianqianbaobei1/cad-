@@ -286,6 +286,15 @@ def _init_tables(conn: sqlite3.Connection) -> None:
         """)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(phone);")
 
+        # 8. 应用级元数据（构建号等启动状态）
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS app_meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        """)
+
         # 初始化默认租户与系统管理员 (开箱即用)
         conn.execute("""
         INSERT OR IGNORE INTO tenants (id, name, status, created_at)
@@ -1046,6 +1055,32 @@ def db_list_leads() -> list[dict]:
     conn = _get_conn()
     rows = conn.execute("SELECT id, phone, name, company, source, status, created_at FROM leads ORDER BY created_at DESC;").fetchall()
     return [dict(r) for r in rows]
+
+
+def db_get_meta(key: str, default: str | None = None) -> str | None:
+    """读取应用级元数据（如上次启动的构建号）。"""
+    conn = _get_conn()
+    row = conn.execute("SELECT value FROM app_meta WHERE key = ?;", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def db_set_meta(key: str, value: str) -> None:
+    """写入应用级元数据。"""
+    conn = _get_conn()
+    with conn:
+        conn.execute(
+            "INSERT INTO app_meta(key, value, updated_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at;",
+            (key, value, _now()),
+        )
+
+
+def db_clear_all_tokens() -> int:
+    """作废全平台所有登录令牌，返回被清除的会话数。"""
+    conn = _get_conn()
+    with conn:
+        cur = conn.execute("UPDATE users SET token = '' WHERE token IS NOT NULL AND token != '';")
+    return cur.rowcount
 
 
 # 初始化

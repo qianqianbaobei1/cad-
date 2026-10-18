@@ -114,7 +114,7 @@ tailwind.config={
   }
 };
 </script>
-<link rel="stylesheet" href="app.css?v=20261018_10">
+<link rel="stylesheet" href="app.css?v=__BUILD_ID__">
 <style>
 /* 避免原生顶栏与固定定位顶栏冲突 */
 .topbar { display: none !important; }
@@ -249,7 +249,7 @@ body.auth-locked #authScreen { display: block; }
     <section class="relative z-10 w-full max-w-5xl mx-auto px-gutter-desktop pt-16 pb-14 flex flex-col items-center text-center" id="hero">
       <div class="group inline-flex items-center gap-space-sm px-space-lg py-1.5 rounded-full bg-surface-container-lowest/90 shadow-sm border border-outline-variant/30 mb-8 cursor-default">
         <span class="inline-block w-2 h-2 rounded-full bg-secondary-container animate-pulse"></span>
-        <span class="font-body-sm text-body-sm text-on-surface-variant">已完成 1,200,000+ 电气回路识别与自动组价 · 449项严密测试闭环</span>
+        <span class="font-body-sm text-body-sm text-on-surface-variant">5 张真实工程图纸实测 · 449 项自动化测试通过 · 未识别项如实标黄</span>
         <span class="font-label-sm text-label-sm text-outline">›</span>
       </div>
       <h1 class="font-headline-xl text-[40px] md:text-[60px] leading-[1.12] tracking-[-0.03em] font-bold text-on-surface max-w-4xl">
@@ -279,10 +279,13 @@ body.auth-locked #authScreen { display: block; }
         </div>
         <div class="flex items-center gap-2 text-label-sm font-label-sm text-on-surface-variant">
           <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high border border-outline-variant/40">
-            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>图纸解析准确率 100%
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>未识别项如实标黄 · 拒绝编造
           </span>
           <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest border border-outline-variant/40">
-            耗时 1.84s
+            示例图纸 1.84s · 演示数据
+          </span>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-300/60 text-amber-800">
+            演示数据 · 非真实项目
           </span>
         </div>
       </div>
@@ -370,7 +373,7 @@ body.auth-locked #authScreen { display: block; }
                       <td class="py-2 px-2 font-label-sm text-on-surface-variant">YJV-5x10-PC40-WC</td>
                       <td class="py-2 px-2 text-on-surface">进线电源</td>
                       <td class="py-2 px-2 text-right font-label-md">18.0 kW</td>
-                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">示例对位</span></td>
                     </tr>
                     <tr class="hover:bg-surface-container-low/60 transition-colors">
                       <td class="py-2 px-2 font-label-md font-semibold text-secondary">WL1</td>
@@ -379,7 +382,7 @@ body.auth-locked #authScreen { display: block; }
                       <td class="py-2 px-2 font-label-sm text-on-surface-variant">BV-3x2.5-PC20-WC,CC</td>
                       <td class="py-2 px-2">照明回路</td>
                       <td class="py-2 px-2 text-right font-label-md">1.0 kW</td>
-                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">示例对位</span></td>
                     </tr>
                     <tr class="hover:bg-surface-container-low/60 transition-colors">
                       <td class="py-2 px-2 font-label-md font-semibold text-secondary">WL2</td>
@@ -388,7 +391,7 @@ body.auth-locked #authScreen { display: block; }
                       <td class="py-2 px-2 font-label-sm text-on-surface-variant">BV-3x2.5-PC20-WC,CC</td>
                       <td class="py-2 px-2">照明回路</td>
                       <td class="py-2 px-2 text-right font-label-md">1.0 kW</td>
-                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">示例对位</span></td>
                     </tr>
                     <tr class="hover:bg-surface-container-low/60 transition-colors">
                       <td class="py-2 px-2 font-label-md font-semibold text-secondary">WX1</td>
@@ -397,7 +400,7 @@ body.auth-locked #authScreen { display: block; }
                       <td class="py-2 px-2 font-label-sm text-on-surface-variant">BV-3x4-PC20-WC,FC</td>
                       <td class="py-2 px-2">普通插座</td>
                       <td class="py-2 px-2 text-right font-label-md">2.0 kW</td>
-                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">示例对位</span></td>
                     </tr>
                     <tr class="hover:bg-surface-container-low/60 transition-colors">
                       <td class="py-2 px-2 font-label-md font-semibold text-secondary">WX2</td>
@@ -406,7 +409,7 @@ body.auth-locked #authScreen { display: block; }
                       <td class="py-2 px-2 font-label-sm text-on-surface-variant">BV-3x4-PC20-WC,FC</td>
                       <td class="py-2 px-2">普通插座</td>
                       <td class="py-2 px-2 text-right font-label-md">2.0 kW</td>
-                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">示例对位</span></td>
                     </tr>
                     <tr class="hover:bg-surface-container-low/60 transition-colors">
                       <td class="py-2 px-2 font-label-md font-semibold text-secondary">WK1</td>
@@ -415,7 +418,7 @@ body.auth-locked #authScreen { display: block; }
                       <td class="py-2 px-2 font-label-sm text-on-surface-variant">BV-5x4-PC25-WC,FC</td>
                       <td class="py-2 px-2">空调插座</td>
                       <td class="py-2 px-2 text-right font-label-md">4.0 kW</td>
-                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">100% 对齐</span></td>
+                      <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-label-sm">示例对位</span></td>
                     </tr>
                     <tr class="hover:bg-surface-container-low/60 transition-colors text-on-surface-variant">
                       <td class="py-2 px-2 font-label-md text-outline">备用 3路</td>
@@ -455,6 +458,9 @@ body.auth-locked #authScreen { display: block; }
             <span class="material-symbols-outlined text-[16px] text-emerald-600">verified</span>
             支持导出 Excel 两联单表
           </span>
+          <span class="px-3 py-1 rounded-full bg-amber-50 border border-amber-300/60 text-amber-800 font-body-sm flex items-center gap-1.5 shadow-sm text-xs">
+            演示数据 · 非真实报价
+          </span>
         </div>
       </div>
       <!-- 组价核心仪表盘 -->
@@ -465,7 +471,7 @@ body.auth-locked #authScreen { display: block; }
             <div class="p-3 bg-white rounded-xl border border-outline-variant/30 shadow-sm">
               <span class="text-on-surface-variant font-label-sm text-[11px] block">核心元器件总成本</span>
               <span class="font-label-lg text-xl md:text-2xl font-bold text-on-surface mt-0.5 block">¥152,300</span>
-              <span class="text-[11px] text-emerald-600 font-label-sm">正泰平替策略可降 18%</span>
+              <span class="text-[11px] text-emerald-600 font-label-sm">品牌平替 · 以工作台实时测算为准</span>
             </div>
             <div class="p-3 bg-white rounded-xl border border-outline-variant/30 shadow-sm">
               <span class="text-on-surface-variant font-label-sm text-[11px] block">箱体壳体及结构件</span>
@@ -483,7 +489,7 @@ body.auth-locked #authScreen { display: block; }
                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               </div>
               <span class="font-label-lg text-xl md:text-2xl font-bold text-on-surface mt-0.5 block">72,000 <span class="text-xs font-normal text-outline">元/吨</span></span>
-              <span class="text-[11px] text-secondary font-label-sm">长江有色现货今日联动</span>
+              <span class="text-[11px] text-secondary font-label-sm">示例基准价 · 可在工作台调整</span>
             </div>
             <div class="col-span-2 md:col-span-1 p-3 bg-primary text-white rounded-xl shadow-md flex flex-col justify-between">
               <span class="text-white/80 font-label-sm text-[11px] block">工程最终组价总额 (含税)</span>
@@ -748,7 +754,7 @@ body.auth-locked #authScreen { display: block; }
           <span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">Priority Access</span>
           <h2 class="font-headline-xl text-2xl md:text-3xl font-bold text-on-surface mt-1">获取专业方案与预约开通</h2>
           <p class="font-body-md text-on-surface-variant mt-2 text-body-sm">
-            提交您的联系信息，专属工程顾问将在 15 分钟内与您联系，提供技术支持或开通内测体验。
+            提交您的联系信息，工程顾问将在工作日尽快与您联系，提供技术支持或开通内测体验。
           </p>
         </div>
         <form class="max-w-md mx-auto space-y-4" id="introLeadForm" onsubmit="handleLeadSubmit(event)">
@@ -781,7 +787,7 @@ body.auth-locked #authScreen { display: block; }
             </button>
           </div>
           <div class="hidden text-center p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium" id="form-feedback">
-            预约已登记！专属工程顾问将在 15 分钟内致电联系您。
+            预约已登记！工程顾问将在工作日尽快与您联系。
           </div>
         </form>
       </div>
@@ -1326,6 +1332,10 @@ body.auth-locked #authScreen { display: block; }
       <button class="h-8 px-3 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-1.5 border border-slate-700 text-xs transition-colors cursor-pointer" id="extExportBomBtn" title="导出 Excel 工程量设备明细清单" type="button">
         <span class="material-symbols-outlined text-[16px] text-emerald-400">table_view</span>
         <span>导出清单</span>
+      </button>
+      <button class="h-8 px-3 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-1.5 border border-slate-700 text-xs transition-colors cursor-pointer" id="btnPdfRegion" title="在图纸上框选一块区域，提取表格文字（PDF / 转曲 PDF，只读预览）" type="button">
+        <span class="material-symbols-outlined text-[16px] text-emerald-400">crop_free</span>
+        <span>框选提表</span>
       </button>
       <button class="h-8 px-3.5 rounded bg-blue-600 hover:bg-blue-500 text-white font-medium flex items-center gap-1 shadow-sm transition-all active:scale-95 text-xs cursor-pointer" id="extMainPriceBtn" type="button">
         <span>一键组价</span>
@@ -2321,6 +2331,7 @@ body.auth-locked #authScreen { display: block; }
 
 <div class="toast" id="toast" hidden></div>
 <div id="inlineFormHost" hidden></div>
-<script src="app.js?v=20261018_13"></script>
+<script src="app.js?v=__BUILD_ID__"></script>
+<script src="region.js?v=__BUILD_ID__"></script>
 </body>
 </html>

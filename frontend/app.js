@@ -408,7 +408,7 @@ window.handleLeadSubmit = async function(e) {
     });
     const data = await res.json();
     if (feedback) {
-      feedback.textContent = data.message || '预约已登记！专属工程顾问将在 15 分钟内致电联系您。';
+      feedback.textContent = data.message || '预约已登记！工程顾问将在工作日尽快与您联系。';
       feedback.classList.remove('hidden');
     }
     e.target.reset();
