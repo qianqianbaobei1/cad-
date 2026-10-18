@@ -22,6 +22,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-noto-cjk \
     fonts-wqy-microhei \
     fonts-wqy-zenhei \
+    tesseract-ocr \
+    tesseract-ocr-chi-sim \
     curl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*

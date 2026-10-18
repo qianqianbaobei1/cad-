@@ -85,8 +85,14 @@ def _looks_like_cable(text: str) -> bool:
 
 
 def _token_is_device_rating(token: str) -> bool:
-    """分段里出现额定电流（如 63A）的是器件规格，不是箱号。"""
+    """分段里出现额定电流（如 63A）的是器件规格，不是箱号。
+
+    箱号也可能以 -1A / -3A 结尾（A 型箱），前面已有 01AL2 这种箱号主干时不能按电流误杀。
+    """
     parts = [part for part in re.split(r"[-/]", token) if part]
+    # 只有“数字开头的箱号主干 + -1A/-3A 后缀”才是 A 型箱；XLP000-25A 这类器件型号仍按电流拒绝。
+    if parts and re.match(r"^\d", parts[0]) and any(_segment_is_panel_core(part) for part in parts):
+        return False
     return any(_AMP_SEG_RE.match(part) for part in parts)
 
 

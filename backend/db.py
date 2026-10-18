@@ -40,6 +40,14 @@ def _hash_password(password: str, salt: str | None = None) -> str:
     return f"pbkdf2:sha256:{iterations}${salt}${hash_bytes.hex()}"
 
 
+def _initial_admin_password() -> str:
+    """初始管理员密码：显式环境变量优先；生产环境未配置时生成随机密码，开发/测试用 admin123。"""
+    env = os.environ.get("ADMIN_INITIAL_PASSWORD") or ""
+    if env:
+        return env
+    return "admin123" if os.environ.get("ENV") != "production" else secrets.token_urlsafe(18)
+
+
 def _verify_password(password: str, stored_hash: str) -> tuple[bool, bool]:
     """验证密码是否匹配，并返回 (is_valid, needs_rehash)。
     同时兼容旧系统的单轮 SHA-256 (cabinet_core_salt_v2)，并在验证通过后标记 needs_rehash 自动升级。
@@ -300,8 +308,11 @@ def _init_tables(conn: sqlite3.Connection) -> None:
         INSERT OR IGNORE INTO tenants (id, name, status, created_at)
         VALUES ('default', '电柜智核成套电气工程部', 'active', datetime('now', 'localtime'));
         """)
-        # 初始默认租户管理员：优先取 ADMIN_INITIAL_PASSWORD，未配置则统一使用 admin123 确保开箱即用与演示畅通
-        default_admin_pass = os.environ.get("ADMIN_INITIAL_PASSWORD") or "admin123"
+        # 初始租户管理员：生产环境必须由 ADMIN_INITIAL_PASSWORD 指定；未指定则生成随机密码，
+        # 绝不在生产环境回落到 admin123，也不在重启时把用户改过的密码重置回默认值。
+        env_admin_pass = os.environ.get("ADMIN_INITIAL_PASSWORD") or ""
+        is_prod = os.environ.get("ENV") == "production"
+        default_admin_pass = _initial_admin_password()
         cur = conn.execute("SELECT id, password_hash FROM users WHERE id = 'admin_default'")
         admin_row = cur.fetchone()
         if admin_row is None:
@@ -309,12 +320,15 @@ def _init_tables(conn: sqlite3.Connection) -> None:
             INSERT INTO users (id, tenant_id, username, password_hash, display_name, role, created_at)
             VALUES ('admin_default', 'default', 'admin', ?, '系统工程师', 'admin', datetime('now', 'localtime'));
             """, (_hash_password(default_admin_pass),))
-        else:
-            # 兼容修复：若云端或存量库中 admin 处于无法识别的随机哈希且未配置自定义密码，自动对齐为 admin123
-            valid, _ = _verify_password(default_admin_pass, admin_row["password_hash"])
-            if not valid and not os.environ.get("ADMIN_INITIAL_PASSWORD"):
+            if is_prod and not env_admin_pass:
+                print(f"[Init] 生产环境未设置 ADMIN_INITIAL_PASSWORD，已生成初始管理员密码：{default_admin_pass}"
+                      "（仅显示一次，请立即登录修改）", flush=True)
+        elif not is_prod and not env_admin_pass:
+            # 仅开发/测试环境：兼容修复历史上 admin 哈希不可识别、演示账号登不进去的情况。
+            valid, _ = _verify_password("admin123", admin_row["password_hash"])
+            if not valid:
                 conn.execute("UPDATE users SET password_hash = ? WHERE id = 'admin_default'",
-                             (_hash_password(default_admin_pass),))
+                             (_hash_password("admin123"),))
 
 
 def _now() -> str:

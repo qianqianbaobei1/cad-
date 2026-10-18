@@ -98,6 +98,36 @@ class LayoutRuleTests(unittest.TestCase):
         self.assertEqual(raw.boxes, [])
         self.assertTrue(any("未读出配电箱系统图" in u.text for u in raw.uncertainties))
 
+
+    def test_a_suffix_panel_code_is_not_mistaken_for_ampere_rating(self):
+        """01AL2-1A 这类 A 型箱号不能被“1A=1安培”的电流规则误杀。"""
+        from extractor.cad_extractor import iter_panel_codes
+        self.assertEqual(iter_panel_codes("01AL2-1A 照明配电箱"), ["01AL2-1A"])
+        self.assertEqual(iter_panel_codes("01AL2-3A 照明配电箱"), ["01AL2-3A"])
+        self.assertEqual(iter_panel_codes("MCB-63A/1P"), [])
+        self.assertEqual(iter_panel_codes("63A"), [])
+
+    def test_long_caption_with_quantity_is_still_a_caption(self):
+        """“共1台（壁挂式）”抬头超过 30 字，不能因此丢掉整台箱柜。"""
+        doc = ezdxf.new("R2010")
+        msp = doc.modelspace()
+        msp.add_text("1AL8 A型应急照明集中电源配电箱 共1台,（壁挂式）",
+                     dxfattribs={"insert": (0, 1000), "height": 300})
+        _rows(msp, 0, 0, 3)
+        codes = {b.code for b in extract_takeoff(doc).boxes}
+        self.assertIn("1AL8", codes)
+
+    def test_inventory_supplements_a_confirmed_box_without_parsed_rows(self):
+        """系统图标题确认了箱号、但版式没解析出回路时，补成待核对箱柜而不是丢掉。"""
+        doc = ezdxf.new("R2010")
+        msp = doc.modelspace()
+        msp.add_text("1AL9 照明配电箱", dxfattribs={"insert": (0, 1000), "height": 300})
+        raw = extract_takeoff(doc)
+        boxes = {b.code: b for b in raw.boxes}
+        self.assertIn("1AL9", boxes)
+        self.assertIn("待核对", boxes["1AL9"].note)
+        self.assertEqual([c for c in raw.circuits if c.box == "1AL9"], [])
+
     def test_spare_lighting_is_a_load_not_a_spare_circuit_number(self):
         doc = ezdxf.new("R2010")
         msp = doc.modelspace()

@@ -441,7 +441,9 @@ def _row_text_ids(segments: list[Segment], ts: list[T], h: float) -> set[int]:
 
 def _assign_captions(segments: list[Segment], ts: list[T], h: float, row_ids: set[int]) -> None:
     def candidate(t: T) -> bool:
-        if id(t) in row_ids or len(t.text) > 30 or not iter_panel_codes(t.text):
+        # “共1台（壁挂式）”这类长抬头也是箱名，不能按 30 字截断；但回路行带里的文字仍不算箱名，
+        # 否则同一列里相邻箱柜的回路行会抢走箱名，导致整列箱号错位。
+        if id(t) in row_ids or len(t.text) > 80 or not iter_panel_codes(t.text):
             return False
         if any(rx.match(iter_panel_codes(t.text)[0]) for rx in RE_CAPTION_REJECT):
             return False
@@ -934,6 +936,24 @@ def extract_takeoff(dxf_or_doc: Any) -> RawExtraction:
     boxes += [b for b in tb if b.code in fresh]
     circuits += [c for c in tc if c.box in fresh]
     devices += [d for d in td if (d.used_in or "").split(" ")[0] in fresh]
+
+    # T5：原生箱柜清单补漏。系统图标题明确写出的箱号，即使版式没解析成列，也补成一台待核对箱柜；
+    # 只在平面图出现的箱号不冒充箱柜，进待核对。所有补漏都不编造回路/元器件。
+    from .native_takeoff import native_box_inventory
+    inventory = native_box_inventory((r.text, r.kind) for r in records)
+    known = {b.code.upper() for b in boxes}
+    for code, item in inventory.items():
+        upper = code.upper()
+        if upper in known:
+            continue
+        name = (item.get("name") or "").strip()
+        if item.get("level") == "confirmed":
+            boxes.append(Box(code=code, name=name, note="系统图标题确认；版式未解析到回路，待核对"))
+            known.add(upper)
+            warnings.append(f"原生箱柜清单补漏：{code} {name}（系统图标题已确认，回路未解析，待核对）")
+        else:
+            warnings.append(f"平面图出现箱号 {code} {name}，未找到系统图标题，请确认是否报价")
+
     if not boxes:
         warnings.append("图面上没有找到成列的开关回路与箱柜名称，未读出配电箱系统图；请确认上传的是配电箱系统图")
     return RawExtraction(

@@ -23,6 +23,7 @@ from extractor.checker import check_result, check_result_issues
 from extractor.assemble import assemble
 from extractor.corroborate import corroborate, corroboration_issues
 from extractor.config import delivery, domain, pipeline
+from extractor.pricing import COPPER_REFERENCE_PRICE_PER_TON
 from extractor.schema import (
     CONTRACT_VERSION, PROMPT_VERSION, Box, Circuit, Component, ExtraDevice, ExtractionResult,
     RawExtraction, Requirement, Uncertainty,
@@ -1304,8 +1305,22 @@ def create_job(background: BackgroundTasks, file: UploadFile = File(...),
     job_id = uuid.uuid4().hex[:12]
     ext = os.path.splitext(file.filename)[1].lower()
     raw_path = os.path.join(WORKDIR, f"{job_id}{ext}")
+    max_bytes = int(os.environ.get("MAX_UPLOAD_MB", "200") or "200") * 1024 * 1024
+    written = 0
     with open(raw_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+        while True:
+            chunk = file.file.read(1024 * 1024)
+            if not chunk:
+                break
+            written += len(chunk)
+            if written > max_bytes:
+                f.close()
+                try:
+                    os.remove(raw_path)
+                except OSError:
+                    pass
+                raise HTTPException(413, f"文件超过 {max_bytes // (1024 * 1024)}MB 上限，请拆分图纸后重试")
+            f.write(chunk)
 
     project = (project or "").strip()
     if project:
@@ -2899,6 +2914,7 @@ def get_settings():
         "settings": store.public_settings(),
         # 平替品牌与默认品牌由后端配置提供，前端不再写死品牌清单
         "target_brands": config_replacement_brands(),
+        "copper_reference_price": COPPER_REFERENCE_PRICE_PER_TON,
         "default_target_brand": DEFAULT_TARGET_BRAND,
         "prompt_version": PROMPT_VERSION,
         "contract_version": CONTRACT_VERSION,
@@ -3047,7 +3063,7 @@ def get_project_replacements(name: str, target_brand: str = ""):
 
 class QuotationRequest(BaseModel):
     brand: str = "正泰"
-    copper_price: float = 72000.0
+    copper_price: float | None = None
     aux_rate: float | None = None
     mfg_rate: float | None = None
     tax_rate: float | None = None
@@ -3057,13 +3073,15 @@ class QuotationRequest(BaseModel):
 def _calculate_job_quotation(
     job_id: str,
     brand: str = "正泰",
-    copper_price: float = 72000.0,
+    copper_price: float | None = None,
     aux_rate: float | None = None,
     mfg_rate: float | None = None,
     tax_rate: float | None = None,
     overrides_patch: dict[str, Any] | None = None
 ):
     """计算成套配电箱柜完整 Excel 组价数据及多候选品牌平替明细。"""
+    if copper_price is None:
+        copper_price = COPPER_REFERENCE_PRICE_PER_TON
     _validate_job_id(job_id)
     job = load_job_cached(job_id)
     check_job_tenant_access(job)
@@ -3119,7 +3137,7 @@ def _calculate_job_quotation(
     row_num = 1
     seq_num = 1
 
-    copper_ratio = float(copper_price) / 72000.0 if copper_price > 0 else 1.0
+    copper_ratio = float(copper_price) / COPPER_REFERENCE_PRICE_PER_TON if copper_price and copper_price > 0 else 1.0
 
     boxes_output = []
 
@@ -3344,7 +3362,7 @@ def _calculate_job_quotation(
 def get_job_quotation(
     job_id: str,
     brand: str = "正泰",
-    copper_price: float = 72000.0,
+    copper_price: float | None = None,
     aux_rate: float | None = None,
     mfg_rate: float | None = None,
     tax_rate: float | None = None,
@@ -3375,12 +3393,26 @@ def update_job_quotation(
     )
 
 
+_LOGIN_FAILS: dict[str, list[float]] = {}
+_LOGIN_MAX_FAILS = 5
+_LOGIN_FAIL_WINDOW = 600  # 秒
+
+
 @app.post("/api/auth/login")
-def auth_login(req: LoginRequest):
-    """账号密码登录，获取认证 Token 与企业租户信息。"""
+def auth_login(req: LoginRequest, request: Request):
+    """账号密码登录，获取认证 Token 与企业租户信息。同一 IP 连续失败 5 次锁 10 分钟。"""
+    ip = (request.client.host if request.client else "unknown") or "unknown"
+    now = time.time()
+    fails = [t for t in _LOGIN_FAILS.get(ip, []) if now - t < _LOGIN_FAIL_WINDOW]
+    if len(fails) >= _LOGIN_MAX_FAILS:
+        _LOGIN_FAILS[ip] = fails
+        raise HTTPException(429, "登录失败次数过多，请 10 分钟后再试")
     user = db_authenticate_user(req.username, req.password)
     if not user:
+        fails.append(now)
+        _LOGIN_FAILS[ip] = fails
         raise HTTPException(401, "账号或密码错误，请检查输入")
+    _LOGIN_FAILS.pop(ip, None)
     return {"ok": True, "token": user["token"], "user": user}
 
 

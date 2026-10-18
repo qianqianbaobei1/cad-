@@ -8,6 +8,7 @@
   },
   "copper": {
     "price_per_kg": 76.5,
+    "reference_price_per_ton": 72000,
     "density_g_cm3": 8.9,
     "price_source": "人工填写基准价，正式报价前必须按当日行情核实",
     "price_updated": ""

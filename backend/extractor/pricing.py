@@ -23,6 +23,7 @@ _DB_CFG = _PRICING.get("db") or {}
 PRICE_DB_PATH = str(_DB_CFG.get("path") or (Path(__file__).resolve().parent.parent / "data" / "price_library.db"))
 
 COPPER_PRICE_PER_KG = float(_P_COPPER["price_per_kg"])
+COPPER_REFERENCE_PRICE_PER_TON = float(_P_COPPER.get("reference_price_per_ton", 72000))
 COPPER_DENSITY = float(_P_COPPER["density_g_cm3"])
 
 AUXILIARY_RATE = float(_P_RATES["auxiliary_rate"])

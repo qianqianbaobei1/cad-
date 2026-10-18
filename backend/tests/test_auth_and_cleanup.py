@@ -144,5 +144,36 @@ class TestAuthAndCleanup(unittest.TestCase):
             store.save_settings({"vision_api_key": orig})
 
 
+
+    def test_initial_admin_password_is_never_default_in_production(self):
+        import os
+        from unittest.mock import patch
+        from db import _initial_admin_password
+        with patch.dict(os.environ, {"ENV": "production"}, clear=False):
+            os.environ.pop("ADMIN_INITIAL_PASSWORD", None)
+            generated = _initial_admin_password()
+            self.assertNotEqual(generated, "admin123")
+            self.assertGreaterEqual(len(generated), 16)
+        with patch.dict(os.environ, {"ENV": "development"}, clear=False):
+            os.environ.pop("ADMIN_INITIAL_PASSWORD", None)
+            self.assertEqual(_initial_admin_password(), "admin123")
+        with patch.dict(os.environ, {"ENV": "production", "ADMIN_INITIAL_PASSWORD": "S3cret!"}, clear=False):
+            self.assertEqual(_initial_admin_password(), "S3cret!")
+
+
+
+    def test_login_failure_rate_limit(self):
+        import app as app_module
+        app_module._LOGIN_FAILS.clear()
+        try:
+            for i in range(5):
+                res = self.client.post("/api/auth/login", json={"username": "admin", "password": "wrongpassword"})
+                self.assertEqual(res.status_code, 401, f"第 {i+1} 次应为 401")
+            blocked = self.client.post("/api/auth/login", json={"username": "admin", "password": "wrongpassword"})
+            self.assertEqual(blocked.status_code, 429)
+        finally:
+            app_module._LOGIN_FAILS.clear()
+
+
 if __name__ == "__main__":
     unittest.main()

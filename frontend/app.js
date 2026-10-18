@@ -22,6 +22,7 @@ const fmtTime = (iso) => (iso ? String(iso).replace('T', ' ').slice(0, 16) : '')
 
 // 旧版页面的登录令牌：有效就沿用，保证已登录用户仍能看到自己企业下的图纸
 const TOKEN_KEY = 'dgzh_auth_token';
+let COPPER_REFERENCE = 72000;  // 由 /api/settings 覆盖，避免前端写死
 let TOKEN = '';
 const readToken = () => {
   try { return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || ''; } catch (_) { return ''; }
@@ -719,11 +720,13 @@ function renderJobs() {
     let opsHtml = '';
     if (done) {
       const isExcel = ['xlsx', 'xls', 'csv'].includes((j.file_type || String(j.filename || '').split('.').pop()).toLowerCase());
+      const exportStage = isQuoted(j) ? 'pricing' : 'takeoff';
+      const exportTitle = isQuoted(j) ? '下载组价明细 Excel' : '下载拆量清单 Excel（尚未组价）';
       if (isExcel) {
         opsHtml = `
           <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
             <a class="px-2.5 py-1 rounded bg-tertiary text-on-tertiary font-body-sm text-body-sm hover:opacity-90 transition-opacity shadow-sm" href="#/job/${esc(j.job_id)}/pricing">直接组价</a>
-            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="下载组价明细 Excel" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" data-stage="${exportStage}" title="${exportTitle}" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
             <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务（含识别结果与已导出文件）" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
           </div>`;
       } else {
@@ -731,7 +734,7 @@ function renderJobs() {
           <div class="inline-flex items-center gap-1 justify-end" onclick="event.stopPropagation()">
             <a class="px-2.5 py-1 rounded bg-primary text-on-primary font-body-sm text-body-sm hover:bg-primary-container transition-colors shadow-sm text-white" href="#/job/${esc(j.job_id)}/extract">核对拆量</a>
             <a class="px-2 py-1 rounded border border-outline-variant text-primary font-body-sm text-body-sm hover:bg-surface-container transition-colors" href="#/job/${esc(j.job_id)}/pricing" title="进入组价核算">组价</a>
-            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" title="下载组价明细 Excel" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
+            <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-export="${esc(j.job_id)}" data-stage="${exportStage}" title="${exportTitle}" type="button"><span class="material-symbols-outlined text-[18px]">download</span></button>
             <button class="p-1 rounded text-outline hover:text-on-surface hover:bg-surface-container transition-colors" data-reparse="${esc(j.job_id)}" title="重新识别图纸（覆盖当前识别结果）" type="button"><span class="material-symbols-outlined text-[18px]">replay</span></button>
             <button class="p-1 rounded text-outline hover:text-error hover:bg-error-container transition-colors" data-delete="${esc(j.job_id)}" title="删除任务（含识别结果与已导出文件）" type="button"><span class="material-symbols-outlined text-[18px]">delete_outline</span></button>
           </div>`;
@@ -792,7 +795,8 @@ $('drawings-tbody').addEventListener('click', async (e) => {
   if (expBtn) {
     e.stopPropagation();
     const id = expBtn.dataset.export;
-    window.location.href = withToken(`/api/jobs/${id}/excel`);
+    const stage = expBtn.dataset.stage === 'takeoff' ? 'takeoff' : 'pricing';
+    window.location.href = withToken(`/api/jobs/${id}/excel?stage=${stage}`);
     return;
   }
 
@@ -1272,6 +1276,7 @@ async function loadModelSettingsSummary() {
   try {
     const res = await api('/api/settings');
     currentSettings = res.settings || {};
+    if (res.copper_reference_price) COPPER_REFERENCE = Number(res.copper_reference_price) || COPPER_REFERENCE;
     const configured = !!(res.vision_configured ?? currentSettings.vision_configured);
     const providerKey = res.vision_provider || currentSettings.vision_provider || 'qwen';
     const model = res.vision_model || currentSettings.vision_model || 'qwen-vl-max';
@@ -3088,7 +3093,7 @@ const PricingWorkbench = {
     const brand = this.brand || '正泰';
     const query = new URLSearchParams({
       brand,
-      copper_price: '72000',
+      copper_price: String(COPPER_REFERENCE),
     });
     // 费率只有在用户/后端明确给出时才传，否则让后端用配置默认值
     if (this.rates.aux != null) query.set('aux_rate', String(this.rates.aux));
@@ -3596,7 +3601,7 @@ const PricingWorkbench = {
     // 价格落盘后直接以后端返回的核算结果重绘，屏幕与导出保持同一套计费链
     const payload = {
       brand: this.brand || '正泰',
-      copper_price: 72000,
+      copper_price: COPPER_REFERENCE,
       aux_rate: this.rates.aux,
       mfg_rate: this.rates.mfg,
       tax_rate: this.rates.tax,
@@ -3643,7 +3648,7 @@ const PricingWorkbench = {
 
     const payload = {
       brand: this.brand || '正泰',
-      copper_price: 72000,
+      copper_price: COPPER_REFERENCE,
       aux_rate: this.rates.aux,
       mfg_rate: this.rates.mfg,
       tax_rate: this.rates.tax,
