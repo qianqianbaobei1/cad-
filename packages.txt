@@ -1,3 +1,7 @@
 fonts-noto-cjk
 fonts-wqy-microhei
 fonts-wqy-zenhei
+build-essential
+cargo
+libpcre2-dev
+curl

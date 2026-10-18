@@ -27,6 +27,10 @@ import gradio as gr
 from fastapi.staticfiles import StaticFiles
 from backend.app import app as fastapi_app, tenant_middleware
 from db import init_db, db_recover_interrupted_jobs
+from cad_bootstrap import bootstrap_cad_converters
+
+# 0. 自动引导与探测 CAD 原生转换引擎 (LibreDWG & acadrust)
+bootstrap_cad_converters()
 
 # 1. 初始化数据库与恢复冷启动中断任务
 init_db()

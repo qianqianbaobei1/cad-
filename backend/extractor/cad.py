@@ -58,20 +58,38 @@ def is_cad_path(path: str) -> bool:
 
 def find_dwg2dxf_tool() -> str | None:
     """查找系统中可用的 dwg2dxf 工具路径。"""
-    common_paths = list(DWG2DXF_SEARCH_PATHS)
-    for p in common_paths:
-        if os.path.exists(p) and os.access(p, os.X_OK):
+    configured = os.environ.get("EXTRACTOR_DWG2DXF_BIN")
+    base_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    candidates = [
+        configured,
+        "/tmp/libredwg/bin/dwg2dxf",
+        "/tmp/bin/dwg2dxf",
+        os.path.join(base_root, "bin", "dwg2dxf"),
+        os.path.join(base_root, "backend", "bin", "dwg2dxf"),
+    ] + list(DWG2DXF_SEARCH_PATHS)
+    for p in candidates:
+        if p and os.path.exists(p) and os.access(p, os.X_OK):
             return p
     return shutil.which("dwg2dxf")
 
 
 def find_dwg2svg_tool() -> str | None:
     """查找系统中可用的 dwg2SVG 工具路径。"""
-    common_paths = list(DWG2SVG_SEARCH_PATHS)
-    for p in common_paths:
-        if os.path.exists(p) and os.access(p, os.X_OK):
+    configured = os.environ.get("EXTRACTOR_DWG2SVG_BIN")
+    base_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    candidates = [
+        configured,
+        "/tmp/libredwg/bin/dwg2SVG",
+        "/tmp/libredwg/bin/dwg2svg",
+        "/tmp/bin/dwg2SVG",
+        "/tmp/bin/dwg2svg",
+        os.path.join(base_root, "bin", "dwg2SVG"),
+        os.path.join(base_root, "bin", "dwg2svg"),
+    ] + list(DWG2SVG_SEARCH_PATHS)
+    for p in candidates:
+        if p and os.path.exists(p) and os.access(p, os.X_OK):
             return p
-    return shutil.which("dwg2SVG")
+    return shutil.which("dwg2SVG") or shutil.which("dwg2svg")
 
 
 def sanitize_surrogates(text: str) -> str:

@@ -18,8 +18,17 @@ CONVERT_TIMEOUT_S = int(_pipeline()["cad"]["convert_timeout_s"])
 
 def find_acadrust_tool() -> str | None:
     configured = os.environ.get("EXTRACTOR_ACADRUST_BIN")
-    bundled = Path(__file__).resolve().parents[2] / "integrations/acadrust/target/release/extractor-dwg"
-    for candidate in (configured, str(bundled), shutil.which("extractor-dwg")):
+    repo_root = Path(__file__).resolve().parents[2]
+    bundled = repo_root / "integrations/acadrust/target/release/extractor-dwg"
+    candidates = (
+        configured,
+        str(bundled),
+        str(repo_root / "bin/extractor-dwg"),
+        "/tmp/bin/extractor-dwg",
+        "/tmp/extractor-dwg",
+        shutil.which("extractor-dwg"),
+    )
+    for candidate in candidates:
         if candidate and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
             return candidate
     return None

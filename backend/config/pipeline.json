@@ -92,12 +92,23 @@
       ]
     ],
     "dwg2dxf_search_paths": [
+      "/tmp/libredwg/bin/dwg2dxf",
+      "/tmp/bin/dwg2dxf",
       "/opt/homebrew/bin/dwg2dxf",
       "/usr/local/bin/dwg2dxf",
       "/usr/bin/dwg2dxf"
     ],
     "dwg2svg_search_paths": [
-      "/opt/homebrew/bin/dwg2SVG"
+      "/tmp/libredwg/bin/dwg2SVG",
+      "/tmp/libredwg/bin/dwg2svg",
+      "/tmp/bin/dwg2SVG",
+      "/tmp/bin/dwg2svg",
+      "/opt/homebrew/bin/dwg2SVG",
+      "/opt/homebrew/bin/dwg2svg",
+      "/usr/local/bin/dwg2SVG",
+      "/usr/local/bin/dwg2svg",
+      "/usr/bin/dwg2SVG",
+      "/usr/bin/dwg2svg"
     ],
     "convert_timeout_s": 900,
     "render_fallback_page": [
