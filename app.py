@@ -44,12 +44,15 @@ db_recover_interrupted_jobs()
 
 # 2. 构建 Gradio 原生界面，作为 Hugging Face Spaces 标准入口（95vh 工业级宽屏嵌入）
 custom_css = """
-body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background-color: #0b1120; }
-.gradio-container { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+body, html { margin: 0 !important; padding: 0 !important; height: 100% !important; width: 100% !important; overflow: hidden !important; background: #0b1120 !important; }
+.gradio-container { max-width: 100% !important; width: 100% !important; height: 100% !important; padding: 0 !important; margin: 0 !important; border: none !important; }
+.main { padding: 0 !important; height: 100% !important; width: 100% !important; }
+.contain { padding: 0 !important; height: 100% !important; width: 100% !important; }
+#root { height: 100% !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
 footer { display: none !important; }
 """
 
-with gr.Blocks(title="电柜智核 · 配电箱智能工作台 (CabinetCore AI)") as demo:
+with gr.Blocks(title="电柜智核 · 配电箱智能工作台 (CabinetCore AI)", css=custom_css, fill_width=True, fill_height=True) as demo:
     # 显式绑定 ZeroGPU 探针事件以通过 Hugging Face ZeroGPU 运行环境检查
     with gr.Row(visible=False):
         _dummy_in = gr.Textbox(value="ping", visible=False)
@@ -58,8 +61,8 @@ with gr.Blocks(title="电柜智核 · 配电箱智能工作台 (CabinetCore AI)"
         _dummy_btn.click(fn=zero_gpu_pipeline, inputs=_dummy_in, outputs=_dummy_out)
 
     gr.HTML("""
-    <div style="width: 100%; height: 98vh; margin: 0; padding: 0; display: flex; flex-direction: column;">
-        <iframe src="/workbench/index.html?v=20261018_12" style="width: 100%; height: 100%; border: none; flex-grow: 1;"></iframe>
+    <div style="position: fixed; inset: 0; width: 100vw; height: 100vh; margin: 0; padding: 0; z-index: 9999; overflow: hidden; background: #0b1120;">
+        <iframe src="/workbench/index.html?v=20261018_12" style="width: 100vw; height: 100vh; border: none; margin: 0; padding: 0; display: block;"></iframe>
     </div>
     """)
 
